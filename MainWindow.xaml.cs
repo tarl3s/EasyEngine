@@ -28,7 +28,10 @@ namespace EasyEngine
 
         private readonly Dictionary<GameObjectData, FrameworkElement> _visuals = new();
         private readonly OllamaClient _ollama = new();
+        private readonly CloudClient _cloud = new();
         private string _model = "qwen2.5-coder:1.5b";
+        private bool _useCloud;                                   // true = Groq (nuvem); false = Ollama (local)
+        private string _cloudModel = "llama-3.3-70b-versatile";   // modelo usado quando _useCloud
 
         // tolerant JSON parsing — small models sometimes add // comments or trailing commas
         private static readonly JsonDocumentOptions LenientJson = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
@@ -105,6 +108,8 @@ namespace EasyEngine
             SetTab(true);
             SetAiMode(false);
             UpdateAiTarget();
+            AiSettings.Load();
+            GroqKey.Text = AiSettings.GroqApiKey;
             _ = RefreshOllamaStatusAsync();
         }
 
@@ -1535,20 +1540,46 @@ namespace EasyEngine
         // ============================================================
         private void StrengthCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (CustomModel == null || OllamaStatus == null) return;
+            if (CustomModel == null || OllamaStatus == null || CloudKeyPanel == null) return;
             if (StrengthCombo.SelectedItem is not ComboBoxItem item) return;
             var tag = (string)(item.Tag ?? "");
+
+            _useCloud = tag.StartsWith("cloud:", StringComparison.Ordinal);
             bool custom = string.IsNullOrEmpty(tag);
+
+            CloudKeyPanel.Visibility = _useCloud ? Visibility.Visible : Visibility.Collapsed;
             CustomModel.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
-            _model = custom ? CustomModel.Text.Trim() : tag;
+
+            if (_useCloud) _cloudModel = tag.Substring("cloud:".Length);
+            else _model = custom ? CustomModel.Text.Trim() : tag;
+
             _ = RefreshOllamaStatusAsync();
         }
 
         private void CustomModel_TextChanged(object sender, TextChangedEventArgs e) { _model = CustomModel.Text.Trim(); _ = RefreshOllamaStatusAsync(); }
 
+        private void GroqKey_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            AiSettings.GroqApiKey = GroqKey.Text.Trim();
+            AiSettings.Save();
+            if (_useCloud) _ = RefreshOllamaStatusAsync();
+        }
+
         private async Task RefreshOllamaStatusAsync()
         {
             if (OllamaStatus == null) return;
+
+            if (_useCloud)
+            {
+                bool hasKey = !string.IsNullOrWhiteSpace(AiSettings.GroqApiKey);
+                OllamaDot.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : BrushFrom("#F4C03B", "#F4C03B");
+                OllamaStatus.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : BrushFrom("#F4C03B", "#F4C03B");
+                OllamaStatus.Text = hasKey
+                    ? $"☁ Cloud (Groq) · model \"{_cloudModel}\". Fast and runs off your PC."
+                    : "☁ Cloud (Groq) selected — paste your free API key above to use it.";
+                return;
+            }
+
             if (!await _ollama.IsRunningAsync())
             {
                 OllamaDot.Foreground = BrushFrom("#F4C03B", "#F4C03B");
@@ -1571,40 +1602,50 @@ namespace EasyEngine
             }
         }
 
+        // Modelo mostrado nas bolhas/status; muda conforme local ou nuvem.
+        private string ActiveModelLabel => _useCloud ? $"Groq · {_cloudModel}" : _model;
+
+        // Roteia a geração pro provedor atual (Ollama local ou Groq nuvem). Mesma assinatura dos dois.
+        private Task<string> AiGenerateAsync(string prompt, string system, bool json, double temperature, CancellationToken ct = default)
+            => _useCloud
+                ? _cloud.GenerateAsync(_cloudModel, prompt, system, AiSettings.GroqApiKey, json, temperature, ct)
+                : _ollama.GenerateAsync(_model, prompt, system, json, temperature, ct);
+
         private async void AiSend_Click(object sender, RoutedEventArgs e)
         {
             var prompt = AiInput.Text.Trim();
             if (prompt.Length == 0) return;
-            if (string.IsNullOrWhiteSpace(_model)) { Status("Choose an AI model"); return; }
+            if (_useCloud) { if (string.IsNullOrWhiteSpace(AiSettings.GroqApiKey)) { Status("Paste your free Groq API key first"); return; } }
+            else if (string.IsNullOrWhiteSpace(_model)) { Status("Choose an AI model"); return; }
 
             if (_aiBrainstorm)
             {
                 AddAiMessage("You", prompt, false);
                 AiInput.Clear();
-                var th = AddAiMessage($"AI ({_model})", "thinking…", true);
+                var th = AddAiMessage($"AI ({ActiveModelLabel})", "thinking…", true);
                 AiSend.IsEnabled = false; Status("Brainstorming…");
                 try { var ans = await BrainstormAsync(prompt); AiLog.Children.Remove(th); AddAiMessage("AI", ans.Length > 0 ? ans : "(no response)", true); Status("Ready"); }
-                catch (OllamaException ex) { AiLog.Children.Remove(th); AddAiMessage("AI", "⚠ " + ex.Message, true); Status("Failed"); }
+                catch (AiException ex) { AiLog.Children.Remove(th); AddAiMessage("AI", "⚠ " + ex.Message, true); Status("Failed"); }
                 finally { AiSend.IsEnabled = true; }
                 return;
             }
 
             AddAiMessage("You" + (_selected != null ? " (selected: " + _selected.Name + ")" : ""), prompt, false);
             AiInput.Clear();
-            var thinking = AddAiMessage($"AI ({_model})", "thinking…", true);
+            var thinking = AddAiMessage($"AI ({ActiveModelLabel})", "thinking…", true);
             AiSend.IsEnabled = false;
-            Status($"Asking {_model}…");
+            Status($"Asking {ActiveModelLabel}…");
 
             try
             {
                 var sys = BuildProjectPrompt();
-                var reply = await _ollama.GenerateAsync(_model, prompt, sys, json: true, temperature: 0.1);
+                var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
                 bool ok = ApplyProjectSpec(reply, prompt, out var summary);
 
                 if (!ok)
                 {
                     // one retry with a firmer nudge
-                    var reply2 = await _ollama.GenerateAsync(_model,
+                    var reply2 = await AiGenerateAsync(
                         prompt + "\n\nReturn ONLY the JSON with \"create\"/\"edit\"/\"layers\". Use EXACT behavior kind names from the list. One object can have many behaviors.",
                         sys, json: true, temperature: 0.1);
                     ok = ApplyProjectSpec(reply2, prompt, out summary);
@@ -1634,7 +1675,7 @@ namespace EasyEngine
                     Status("Could not apply AI response");
                 }
             }
-            catch (OllamaException ex)
+            catch (AiException ex)
             {
                 AiLog.Children.Remove(thinking);
                 AddAiMessage("AI", "⚠ " + ex.Message, true);
@@ -2452,7 +2493,7 @@ namespace EasyEngine
             sys.AppendLine("You are only chatting here — do NOT output JSON or try to build anything. When an idea is ready to build, tell them to switch to Build mode and what to ask for.");
             var allObjs = _scene.Layers.SelectMany(l => l.Objects).Select(o => o.Name);
             sys.AppendLine($"Context: project \"{_project.Name}\", scene \"{_scene.Name}\" with objects: {(allObjs.Any() ? string.Join(", ", allObjs) : "(empty)")}.");
-            return await _ollama.GenerateAsync(_model, userPrompt, sys.ToString(), json: false, temperature: 0.7);
+            return await AiGenerateAsync(userPrompt, sys.ToString(), json: false, temperature: 0.7);
         }
 
         private Border AddAiMessage(string who, string text, bool fromAi)

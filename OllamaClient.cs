@@ -128,7 +128,13 @@ namespace EasyEngine
         }
     }
 
-    public class OllamaException : Exception
+    /// <summary>Base pra erros de IA (local ou nuvem), pra o painel tratar os dois igual.</summary>
+    public class AiException : Exception
+    {
+        public AiException(string message) : base(message) { }
+    }
+
+    public class OllamaException : AiException
     {
         public OllamaException(string message) : base(message) { }
     }

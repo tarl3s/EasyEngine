@@ -119,13 +119,21 @@
                         <StackPanel DockPanel.Dock="Top" Margin="12,8,12,8">
                             <TextBlock Text="AI strength" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
                             <ComboBox x:Name="StrengthCombo" SelectionChanged="StrengthCombo_SelectionChanged">
-                                <ComboBoxItem Content="⚡ Light — fastest (1.5b)"        Tag="qwen2.5-coder:1.5b" IsSelected="True"/>
-                                <ComboBoxItem Content="✨ Light+ — smarter, still light (3b)" Tag="qwen2.5-coder:3b"/>
-                                <ComboBoxItem Content="⚖ Medium — balanced (7b)"         Tag="qwen2.5-coder:7b"/>
-                                <ComboBoxItem Content="🔥 Strong — needs GPU/RAM (14b)"   Tag="qwen2.5-coder:14b"/>
-                                <ComboBoxItem Content="🛠 Custom…"                        Tag=""/>
+                                <ComboBoxItem Content="⚡ Local — fastest (1.5b)"        Tag="qwen2.5-coder:1.5b" IsSelected="True"/>
+                                <ComboBoxItem Content="✨ Local+ — smarter, still light (3b)" Tag="qwen2.5-coder:3b"/>
+                                <ComboBoxItem Content="⚖ Local — balanced (7b)"         Tag="qwen2.5-coder:7b"/>
+                                <ComboBoxItem Content="🔥 Local — needs GPU/RAM (14b)"   Tag="qwen2.5-coder:14b"/>
+                                <ComboBoxItem Content="☁ Cloud — Groq, free &amp; smart (70b)" Tag="cloud:llama-3.3-70b-versatile"/>
+                                <ComboBoxItem Content="☁ Cloud — Groq, free &amp; fastest (8b)" Tag="cloud:llama-3.1-8b-instant"/>
+                                <ComboBoxItem Content="🛠 Custom local model…"           Tag=""/>
                             </ComboBox>
                             <TextBox x:Name="CustomModel" Visibility="Collapsed" Margin="0,6,0,0" TextChanged="CustomModel_TextChanged"/>
+                            <StackPanel x:Name="CloudKeyPanel" Visibility="Collapsed" Margin="0,6,0,0">
+                                <TextBlock Text="Groq API key (free — no credit card)" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                                <TextBox x:Name="GroqKey" TextChanged="GroqKey_TextChanged"/>
+                                <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Margin="0,3,0,0"
+                                           Text="Get a free key at console.groq.com/keys — sign in with Google/GitHub, create an API key, paste it here. It's saved on this PC only."/>
+                            </StackPanel>
                             <TextBlock x:Name="OllamaStatus" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Text="Checking Ollama…"/>
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Top" Margin="12,0,12,8">
