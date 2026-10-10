@@ -123,12 +123,22 @@
                                 <ComboBoxItem Content="☁ Cloud — Groq, free &amp; fast (20B)"    Tag="cloud:openai/gpt-oss-20b"/>
                                 <ComboBoxItem Content="⚡ Local — fastest (1.5b)"        Tag="qwen2.5-coder:1.5b"/>
                                 <ComboBoxItem Content="✨ Local+ — smarter, still light (3b)" Tag="qwen2.5-coder:3b"/>
+                                <ComboBoxItem Content="⚖ Local — balanced (7b)"         Tag="qwen2.5-coder:7b"/>
+                                <ComboBoxItem Content="🔥 Local — needs GPU/RAM (14b)"   Tag="qwen2.5-coder:14b"/>
                                 <ComboBoxItem Content="🛠 Custom local model…"           Tag=""/>
                             </ComboBox>
                             <TextBox x:Name="CustomModel" Visibility="Collapsed" Margin="0,6,0,0" TextChanged="CustomModel_TextChanged"/>
                             <StackPanel x:Name="CloudKeyPanel" Visibility="Collapsed" Margin="0,6,0,0">
-                                <TextBlock Text="Groq API key (free — no credit card)" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
-                                <TextBox x:Name="GroqKey" TextChanged="GroqKey_TextChanged"/>
+                                <Grid Margin="0,0,0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Groq API key (free — no credit card)" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Column="1" x:Name="GroqKeyShow" Content="Show" FontSize="11" Foreground="{StaticResource TextDim}" Checked="GroqKeyShow_Changed" Unchecked="GroqKeyShow_Changed"/>
+                                </Grid>
+                                <PasswordBox x:Name="GroqKey" PasswordChanged="GroqKey_PasswordChanged"/>
+                                <TextBox x:Name="GroqKeyPlain" Visibility="Collapsed" TextChanged="GroqKeyPlain_TextChanged"/>
                                 <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Margin="0,3,0,0"
                                            Text="Get a free key at console.groq.com/keys — sign in with Google/GitHub, create an API key, paste it here. It's saved on this PC only."/>
                             </StackPanel>

@@ -109,7 +109,7 @@ namespace EasyEngine
             SetAiMode(false);
             UpdateAiTarget();
             AiSettings.Load();
-            GroqKey.Text = AiSettings.GroqApiKey;
+            _syncingKey = true; GroqKey.Password = AiSettings.GroqApiKey; _syncingKey = false;
             StrengthCombo.SelectedIndex = 0; // default = Cloud (Groq) 120B
             _ = RefreshOllamaStatusAsync();
         }
@@ -1559,11 +1559,41 @@ namespace EasyEngine
 
         private void CustomModel_TextChanged(object sender, TextChangedEventArgs e) { _model = CustomModel.Text.Trim(); _ = RefreshOllamaStatusAsync(); }
 
-        private void GroqKey_TextChanged(object sender, TextChangedEventArgs e)
+        private bool _syncingKey;
+
+        private void GroqKey_PasswordChanged(object sender, RoutedEventArgs e)
         {
-            AiSettings.GroqApiKey = GroqKey.Text.Trim();
+            if (_syncingKey) return;
+            AiSettings.GroqApiKey = GroqKey.Password.Trim();
             AiSettings.Save();
             if (_useCloud) _ = RefreshOllamaStatusAsync();
+        }
+
+        private void GroqKeyPlain_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_syncingKey) return;
+            AiSettings.GroqApiKey = GroqKeyPlain.Text.Trim();
+            AiSettings.Save();
+            if (_useCloud) _ = RefreshOllamaStatusAsync();
+        }
+
+        private void GroqKeyShow_Changed(object sender, RoutedEventArgs e)
+        {
+            if (GroqKey == null || GroqKeyPlain == null) return;
+            _syncingKey = true;
+            if (GroqKeyShow.IsChecked == true)
+            {
+                GroqKeyPlain.Text = AiSettings.GroqApiKey;
+                GroqKeyPlain.Visibility = Visibility.Visible;
+                GroqKey.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                GroqKey.Password = AiSettings.GroqApiKey;
+                GroqKey.Visibility = Visibility.Visible;
+                GroqKeyPlain.Visibility = Visibility.Collapsed;
+            }
+            _syncingKey = false;
         }
 
         private async Task RefreshOllamaStatusAsync()
