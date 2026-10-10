@@ -28,6 +28,7 @@ namespace EasyEngine
             public double Life = -1;
             public double StartX, StartY;
             public int Dir = 1;
+            public double PatrolPause; // smooth patrol: seconds remaining stopped at an end
             public double SpawnTimer;
             public int Spawned;
             public bool SpawnKeyWas;
@@ -255,6 +256,28 @@ namespace EasyEngine
                 Check("Patrol still moves a Platformer enemy (no VX clobber)", Math.Abs(walker.VX) > 1);
             }
             else Check("Walker entity exists", false);
+
+            // ---- VERTICAL PATROL ----
+            var vw = Find("VWalker");
+            if (vw != null)
+            {
+                vw.X = vw.StartX; vw.Y = vw.StartY; vw.Dir = 1; vw.PatrolPause = 0;
+                UpdateBehaviors(0.016);
+                Check("Vertical patrol moves on Y, not X", Math.Abs(vw.VY) > 1 && Math.Abs(vw.VX) < 0.01);
+            }
+            else Check("VWalker entity exists", false);
+
+            // ---- SMOOTH PATROL (pauses at the ends) ----
+            var sm = Find("SmoothWalker");
+            if (sm != null)
+            {
+                sm.Dir = 1; sm.PatrolPause = 0; sm.X = sm.StartX + 155; // just past the far end
+                UpdateBehaviors(0.016);
+                Check("Smooth patrol pauses + turns around at an end", sm.PatrolPause > 0 && sm.Dir == -1 && Math.Abs(sm.VX) < 0.01);
+                UpdateBehaviors(0.016);
+                Check("Smooth patrol stays still while paused", Math.Abs(sm.VX) < 0.01);
+            }
+            else Check("SmoothWalker entity exists", false);
 
             // ---- INTERACT (press key near NPC fires effect) ----
             var npc = Find("NPC1");
@@ -854,10 +877,53 @@ namespace EasyEngine
                         }
                         case BehaviorKind.Patrol:
                         {
-                            double spd = bh.Num("speed", 90), dist = bh.Num("distance", 200);
+                            double spd = bh.Num("speed", 90), dist = Math.Max(1, bh.Num("distance", 200));
                             bool vertical = bh.Num("axis", 0) >= 0.5;
-                            if (vertical) { en.VY = en.Dir * spd; en.VX = 0; if (en.Y > en.StartY + dist) en.Dir = -1; else if (en.Y < en.StartY) en.Dir = 1; }
-                            else { en.VX = en.Dir * spd; if (!IsDynamic(en)) en.VY = 0; if (en.X > en.StartX + dist) en.Dir = -1; else if (en.X < en.StartX) en.Dir = 1; }
+                            bool smooth = bh.Num("smooth", 0) >= 0.5;
+                            double pause = Math.Max(0, bh.Num("pause", 0));
+                            int slowSteps = (int)Math.Round(Math.Max(0, bh.Num("slowSteps", 0)));
+
+                            double pos = vertical ? en.Y : en.X;
+                            double start = vertical ? en.StartY : en.StartX;
+                            double end = start + dist;
+
+                            void SetV(double v) { if (vertical) { en.VY = v; en.VX = 0; } else { en.VX = v; if (!IsDynamic(en)) en.VY = 0; } }
+
+                            // stopped at an end (smooth patrol pause)
+                            if (en.PatrolPause > 0) { en.PatrolPause -= dt; SetV(0); break; }
+
+                            bool atEnd = (en.Dir > 0 && pos >= end) || (en.Dir < 0 && pos <= start);
+
+                            if (!smooth)
+                            {
+                                if (atEnd) en.Dir = -en.Dir;
+                                SetV(en.Dir * spd);
+                                break;
+                            }
+
+                            if (atEnd)
+                            {
+                                double b = en.Dir > 0 ? end : start;
+                                if (vertical) en.Y = b; else en.X = b;
+                                en.Dir = -en.Dir;
+                                if (pause > 0) { en.PatrolPause = pause; SetV(0); }
+                                else SetV(en.Dir * spd * 0.12); // ease away from the end
+                                break;
+                            }
+
+                            double mult = 1.0;
+                            if (slowSteps > 0)
+                            {
+                                double remaining = en.Dir > 0 ? end - pos : pos - start;
+                                double zone = dist * 0.5; // slow over the final half of the path
+                                if (zone > 0 && remaining < zone)
+                                {
+                                    double frac = Math.Max(0, remaining) / zone;              // 1 at zone start → 0 at end
+                                    int level = Math.Max(1, (int)Math.Ceiling(frac * slowSteps));
+                                    mult = Math.Clamp((double)level / slowSteps, 0.12, 1.0);  // discrete steps, never fully 0 before the end
+                                }
+                            }
+                            SetV(en.Dir * spd * mult);
                             break;
                         }
                         case BehaviorKind.Chase:

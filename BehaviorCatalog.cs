@@ -63,8 +63,15 @@ namespace EasyEngine
                 Nums = { new("speed","Speed",420), new("angle","Angle (degrees)",0), new("life","Lifetime (s)",3) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Patrol, Name = "Patrol", Icon = "↔",
-                Desc = "Moves back and forth automatically. Good for enemies.",
-                Nums = { new("speed","Speed",90), new("distance","Distance",200), new("axis","Axis (0=X,1=Y)",0) } },
+                Desc = "Moves back and forth automatically. Good for enemies. Patrols horizontally or vertically, and can ease to a smooth stop at the ends.",
+                Nums = {
+                    new("speed","Speed",90),
+                    new("distance","Distance",200),
+                    new("axis","Patrol vertically (0/1)",0),
+                    new("smooth","Smooth stop at ends (0/1)",0),
+                    new("slowSteps","Slow-down steps near end (0 = none)",0),
+                    new("pause","Pause at each end, seconds (0 = none)",0)
+                } },
 
             new BehaviorInfo { Kind = BehaviorKind.Chase, Name = "Chase", Icon = "🎯",
                 Desc = "Chases another object by name.",

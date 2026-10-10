@@ -268,6 +268,12 @@ public partial class App : Application
             layer.Objects.Add(O(24, "Walker", 2000, 2700, 40, 40, PhysicsMode.Dynamic,
                 B(BehaviorKind.Patrol, new[] { ("speed", 80.0), ("distance", 200.0) }),
                 B(BehaviorKind.Platformer, new[] { ("controls", 0.0) })));
+            // Vertical patrol.
+            layer.Objects.Add(O(25, "VWalker", 2300, 2700, 40, 40, PhysicsMode.None,
+                B(BehaviorKind.Patrol, new[] { ("speed", 80.0), ("distance", 150.0), ("axis", 1.0) })));
+            // Smooth patrol with pause at the ends.
+            layer.Objects.Add(O(26, "SmoothWalker", 2600, 2700, 40, 40, PhysicsMode.None,
+                B(BehaviorKind.Patrol, new[] { ("speed", 80.0), ("distance", 150.0), ("smooth", 1.0), ("slowSteps", 3.0), ("pause", 1.0) })));
 
             var play = new PlayWindow(project, scene.Name); // not shown; headless
             var results = play.RunBehaviorChecks();

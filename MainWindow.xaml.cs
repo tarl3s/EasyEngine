@@ -2184,6 +2184,7 @@ namespace EasyEngine
             sb.AppendLine("- When changing layers, ONLY change the exact layer(s) the user names.");
             sb.AppendLine("- \"when it dies, do X\" (explode, drop item, spawn particles) => a custom rule with \"when\":\"death\".");
             sb.AppendLine("- A MOVING platform = a new object with Solid + Patrol (NOT Platformer). A one-way platform = Solid oneWay=1 (keep physics Static).");
+            sb.AppendLine("- Patrol nums: speed, distance, axis (0=horizontal, 1=vertical), smooth (1=ease to a stop at the ends), slowSteps (how many times it slows near an end; 0=no slowing), pause (seconds stopped at each end; 0=none). E.g. vertical lift that waits: Patrol axis=1, smooth=1, pause=1.5.");
             sb.AppendLine();
             sb.AppendLine("CUSTOM behavior — for ANY special/unique logic the kinds can't do (enemy patterns, dialogue, variables, inventory, conditions). ALWAYS use \"custom\" for things like 'every N do X', timed attacks, phases:");
             sb.AppendLine("CRUCIAL: 'WHEN <something> happens, <effect>' (e.g. 'when the player hits X, go 2x faster', 'when touch spike, lose a life') is ALWAYS a custom rule (condition → action). NEVER express it by changing a static param — a static param would apply from the start, not on the event.");
