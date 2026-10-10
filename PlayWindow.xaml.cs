@@ -246,6 +246,16 @@ namespace EasyEngine
             }
             else Check("Area entity exists", false);
 
+            // ---- PATROL + PLATFORMER coexist (patrol must still move the enemy) ----
+            var walker = Find("Walker");
+            if (walker != null)
+            {
+                walker.X = walker.StartX; walker.Dir = 1;
+                UpdateBehaviors(0.016);
+                Check("Patrol still moves a Platformer enemy (no VX clobber)", Math.Abs(walker.VX) > 1);
+            }
+            else Check("Walker entity exists", false);
+
             // ---- INTERACT (press key near NPC fires effect) ----
             var npc = Find("NPC1");
             if (npc != null && player != null)
@@ -847,7 +857,7 @@ namespace EasyEngine
                             double spd = bh.Num("speed", 90), dist = bh.Num("distance", 200);
                             bool vertical = bh.Num("axis", 0) >= 0.5;
                             if (vertical) { en.VY = en.Dir * spd; en.VX = 0; if (en.Y > en.StartY + dist) en.Dir = -1; else if (en.Y < en.StartY) en.Dir = 1; }
-                            else { en.VX = en.Dir * spd; en.VY = 0; if (en.X > en.StartX + dist) en.Dir = -1; else if (en.X < en.StartX) en.Dir = 1; }
+                            else { en.VX = en.Dir * spd; if (!IsDynamic(en)) en.VY = 0; if (en.X > en.StartX + dist) en.Dir = -1; else if (en.X < en.StartX) en.Dir = 1; }
                             break;
                         }
                         case BehaviorKind.Chase:
@@ -1801,7 +1811,10 @@ namespace EasyEngine
                 return;
             }
 
-            en.VX = h * speed;
+            // If another behavior drives horizontal movement (patrol/chase) and there's no
+            // player input, don't clobber its velocity — lets Patrol+Platformer coexist.
+            bool otherDrivesX = en.Has(BehaviorKind.Patrol) || en.Has(BehaviorKind.Chase) || en.Has(BehaviorKind.PathChase);
+            if (h != 0 || !otherDrivesX) en.VX = h * speed;
 
             int wall = 0;
             if (wallJump && !en.Grounded)

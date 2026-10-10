@@ -264,6 +264,11 @@ public partial class App : Application
             layer.Objects.Add(O(22, "MenuBtn", 1300, 2500, 120, 40, PhysicsMode.None, B(BehaviorKind.UIButton, new[] { ("to", 1.0) }, new[] { ("action", "setvar"), ("var", "clicked") })));
             layer.Objects.Add(O(23, "HealthBar", 1500, 2500, 100, 16, PhysicsMode.None, B(BehaviorKind.Bar, new[] { ("max", 4.0) }, new[] { ("var", "hp") })));
 
+            // Patrol + Platformer on the same enemy (controls off, like the non-player safeguard): patrol must still drive it.
+            layer.Objects.Add(O(24, "Walker", 2000, 2700, 40, 40, PhysicsMode.Dynamic,
+                B(BehaviorKind.Patrol, new[] { ("speed", 80.0), ("distance", 200.0) }),
+                B(BehaviorKind.Platformer, new[] { ("controls", 0.0) })));
+
             var play = new PlayWindow(project, scene.Name); // not shown; headless
             var results = play.RunBehaviorChecks();
             int pass = results.Count(r => r.StartsWith("PASS")), fail = results.Count - pass;
