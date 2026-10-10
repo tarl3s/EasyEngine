@@ -1742,7 +1742,8 @@ namespace EasyEngine
             if (!string.IsNullOrEmpty(target) && _project.FindScene(target) != null) _pendingScene = target;
         }
 
-        private bool IsDynamic(Entity en) => en.Data.Physics.Mode == PhysicsMode.Dynamic && !en.Has(BehaviorKind.TopDown);
+        // Platformer always gets gravity/collision physics (falls & jumps) even with controls off — e.g. a Patrol+Platformer enemy.
+        private bool IsDynamic(Entity en) => (en.Data.Physics.Mode == PhysicsMode.Dynamic || en.Has(BehaviorKind.Platformer)) && !en.Has(BehaviorKind.TopDown);
 
         private void UpdatePhysics(double dt)
         {

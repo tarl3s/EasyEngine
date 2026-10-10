@@ -69,8 +69,8 @@ namespace EasyEngine
                     new("distance","Distance",200),
                     new("axis","Patrol vertically (0/1)",0),
                     new("smooth","Smooth stop at ends (0/1)",0),
-                    new("slowSteps","Slow-down steps near end (0 = none)",0),
-                    new("pause","Pause at each end, seconds (0 = none)",0)
+                    new("slowSteps","Slow-down steps (0=none)",0),
+                    new("pause","Pause at ends, sec (0=none)",0)
                 } },
 
             new BehaviorInfo { Kind = BehaviorKind.Chase, Name = "Chase", Icon = "🎯",

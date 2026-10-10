@@ -1667,9 +1667,9 @@ namespace EasyEngine
         private Grid RowGrid(string label, Panel? target = null)
         {
             var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(124) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            var lbl = new TextBlock { Text = label, Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+            var lbl = new TextBlock { Text = label, Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 6, 0), ToolTip = label };
             Grid.SetColumn(lbl, 0); grid.Children.Add(lbl);
             (target ?? InspectorRoot).Children.Add(grid);
             return grid;
