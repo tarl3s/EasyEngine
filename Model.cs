@@ -1,0 +1,229 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
+
+namespace EasyEngine
+{
+    // ======================= ENUMS =======================
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum LayerKind { Background, Base, UI, Custom }
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum PhysicsMode { None, Static, Dynamic }
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum BehaviorKind
+    {
+        Solid,            // chão / plataforma (colisor estático)
+        Platformer,       // personagem de plataforma (gravidade + pulo)
+        TopDown,          // movimento top-down (4/8 direções)
+        FollowCamera,     // câmera segue este objeto
+        Projectile,       // move numa direção a uma velocidade
+        Patrol,           // vai e volta entre dois pontos
+        Chase,            // persegue um alvo
+        Spin,             // gira sozinho (decorativo)
+        Spawner,          // cria cópias de um objeto ao longo do tempo
+        SoundEmitter,     // toca um som
+        LightSource,      // emite luz 2D
+        Parallax,         // fundo que desliza com a câmera
+        DestroyOffscreen, // disappears when leaving the screen
+        Collectible,      // collectible (disappears when the player touches it)
+        GoToScene,        // switches to another scene (door / menu button)
+        Shooter,          // fires projectiles when a key is pressed
+        Custom,           // AI-authored behavior as a tiny rule script (when → do)
+        Label,            // shows text (supports {variable} substitution) — great for HUD/score
+        Health,           // has hit points; respawns at checkpoint on death
+        Damager,          // hurts a target on touch (enemies, spikes, hazards)
+        Checkpoint,       // sets the player's respawn point when touched
+        Melee,            // press a key to swing a melee hitbox in front (hurts enemies)
+        Tilemap,          // a grid of tiles painted in the editor (ground/level geometry)
+        Pushable,         // a solid block the player can push around (puzzles/sokoban)
+        Switch,           // click/touch/interact to toggle a variable on/off (puzzles, levers)
+        Gate,             // solid barrier that opens when a variable/item condition is met (metroidvania gate / locked door)
+        Interact,         // press a key near it to fire an effect (talk to NPC, read sign, pull lever)
+        AbilityPickup,    // on pickup, grants an ability flag (variable=1) and disappears (metroidvania)
+        Area,             // a trigger zone: fires an effect when a target enters it
+        Generator,        // procedurally spawns prefabs in a region (once = stable map, regen = recreates each visit)
+        PathChase,        // chases a target while navigating around walls (grid pathfinding)
+        Spring,           // bounce pad: launches whatever lands on it
+        Minimap,          // HUD minimap showing the scene + markers
+        Particles,        // particle emitter (explosions, sparkles, trails)
+        UIButton,         // clickable UI button that runs an effect
+        Bar               // HUD bar that fills based on a variable (health/progress)
+    }
+
+    // ======================= DADOS =======================
+    public class BehaviorData
+    {
+        public BehaviorKind Kind { get; set; }
+        public Dictionary<string, double> Nums { get; set; } = new();
+        public Dictionary<string, string> Texts { get; set; } = new();
+
+        public double Num(string k, double def = 0) => Nums.TryGetValue(k, out var v) ? v : def;
+        public string Text(string k, string def = "") => Texts.TryGetValue(k, out var v) ? v : def;
+    }
+
+    public class PhysicsData
+    {
+        public PhysicsMode Mode { get; set; } = PhysicsMode.None;
+        public double GravityScale { get; set; } = 1.0;
+        public double Bounciness { get; set; } = 0.0;
+    }
+
+    /// <summary>A named animation: an ordered set of frames (relative image paths).</summary>
+    public class SpriteAnimation
+    {
+        public string Name { get; set; } = "idle";
+        public List<string> Frames { get; set; } = new();
+        public double Fps { get; set; } = 10;
+        public bool Loop { get; set; } = true;
+    }
+
+    public class GameObjectData
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "Object";
+        public string Type { get; set; } = "Object"; // cosmetic (Player/Enemy/...)
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Width { get; set; } = 64;
+        public double Height { get; set; } = 64;
+        public double Rotation { get; set; } = 0;
+        public string Color { get; set; } = "#9A9AA0";
+        public string? SpritePath { get; set; }   // optional single static image (relative path)
+        public bool TileImage { get; set; } = false; // true = repeat the image, false = stretch it
+        // --- appearance / aesthetics (per object) ---
+        public double Opacity { get; set; } = 1.0;       // 0 = invisible, 1 = solid
+        public string? BorderColor { get; set; }          // outline color (null = none)
+        public double BorderWidth { get; set; } = 0;      // outline thickness in px
+        public double CornerRadius { get; set; } = -1;    // -1 = auto (default rounding); >=0 = explicit
+        public string? FontFamily { get; set; }           // for Label text (null = theme default)
+        public bool Bold { get; set; } = false;           // bold Label text
+        public List<SpriteAnimation> Animations { get; set; } = new();
+        public string? DefaultAnimation { get; set; }
+        public PhysicsData Physics { get; set; } = new();
+        public List<BehaviorData> Behaviors { get; set; } = new();
+        public Dictionary<string, double> Variables { get; set; } = new(); // per-object (each copy gets its own)
+        public string Group { get; set; } = ""; // organization tag (groups objects in the scene list)
+
+        public SpriteAnimation? ResolveDefaultAnimation()
+        {
+            if (Animations.Count == 0) return null;
+            return Animations.Find(a => a.Name == DefaultAnimation) ?? Animations[0];
+        }
+    }
+
+    public class Layer
+    {
+        public string Name { get; set; } = "Layer";
+        public LayerKind Kind { get; set; } = LayerKind.Base;
+        public bool Visible { get; set; } = true;
+        public bool ScreenSpace { get; set; } = false; // fixed to the screen (ignores camera) — for UI/HUD
+        public List<GameObjectData> Objects { get; set; } = new();
+    }
+
+    public class Scene
+    {
+        public string Name { get; set; } = "Scene 1";
+        public double Width { get; set; } = 960;
+        public double Height { get; set; } = 540;
+        public string BackgroundColor { get; set; } = "#1A1A20";
+        public double AmbientLight { get; set; } = 1.0; // 1 = no darkness, 0 = fully dark
+        public Dictionary<string, double> Variables { get; set; } = new(); // scene-local (reset when the scene loads)
+        public List<Layer> Layers { get; set; } = new();
+    }
+
+    /// <summary>A reusable object template shown in the palette (Player, Enemy, …).</summary>
+    public class PrefabDef
+    {
+        public string Name { get; set; } = "Object";
+        public string Icon { get; set; } = "▢";
+        public string Category { get; set; } = "General"; // palette grouping for larger projects
+        public GameObjectData Template { get; set; } = new();
+    }
+
+    /// <summary>Default prefab library that ships with every new project.</summary>
+    public static class PrefabFactory
+    {
+        public static List<PrefabDef> Defaults()
+        {
+            PrefabDef P(string name, string icon, string category, Action<GameObjectData> cfg)
+            {
+                var t = new GameObjectData { Type = name, Name = name };
+                cfg(t);
+                return new PrefabDef { Name = name, Icon = icon, Category = category, Template = t };
+            }
+            return new List<PrefabDef>
+            {
+                P("Player", "🎮", "Characters", t => { t.Color = "#3BC97A"; t.Width = 48; t.Height = 64; t.Physics = new PhysicsData { Mode = PhysicsMode.Dynamic };
+                    t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Platformer).CreateData());
+                    t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.FollowCamera).CreateData());
+                    t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Health).CreateData());
+                    t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Melee).CreateData()); }),
+                P("Enemy", "👾", "Characters", t => { t.Color = "#E5484B"; t.Width = 52; t.Height = 52;
+                    t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Patrol).CreateData());
+                    t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Damager).CreateData());
+                    var hp = BehaviorCatalog.Info(BehaviorKind.Health).CreateData(); hp.Nums["respawn"] = 0; hp.Nums["max"] = 2; t.Behaviors.Add(hp); }),
+                P("Bullet", "•", "Combat", t => { t.Color = "#F4C03B"; t.Width = 18; t.Height = 18; t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Projectile).CreateData()); }),
+                P("Particle", "✦", "FX", t => { t.Color = "#4DC8E5"; t.Width = 16; t.Height = 16; t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Spin).CreateData()); }),
+                P("Platform", "⬛", "Terrain", t => { t.Color = "#3A3A46"; t.Width = 220; t.Height = 32; t.Physics = new PhysicsData { Mode = PhysicsMode.Static }; t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Solid).CreateData()); }),
+                P("Door", "🚪", "Terrain", t => { t.Color = "#8B6FD6"; t.Width = 48; t.Height = 72; t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.GoToScene).CreateData()); }),
+                P("Tilemap", "▦", "Terrain", t => { t.Color = "#9A9AA0"; t.Width = 32; t.Height = 32; t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Tilemap).CreateData()); }),
+            };
+        }
+    }
+
+    /// <summary>In-game look &amp; feel: fonts and the dialogue box styling (what the player sees, not the editor).</summary>
+    public class GameTheme
+    {
+        public string FontFamily { get; set; } = "Segoe UI";   // default font for all in-game text
+        public string DialogBg { get; set; } = "#111418";      // dialogue box background
+        public string DialogBorder { get; set; } = "#3A3A46";  // dialogue box border
+        public string DialogText { get; set; } = "#FFFFFF";    // dialogue text color
+        public string DialogSpeaker { get; set; } = "#F4C03B"; // speaker name color
+        public double DialogFontSize { get; set; } = 18;
+        public double DialogCorner { get; set; } = 8;          // dialogue box corner radius
+        public string DialogEffect { get; set; } = "typewriter"; // none | typewriter
+        public double DialogSpeed { get; set; } = 45;          // typewriter speed (chars/sec)
+    }
+
+    public class Project
+    {
+        public string Name { get; set; } = "New Project";
+        public string AiModel { get; set; } = "qwen2.5-coder:1.5b";
+        public List<Scene> Scenes { get; set; } = new();
+        public List<PrefabDef> Prefabs { get; set; } = new();
+        public Dictionary<string, double> Variables { get; set; } = new(); // global (shared across the whole game)
+        public GameTheme Theme { get; set; } = new();          // in-game look & feel
+        public string? StartScene { get; set; } // scene the game starts on
+
+        [JsonIgnore] public string? FilePath { get; set; } // .eeproj path on disk
+        [JsonIgnore] public string? FolderPath { get; set; }
+
+        private int _nextId = 1;
+        [JsonIgnore]
+        public int NextId
+        {
+            get
+            {
+                // guarantees a unique id even after loading
+                foreach (var s in Scenes)
+                    foreach (var l in s.Layers)
+                        foreach (var o in l.Objects)
+                            if (o.Id >= _nextId) _nextId = o.Id + 1;
+                return _nextId++;
+            }
+        }
+
+        public Scene GetStartScene() => Scenes.FirstOrDefault(s => s.Name == StartScene) ?? Scenes[0];
+        public Scene? FindScene(string name) => Scenes.FirstOrDefault(s => s.Name == name);
+    }
+
+    public class RecentProject
+    {
+        public string Name { get; set; } = "";
+        public string Path { get; set; } = "";
+        public string LastOpened { get; set; } = "";
+    }
+}

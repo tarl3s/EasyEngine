@@ -1,0 +1,217 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+
+namespace EasyEngine
+{
+    /// <summary>Salvar/abrir projetos, lista de recentes e importação de assets.</summary>
+    public static class ProjectIO
+    {
+        public const string Extension = ".eeproj";
+
+        private static readonly JsonSerializerOptions JsonOpts = new()
+        {
+            WriteIndented = true
+        };
+
+        private static string AppDataDir
+        {
+            get
+            {
+                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EasyEngine");
+                Directory.CreateDirectory(dir);
+                return dir;
+            }
+        }
+
+        private static string RecentFile => Path.Combine(AppDataDir, "recent.json");
+
+        // ---------------- salvar / abrir ----------------
+        public static void Save(Project p)
+        {
+            if (string.IsNullOrEmpty(p.FilePath))
+                throw new InvalidOperationException("Project has no file path.");
+            var json = JsonSerializer.Serialize(p, JsonOpts);
+            File.WriteAllText(p.FilePath, json);
+            AddRecent(p);
+        }
+
+        public static Project Load(string path)
+        {
+            var json = File.ReadAllText(path);
+            var p = JsonSerializer.Deserialize<Project>(json) ?? throw new InvalidDataException("Invalid project file.");
+            p.FilePath = path;
+            p.FolderPath = Path.GetDirectoryName(path);
+
+            // migration / safety: ensure at least one scene
+            if (p.Scenes == null || p.Scenes.Count == 0)
+            {
+                var scene = BuildStarterScene();
+                p.Scenes = new List<Scene> { scene };
+                p.StartScene = scene.Name;
+            }
+            if (string.IsNullOrEmpty(p.StartScene)) p.StartScene = p.Scenes[0].Name;
+            if (p.Prefabs == null || p.Prefabs.Count == 0) p.Prefabs = PrefabFactory.Defaults();
+
+            AddRecent(p);
+            return p;
+        }
+
+        // ---------------- novo projeto ----------------
+        public static Project CreateNew(string name, string parentFolder)
+        {
+            var folder = Path.Combine(parentFolder, Sanitize(name));
+            Directory.CreateDirectory(folder);
+            Directory.CreateDirectory(Path.Combine(folder, "Assets", "sprites"));
+            Directory.CreateDirectory(Path.Combine(folder, "Assets", "sounds"));
+
+            var p = new Project { Name = name };
+            p.FolderPath = folder;
+            p.FilePath = Path.Combine(folder, Sanitize(name) + Extension);
+            p.Prefabs = PrefabFactory.Defaults();
+            var scene = BuildStarterScene();
+            p.Scenes.Add(scene);
+            p.StartScene = scene.Name;
+
+            Save(p);
+            return p;
+        }
+
+        // Starter scene, already playable: default layers + ground + platformer player.
+        private static Scene BuildStarterScene()
+        {
+            var scene = new Scene();
+
+            var background = new Layer { Name = "Background", Kind = LayerKind.Background };
+            var baseLayer = new Layer { Name = "Base", Kind = LayerKind.Base };
+            var ui = new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true };
+
+            // ground
+            baseLayer.Objects.Add(new GameObjectData
+            {
+                Id = 1, Name = "Ground", Type = "Object",
+                X = 0, Y = 460, Width = 960, Height = 80, Color = "#3A3A46",
+                Physics = new PhysicsData { Mode = PhysicsMode.Static },
+                Behaviors = { new BehaviorData { Kind = BehaviorKind.Solid } }
+            });
+
+            // player
+            baseLayer.Objects.Add(new GameObjectData
+            {
+                Id = 2, Name = "Player", Type = "Player",
+                X = 120, Y = 360, Width = 48, Height = 64, Color = "#3BC97A",
+                Physics = new PhysicsData { Mode = PhysicsMode.Dynamic, GravityScale = 1 },
+                Behaviors =
+                {
+                    new BehaviorData { Kind = BehaviorKind.Platformer,
+                        Nums = { ["speed"] = 260, ["jump"] = 620 } },
+                    new BehaviorData { Kind = BehaviorKind.FollowCamera }
+                }
+            });
+
+            scene.Layers.Add(background);
+            scene.Layers.Add(baseLayer);
+            scene.Layers.Add(ui);
+            return scene;
+        }
+
+        // ---------------- assets ----------------
+        /// <summary>Copia um arquivo pra dentro do projeto e devolve o caminho RELATIVO.</summary>
+        public static string ImportAsset(Project p, string sourceFile, string kind /* "sprites" | "sounds" */)
+        {
+            if (string.IsNullOrEmpty(p.FolderPath))
+                throw new InvalidOperationException("Project has no folder.");
+            var destDir = Path.Combine(p.FolderPath, "Assets", kind);
+            Directory.CreateDirectory(destDir);
+            var fileName = Path.GetFileName(sourceFile);
+            var dest = Path.Combine(destDir, fileName);
+
+            // evita sobrescrever: acrescenta sufixo se já existe com conteúdo diferente
+            if (File.Exists(dest) && !FilesEqual(sourceFile, dest))
+            {
+                var stem = Path.GetFileNameWithoutExtension(fileName);
+                var ext = Path.GetExtension(fileName);
+                int i = 1;
+                do { dest = Path.Combine(destDir, $"{stem}_{i++}{ext}"); } while (File.Exists(dest));
+            }
+
+            if (!File.Exists(dest)) File.Copy(sourceFile, dest, overwrite: false);
+            return Path.Combine("Assets", kind, Path.GetFileName(dest));
+        }
+
+        public static string? AbsoluteAsset(Project p, string? relative)
+        {
+            if (string.IsNullOrEmpty(relative) || string.IsNullOrEmpty(p.FolderPath)) return null;
+            var abs = Path.Combine(p.FolderPath, relative);
+            return File.Exists(abs) ? abs : null;
+        }
+
+        /// <summary>Absolute path of the image shown for this object (default animation's first frame, else static sprite).</summary>
+        public static string? DisplayImageAbs(Project p, GameObjectData o)
+        {
+            var anim = o.ResolveDefaultAnimation();
+            if (anim != null && anim.Frames.Count > 0)
+                return AbsoluteAsset(p, anim.Frames[0]);
+            return AbsoluteAsset(p, o.SpritePath);
+        }
+
+        // ---------------- delete ----------------
+        /// <summary>Removes a project from the recent list (does NOT touch files).</summary>
+        public static void RemoveRecent(string filePath)
+        {
+            var list = GetRecent();
+            list.RemoveAll(r => string.Equals(r.Path, filePath, StringComparison.OrdinalIgnoreCase));
+            try { File.WriteAllText(RecentFile, JsonSerializer.Serialize(list, JsonOpts)); } catch { }
+        }
+
+        /// <summary>Deletes the entire project folder from disk and removes it from recents.</summary>
+        public static void DeleteProjectFiles(string filePath)
+        {
+            RemoveRecent(filePath);
+            var folder = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
+
+        private static bool FilesEqual(string a, string b)
+        {
+            var fa = new FileInfo(a); var fb = new FileInfo(b);
+            return fa.Length == fb.Length;
+        }
+
+        // ---------------- recentes ----------------
+        public static List<RecentProject> GetRecent()
+        {
+            try
+            {
+                if (!File.Exists(RecentFile)) return new();
+                var list = JsonSerializer.Deserialize<List<RecentProject>>(File.ReadAllText(RecentFile)) ?? new();
+                return list.Where(r => File.Exists(r.Path)).ToList();
+            }
+            catch { return new(); }
+        }
+
+        public static void AddRecent(Project p)
+        {
+            if (string.IsNullOrEmpty(p.FilePath)) return;
+            var list = GetRecent();
+            list.RemoveAll(r => string.Equals(r.Path, p.FilePath, StringComparison.OrdinalIgnoreCase));
+            list.Insert(0, new RecentProject
+            {
+                Name = p.Name,
+                Path = p.FilePath,
+                LastOpened = DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+            });
+            if (list.Count > 12) list = list.Take(12).ToList();
+            try { File.WriteAllText(RecentFile, JsonSerializer.Serialize(list, JsonOpts)); } catch { }
+        }
+
+        private static string Sanitize(string name)
+        {
+            foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+            return string.IsNullOrWhiteSpace(name) ? "Projeto" : name.Trim();
+        }
+    }
+}

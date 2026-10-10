@@ -1,0 +1,197 @@
+<Window x:Class="EasyEngine.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:EasyEngine"
+        mc:Ignorable="d"
+        Title="EasyEngine" Height="760" Width="1280"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Bg0}" FontFamily="Segoe UI">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="46"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="5"/>
+            <RowDefinition Height="190"/>
+            <RowDefinition Height="24"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===== TOOLBAR ===== -->
+        <Border Grid.Row="0" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <TextBlock Text="⬡" Foreground="{StaticResource Accent}" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="ProjectNameText" Text="EasyEngine" Foreground="{StaticResource Text}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" Margin="8,0,14,0"/>
+                    <Button Content="New"   Style="{StaticResource GhostButton}" Height="32" Click="New_Click"/>
+                    <Button Content="Open"  Style="{StaticResource GhostButton}" Height="32" Click="Open_Click"/>
+                    <Button Content="Save"  Style="{StaticResource GhostButton}" Height="32" Click="Save_Click"/>
+                    <Button Content="Variables" Style="{StaticResource GhostButton}" Height="32" Click="Variables_Click"/>
+
+                    <Border Width="1" Background="{StaticResource Border}" Margin="10,8" />
+                    <TextBlock Text="Scene" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <ComboBox x:Name="SceneCombo" Width="140" Height="28" VerticalAlignment="Center" SelectionChanged="SceneCombo_SelectionChanged"/>
+                    <Button Content="Add Scene"    Style="{StaticResource GhostButton}" Height="28" FontSize="12" Click="AddScene_Click"/>
+                    <Button Content="Rename"       Style="{StaticResource GhostButton}" Height="28" FontSize="12" Click="RenameScene_Click"/>
+                    <Button Content="Delete"       Style="{StaticResource GhostButton}" Height="28" FontSize="12" Foreground="{StaticResource Danger}" Click="DeleteScene_Click"/>
+                    <Button Content="Set as Start" Style="{StaticResource GhostButton}" Height="28" FontSize="12" Click="SetStartScene_Click"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,12,0">
+                    <TextBlock x:Name="OllamaDot" Text="●" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12"/>
+                    <Button Content="Export" Style="{StaticResource GhostButton}" Height="32" Click="Export_Click"/>
+                    <Button x:Name="PlayButton" Content="▶  Test" Style="{StaticResource AccentButton}" Width="104" Margin="8,0,0,0" Click="Test_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ===== MAIN AREA ===== -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="190"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="340"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: prefab palette -->
+            <Border Grid.Column="0" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="PREFABS" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel DockPanel.Dock="Bottom" Margin="12,6,12,12">
+                        <Button Content="＋ Empty Object" Style="{StaticResource CardButton}" Margin="0,0,0,6" HorizontalContentAlignment="Center" Click="AddEmpty_Click"/>
+                        <Button Content="Save selection as prefab" Style="{StaticResource GhostButton}" Height="28" FontSize="11" Click="SavePrefab_Click"/>
+                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Click to add to the selected layer" Foreground="{StaticResource TextDim}" FontSize="11" Margin="12,0,12,6" TextWrapping="Wrap"/>
+                    <TextBox x:Name="PrefabSearch" DockPanel.Dock="Top" Margin="12,0,12,8" Padding="4,3" Tag="Search prefabs…" TextChanged="PrefabSearch_TextChanged"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="PaletteList" Margin="12,0,12,8"/>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
+
+            <!-- CENTER: scene -->
+            <Border Grid.Column="2" Background="#111115">
+                <Grid>
+                    <ScrollViewer x:Name="SceneScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                  Background="Transparent" PreviewMouseWheel="SceneScroll_PreviewMouseWheel">
+                        <Border x:Name="SceneFrame" Width="960" Height="540"
+                                Background="#1A1A20" BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Border.LayoutTransform>
+                                <ScaleTransform x:Name="SceneScale" ScaleX="1" ScaleY="1"/>
+                            </Border.LayoutTransform>
+                            <Canvas x:Name="SceneCanvas" ClipToBounds="True" Background="Transparent" MouseLeftButtonDown="Canvas_MouseDown"/>
+                        </Border>
+                    </ScrollViewer>
+                    <TextBlock Text="SCENE" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" IsHitTestVisible="False"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12">
+                        <TextBlock x:Name="ZoomLabel" Text="100%" Foreground="{StaticResource TextDim}" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="36" TextAlignment="Right"/>
+                        <Button Content="－" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" ToolTip="Zoom out (Ctrl + roda / Ctrl -)" Click="ZoomOut_Click"/>
+                        <Button Content="＋" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" Margin="4,0,0,0" ToolTip="Zoom in (Ctrl + roda / Ctrl +)" Click="ZoomIn_Click"/>
+                        <Button Content="Fit" Style="{StaticResource GhostButton}" Width="42" Height="26" FontSize="11" Margin="4,0,0,0" ToolTip="Fit scene (Ctrl 0)" Click="ZoomFit_Click"/>
+                        <Button x:Name="GridToggle" Content="Grid: off" Style="{StaticResource GhostButton}" Height="26" FontSize="11" Margin="8,0,0,0" Click="GridToggle_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
+
+            <!-- RIGHT: Inspector / AI -->
+            <Border Grid.Column="4" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="1,0,0,0">
+                <DockPanel>
+                    <Grid DockPanel.Dock="Top" Height="38" Margin="8,8,8,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="TabInspector" Grid.Column="0" Content="Inspector" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Margin="0,0,4,0" Click="TabInspector_Click"/>
+                        <Button x:Name="TabAi" Grid.Column="1" Content="AI" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Margin="4,0,0,0" Click="TabAi_Click"/>
+                    </Grid>
+
+                    <ScrollViewer x:Name="InspectorScroll" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                        <StackPanel x:Name="InspectorRoot" Margin="12,0,12,12"/>
+                    </ScrollViewer>
+
+                    <DockPanel x:Name="AiPanel" Visibility="Collapsed">
+                        <StackPanel DockPanel.Dock="Top" Margin="12,8,12,8">
+                            <TextBlock Text="AI strength" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="StrengthCombo" SelectionChanged="StrengthCombo_SelectionChanged">
+                                <ComboBoxItem Content="⚡ Light — fastest (1.5b)"        Tag="qwen2.5-coder:1.5b" IsSelected="True"/>
+                                <ComboBoxItem Content="✨ Light+ — smarter, still light (3b)" Tag="qwen2.5-coder:3b"/>
+                                <ComboBoxItem Content="⚖ Medium — balanced (7b)"         Tag="qwen2.5-coder:7b"/>
+                                <ComboBoxItem Content="🔥 Strong — needs GPU/RAM (14b)"   Tag="qwen2.5-coder:14b"/>
+                                <ComboBoxItem Content="🛠 Custom…"                        Tag=""/>
+                            </ComboBox>
+                            <TextBox x:Name="CustomModel" Visibility="Collapsed" Margin="0,6,0,0" TextChanged="CustomModel_TextChanged"/>
+                            <TextBlock x:Name="OllamaStatus" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Text="Checking Ollama…"/>
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Top" Margin="12,0,12,8">
+                            <Grid Height="34">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="AiModeBuild" Grid.Column="0" Content="🔨 Build" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Margin="0,0,4,0" Click="AiBuild_Click"/>
+                                <Button x:Name="AiModeBrainstorm" Grid.Column="1" Content="💡 Brainstorm" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Margin="4,0,0,0" Click="AiBrainstorm_Click"/>
+                            </Grid>
+                            <TextBlock x:Name="AiHint" Margin="2,6,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Text="Describe what to build."/>
+                            <Border Margin="0,6,0,0" Background="{StaticResource Bg2}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="5" Padding="8,5">
+                                <TextBlock x:Name="AiTarget" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Text="Target: auto-detect."/>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="12,8,12,12">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <Button x:Name="AiAddImages" Content="📎 Add files (images / audio)" Style="{StaticResource CardButton}" Height="28" Padding="10,0" HorizontalContentAlignment="Center" Click="AddImages_Click"/>
+                            </StackPanel>
+                            <WrapPanel x:Name="AiImages" Margin="0,0,0,6"/>
+                            <TextBox x:Name="AiInput" Height="70" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+                            <Button x:Name="AiSend" Content="Build it" Style="{StaticResource AccentButton}" Margin="0,8,0,0" Click="AiSend_Click"/>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12,0,12,0">
+                            <StackPanel x:Name="AiLog"/>
+                        </ScrollViewer>
+                    </DockPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
+
+        <!-- ===== BOTTOM: layers + objects ===== -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="1"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0">
+                <DockPanel>
+                    <Grid DockPanel.Dock="Top">
+                        <TextBlock Text="SCENE LAYERS" Style="{StaticResource SectionHeader}"/>
+                        <Button Content="＋" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" Width="30" Height="24" Margin="0,8,8,0" ToolTip="Add layer" Click="AddLayer_Click"/>
+                    </Grid>
+                    <ListBox x:Name="LayersList" Background="Transparent" BorderThickness="0" Margin="6,0,6,6" SelectionChanged="LayersList_SelectionChanged"/>
+                </DockPanel>
+            </Border>
+
+            <Border Grid.Column="1" Background="{StaticResource Border}"/>
+
+            <Border Grid.Column="2" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0">
+                <DockPanel>
+                    <TextBlock x:Name="ObjectsHeader" DockPanel.Dock="Top" Text="OBJECTS" Style="{StaticResource SectionHeader}"/>
+                    <TextBox x:Name="ObjectSearch" DockPanel.Dock="Top" Margin="8,0,8,6" Padding="4,3" Tag="Search objects…" TextChanged="ObjectSearch_TextChanged"/>
+                    <ListBox x:Name="ObjectsList" Background="Transparent" BorderThickness="0" Margin="6,0,6,6" SelectionChanged="ObjectsList_SelectionChanged"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===== STATUS ===== -->
+        <Border Grid.Row="4" Background="{StaticResource Accent}">
+            <TextBlock x:Name="StatusText" Text="Ready" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="12,0"/>
+        </Border>
+    </Grid>
+</Window>
