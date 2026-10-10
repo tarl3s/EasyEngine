@@ -31,7 +31,7 @@ namespace EasyEngine
         private readonly CloudClient _cloud = new();
         private string _model = "qwen2.5-coder:1.5b";
         private bool _useCloud;                                   // true = Groq (nuvem); false = Ollama (local)
-        private string _cloudModel = "llama-3.3-70b-versatile";   // modelo usado quando _useCloud
+        private string _cloudModel = "openai/gpt-oss-120b";       // modelo usado quando _useCloud
 
         // tolerant JSON parsing — small models sometimes add // comments or trailing commas
         private static readonly JsonDocumentOptions LenientJson = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
@@ -110,6 +110,7 @@ namespace EasyEngine
             UpdateAiTarget();
             AiSettings.Load();
             GroqKey.Text = AiSettings.GroqApiKey;
+            StrengthCombo.SelectedIndex = 0; // default = Cloud (Groq) 120B
             _ = RefreshOllamaStatusAsync();
         }
 

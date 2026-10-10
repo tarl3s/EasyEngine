@@ -119,12 +119,10 @@
                         <StackPanel DockPanel.Dock="Top" Margin="12,8,12,8">
                             <TextBlock Text="AI strength" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
                             <ComboBox x:Name="StrengthCombo" SelectionChanged="StrengthCombo_SelectionChanged">
-                                <ComboBoxItem Content="⚡ Local — fastest (1.5b)"        Tag="qwen2.5-coder:1.5b" IsSelected="True"/>
+                                <ComboBoxItem Content="☁ Cloud — Groq, free &amp; smart (120B)" Tag="cloud:openai/gpt-oss-120b"/>
+                                <ComboBoxItem Content="☁ Cloud — Groq, free &amp; fast (20B)"    Tag="cloud:openai/gpt-oss-20b"/>
+                                <ComboBoxItem Content="⚡ Local — fastest (1.5b)"        Tag="qwen2.5-coder:1.5b"/>
                                 <ComboBoxItem Content="✨ Local+ — smarter, still light (3b)" Tag="qwen2.5-coder:3b"/>
-                                <ComboBoxItem Content="⚖ Local — balanced (7b)"         Tag="qwen2.5-coder:7b"/>
-                                <ComboBoxItem Content="🔥 Local — needs GPU/RAM (14b)"   Tag="qwen2.5-coder:14b"/>
-                                <ComboBoxItem Content="☁ Cloud — Groq, free &amp; smart (70b)" Tag="cloud:llama-3.3-70b-versatile"/>
-                                <ComboBoxItem Content="☁ Cloud — Groq, free &amp; fastest (8b)" Tag="cloud:llama-3.1-8b-instant"/>
                                 <ComboBoxItem Content="🛠 Custom local model…"           Tag=""/>
                             </ComboBox>
                             <TextBox x:Name="CustomModel" Visibility="Collapsed" Margin="0,6,0,0" TextChanged="CustomModel_TextChanged"/>
