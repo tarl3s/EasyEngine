@@ -157,6 +157,7 @@ namespace EasyEngine
         private static string File => Path.Combine(Dir, "settings.json");
 
         public static string GroqApiKey { get; set; } = "";
+        public static Dictionary<string, string> DockLayout { get; set; } = new();
 
         public static void Load()
         {
@@ -164,20 +165,25 @@ namespace EasyEngine
             {
                 if (!System.IO.File.Exists(File)) return;
                 var data = JsonSerializer.Deserialize<Data>(System.IO.File.ReadAllText(File));
-                if (data != null) GroqApiKey = data.GroqApiKey ?? "";
+                if (data != null)
+                {
+                    GroqApiKey = data.GroqApiKey ?? "";
+                    DockLayout = data.DockLayout ?? new();
+                }
             }
             catch { /* settings corrompido -> ignora */ }
         }
 
         public static void Save()
         {
-            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { GroqApiKey = GroqApiKey })); }
+            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { GroqApiKey = GroqApiKey, DockLayout = DockLayout })); }
             catch { }
         }
 
         private class Data
         {
             [JsonPropertyName("groqApiKey")] public string? GroqApiKey { get; set; }
+            [JsonPropertyName("dockLayout")] public Dictionary<string, string>? DockLayout { get; set; }
         }
     }
 }

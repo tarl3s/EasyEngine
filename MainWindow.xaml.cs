@@ -105,7 +105,8 @@ namespace EasyEngine
             RefreshSceneCombo();
             SwitchScene(project.GetStartScene());
             RefreshPalette();
-            SetTab(true);
+            InitDocking();
+            SetTab(false); // default to the AI tab
             SetAiMode(false);
             UpdateAiTarget();
             AiSettings.Load();
@@ -113,6 +114,256 @@ namespace EasyEngine
             StrengthCombo.SelectedIndex = 0; // default = Cloud (Groq) 120B
             if (string.IsNullOrWhiteSpace(AiSettings.GroqApiKey)) AiConfigPanel.Visibility = Visibility.Visible; // no key yet → show setup
             _ = RefreshOllamaStatusAsync();
+        }
+
+        // ============================================================
+        //  DOCKING (movable / floatable panels — custom, no dependency)
+        // ============================================================
+        private enum DockRegion { Left, Right, Bottom, Float }
+
+        private class DockPane
+        {
+            public string Key = "";
+            public string Title = "";
+            public Border Card = null!;
+            public DockRegion Region;
+            public DockRegion LastDocked = DockRegion.Right;
+            public Window? FloatWin;
+        }
+
+        private readonly Dictionary<string, DockPane> _panes = new();
+        private readonly List<string> _dockOrder = new();
+        private const double LeftW = 200, RightW = 360, BottomH = 190;
+
+        private void InitDocking()
+        {
+            Register("prefabs",  "Prefabs",       CardPrefabs,  DockRegion.Left);
+            Register("ai",       "AI / Inspector",CardAi,       DockRegion.Right);
+            Register("layers",   "Layers",        CardLayers,   DockRegion.Bottom);
+            Register("objects",  "Objects",       CardObjects,  DockRegion.Bottom);
+
+            // apply saved layout (if any)
+            foreach (var kv in AiSettings.DockLayout)
+                if (_panes.TryGetValue(kv.Key, out var p) && Enum.TryParse<DockRegion>(kv.Value, out var r) && r != DockRegion.Float)
+                { p.Region = r; p.LastDocked = r; }
+
+            RebuildRegion(DockRegion.Left);
+            RebuildRegion(DockRegion.Right);
+            RebuildRegion(DockRegion.Bottom);
+        }
+
+        private void Register(string key, string title, Border card, DockRegion def)
+        {
+            var pane = new DockPane { Key = key, Title = title, Card = card, Region = def, LastDocked = def };
+            _panes[key] = pane;
+            _dockOrder.Add(key);
+        }
+
+        private Grid HostFor(DockRegion r) => r switch
+        {
+            DockRegion.Left => DockLeftHost,
+            DockRegion.Right => DockRightHost,
+            _ => DockBottomHost
+        };
+
+        private static void Detach(FrameworkElement el)
+        {
+            switch (el.Parent)
+            {
+                case Panel p: p.Children.Remove(el); break;
+                case ContentControl cc: cc.Content = null; break;
+                case System.Windows.Controls.Decorator dec: dec.Child = null; break;
+            }
+            if (el.Parent is Window w) w.Content = null;
+        }
+
+        private void SetRegionVisible(DockRegion region, bool vis)
+        {
+            switch (region)
+            {
+                case DockRegion.Left:
+                    DockLeftCol.Width = vis ? new GridLength(LeftW) : new GridLength(0);
+                    LeftSplitter.Visibility = vis ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+                case DockRegion.Right:
+                    DockRightCol.Width = vis ? new GridLength(RightW) : new GridLength(0);
+                    RightSplitter.Visibility = vis ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+                case DockRegion.Bottom:
+                    DockBottomRow.Height = vis ? new GridLength(BottomH) : new GridLength(0);
+                    BottomSplitter.Visibility = vis ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+            }
+        }
+
+        private void RebuildRegion(DockRegion region)
+        {
+            if (region == DockRegion.Float) return;
+            var host = HostFor(region);
+            host.Children.Clear();
+            host.RowDefinitions.Clear();
+            host.ColumnDefinitions.Clear();
+
+            var panes = _dockOrder.Select(k => _panes[k]).Where(p => p.Region == region).ToList();
+            SetRegionVisible(region, panes.Count > 0);
+            if (panes.Count == 0) return;
+
+            bool vertical = region != DockRegion.Bottom;
+            int cell = 0;
+            for (int i = 0; i < panes.Count; i++)
+            {
+                if (i > 0)
+                {
+                    if (vertical) host.RowDefinitions.Add(new RowDefinition { Height = new GridLength(5) });
+                    else host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
+                    var sp = new GridSplitter { Background = (Brush)FindResource("Border"), HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch };
+                    if (vertical) { sp.Height = 5; Grid.SetRow(sp, cell); } else { sp.Width = 5; Grid.SetColumn(sp, cell); }
+                    host.Children.Add(sp);
+                    cell++;
+                }
+
+                if (vertical) host.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MinHeight = 60 });
+                else host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 120 });
+
+                var card = panes[i].Card;
+                Detach(card);
+                if (vertical) Grid.SetRow(card, cell); else Grid.SetColumn(card, cell);
+                host.Children.Add(card);
+                cell++;
+            }
+        }
+
+        private void PlacePane(DockPane pane, DockRegion target)
+        {
+            var prev = pane.Region;
+            if (pane.FloatWin != null)
+            {
+                var w = pane.FloatWin;
+                pane.FloatWin = null;
+                Detach(pane.Card);
+                w.Close();
+            }
+            else Detach(pane.Card);
+
+            pane.Region = target;
+
+            if (target == DockRegion.Float)
+            {
+                var win = new Window
+                {
+                    Title = pane.Title,
+                    Width = 380,
+                    Height = 500,
+                    Owner = this,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Background = (Brush)FindResource("Bg0"),
+                    Content = pane.Card
+                };
+                win.Closed += (s, e) =>
+                {
+                    if (pane.FloatWin != null) // closed by the user (X) → dock back
+                    {
+                        pane.FloatWin = null;
+                        Detach(pane.Card);
+                        pane.Region = pane.LastDocked;
+                        RebuildRegion(pane.Region);
+                        SaveDockLayout();
+                    }
+                };
+                pane.FloatWin = win;
+                win.Show();
+            }
+            else
+            {
+                pane.LastDocked = target;
+            }
+
+            if (prev != DockRegion.Float) RebuildRegion(prev);
+            if (target != DockRegion.Float) RebuildRegion(target);
+            SaveDockLayout();
+        }
+
+        private void DockMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not FrameworkElement fe || fe.Tag is not string key) return;
+            if (!_panes.TryGetValue(key, out var pane)) return;
+
+            var menu = new ContextMenu();
+            void Add(string text, DockRegion target)
+            {
+                var mi = new MenuItem { Header = text };
+                mi.Click += (_, __) => PlacePane(pane, target);
+                menu.Items.Add(mi);
+            }
+            if (pane.Region != DockRegion.Left) Add("Dock left", DockRegion.Left);
+            if (pane.Region != DockRegion.Right) Add("Dock right", DockRegion.Right);
+            if (pane.Region != DockRegion.Bottom) Add("Dock bottom", DockRegion.Bottom);
+            menu.Items.Add(new Separator());
+            if (pane.Region == DockRegion.Float) Add("Dock back", pane.LastDocked);
+            else Add("Float (separate window)", DockRegion.Float);
+
+            StyleMenuDark(menu);
+            menu.PlacementTarget = fe;
+            menu.IsOpen = true;
+        }
+
+        private void StyleMenuDark(ContextMenu menu)
+        {
+            menu.Background = (Brush)FindResource("Bg1");
+            menu.BorderBrush = (Brush)FindResource("Border");
+            menu.Foreground = (Brush)FindResource("Text");
+            foreach (var obj in menu.Items)
+                if (obj is MenuItem mi) { mi.Background = Brushes.Transparent; mi.Foreground = (Brush)FindResource("Text"); }
+        }
+
+        // Toolbar "Panels ▾": re-show a panel that was closed/floated, or reset layout.
+        private void PanelsMenu_Click(object sender, RoutedEventArgs e)
+        {
+            var menu = new ContextMenu();
+            foreach (var key in _dockOrder)
+            {
+                var pane = _panes[key];
+                var mi = new MenuItem { Header = $"{pane.Title}  ({pane.Region})" };
+                mi.Click += (_, __) => { if (pane.Region == DockRegion.Float && pane.FloatWin != null) pane.FloatWin.Activate(); else PlacePane(pane, pane.Region); };
+                menu.Items.Add(mi);
+            }
+            menu.Items.Add(new Separator());
+            var reset = new MenuItem { Header = "Reset layout to default" };
+            reset.Click += (_, __) => ResetDockLayout();
+            menu.Items.Add(reset);
+            StyleMenuDark(menu);
+            menu.PlacementTarget = (UIElement)sender;
+            menu.IsOpen = true;
+        }
+
+        private void ResetDockLayout()
+        {
+            var defaults = new Dictionary<string, DockRegion>
+            {
+                ["prefabs"] = DockRegion.Left,
+                ["ai"] = DockRegion.Right,
+                ["layers"] = DockRegion.Bottom,
+                ["objects"] = DockRegion.Bottom
+            };
+            foreach (var kv in defaults)
+            {
+                var pane = _panes[kv.Key];
+                if (pane.FloatWin != null) { var w = pane.FloatWin; pane.FloatWin = null; Detach(pane.Card); w.Close(); }
+                pane.Region = kv.Value;
+                pane.LastDocked = kv.Value;
+            }
+            RebuildRegion(DockRegion.Left);
+            RebuildRegion(DockRegion.Right);
+            RebuildRegion(DockRegion.Bottom);
+            SaveDockLayout();
+        }
+
+        private void SaveDockLayout()
+        {
+            AiSettings.DockLayout = _panes.ToDictionary(
+                kv => kv.Key,
+                kv => (kv.Value.Region == DockRegion.Float ? kv.Value.LastDocked : kv.Value.Region).ToString());
+            AiSettings.Save();
         }
 
         // ============================================================

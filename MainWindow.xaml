@@ -13,7 +13,7 @@
             <RowDefinition Height="46"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="5"/>
-            <RowDefinition Height="190"/>
+            <RowDefinition x:Name="DockBottomRow" Height="190"/>
             <RowDefinition Height="24"/>
         </Grid.RowDefinitions>
 
@@ -27,6 +27,7 @@
                     <Button Content="Open"  Style="{StaticResource GhostButton}" Height="32" Click="Open_Click"/>
                     <Button Content="Save"  Style="{StaticResource GhostButton}" Height="32" Click="Save_Click"/>
                     <Button Content="Variables" Style="{StaticResource GhostButton}" Height="32" Click="Variables_Click"/>
+                    <Button x:Name="PanelsButton" Content="Panels ▾" Style="{StaticResource GhostButton}" Height="32" Click="PanelsMenu_Click"/>
 
                     <Border Width="1" Background="{StaticResource Border}" Margin="10,8" />
                     <TextBlock Text="Scene" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -44,35 +45,20 @@
             </Grid>
         </Border>
 
-        <!-- ===== MAIN AREA ===== -->
+        <!-- ===== MAIN AREA (dockable) ===== -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="190"/>
+                <ColumnDefinition x:Name="DockLeftCol" Width="200"/>
                 <ColumnDefinition Width="5"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="5"/>
-                <ColumnDefinition Width="340"/>
+                <ColumnDefinition x:Name="DockRightCol" Width="360"/>
             </Grid.ColumnDefinitions>
 
-            <!-- LEFT: prefab palette -->
-            <Border Grid.Column="0" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,1,0">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="PREFABS" Style="{StaticResource SectionHeader}"/>
-                    <StackPanel DockPanel.Dock="Bottom" Margin="12,6,12,12">
-                        <Button Content="＋ Empty Object" Style="{StaticResource CardButton}" Margin="0,0,0,6" HorizontalContentAlignment="Center" Click="AddEmpty_Click"/>
-                        <Button Content="Save selection as prefab" Style="{StaticResource GhostButton}" Height="28" FontSize="11" Click="SavePrefab_Click"/>
-                    </StackPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Click to add to the selected layer" Foreground="{StaticResource TextDim}" FontSize="11" Margin="12,0,12,6" TextWrapping="Wrap"/>
-                    <TextBox x:Name="PrefabSearch" DockPanel.Dock="Top" Margin="12,0,12,8" Padding="4,3" Tag="Search prefabs…" TextChanged="PrefabSearch_TextChanged"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel x:Name="PaletteList" Margin="12,0,12,8"/>
-                    </ScrollViewer>
-                </DockPanel>
-            </Border>
+            <Grid x:Name="DockLeftHost" Grid.Column="0"/>
+            <GridSplitter x:Name="LeftSplitter" Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
 
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
-
-            <!-- CENTER: scene -->
+            <!-- CENTER: scene (always here) -->
             <Border Grid.Column="2" Background="#111115">
                 <Grid>
                     <ScrollViewer x:Name="SceneScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
@@ -97,56 +83,92 @@
                 </Grid>
             </Border>
 
-            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
+            <GridSplitter x:Name="RightSplitter" Grid.Column="3" Width="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
+            <Grid x:Name="DockRightHost" Grid.Column="4"/>
+        </Grid>
 
-            <!-- RIGHT: Inspector / AI -->
-            <Border Grid.Column="4" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="1,0,0,0">
+        <GridSplitter x:Name="BottomSplitter" Grid.Row="2" Height="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
+
+        <!-- ===== BOTTOM dock region ===== -->
+        <Grid x:Name="DockBottomHost" Grid.Row="3"/>
+
+        <!-- ===== STATUS ===== -->
+        <Border Grid.Row="4" Background="{StaticResource Accent}">
+            <TextBlock x:Name="StatusText" Text="Ready" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="12,0"/>
+        </Border>
+
+        <!-- ===== CARD SHELF (holds dock cards; code moves them into regions) ===== -->
+        <Grid x:Name="CardShelf" Grid.Row="1" Visibility="Collapsed">
+
+            <!-- PREFABS -->
+            <Border x:Name="CardPrefabs" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="1">
                 <DockPanel>
-                    <Grid DockPanel.Dock="Top" Height="38" Margin="8,8,8,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button x:Name="TabInspector" Grid.Column="0" Content="Inspector" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Margin="0,0,4,0" Click="TabInspector_Click"/>
-                        <Button x:Name="TabAi" Grid.Column="1" Content="AI" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Margin="4,0,0,0" Click="TabAi_Click"/>
-                    </Grid>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource Bg2}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
+                        <Grid Height="26">
+                            <TextBlock Text="PREFABS" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <Button Tag="prefabs" Content="⋯" Click="DockMenu_Click" ToolTip="Move / float this panel" HorizontalAlignment="Right" Width="30" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextDim}" FontSize="15"/>
+                        </Grid>
+                    </Border>
+                    <StackPanel DockPanel.Dock="Bottom" Margin="12,6,12,12">
+                        <Button Content="＋ Empty Object" Style="{StaticResource CardButton}" Margin="0,0,0,6" HorizontalContentAlignment="Center" Click="AddEmpty_Click"/>
+                        <Button Content="Save selection as prefab" Style="{StaticResource GhostButton}" Height="28" FontSize="11" Click="SavePrefab_Click"/>
+                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Click to add to the selected layer" Foreground="{StaticResource TextDim}" FontSize="11" Margin="12,8,12,6" TextWrapping="Wrap"/>
+                    <TextBox x:Name="PrefabSearch" DockPanel.Dock="Top" Margin="12,0,12,8" Padding="4,3" Tag="Search prefabs…" TextChanged="PrefabSearch_TextChanged"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="PaletteList" Margin="12,0,12,8"/>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
 
-                    <ScrollViewer x:Name="InspectorScroll" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+            <!-- AI + INSPECTOR (tabbed) -->
+            <Border x:Name="CardAi" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="1">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource Bg2}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
+                        <Grid Height="34" Margin="6,0,2,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="TabAi" Content="AI" Style="{StaticResource CardButton}" Width="86" Height="26" HorizontalContentAlignment="Center" Click="TabAi_Click"/>
+                                <Button x:Name="TabInspector" Content="Inspector" Style="{StaticResource CardButton}" Width="86" Height="26" Margin="4,0,0,0" HorizontalContentAlignment="Center" Click="TabInspector_Click"/>
+                            </StackPanel>
+                            <Button Tag="ai" Content="⋯" Click="DockMenu_Click" ToolTip="Move / float this panel" HorizontalAlignment="Right" Width="30" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextDim}" FontSize="15"/>
+                        </Grid>
+                    </Border>
+                    <Grid>
+                    <ScrollViewer x:Name="InspectorScroll" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" Visibility="Collapsed">
                         <StackPanel x:Name="InspectorRoot" Margin="12,0,12,12"/>
                     </ScrollViewer>
-
-                    <DockPanel x:Name="AiPanel" Visibility="Collapsed">
+                    <DockPanel x:Name="AiPanel">
                         <StackPanel DockPanel.Dock="Top" Margin="12,8,12,6">
                             <Button x:Name="AiConfigToggle" Click="AiConfigToggle_Click" Style="{StaticResource CardButton}" HorizontalContentAlignment="Stretch" Padding="8,5">
                                 <TextBlock x:Name="AiConfigSummary" FontSize="12" Text="⚙ AI settings"/>
                             </Button>
                             <StackPanel x:Name="AiConfigPanel" Visibility="Collapsed" Margin="0,6,0,0">
-                            <TextBlock Text="AI strength" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <ComboBox x:Name="StrengthCombo" SelectionChanged="StrengthCombo_SelectionChanged">
-                                <ComboBoxItem Content="☁ Cloud — Groq, free &amp; smart (120B)" Tag="cloud:openai/gpt-oss-120b"/>
-                                <ComboBoxItem Content="☁ Cloud — Groq, free &amp; fast (20B)"    Tag="cloud:openai/gpt-oss-20b"/>
-                                <ComboBoxItem Content="⚡ Local — fastest (1.5b)"        Tag="qwen2.5-coder:1.5b"/>
-                                <ComboBoxItem Content="✨ Local+ — smarter, still light (3b)" Tag="qwen2.5-coder:3b"/>
-                                <ComboBoxItem Content="⚖ Local — balanced (7b)"         Tag="qwen2.5-coder:7b"/>
-                                <ComboBoxItem Content="🔥 Local — needs GPU/RAM (14b)"   Tag="qwen2.5-coder:14b"/>
-                                <ComboBoxItem Content="🛠 Custom local model…"           Tag=""/>
-                            </ComboBox>
-                            <TextBox x:Name="CustomModel" Visibility="Collapsed" Margin="0,6,0,0" TextChanged="CustomModel_TextChanged"/>
-                            <StackPanel x:Name="CloudKeyPanel" Visibility="Collapsed" Margin="0,6,0,0">
-                                <Grid Margin="0,0,0,3">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Groq API key (free — no credit card)" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <CheckBox Grid.Column="1" x:Name="GroqKeyShow" Content="Show" FontSize="11" Foreground="{StaticResource TextDim}" Checked="GroqKeyShow_Changed" Unchecked="GroqKeyShow_Changed"/>
-                                </Grid>
-                                <PasswordBox x:Name="GroqKey" PasswordChanged="GroqKey_PasswordChanged"/>
-                                <TextBox x:Name="GroqKeyPlain" Visibility="Collapsed" TextChanged="GroqKeyPlain_TextChanged"/>
-                                <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Margin="0,3,0,0"
-                                           Text="Get a free key at console.groq.com/keys — sign in with Google/GitHub, create an API key, paste it here. It's saved on this PC only."/>
-                            </StackPanel>
-                            <TextBlock x:Name="OllamaStatus" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Text="Checking Ollama…"/>
+                                <TextBlock Text="AI strength" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="StrengthCombo" SelectionChanged="StrengthCombo_SelectionChanged">
+                                    <ComboBoxItem Content="☁ Cloud — Groq, free &amp; smart (120B)" Tag="cloud:openai/gpt-oss-120b"/>
+                                    <ComboBoxItem Content="☁ Cloud — Groq, free &amp; fast (20B)"    Tag="cloud:openai/gpt-oss-20b"/>
+                                    <ComboBoxItem Content="⚡ Local — fastest (1.5b)"        Tag="qwen2.5-coder:1.5b"/>
+                                    <ComboBoxItem Content="✨ Local+ — smarter, still light (3b)" Tag="qwen2.5-coder:3b"/>
+                                    <ComboBoxItem Content="⚖ Local — balanced (7b)"         Tag="qwen2.5-coder:7b"/>
+                                    <ComboBoxItem Content="🔥 Local — needs GPU/RAM (14b)"   Tag="qwen2.5-coder:14b"/>
+                                    <ComboBoxItem Content="🛠 Custom local model…"           Tag=""/>
+                                </ComboBox>
+                                <TextBox x:Name="CustomModel" Visibility="Collapsed" Margin="0,6,0,0" TextChanged="CustomModel_TextChanged"/>
+                                <StackPanel x:Name="CloudKeyPanel" Visibility="Collapsed" Margin="0,6,0,0">
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Groq API key (free — no credit card)" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <CheckBox Grid.Column="1" x:Name="GroqKeyShow" Content="Show" FontSize="11" Foreground="{StaticResource TextDim}" Checked="GroqKeyShow_Changed" Unchecked="GroqKeyShow_Changed"/>
+                                    </Grid>
+                                    <PasswordBox x:Name="GroqKey" PasswordChanged="GroqKey_PasswordChanged"/>
+                                    <TextBox x:Name="GroqKeyPlain" Visibility="Collapsed" TextChanged="GroqKeyPlain_TextChanged"/>
+                                    <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Margin="0,3,0,0"
+                                               Text="Get a free key at console.groq.com/keys — sign in with Google/GitHub, create an API key, paste it here. It's saved on this PC only."/>
+                                </StackPanel>
+                                <TextBlock x:Name="OllamaStatus" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Text="Checking Ollama…"/>
                             </StackPanel>
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Top" Margin="12,0,12,8">
@@ -175,44 +197,40 @@
                             <StackPanel x:Name="AiLog"/>
                         </ScrollViewer>
                     </DockPanel>
-                </DockPanel>
-            </Border>
-        </Grid>
-
-        <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
-
-        <!-- ===== BOTTOM: layers + objects ===== -->
-        <Grid Grid.Row="3">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="300"/>
-                <ColumnDefinition Width="1"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0">
-                <DockPanel>
-                    <Grid DockPanel.Dock="Top">
-                        <TextBlock Text="SCENE LAYERS" Style="{StaticResource SectionHeader}"/>
-                        <Button Content="＋" Style="{StaticResource GhostButton}" HorizontalAlignment="Right" Width="30" Height="24" Margin="0,8,8,0" ToolTip="Add layer" Click="AddLayer_Click"/>
                     </Grid>
-                    <ListBox x:Name="LayersList" Background="Transparent" BorderThickness="0" Margin="6,0,6,6" SelectionChanged="LayersList_SelectionChanged"/>
                 </DockPanel>
             </Border>
 
-            <Border Grid.Column="1" Background="{StaticResource Border}"/>
-
-            <Border Grid.Column="2" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0">
+            <!-- LAYERS -->
+            <Border x:Name="CardLayers" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="1">
                 <DockPanel>
-                    <TextBlock x:Name="ObjectsHeader" DockPanel.Dock="Top" Text="OBJECTS" Style="{StaticResource SectionHeader}"/>
-                    <TextBox x:Name="ObjectSearch" DockPanel.Dock="Top" Margin="8,0,8,6" Padding="4,3" Tag="Search objects…" TextChanged="ObjectSearch_TextChanged"/>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource Bg2}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
+                        <Grid Height="26">
+                            <TextBlock Text="SCENE LAYERS" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="＋" Style="{StaticResource GhostButton}" Width="28" Height="22" ToolTip="Add layer" Click="AddLayer_Click"/>
+                                <Button Tag="layers" Content="⋯" Click="DockMenu_Click" ToolTip="Move / float this panel" Width="30" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextDim}" FontSize="15"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <ListBox x:Name="LayersList" Background="Transparent" BorderThickness="0" Margin="6,6,6,6" SelectionChanged="LayersList_SelectionChanged"/>
+                </DockPanel>
+            </Border>
+
+            <!-- OBJECTS -->
+            <Border x:Name="CardObjects" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="1">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource Bg2}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
+                        <Grid Height="26">
+                            <TextBlock x:Name="ObjectsHeader" Text="OBJECTS" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <Button Tag="objects" Content="⋯" Click="DockMenu_Click" ToolTip="Move / float this panel" HorizontalAlignment="Right" Width="30" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextDim}" FontSize="15"/>
+                        </Grid>
+                    </Border>
+                    <TextBox x:Name="ObjectSearch" DockPanel.Dock="Top" Margin="8,6,8,6" Padding="4,3" Tag="Search objects…" TextChanged="ObjectSearch_TextChanged"/>
                     <ListBox x:Name="ObjectsList" Background="Transparent" BorderThickness="0" Margin="6,0,6,6" SelectionChanged="ObjectsList_SelectionChanged"/>
                 </DockPanel>
             </Border>
-        </Grid>
 
-        <!-- ===== STATUS ===== -->
-        <Border Grid.Row="4" Background="{StaticResource Accent}">
-            <TextBlock x:Name="StatusText" Text="Ready" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="12,0"/>
-        </Border>
+        </Grid>
     </Grid>
 </Window>
