@@ -111,6 +111,7 @@ namespace EasyEngine
             AiSettings.Load();
             _syncingKey = true; GroqKey.Password = AiSettings.GroqApiKey; _syncingKey = false;
             StrengthCombo.SelectedIndex = 0; // default = Cloud (Groq) 120B
+            if (string.IsNullOrWhiteSpace(AiSettings.GroqApiKey)) AiConfigPanel.Visibility = Visibility.Visible; // no key yet → show setup
             _ = RefreshOllamaStatusAsync();
         }
 
@@ -603,7 +604,7 @@ namespace EasyEngine
         {
             if (AiTarget == null) return;
             AiTarget.Text = _selection.Count == 0
-                ? "Target: auto-detect (the AI figures out what to edit, or creates/edits anything)."
+                ? "Target: auto-detect."
                 : _selection.Count == 1
                     ? $"Target: {_selection[0].Name} (AI edits only this)."
                     : $"Target: {string.Join(", ", _selection.Select(o => o.Name))} (AI edits these {_selection.Count}).";
@@ -1532,8 +1533,8 @@ namespace EasyEngine
             AiModeBrainstorm.Foreground = brainstorm ? Brushes.White : (SolidColorBrush)FindResource("Text");
             AiSend.Content = brainstorm ? "Send" : "Build it";
             AiHint.Text = brainstorm
-                ? "Chat about your game — ideas, mechanics, story. The AI won't change anything here."
-                : "Describe what to build. The AI creates/edits objects in the scene (even without selecting one).";
+                ? "Chat about ideas — the AI won't change anything."
+                : "Describe what to build.";
         }
 
         // ============================================================
@@ -1596,9 +1597,31 @@ namespace EasyEngine
             _syncingKey = false;
         }
 
+        private void AiConfigToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (AiConfigPanel == null) return;
+            AiConfigPanel.Visibility = AiConfigPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private void UpdateAiConfigSummary()
+        {
+            if (AiConfigSummary == null) return;
+            if (_useCloud)
+            {
+                var shortName = _cloudModel.Contains('/') ? _cloudModel[(_cloudModel.IndexOf('/') + 1)..] : _cloudModel;
+                bool hasKey = !string.IsNullOrWhiteSpace(AiSettings.GroqApiKey);
+                AiConfigSummary.Text = hasKey ? $"⚙ ☁ Groq · {shortName}" : "⚙ ☁ Groq — tap to set your free key";
+            }
+            else
+            {
+                AiConfigSummary.Text = $"⚙ ⚡ Local · {_model}";
+            }
+        }
+
         private async Task RefreshOllamaStatusAsync()
         {
             if (OllamaStatus == null) return;
+            UpdateAiConfigSummary();
 
             if (_useCloud)
             {
