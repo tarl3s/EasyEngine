@@ -1573,7 +1573,7 @@ namespace EasyEngine
             var combo = new ComboBox { Margin = new Thickness(0, 2, 0, 0) };
             combo.Items.Add(new ComboBoxItem { Content = "＋ Add behavior…", Tag = null, IsSelected = true });
             foreach (var info in BehaviorCatalog.All)
-                combo.Items.Add(new ComboBoxItem { Content = $"{info.Icon}  {info.Name}", Tag = info.Kind });
+                if (!info.Hidden) combo.Items.Add(new ComboBoxItem { Content = $"{info.Icon}  {info.Name}", Tag = info.Kind });
             combo.SelectionChanged += (s, e) =>
             {
                 if (combo.SelectedItem is ComboBoxItem ci && ci.Tag is BehaviorKind kind)
@@ -2538,7 +2538,7 @@ namespace EasyEngine
             sb.AppendLine("Behavior kinds — nums(texts):");
             foreach (var info in BehaviorCatalog.All)
             {
-                if (info.Kind == BehaviorKind.Tilemap) continue; // painted by hand, never via AI
+                if (info.Kind == BehaviorKind.Tilemap || info.Hidden) continue; // painted by hand / legacy — never via AI
                 var nums = string.Join(",", info.Nums.Select(n => n.Key));
                 var texts = string.Join(",", info.Texts.Select(t => t.Key));
                 sb.AppendLine($"  {info.Kind}: {nums}" + (texts.Length > 0 ? $" ({texts})" : ""));
@@ -2551,7 +2551,7 @@ namespace EasyEngine
             }
             else
             {
-            sb.AppendLine("Intent → kind: walk+jump=Platformer; top-down/8-dir=TopDown; ground/wall/platform=Solid; camera=FollowCamera; patrol=Patrol; chase player=Chase; shoot on key=Shooter; melee/sword/attack=Melee; hp/lives=Health; spike/hazard/contact damage=Damager; checkpoint=Checkpoint; coin/pickup=Collectible; door/next level=GoToScene; HUD/score text=Label; glow=LightSource; spinning=Spin; spawner=Spawner; parallax bg=Parallax.");
+            sb.AppendLine("Intent → kind: walk+jump=Platformer; top-down/8-dir=TopDown; ground/wall/platform=Solid; camera=FollowCamera; patrol=Patrol; chase player=Chase; shoot on key=Shooter; melee/sword/attack/use an item by clicking=ToolUse (texts tool=sword, or a Hotbar for several items); hp/lives=Health; spike/hazard/contact damage=Damager; checkpoint=Checkpoint; coin/pickup=Collectible; door/next level=GoToScene; HUD/score text=Label; glow=LightSource; spinning=Spin; spawner=Spawner; parallax bg=Parallax.");
             sb.AppendLine("Intent → kind (NEW): pushable crate/box/sokoban block=Pushable; lever/switch/toggle=Switch; locked gate/ability-gate/barrier that opens with a key=Gate (NOT GoToScene — Gate blocks the way, GoToScene changes scene); NPC/sign/chest/press-E-to-talk=Interact; pick up an ability or key that unlocks something=AbilityPickup; invisible trigger zone/region/level-exit area=Area.");
             sb.AppendLine("Gate opens when its var meets the condition: {\"kind\":\"Gate\",\"texts\":{\"var\":\"hasRedKey\"},\"nums\":{\"value\":1}}. Give the key with AbilityPickup {\"kind\":\"AbilityPickup\",\"texts\":{\"var\":\"hasRedKey\"}}. Metroidvania ability+gate: AbilityPickup texts{var:hasDash,grant:dash} then Gate texts{var:hasDash}.");
             sb.AppendLine("PROCEDURAL maps: put a Generator on an empty object sized to the region to fill (or scene-sized). It spawns prefab(s) when the scene loads. mode=once makes a STABLE map (same when you return); mode=regen RECREATES it on every visit (roguelike). Make the spawned things prefabs with asPrefab:true. e.g. {\"create\":[{\"name\":\"Coin\",\"asPrefab\":true,...}],\"edit\":[{\"name\":\"World\",\"behaviors\":[{\"kind\":\"Generator\",\"texts\":{\"prefab\":\"Coin,Enemy\",\"mode\":\"regen\",\"layout\":\"scatter\"},\"nums\":{\"count\":20,\"minGap\":80}}]}]}.");
@@ -2632,7 +2632,7 @@ namespace EasyEngine
 
             sb.AppendLine("EXAMPLES:");
             sb.AppendLine("User: \"make a player that walks, jumps, has health and can attack\" =>");
-            sb.AppendLine("{\"create\":[{\"name\":\"Player\",\"x\":120,\"y\":300,\"width\":48,\"height\":64,\"color\":\"#3BC97A\",\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":260,\"jump\":640}},{\"kind\":\"FollowCamera\"},{\"kind\":\"Health\",\"nums\":{\"max\":5,\"respawn\":1}},{\"kind\":\"Melee\",\"texts\":{\"key\":\"J\"}}]}]}");
+            sb.AppendLine("{\"create\":[{\"name\":\"Player\",\"x\":120,\"y\":300,\"width\":48,\"height\":64,\"color\":\"#3BC97A\",\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":260,\"jump\":640}},{\"kind\":\"FollowCamera\"},{\"kind\":\"Health\",\"nums\":{\"max\":5,\"respawn\":1}},{\"kind\":\"ToolUse\",\"texts\":{\"tool\":\"sword\"}}]}]}");
             sb.AppendLine("User: \"give the player more health\" (player already exists) =>");
             sb.AppendLine("{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Health\",\"nums\":{\"max\":8}}]}]}");
             sb.AppendLine("User: \"create a global score at 0 and lives at 3, and set the scene timer to 60\" => {\"variables\":{\"global\":{\"score\":0,\"lives\":3},\"scene\":{\"timer\":60}}}");
@@ -2834,13 +2834,13 @@ namespace EasyEngine
         private static BehaviorKind? ResolveKind(string? s)
         {
             if (string.IsNullOrWhiteSpace(s)) return null;
-            if (Enum.TryParse<BehaviorKind>(s, true, out var k)) return k;
+            if (Enum.TryParse<BehaviorKind>(s, true, out var k)) return k == BehaviorKind.Melee ? BehaviorKind.ToolUse : k; // Melee is legacy
             var t = s.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
             return t switch
             {
                 "walk" or "run" or "move" or "movement" or "jump" or "platform" or "platforming" or "sidescroller" or "sidescroll" or "jumping" or "move+jump" => BehaviorKind.Platformer,
                 "topdown" or "eightway" or "8way" or "wasd" or "topdownmovement" => BehaviorKind.TopDown,
-                "attack" or "sword" or "hit" or "nail" or "slash" or "swing" or "swordattack" or "meleeattack" => BehaviorKind.Melee,
+                "attack" or "sword" or "hit" or "nail" or "slash" or "swing" or "swordattack" or "meleeattack" or "melee" => BehaviorKind.ToolUse,
                 "heal" or "hp" or "life" or "lives" or "healthbar" or "hitpoints" => BehaviorKind.Health,
                 "hurt" or "damage" or "spike" or "spikes" or "hazard" or "contactdamage" or "trap" or "dmg" => BehaviorKind.Damager,
                 "shoot" or "fire" or "gun" or "ranged" or "blaster" or "shooting" => BehaviorKind.Shooter,
@@ -2853,7 +2853,7 @@ namespace EasyEngine
                 "generator" or "emitter" => BehaviorKind.Spawner,
                 "audio" or "sfx" or "music" or "sound" => BehaviorKind.SoundEmitter,
                 "glow" or "lamp" or "lantern" or "lighting" => BehaviorKind.LightSource,
-                "tool" or "swing" or "swingtool" or "usetool" or "axeuse" or "chop" => BehaviorKind.ToolUse,
+                "tool" or "useitem" or "swingtool" or "usetool" or "axeuse" or "chop" or "weapon" => BehaviorKind.ToolUse,
                 "tree" or "choppable" or "mineable" or "resource" or "harvest" or "ore" => BehaviorKind.Harvestable,
                 "objectives" or "tasks" or "testchecklist" or "checks" => BehaviorKind.Checklist,
                 "scrollbackground" => BehaviorKind.Parallax,

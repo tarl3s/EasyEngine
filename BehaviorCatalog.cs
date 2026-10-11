@@ -22,6 +22,7 @@ namespace EasyEngine
         public string Desc = "";
         public List<NumParam> Nums = new();
         public List<TextParam> Texts = new();
+        public bool Hidden; // kept only so old projects still load; not offered in the editor or to the AI
 
         public BehaviorData CreateData()
         {
@@ -149,8 +150,9 @@ namespace EasyEngine
                 Nums = { new("max","Max health",3), new("invincible","I-frames (s)",1), new("respawn","Respawn on death (0/1)",1) },
                 Texts = { new("var","Variable name","health") } },
 
-            new BehaviorInfo { Kind = BehaviorKind.Melee, Name = "Melee Attack", Icon = "⚔",
-                Desc = "Press a key to swing a melee hitbox in the facing direction, hurting enemies that have Health. Set 'requires' to a flag (e.g. holding:sword) to only swing when that weapon is equipped.",
+            // Legacy: hidden from the editor/AI. Projects that still have it are converted to Tool Use when they load.
+            new BehaviorInfo { Kind = BehaviorKind.Melee, Name = "Melee Attack (old — now Tool Use)", Icon = "⚔", Hidden = true,
+                Desc = "Replaced by Tool Use: every item (sword, axe, pickaxe…) is used by clicking. Old projects are converted automatically.",
                 Nums = { new("damage","Damage",1), new("range","Reach",40), new("knockback","Knockback",260), new("cooldown","Cooldown (s)",0.35) },
                 Texts = { new("key","Key","J"), new("requires","Needs this flag to swing (optional)","") } },
 
@@ -169,7 +171,7 @@ namespace EasyEngine
                          new("breakable","Breakable (0/1)",0),
                          new("breakHits","Hits to break each tile",1),
                          new("byBullet","Break with bullets (0/1)",1),
-                         new("byMelee","Break with melee (0/1)",1),
+                         new("byMelee","Break with item clicks (Tool Use) (0/1)",1),
                          new("byDamage","Break with damagers/hazards (0/1)",1),
                          new("byStomp","Break by landing on top (0/1)",0),
                          new("byTouch","Break by touching (0/1)",0),
@@ -197,11 +199,13 @@ namespace EasyEngine
                 Texts = { new("items","Slots (name:#color, comma-separated)","pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF"),
                           new("player","Player object (shows the held tool)","Player") } },
 
-            new BehaviorInfo { Kind = BehaviorKind.ToolUse, Name = "Tool Use (swing)", Icon = "🪓",
-                Desc = "Put it on the player. Click ANYWHERE in the game to swing the tool in hand (from the Hotbar): it plays the swing sound and, a moment later, hits the nearest Harvestable within reach that accepts that tool. Far away = a miss; wrong tool = refused. Everything shows in the F1 console.",
-                Nums = { new("reach","Reach (px from the player)",80), new("cooldown","Time between swings (s)",0.35), new("swingTime","Swing duration (s)",0.25) },
-                Texts = { new("tools","Which held items swing (comma list, empty = any)",""), new("tool","Tool when there is no Hotbar",""),
-                          new("swingSound","Swing sound",""), new("deniedSound","Refused sound","") } },
+            new BehaviorInfo { Kind = BehaviorKind.ToolUse, Name = "Use Item (swing / attack)", Icon = "🗡",
+                Desc = "Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'): the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe… Far away = a miss; wrong tool = refused. Everything shows in the F1 console.",
+                Nums = { new("reach","Reach (px from the player)",80), new("cooldown","Time between swings (s)",0.35), new("swingTime","Swing duration (s)",0.25),
+                         new("damage","Damage to enemies",1), new("knockback","Knockback",260) },
+                Texts = { new("tool","Item in hand when there is no Hotbar (e.g. sword)","sword"), new("itemDamage","Damage per item (e.g. sword=2,axe=1)","sword=2"),
+                          new("tools","Only these items swing (comma list, empty = all)",""),
+                          new("swingSound","Swing sound",""), new("hitSound","Hit-an-enemy sound",""), new("deniedSound","Refused sound","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Harvestable, Name = "Harvestable (tree / rock)", Icon = "🌳",
                 Desc = "Something you chop or mine with a tool. It takes 'hits' hits from the right tool (e.g. axe), shaking each time; on the last hit it falls and gives 'amount' of 'drop' (e.g. 5 wood). Needs a player with Tool Use.",

@@ -107,7 +107,7 @@ namespace EasyEngine
             ui.Objects.Add(Id(HudLabel("ScoreHUD", 16, 14, "Score: {score}", "#FFD86B")));
             ui.Objects.Add(Id(HudLabel("CoinsHUD", 230, 14, "Coins: {coins}", "#FFD86B")));
             ui.Objects.Add(Id(HudLabel("HpHUD", 440, 14, "HP: {health}", "#FF6B6B")));
-            ui.Objects.Add(Id(HudLabel("Hint", 16, 500, "Arrows/A-D move · Space jump · J attack · B buy (near shop) · Esc quit", "#A9B0C0", 14)));
+            ui.Objects.Add(Id(HudLabel("Hint", 16, 500, "Arrows/A-D move · Space jump · Click attack · B buy (near shop) · Esc quit", "#A9B0C0", 14)));
 
             scene.Layers.Add(bg); scene.Layers.Add(baseL); scene.Layers.Add(ui);
             return scene;
@@ -136,7 +136,7 @@ namespace EasyEngine
             var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 250; plat.Nums["jump"] = 640; plat.Nums["doubleJump"] = 1; o.Behaviors.Add(plat);
             o.Behaviors.Add(B(BehaviorKind.FollowCamera));
             var hp = B(BehaviorKind.Health); hp.Nums["max"] = 3; hp.Nums["respawn"] = 1; hp.Texts["var"] = "health"; o.Behaviors.Add(hp);
-            var melee = B(BehaviorKind.Melee); melee.Texts["key"] = "J"; melee.Nums["range"] = 46; o.Behaviors.Add(melee);
+            var sword = B(BehaviorKind.ToolUse); sword.Texts["tool"] = "sword"; sword.Nums["reach"] = 60; o.Behaviors.Add(sword); // click to attack
             // shop buy logic lives on the player (B = spend 15 coins for a lasting speed boost)
             var cust = new BehaviorData { Kind = BehaviorKind.Custom };
             cust.Texts["script"] = "[{\"when\":\"keypress\",\"key\":\"B\",\"cooldown\":1,\"if\":\"coins\",\"ifop\":\">=\",\"ifval\":15,\"do\":\"boost\",\"factor\":1.4}," +

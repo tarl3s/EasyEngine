@@ -54,9 +54,39 @@ namespace EasyEngine
             }
             if (string.IsNullOrEmpty(p.StartScene)) p.StartScene = p.Scenes[0].Name;
             if (p.Prefabs == null || p.Prefabs.Count == 0) p.Prefabs = PrefabFactory.Defaults();
+            MigrateLegacy(p);
 
             AddRecent(p);
             return p;
+        }
+
+        /// <summary>
+        /// Upgrades behaviors that no longer exist. Melee (press J to swing a hitbox) became Tool Use (click to use the
+        /// item in hand): damage/range/knockback/cooldown carry over; with no Hotbar the item in hand is a sword.
+        /// </summary>
+        public static int MigrateLegacy(Project p)
+        {
+            int n = 0;
+            var objects = p.Scenes.SelectMany(s => s.Layers).SelectMany(l => l.Objects)
+                          .Concat(p.Prefabs.Where(pf => pf.Template != null).Select(pf => pf.Template!));
+            foreach (var o in objects)
+            {
+                for (int i = o.Behaviors.Count - 1; i >= 0; i--)
+                {
+                    var b = o.Behaviors[i];
+                    if (b.Kind != BehaviorKind.Melee) continue;
+                    o.Behaviors.RemoveAt(i); n++;
+                    if (o.Behaviors.Any(x => x.Kind == BehaviorKind.ToolUse)) continue; // already has the new one
+                    var tu = BehaviorCatalog.Info(BehaviorKind.ToolUse).CreateData();
+                    tu.Nums["damage"] = b.Num("damage", 1);
+                    tu.Nums["reach"] = Math.Max(40, b.Num("range", 40) + 20);
+                    tu.Nums["knockback"] = b.Num("knockback", 260);
+                    tu.Nums["cooldown"] = b.Num("cooldown", 0.35);
+                    tu.Texts["itemDamage"] = "";
+                    o.Behaviors.Insert(i, tu);
+                }
+            }
+            return n;
         }
 
         // ---------------- novo projeto ----------------

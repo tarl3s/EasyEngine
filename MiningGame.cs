@@ -96,7 +96,7 @@ namespace EasyEngine
             ui.Objects.Add(Id(hpBar));
             ui.Objects.Add(Id(Label("CoinsHUD", 16, 46, "Coins: {coins}", "#FFD86B", 16)));
             ui.Objects.Add(Id(Label("ResHUD", 16, 72, "Wood {item:wood}  ·  Dirt {item:dirt}  ·  Stone {item:stone}", "#CFE8FF", 14)));
-            ui.Objects.Add(Id(Label("Hint", 16, 98, "A/D move · Space jump · Wheel/1-3 hotbar · Pickaxe: hold Left mouse on dirt · Axe: stand by a tree + click · J attack (sword) · E buy · C craft · F1 console", "#AEB6C6", 13)));
+            ui.Objects.Add(Id(Label("Hint", 16, 98, "A/D move · Space jump · Wheel/1-3 hotbar · Pickaxe: hold Left mouse on dirt · Axe: stand by a tree + click · Sword: click near a slime · E buy · C craft · F1 console", "#AEB6C6", 13)));
 
             scene.Layers.Add(bg); scene.Layers.Add(baseL); scene.Layers.Add(ui);
             project.Scenes.Add(scene);
@@ -143,10 +143,9 @@ namespace EasyEngine
             var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 240; plat.Nums["jump"] = 620; o.Behaviors.Add(plat);
             o.Behaviors.Add(B(BehaviorKind.FollowCamera));
             var hp = B(BehaviorKind.Health); hp.Nums["max"] = 6; hp.Nums["respawn"] = 1; hp.Texts["var"] = "hp"; o.Behaviors.Add(hp);
-            var melee = B(BehaviorKind.Melee); melee.Texts["key"] = "J"; melee.Nums["range"] = 50; melee.Nums["damage"] = 1; melee.Texts["requires"] = "holding:sword"; o.Behaviors.Add(melee);
             var hot = B(BehaviorKind.Hotbar); hot.Texts["items"] = "pickaxe:#8D949E,axe:#B9C2CC,sword:#DDEBFF"; hot.Texts["player"] = "Player"; o.Behaviors.Add(hot);
-            // click to swing the axe/pickaxe (the sword attacks with J); the axe fells trees within reach
-            var tool = B(BehaviorKind.ToolUse); tool.Texts["tools"] = "axe,pickaxe"; tool.Nums["reach"] = 80;
+            // every item is used by clicking: the sword hits slimes hardest, the axe fells trees, the pickaxe digs
+            var tool = B(BehaviorKind.ToolUse); tool.Texts["itemDamage"] = "sword=2,axe=1,pickaxe=1"; tool.Nums["reach"] = 80;
             tool.Texts["swingSound"] = swingSound; tool.Texts["deniedSound"] = deniedSound;
             o.Behaviors.Add(tool);
             var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 240; torch.Texts["color"] = "#FFE6A0"; o.Behaviors.Add(torch);

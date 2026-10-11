@@ -42,7 +42,7 @@ namespace EasyEngine
             var scene = new Scene { Name = "Axe Test", Width = 1600, Height = 600, BackgroundColor = "#8EC5F0", AmbientLight = 1 };
             // reset on every load (R restarts the scene): tools owned, resources and counters at zero
             foreach (var t in new[] { "pickaxe", "axe", "sword" }) scene.Variables["item:" + t] = 1;
-            foreach (var v in new[] { "item:wood", "item:stone", "stat:swings", "stat:hits", "stat:felled", "stat:denied", "stat:missed" }) scene.Variables[v] = 0;
+            foreach (var v in new[] { "item:wood", "item:stone", "stat:swings", "stat:hits", "stat:felled", "stat:denied", "stat:missed", "stat:enemyHits" }) scene.Variables[v] = 0;
 
             var bg = new Layer { Name = "Background", Kind = LayerKind.Background };
             var baseL = new Layer { Name = "Base", Kind = LayerKind.Base };
@@ -79,6 +79,12 @@ namespace EasyEngine
             r.Behaviors.Add(rh);
             baseL.Objects.Add(Id(r));
 
+            // a training dummy for the sword (anything with Health is hit by items); it never dies
+            var dummy = Box("Dummy", 230, 500 - 60, 32, 60, "#C8A06A"); dummy.CornerRadius = 6;
+            var dh = B(BehaviorKind.Health); dh.Nums["max"] = 99; dh.Nums["respawn"] = 1; dh.Nums["invincible"] = 0.3; dh.Texts["var"] = "dummyHp";
+            dummy.Behaviors.Add(dh);
+            baseL.Objects.Add(Id(dummy));
+
             // the player: hotbar (starts on the pickaxe, so picking the axe is part of the test) + tool use
             var pl = new GameObjectData { Name = "Player", Type = "Player", X = 100, Y = 440, Width = 34, Height = 52, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
             var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 240; plat.Nums["jump"] = 620; pl.Behaviors.Add(plat);
@@ -99,7 +105,7 @@ namespace EasyEngine
             ui.Objects.Add(Id(panel));
             ui.Objects.Add(Id(Label("Help1", 24, 68, "AXE TEST   1) Pick the axe: mouse wheel, key 2, or click its slot", "#FFFFFF", 14)));
             ui.Objects.Add(Id(Label("Help2", 24, 90, "2) Click ANYWHERE to swing   3) Walk next to a tree and click: 4 hits fell it", "#FFFFFF", 13)));
-            ui.Objects.Add(Id(Label("Help3", 24, 110, "4) Try the axe on the grey rock (it should refuse)   ·   F1 console   ·   R restart", "#FFFFFF", 13)));
+            ui.Objects.Add(Id(Label("Help3", 24, 110, "4) Axe on the grey rock (should refuse)  ·  5) Sword (key 3) on the dummy  ·  F1 console  ·  R restart", "#FFFFFF", 13)));
             ui.Objects.Add(Id(Label("Counters", 24, 136, "Wood {item:wood}  ·  Stone {item:stone}  ·  Swings {stat:swings}  ·  Hits {stat:hits}  ·  Felled {stat:felled}  ·  Refused {stat:denied}", "#FFD86B", 13)));
 
             var checks = Box("Checks", 0, 0, 4, 4, "#00000000");
@@ -113,7 +119,8 @@ namespace EasyEngine
                 "Fell a tree (4 hits) => stat:felled >= 1",
                 "Wood in the bag (5+) => item:wood >= 5",
                 "The rock refuses the axe => stat:denied >= 1",
-                "Bonus: the pickaxe breaks the rock => item:stone >= 3");
+                "Bonus: the pickaxe breaks the rock => item:stone >= 3",
+                "Bonus: the sword hits the dummy => stat:enemyHits >= 1");
             cl.Nums["width"] = 310;
             checks.Behaviors.Add(cl);
             ui.Objects.Add(Id(checks));

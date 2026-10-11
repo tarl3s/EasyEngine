@@ -399,20 +399,49 @@ public partial class App
                 p.TSetVar("item:wood", 5); p.TKey("E", true); p.TStep();
                 return Math.Abs(p.TItem("wood") - 2) < 0.01 && p.TItem("sword") >= 1;
             });
-            Test("melee: 'requires' gates the swing on a weapon flag", () =>
+            // ---- Use Item replaces Melee: the sword works like every other item (click → arm swings → hit) ----
+            Action<Project, Scene> SwordVsEnemy(double enemyX, string itemDamage = "sword=2") => (pr, sc) =>
             {
-                Action<Project, Scene> setup = (pr, sc) =>
-                {
-                    var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
-                    var a = l.Objects.First(o => o.Name == "A");
-                    var m = new BehaviorData { Kind = BehaviorKind.Melee }; m.Texts["key"] = "J"; m.Texts["requires"] = "holding:sword"; m.Nums["range"] = 60; m.Nums["damage"] = 1;
-                    a.Behaviors.Add(m);
-                    l.Objects.Add(new GameObjectData { Id = 2, Name = "E", Type = "Object", X = 262, Y = 200, Width = 30, Height = 48, Color = "#E54", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { new BehaviorData { Kind = BehaviorKind.Health, Nums = { ["max"] = 3, ["respawn"] = 0 } } } });
-                };
-                var noWeapon = Sim("[]", extra: setup); noWeapon.TKey("J", true); noWeapon.TStep();
-                var withWeapon = Sim("[]", extra: setup); withWeapon.TSetVar("holding:sword", 1); withWeapon.TKey("J", true); withWeapon.TStep();
-                return noWeapon.THp("E") >= 3 && withWeapon.THp("E") < 3;
+                var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
+                var a = l.Objects.First(o => o.Name == "A"); // A: box at x 200..264
+                a.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.ToolUse, Nums = { ["reach"] = 60, ["knockback"] = 0 }, Texts = { ["tool"] = "sword", ["itemDamage"] = itemDamage } });
+                l.Objects.Add(new GameObjectData { Id = 2, Name = "E", Type = "Object", X = enemyX, Y = 200, Width = 30, Height = 48, Color = "#E54", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { new BehaviorData { Kind = BehaviorKind.Health, Nums = { ["max"] = 5, ["respawn"] = 0 } } } });
+            };
+            Test("use item: a sword click hurts an enemy in reach (sword=2 damage)", () =>
+            {
+                var p = Sim("[]", extra: SwordVsEnemy(290));
+                p.TClick(300, 220); p.TSteps(20);
+                return Math.Abs(p.THp("E") - 3) < 0.01 && p.TLogHas("Hit by the sword") && p.TVar("stat:enemyHits") == 1;
             });
+            Test("use item: an enemy out of reach is not hurt", () =>
+            {
+                var p = Sim("[]", extra: SwordVsEnemy(600));
+                p.TClick(610, 220); p.TSteps(20);
+                return Math.Abs(p.THp("E") - 5) < 0.01 && p.TVar("stat:swings") == 1;
+            });
+            Test("use item: a breakable tile under the cursor breaks with clicks", () =>
+            {
+                var p = Sim("[]", extra: Combine(BreakMap(200, 264, 3, 2),
+                    (pr, sc) => sc.Layers.First(z => z.Kind == LayerKind.Base).Objects.First(o => o.Name == "A")
+                                  .Behaviors.Add(new BehaviorData { Kind = BehaviorKind.ToolUse, Texts = { ["tool"] = "pickaxe" } })));
+                p.TClick(215, 280); p.TSteps(20);
+                return p.TTiles("Map") == 5 && p.TLogHas("Broke tile");
+            });
+            Test("use item: old projects with Melee are converted to Use Item when they load", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "EE_FullMig_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+                Directory.CreateDirectory(tmp);
+                var pr = ProjectIO.CreateNew("Mig", tmp);
+                var o = pr.GetStartScene().Layers.First(z => z.Kind == LayerKind.Base).Objects.First();
+                o.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Melee, Nums = { ["damage"] = 3, ["range"] = 50 } });
+                ProjectIO.Save(pr);
+                var loaded = ProjectIO.Load(pr.FilePath!);
+                var lo = loaded.GetStartScene().Layers.First(z => z.Kind == LayerKind.Base).Objects.First();
+                var tu = lo.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.ToolUse);
+                return lo.Behaviors.All(b => b.Kind != BehaviorKind.Melee) && tu != null && Math.Abs(tu.Num("damage") - 3) < 0.01 && tu.Text("tool") == "sword";
+            });
+            Test("use item: Melee is no longer offered (hidden), but still known so old files parse", () =>
+                BehaviorCatalog.Info(BehaviorKind.Melee).Hidden && !BehaviorCatalog.Info(BehaviorKind.ToolUse).Hidden);
 
             // ========================= M) MINING DEMO SMOKE TEST =========================
             Test("mining: the demo project loads and runs without error", () =>

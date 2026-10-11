@@ -136,39 +136,69 @@ namespace EasyEngine
             canvas.Children.Add(caption);
         }
 
-        // Draws the held tool at the player's hand — in Render, after physics, so it never lags a frame.
+        // Who holds what this frame: the hotbar's player + selected item, or (no hotbar) a Tool Use entity with a fixed tool.
+        private (Entity owner, Entity player, string item, string color)? HeldInfo()
+        {
+            if (_hotbarOwner != null && !_hotbarOwner.Dead)
+                return _hotbarPlayer == null || _hotbarPlayer.Dead || _heldItem.Length == 0 ? (_hotbarOwner, _hotbarOwner, "", _heldColor)
+                     : (_hotbarOwner, _hotbarPlayer, _heldItem, _heldColor);
+            foreach (var e in _entities)
+            {
+                if (e.Dead) continue;
+                var tu = e.Beh(BehaviorKind.ToolUse);
+                if (tu != null && tu.Text("tool", "").Length > 0) return (e, e, tu.Text("tool", ""), tu.Text("toolColor", "#DDEBFF"));
+            }
+            return null;
+        }
+
+        // Draws the arm + the held item at the player's hand — in Render, after physics, so it never lags a frame.
+        // A swing rotates the little arm from the shoulder; the item turns with it.
         private void RenderHeldTool()
         {
-            var owner = _hotbarOwner; var player = _hotbarPlayer;
-            if (owner == null || owner.Dead) return;
-            if (player == null || player.Dead || _heldItem.Length == 0)
+            var info = HeldInfo();
+            if (info == null) return;
+            var (owner, player, item, color) = info.Value;
+            if (item.Length == 0)
             {
                 if (owner.HeldVisual != null) owner.HeldVisual.Visibility = Visibility.Collapsed;
+                if (owner.HeldArm != null) owner.HeldArm.Visibility = Visibility.Collapsed;
                 return;
             }
-            if (owner.HeldVisual == null || owner.HeldName != _heldItem)
+            var host = player.ScreenSpace ? Hud : World;
+            if (owner.HeldArm == null)
+            {
+                owner.HeldArm = new Border { Width = 7, Height = 17, CornerRadius = new CornerRadius(3.5), IsHitTestVisible = false,
+                                             Background = Brush("#E8B88A"), BorderBrush = Brush("#A97C55"), BorderThickness = new Thickness(1) };
+                host.Children.Add(owner.HeldArm); // added after the player → drawn on top
+            }
+            if (owner.HeldVisual == null || owner.HeldName != item)
             {
                 if (owner.HeldVisual != null) { World.Children.Remove(owner.HeldVisual); Hud.Children.Remove(owner.HeldVisual); }
-                owner.HeldVisual = ToolArt.Make(_heldItem, _heldColor, 30, out owner.HeldGrip);
-                owner.HeldName = _heldItem;
-                (player.ScreenSpace ? Hud : World).Children.Add(owner.HeldVisual); // added after the player → drawn on top
+                owner.HeldVisual = ToolArt.Make(item, color, 30, out owner.HeldGrip);
+                owner.HeldName = item;
+                host.Children.Add(owner.HeldVisual);
             }
-            owner.HeldVisual.Visibility = Visibility.Visible;
+            owner.HeldVisual.Visibility = Visibility.Visible; owner.HeldArm.Visibility = Visibility.Visible;
 
-            // angle: resting 35° (raised, forward); a swing sweeps from -70° (behind the head) to +110° (down in front)
+            // tool angle: resting 35° (raised, forward); a swing sweeps from -70° (behind the head) to +110° (down in front)
             double angle = 35;
             if (player.SwingT > 0 && player.SwingDur > 0)
             {
                 double u = 1 - player.SwingT / player.SwingDur;
                 angle = -70 + 180 * (1 - Math.Pow(1 - u, 3)); // ease-out
             }
-            double hx = player.Facing >= 0 ? player.X + player.W - 6 : player.X + 6;
-            double hy = player.Y + player.H * 0.55;
+            // arm: from the shoulder, pointing at phi (0 = up, clockwise): raised during the wind-up, down at the end
+            double phi = angle * 0.8 + 90, rad = phi * Math.PI / 180, f = player.Facing >= 0 ? 1 : -1, armLen = 15;
+            double sx = player.CX + f * 3, sy = player.Y + player.H * 0.38;
+            double hx = sx + f * armLen * Math.Sin(rad), hy = sy - armLen * Math.Cos(rad);
+            Canvas.SetLeft(owner.HeldArm, sx - 3.5); Canvas.SetTop(owner.HeldArm, sy);
+            owner.HeldArm.RenderTransform = new RotateTransform(f > 0 ? phi - 180 : 180 - phi, 3.5, 0); // the bar points down by default
+
             var g = owner.HeldGrip;
             Canvas.SetLeft(owner.HeldVisual, hx - g.X); Canvas.SetTop(owner.HeldVisual, hy - g.Y);
             var tg = new TransformGroup();
             tg.Children.Add(new RotateTransform(angle, g.X, g.Y));
-            tg.Children.Add(new ScaleTransform(player.Facing >= 0 ? 1 : -1, 1, g.X, g.Y)); // mirror around the hand when facing left
+            tg.Children.Add(new ScaleTransform(f, 1, g.X, g.Y)); // mirror around the hand when facing left
             owner.HeldVisual.RenderTransform = tg;
         }
 
@@ -203,7 +233,7 @@ namespace EasyEngine
             }
             var allowed = bh.Text("tools", "");
             if (allowed.Length > 0 && !allowed.Split(',').Any(t => t.Trim().Equals(tool, StringComparison.OrdinalIgnoreCase)))
-                return; // e.g. the sword attacks with Melee (J), not with clicks
+                return; // optional whitelist: only these held items swing
             if (en.ToolCd > 0) { LogThrottled("tool-cd:" + en.Data.Name, 1, LogLevel.Info, "Tool", en.Data.Name, "Swing ignored — still recovering from the last one"); return; }
 
             // swing!
@@ -217,7 +247,20 @@ namespace EasyEngine
             Info("Tool", en.Data.Name, $"{ToolArt.Title(tool)} swing", $"aimed at ({_mouseWorld.X:0}, {_mouseWorld.Y:0}) · facing {(en.Facing > 0 ? "right" : "left")}");
         }
 
-        // Half-way through the swing: find what the tool lands on.
+        // How much damage the held item does to things with Health: "itemDamage" (e.g. "sword=2,axe=1"), else "damage".
+        private static double ItemDamage(BehaviorData bh, string item)
+        {
+            foreach (var part in bh.Text("itemDamage", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var kv = part.Split('=', 2);
+                if (kv.Length == 2 && kv[0].Trim().Equals(item, StringComparison.OrdinalIgnoreCase) &&
+                    double.TryParse(kv[1], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d)) return d;
+            }
+            return bh.Num("damage", 1);
+        }
+
+        // Half-way through the swing: find what the item lands on — an enemy (anything with Health), a tree/rock
+        // (Harvestable that accepts this item), or a breakable tile under the cursor. Every item works the same way.
         private void ResolveImpact(Entity user, BehaviorData bh)
         {
             double reach = bh.Num("reach", 80);
@@ -227,10 +270,12 @@ namespace EasyEngine
             foreach (var t in _entities)
             {
                 if (t.Dead || t.Felled || t == user) continue;
-                var hb = t.Beh(BehaviorKind.Harvestable); if (hb == null) continue;
+                var hb = t.Beh(BehaviorKind.Harvestable);
+                bool enemy = hb == null && t.Has(BehaviorKind.Health);
+                if (hb == null && !enemy) continue;
                 double gap = RectGap(user, t);
-                var need = hb.Text("tool", "");
-                bool accepts = string.IsNullOrWhiteSpace(need) || need.Equals(tool, StringComparison.OrdinalIgnoreCase);
+                var need = hb?.Text("tool", "") ?? "";
+                bool accepts = enemy || string.IsNullOrWhiteSpace(need) || need.Equals(tool, StringComparison.OrdinalIgnoreCase);
                 if (accepts && gap < nearestOkGap) { nearestOkGap = gap; nearestOk = t; }
                 if (gap > reach) continue;
                 bool under = user.ImpactAt.X >= t.X && user.ImpactAt.X <= t.X + t.W && user.ImpactAt.Y >= t.Y && user.ImpactAt.Y <= t.Y + t.H;
@@ -241,7 +286,13 @@ namespace EasyEngine
                 double score = gap + (under ? -10000 : 0) + (sameSide ? 0 : 1000);
                 if (score < bestScore) { bestScore = score; best = t; }
             }
-            if (best != null) { HitHarvestable(best, user, tool); return; }
+            if (best != null)
+            {
+                if (best.Has(BehaviorKind.Harvestable)) HitHarvestable(best, user, tool);
+                else HitEnemy(best, user, bh, tool);
+                return;
+            }
+            if (BreakTileWithTool(user, bh, tool, reach)) return;
             if (wrongTool != null)
             {
                 var need = wrongTool.Beh(BehaviorKind.Harvestable)!.Text("tool", "");
@@ -253,6 +304,39 @@ namespace EasyEngine
             _vars["stat:missed"] = Var("stat:missed") + 1;
             if (nearestOk != null)
                 Info("Tool", user.Data.Name, $"Nothing in reach — nearest {nearestOk.Data.Name} is {nearestOkGap:0}px away (reach {reach:0})", "Walk closer, then click.");
+        }
+
+        // The swing landed on something with Health (an enemy): damage + knockback, like the old melee attack.
+        private void HitEnemy(Entity t, Entity user, BehaviorData bh, string tool)
+        {
+            double dmg = ItemDamage(bh, tool), before = t.CurHealth;
+            bool invincible = t.InvTimer > 0;
+            DamageEntity(t, dmg, bh.Num("knockback", 260), user.CX);
+            _vars["stat:enemyHits"] = Var("stat:enemyHits") + 1;
+            EmitParticles(t.CX, t.CY, 8, 170, 360, 0, 0.35, 4, 300, "#FFFFFF");
+            PlaySoundFile(bh.Text("hitSound", ""), 0.85, "sfx", false, user.Data.Name);
+            if (invincible) Info("Combat", t.Data.Name, $"Hit by the {tool}, but still invincible from the last hit — no damage");
+            else Info("Combat", t.Data.Name, $"Hit by the {tool}: health {before:0.#} → {t.CurHealth:0.#}", $"damage {dmg:0.#}");
+        }
+
+        // Nothing else in reach: break the breakable tile under the cursor (if the cursor is within reach).
+        private bool BreakTileWithTool(Entity user, BehaviorData bh, string tool, double reach)
+        {
+            var p = user.ImpactAt;
+            double dx = Math.Max(0, Math.Max(user.X - p.X, p.X - (user.X + user.W)));
+            double dy = Math.Max(0, Math.Max(user.Y - p.Y, p.Y - (user.Y + user.H)));
+            if (Math.Sqrt(dx * dx + dy * dy) > reach) return false;
+            foreach (var map in _entities)
+            {
+                if (map.Dead || map.Tiles == null) continue;
+                var mb = map.Beh(BehaviorKind.Tilemap);
+                if (mb == null || mb.Num("byMelee", 1) < 0.5) continue; // "Break with tool clicks"
+                var cell = CellAt(map, p.X, p.Y);
+                if (cell == null) continue;
+                DamageCell(map, mb, cell, 1); // logs the break, or why it can't break (e.g. needs holding:pickaxe)
+                return true;
+            }
+            return false;
         }
 
         private static string A(string word) => (word.Length > 0 && "aeiouAEIOU".IndexOf(word[0]) >= 0 ? "an " : "a ") + word;

@@ -111,6 +111,14 @@ public partial class App
                 return pw.THeld == "pickaxe" && pw.TFelled("Rock") && Math.Abs(pw.TItem("stone") - 3) < 0.01;
             });
 
+            Step("The sword (key 3) works like any item: click near the dummy → hit, arm swings", () =>
+            {
+                Key("D3");
+                pw.TPlace("Player", 290, 446); pw.TSteps(10);           // dummy is at x 230..262
+                pw.TClick(246, 470); pw.TSteps(25);
+                return pw.THeld == "sword" && pw.TVar("stat:enemyHits") == 1 && pw.TLogHas("Hit by the sword");
+            });
+
             Step("The on-screen checklist reaches ALL PASSED", () => { pw.TStep(); return pw.TVar("check:all") == 1 && pw.TLogHas("ALL PASSED"); });
 
             Step("R restarts the scene: counters back to zero, pickaxe in hand", () =>

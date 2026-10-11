@@ -54,6 +54,7 @@ namespace EasyEngine
             public bool DNStarted; public double DNTimer;      // day/night cycle clock
             public Canvas? HotbarCanvas;                       // hotbar UI (screen space)
             public FrameworkElement? HeldVisual;               // the tool drawn in the player's hand (owned by the hotbar entity)
+            public FrameworkElement? HeldArm;                  // the little arm that swings it
             public string HeldName = ""; public Point HeldGrip;  // which tool it shows + where the hand holds it
             public string HotbarSig = "", HotbarRenderSig = "";  // last selection logged / last hotbar drawn
             // ToolUse (the swinger)
@@ -82,7 +83,7 @@ namespace EasyEngine
             public bool SwitchWas, InteractWas, AreaWas, ShopWas; // edge-trigger memory
             public bool InteractFired, AreaFired;        // 'once' latches
             // health / combat
-            public double CurHealth, MaxHealth, InvTimer, RespawnX, RespawnY, MeleeTimer;
+            public double CurHealth, MaxHealth, InvTimer, RespawnX, RespawnY;
             // per-entity variables (counters for custom scripts — each copy has its own)
             public Dictionary<string, double> Locals = new(StringComparer.OrdinalIgnoreCase);
             public double SpeedScale = 1; // movement speed multiplier (changed by boost/setspeed)
@@ -1062,31 +1063,7 @@ namespace EasyEngine
                             }
                             break;
                         }
-                        case BehaviorKind.Melee:
-                        {
-                            if (en.MeleeTimer > 0) { en.MeleeTimer -= dt; break; }
-                            // optionally needs a weapon equipped (e.g. requires = holding:sword)
-                            var meleeReq = bh.Text("requires", "");
-                            if (!string.IsNullOrWhiteSpace(meleeReq) && Var(meleeReq) < 0.5) break;
-                            if (_keys.Contains(ParseKey(bh.Text("key", "J"))))
-                            {
-                                en.MeleeTimer = Math.Max(0.1, bh.Num("cooldown", 0.35));
-                                double range = bh.Num("range", 40);
-                                double hx = en.Facing >= 0 ? en.X + en.W : en.X - range;
-                                double hy = en.Y, hw = range, hh = en.H;
-                                foreach (var t in _entities.ToList())
-                                {
-                                    if (t == en || t.Dead || !t.Has(BehaviorKind.Health)) continue;
-                                    if (t.X < hx + hw && t.X + t.W > hx && t.Y < hy + hh && t.Y + t.H > hy)
-                                        DamageEntity(t, bh.Num("damage", 1), bh.Num("knockback", 260), en.CX);
-                                }
-                                // melee also breaks breakable tilemaps caught in the swing
-                                foreach (var map in _entities)
-                                    if (map.Tiles != null) { var mb = map.Beh(BehaviorKind.Tilemap); if (mb != null && mb.Num("byMelee", 1) >= 0.5) BreakOverlap(map, mb, hx, hy, hw, hh, (int)Math.Max(1, bh.Num("damage", 1))); }
-                                ShowSlash(hx, hy, hw, hh);
-                            }
-                            break;
-                        }
+                        // (Melee is gone: projects are converted to Tool Use when they load — see ProjectIO.MigrateLegacy)
                         case BehaviorKind.Checkpoint:
                         {
                             var t = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("target", "Player"));
@@ -2614,20 +2591,6 @@ namespace EasyEngine
             t.VX = dir * kb; t.VY = -kb * 0.6;
         }
 
-        private void ShowSlash(double x, double y, double w, double h)
-        {
-            var fe = new Border
-            {
-                Width = w, Height = h,
-                Background = new SolidColorBrush(Color.FromArgb(150, 255, 255, 255)),
-                CornerRadius = new CornerRadius(4), IsHitTestVisible = false
-            };
-            Canvas.SetLeft(fe, x); Canvas.SetTop(fe, y);
-            World.Children.Add(fe);
-            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.12) };
-            t.Tick += (s, e) => { t.Stop(); World.Children.Remove(fe); };
-            t.Start();
-        }
 
         private readonly Random _rng = new();
 
@@ -2917,6 +2880,7 @@ namespace EasyEngine
                 if (en.HotbarCanvas != null) Hud.Children.Remove(en.HotbarCanvas);
                 if (en.ChecklistPanel != null) Hud.Children.Remove(en.ChecklistPanel);
                 if (en.HeldVisual != null) { Hud.Children.Remove(en.HeldVisual); World.Children.Remove(en.HeldVisual); }
+                if (en.HeldArm != null) { Hud.Children.Remove(en.HeldArm); World.Children.Remove(en.HeldArm); }
                 _solids.Remove(en);
                 _entities.RemoveAt(i);
             }

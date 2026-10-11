@@ -59,7 +59,7 @@ namespace EasyEngine
         Health,           // has hit points; respawns at checkpoint on death
         Damager,          // hurts a target on touch (enemies, spikes, hazards)
         Checkpoint,       // sets the player's respawn point when touched
-        Melee,            // press a key to swing a melee hitbox in front (hurts enemies)
+        Melee,            // LEGACY — converted to ToolUse when a project loads (kept so old project files still parse)
         Tilemap,          // a grid of tiles painted in the editor (ground/level geometry)
         Pushable,         // a solid block the player can push around (puzzles/sokoban)
         Switch,           // click/touch/interact to toggle a variable on/off (puzzles, levers)
@@ -190,7 +190,7 @@ namespace EasyEngine
                     t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Platformer).CreateData());
                     t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.FollowCamera).CreateData());
                     t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Health).CreateData());
-                    t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Melee).CreateData()); }),
+                    t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.ToolUse).CreateData()); }), // click to attack with a sword
                 P("Enemy", "👾", "Characters", t => { t.Color = "#E5484B"; t.Width = 52; t.Height = 52;
                     t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Patrol).CreateData());
                     t.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Damager).CreateData());
