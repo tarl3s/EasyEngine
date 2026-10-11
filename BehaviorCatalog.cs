@@ -149,9 +149,9 @@ namespace EasyEngine
                 Texts = { new("var","Variable name","health") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Melee, Name = "Melee Attack", Icon = "⚔",
-                Desc = "Press a key to swing a melee hitbox in the facing direction, hurting enemies that have Health.",
+                Desc = "Press a key to swing a melee hitbox in the facing direction, hurting enemies that have Health. Set 'requires' to a flag (e.g. holding:sword) to only swing when that weapon is equipped.",
                 Nums = { new("damage","Damage",1), new("range","Reach",40), new("knockback","Knockback",260), new("cooldown","Cooldown (s)",0.35) },
-                Texts = { new("key","Key","J") } },
+                Texts = { new("key","Key","J"), new("requires","Needs this flag to swing (optional)","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Damager, Name = "Damager / Hazard", Icon = "💢",
                 Desc = "Hurts a target that touches it (enemy contact, spikes, hazards), with knockback and i-frames.",

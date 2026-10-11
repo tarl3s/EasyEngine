@@ -21,6 +21,7 @@ namespace EasyEngine
             _mouseClicked = _mouseDown && !_mousePrevDown; _mousePrevDown = _mouseDown;
             _rmbClicked = _rmbDown && !_rmbPrevDown; _rmbPrevDown = _rmbDown;
             _wheelDelta = _wheelAccum; _wheelAccum = 0;
+            _mouseWorld = new Point(_mouseScreen.X - _camX, _mouseScreen.Y - _camY);
             UpdateBehaviors(dt);
             UpdateBreakables(dt);
             UpdatePhysics(dt);

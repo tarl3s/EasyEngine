@@ -89,7 +89,7 @@ namespace EasyEngine
             ui.Objects.Add(Id(hpBar));
             ui.Objects.Add(Id(Label("CoinsHUD", 16, 46, "Coins: {coins}", "#FFD86B", 16)));
             ui.Objects.Add(Id(Label("ResHUD", 16, 72, "Wood {item:wood}  ·  Dirt {item:dirt}  ·  Stone {item:stone}", "#CFE8FF", 14)));
-            ui.Objects.Add(Id(Label("Hint", 16, 1160, "Move A/D · Jump Space · Mine/chop: aim + hold Left mouse · Hotbar: mouse wheel / 1-3 · J attack · E buy · C craft", "#AEB6C6", 13)));
+            ui.Objects.Add(Id(Label("Hint", 16, 98, "Move A/D · Jump Space · Mine/chop: aim + hold Left mouse · Hotbar: wheel / 1-3 · J attack (needs sword) · E buy · C craft", "#AEB6C6", 13)));
 
             scene.Layers.Add(bg); scene.Layers.Add(baseL); scene.Layers.Add(ui);
             project.Scenes.Add(scene);
@@ -135,12 +135,13 @@ namespace EasyEngine
             var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 240; plat.Nums["jump"] = 620; o.Behaviors.Add(plat);
             o.Behaviors.Add(B(BehaviorKind.FollowCamera));
             var hp = B(BehaviorKind.Health); hp.Nums["max"] = 6; hp.Nums["respawn"] = 1; hp.Texts["var"] = "hp"; o.Behaviors.Add(hp);
-            var melee = B(BehaviorKind.Melee); melee.Texts["key"] = "J"; melee.Nums["range"] = 46; melee.Nums["damage"] = 1; o.Behaviors.Add(melee);
+            var melee = B(BehaviorKind.Melee); melee.Texts["key"] = "J"; melee.Nums["range"] = 50; melee.Nums["damage"] = 1; melee.Texts["requires"] = "holding:sword"; o.Behaviors.Add(melee);
             var hot = B(BehaviorKind.Hotbar); hot.Texts["items"] = "pickaxe:#B5651D,axe:#9AA0A0,sword:#AEE1FF"; hot.Texts["player"] = "Player"; o.Behaviors.Add(hot);
             var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 240; torch.Texts["color"] = "#FFE6A0"; o.Behaviors.Add(torch);
-            // mine/chop the tile under the cursor while the left mouse button is held (the held tool gates what breaks)
+            // mine/chop the tile under the cursor while the left mouse button is held, within reach
+            // (the held tool gates WHAT breaks via each tilemap's 'requires' flag)
             var cust = new BehaviorData { Kind = BehaviorKind.Custom };
-            cust.Texts["script"] = "[{\"when\":\"always\",\"do\":\"breaktile\",\"where\":\"atmouse\",\"cond\":\"mousedown >= 1\"}]";
+            cust.Texts["script"] = "[{\"when\":\"always\",\"do\":\"breaktile\",\"where\":\"atmouse\",\"cond\":\"mousedown >= 1 && dist(mousex, mousey, self.cx, self.cy) < 170\"}]";
             o.Behaviors.Add(cust);
             return o;
         }
@@ -149,18 +150,21 @@ namespace EasyEngine
         {
             var o = new GameObjectData { Name = "Slime", Type = "Enemy", X = x, Y = y, Width = 40, Height = 30, Color = "#8E54E9", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
             var plat = B(BehaviorKind.Platformer); plat.Nums["controls"] = 0; o.Behaviors.Add(plat);
-            var pat = B(BehaviorKind.Patrol); pat.Nums["speed"] = 60; pat.Nums["distance"] = 160; o.Behaviors.Add(pat);
             var dmg = B(BehaviorKind.Damager); dmg.Texts["target"] = "Player"; dmg.Nums["damage"] = 1; dmg.Nums["knockback"] = 300; o.Behaviors.Add(dmg);
             var hp = B(BehaviorKind.Health); hp.Nums["max"] = 2; hp.Nums["respawn"] = 0; o.Behaviors.Add(hp);
+            // walk toward the player (gravity from Platformer keeps it on the ground); drop a coin on death
             var cust = new BehaviorData { Kind = BehaviorKind.Custom };
-            cust.Texts["script"] = "[{\"when\":\"death\",\"do\":\"spawn\",\"object\":\"Coin\"},{\"when\":\"death\",\"do\":\"emit\",\"count\":16,\"color\":\"#8E54E9\"}]";
+            cust.Texts["script"] = "[{\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(Player.cx - self.cx) * 70\"}," +
+                                    "{\"when\":\"death\",\"do\":\"spawn\",\"object\":\"Coin\"}," +
+                                    "{\"when\":\"death\",\"do\":\"emit\",\"count\":16,\"color\":\"#8E54E9\"}]";
             o.Behaviors.Add(cust);
             return o;
         }
 
         private static GameObjectData CoinTemplate()
         {
-            var o = new GameObjectData { Name = "Coin", Type = "Object", X = 0, Y = 0, Width = 22, Height = 22, Color = "#FFD24D", Physics = new PhysicsData { Mode = PhysicsMode.None } };
+            // Dynamic so scattered/dropped coins fall to the ground where the player can reach them
+            var o = new GameObjectData { Name = "Coin", Type = "Object", X = 0, Y = 0, Width = 22, Height = 22, Color = "#FFD24D", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
             o.CornerRadius = 11;
             var cust = new BehaviorData { Kind = BehaviorKind.Custom };
             cust.Texts["script"] = "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1}," +

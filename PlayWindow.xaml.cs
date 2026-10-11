@@ -69,7 +69,7 @@ namespace EasyEngine
             public bool FrameDynamic, FrameTopDown, FrameCollide; // physics category, classified once per frame
             // phase-2 behavior state
             public bool SolidDisabled;                 // Door: opened → stops colliding
-            public bool SwitchWas, InteractWas, AreaWas; // edge-trigger memory
+            public bool SwitchWas, InteractWas, AreaWas, ShopWas; // edge-trigger memory
             public bool InteractFired, AreaFired;        // 'once' latches
             // health / combat
             public double CurHealth, MaxHealth, InvTimer, RespawnX, RespawnY, MeleeTimer;
@@ -905,6 +905,7 @@ namespace EasyEngine
             _mouseClicked = _mouseDown && !_mousePrevDown; _mousePrevDown = _mouseDown;
             _rmbClicked = _rmbDown && !_rmbPrevDown; _rmbPrevDown = _rmbDown;
             _wheelDelta = _wheelAccum; _wheelAccum = 0;
+            _mouseWorld = new Point(_mouseScreen.X - _camX, _mouseScreen.Y - _camY); // keep world mouse fresh while the camera eases
 
             UpdateBehaviors(dt);
             UpdateBreakables(dt);
@@ -968,8 +969,8 @@ namespace EasyEngine
                             double dx = en.CX - buyer.CX, dy = en.CY - buyer.CY;
                             bool near = (dx * dx + dy * dy) <= radius * radius || Overlap(en, buyer);
                             bool keyDown = near && _keys.Contains(ParseKey(bh.Text("key", "E")));
-                            bool pressed = keyDown && !en.SwitchWas; // buy once per key press
-                            en.SwitchWas = keyDown;
+                            bool pressed = keyDown && !en.ShopWas; // buy once per key press
+                            en.ShopWas = keyDown;
                             bool once = bh.Num("once", 1) >= 0.5;
                             bool sold = en.Locals.TryGetValue("__sold", out var sd) && sd >= 1;
                             if (pressed && !(once && sold))
@@ -990,6 +991,9 @@ namespace EasyEngine
                         case BehaviorKind.Melee:
                         {
                             if (en.MeleeTimer > 0) { en.MeleeTimer -= dt; break; }
+                            // optionally needs a weapon equipped (e.g. requires = holding:sword)
+                            var meleeReq = bh.Text("requires", "");
+                            if (!string.IsNullOrWhiteSpace(meleeReq) && Var(meleeReq) < 0.5) break;
                             if (_keys.Contains(ParseKey(bh.Text("key", "J"))))
                             {
                                 en.MeleeTimer = Math.Max(0.1, bh.Num("cooldown", 0.35));
@@ -2450,7 +2454,7 @@ namespace EasyEngine
             void Place(string name, bool active, double phase)
             {
                 if (string.IsNullOrWhiteSpace(name)) return;
-                var e = _entities.FirstOrDefault(z => !z.Dead && z.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                var e = _entities.FirstOrDefault(z => !z.Dead && z != en && z.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
                 if (e == null) return;
                 var vis = active ? Visibility.Visible : Visibility.Collapsed;
                 e.Visual.Visibility = vis;
@@ -2491,12 +2495,10 @@ namespace EasyEngine
             sel = ((sel % items.Count) + items.Count) % items.Count;
             en.Locals["__slot"] = sel;
 
-            // each item gets a "holding:<name>" flag = 1 only when it's the selected, owned slot
-            for (int i = 0; i < items.Count; i++)
-            {
-                bool owned = Var("item:" + items[i].name) >= 1;
-                _vars["holding:" + items[i].name] = (i == sel && owned) ? 1 : 0;
-            }
+            // each item gets a "holding:<name>" flag = 1 only when it's the selected, owned slot.
+            // clear every name first, then set the selected one (handles duplicate slot names).
+            foreach (var it in items) _vars["holding:" + it.name] = 0;
+            if (Var("item:" + items[sel].name) >= 1) _vars["holding:" + items[sel].name] = 1;
             _vars["heldSlot"] = sel;
 
             if (en.HotbarCanvas == null) { en.HotbarCanvas = new Canvas(); Hud.Children.Add(en.HotbarCanvas); }
@@ -2863,6 +2865,8 @@ namespace EasyEngine
                 if (!en.Dead) continue;
                 World.Children.Remove(en.Visual);
                 if (en.LightVisual != null) Lights.Children.Remove(en.LightVisual);
+                if (en.HotbarCanvas != null) Hud.Children.Remove(en.HotbarCanvas);
+                if (en.HeldVisual != null) { Hud.Children.Remove(en.HeldVisual); World.Children.Remove(en.HeldVisual); }
                 _solids.Remove(en);
                 _entities.RemoveAt(i);
             }

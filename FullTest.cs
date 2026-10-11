@@ -344,6 +344,12 @@ public partial class App
                 return Math.Abs(p.TVar("holding:pick") - 1) < 0.01 && p.TVar("holding:axe") < 0.5;
             });
             Test("hotbar: an unowned slot holds nothing", () => { var p = Sim("[]", extra: AddHotbar("pick:#111111")); p.TStep(); return p.TVar("holding:pick") < 0.5; });
+            Test("hotbar: duplicate slot names keep the selected holding flag", () =>
+            {
+                var p = Sim("[]", extra: AddHotbar("wood:#111111,wood:#222222"));
+                p.TSetVar("item:wood", 1); p.TStep();
+                return Math.Abs(p.TVar("holding:wood") - 1) < 0.01; // slot 1 must not clobber it back to 0
+            });
             Test("hotbar: the wheel changes the selected slot", () =>
             {
                 var p = Sim("[]", extra: AddHotbar("pick:#111111,axe:#222222,sword:#333333"));
@@ -393,6 +399,20 @@ public partial class App
                 p.TSetVar("item:wood", 5); p.TKey("E", true); p.TStep();
                 return Math.Abs(p.TItem("wood") - 2) < 0.01 && p.TItem("sword") >= 1;
             });
+            Test("melee: 'requires' gates the swing on a weapon flag", () =>
+            {
+                Action<Project, Scene> setup = (pr, sc) =>
+                {
+                    var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
+                    var a = l.Objects.First(o => o.Name == "A");
+                    var m = new BehaviorData { Kind = BehaviorKind.Melee }; m.Texts["key"] = "J"; m.Texts["requires"] = "holding:sword"; m.Nums["range"] = 60; m.Nums["damage"] = 1;
+                    a.Behaviors.Add(m);
+                    l.Objects.Add(new GameObjectData { Id = 2, Name = "E", Type = "Object", X = 262, Y = 200, Width = 30, Height = 48, Color = "#E54", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { new BehaviorData { Kind = BehaviorKind.Health, Nums = { ["max"] = 3, ["respawn"] = 0 } } } });
+                };
+                var noWeapon = Sim("[]", extra: setup); noWeapon.TKey("J", true); noWeapon.TStep();
+                var withWeapon = Sim("[]", extra: setup); withWeapon.TSetVar("holding:sword", 1); withWeapon.TKey("J", true); withWeapon.TStep();
+                return noWeapon.THp("E") >= 3 && withWeapon.THp("E") < 3;
+            });
 
             // ========================= M) MINING DEMO SMOKE TEST =========================
             Test("mining: the demo project loads and runs without error", () =>
@@ -418,6 +438,15 @@ public partial class App
                 var pw = new PlayWindow(proj, proj.StartScene ?? proj.Scenes[0].Name); sims.Add(pw);
                 pw.TLoad();
                 pw.TMouseAt(100, 760); pw.TMouseDown(true); pw.TSteps(5);
+                return pw.TItem("dirt") < 0.5;
+            });
+            Test("mining: mining is limited to a reach around the player", () =>
+            {
+                var proj = BuildMining();
+                var pw = new PlayWindow(proj, proj.StartScene ?? proj.Scenes[0].Name); sims.Add(pw);
+                pw.TLoad();
+                pw.TSetVar("item:pickaxe", 1); pw.TSteps(2);
+                pw.TMouseAt(1500, 760); pw.TMouseDown(true); pw.TSteps(5); // far from the player
                 return pw.TItem("dirt") < 0.5;
             });
 
