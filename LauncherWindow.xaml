@@ -1,4 +1,4 @@
-﻿<Window x:Class="EasyEngine.LauncherWindow"
+<Window x:Class="EasyEngine.LauncherWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="EasyEngine" Height="560" Width="880"
@@ -14,17 +14,17 @@
         <Border Grid.Column="0" Background="{StaticResource Bg1}">
             <DockPanel Margin="26,30,26,26">
                 <StackPanel DockPanel.Dock="Top">
-                    <TextBlock Text="â¬¡" Foreground="{StaticResource Accent}" FontSize="46"/>
+                    <TextBlock Text="⬡" Foreground="{StaticResource Accent}" FontSize="46"/>
                     <TextBlock Text="EasyEngine" Foreground="{StaticResource Text}" FontSize="26" FontWeight="Bold" Margin="0,2,0,0"/>
-                    <TextBlock Text="The easiest 2D game engine â€” you bring the art, the AI writes the code." Foreground="{StaticResource TextDim}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
-                    <TextBlock x:Name="VersionText" Text="v0.5.0" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,6,0,0"/>
+                    <TextBlock Text="The easiest 2D game engine — you bring the art, the AI writes the code." Foreground="{StaticResource TextDim}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="VersionText" Text="v0.5.1" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,6,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom" VerticalAlignment="Bottom">
-                    <Button Content="ï¼‹  New Project" Style="{StaticResource AccentButton}" Height="44" FontSize="14" Click="NewProject_Click"/>
-                    <Button Content="ðŸ“‚  Open Projectâ€¦" Style="{StaticResource CardButton}" Height="44" Margin="0,10,0,0" HorizontalContentAlignment="Center" Click="OpenProject_Click"/>
-                    <Button Content="ðŸ§ª  Test scenarios" Style="{StaticResource CardButton}" Height="44" Margin="0,10,0,0" HorizontalContentAlignment="Center" Click="TestScenarios_Click"
+                    <Button Content="＋  New Project" Style="{StaticResource AccentButton}" Height="44" FontSize="14" Click="NewProject_Click"/>
+                    <Button Content="📂  Open Project…" Style="{StaticResource CardButton}" Height="44" Margin="0,10,0,0" HorizontalContentAlignment="Center" Click="OpenProject_Click"/>
+                    <Button Content="🧪  Test scenarios" Style="{StaticResource CardButton}" Height="44" Margin="0,10,0,0" HorizontalContentAlignment="Center" Click="TestScenarios_Click"
                             ToolTip="Builds the 'EasyEngine Tests' project (one scene per mechanic, with a checklist + the F1 console) and opens it"/>
-                    <TextBlock x:Name="OllamaStatus" Text="AI: checkingâ€¦" Foreground="{StaticResource TextDim}" FontSize="11" Margin="2,16,0,0" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="OllamaStatus" Text="AI: checking…" Foreground="{StaticResource TextDim}" FontSize="11" Margin="2,16,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
                 <Grid/>
             </DockPanel>
@@ -34,7 +34,7 @@
         <Grid Grid.Column="1" Margin="30">
             <DockPanel x:Name="RecentPanel">
                 <TextBlock DockPanel.Dock="Top" Text="Recent projects" Foreground="{StaticResource Text}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,14"/>
-                <TextBlock x:Name="NoRecent" DockPanel.Dock="Top" Text="No projects yet. Click â€œNew Projectâ€ to start." Foreground="{StaticResource TextDim}" FontSize="13" Visibility="Collapsed"/>
+                <TextBlock x:Name="NoRecent" DockPanel.Dock="Top" Text="No projects yet. Click “New Project” to start." Foreground="{StaticResource TextDim}" FontSize="13" Visibility="Collapsed"/>
                 <ListBox x:Name="RecentList" Background="Transparent" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          MouseDoubleClick="RecentList_DoubleClick">
@@ -71,13 +71,13 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="ðŸŽ®" FontSize="22" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="0" Text="🎮" FontSize="22" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Name}" Foreground="{StaticResource Text}" FontSize="14" FontWeight="SemiBold"/>
                                     <TextBlock Text="{Binding Path}" Foreground="{StaticResource TextDim}" FontSize="11" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Text="{Binding LastOpened}" Foreground="{StaticResource TextDim}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <Button Grid.Column="3" Content="ðŸ—‘" Style="{StaticResource GhostButton}" Width="32" Height="30"
+                                <Button Grid.Column="3" Content="🗑" Style="{StaticResource GhostButton}" Width="32" Height="30"
                                         Foreground="{StaticResource Danger}" ToolTip="Delete / remove" Tag="{Binding}" Click="DeleteRecent_Click"/>
                             </Grid>
                         </DataTemplate>
@@ -98,7 +98,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="NewLocation" Grid.Column="0" Height="36" IsReadOnly="True"/>
-                        <Button Grid.Column="1" Content="â€¦" Style="{StaticResource CardButton}" Width="40" Height="36" Margin="8,0,0,0" HorizontalContentAlignment="Center" Click="BrowseFolder_Click"/>
+                        <Button Grid.Column="1" Content="…" Style="{StaticResource CardButton}" Width="40" Height="36" Margin="8,0,0,0" HorizontalContentAlignment="Center" Click="BrowseFolder_Click"/>
                     </Grid>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
                         <Button Content="Cancel" Style="{StaticResource CardButton}" Width="110" Height="38" HorizontalContentAlignment="Center" Margin="0,0,10,0" Click="CancelNew_Click"/>
