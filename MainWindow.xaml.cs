@@ -1955,14 +1955,13 @@ namespace EasyEngine
         // ============================================================
         private void StrengthCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (CustomModel == null || OllamaStatus == null || CloudKeyPanel == null) return;
+            if (CustomModel == null || OllamaStatus == null) return;
             if (StrengthCombo.SelectedItem is not ComboBoxItem item) return;
             var tag = (string)(item.Tag ?? "");
 
             _useCloud = tag.StartsWith("cloud:", StringComparison.Ordinal);
             bool custom = string.IsNullOrEmpty(tag);
 
-            CloudKeyPanel.Visibility = _useCloud ? Visibility.Visible : Visibility.Collapsed;
             CustomModel.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
 
             if (_useCloud)
@@ -1982,21 +1981,106 @@ namespace EasyEngine
         // ---- cloud provider keys (one masked row per free provider) ----
         private bool AnyCloudKey() => CloudClient.Providers.Any(p => !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id)));
 
-        private void BuildCloudKeyRows()
+        // one-line friendly blurb shown on each free provider's card
+        private static string FreeBlurb(string id) => id switch
         {
-            if (CloudKeysHost == null) return;
-            CloudKeysHost.Children.Clear();
+            "groq"       => "★ Recommended — fast and simple, big free limit.",
+            "gemini"     => "Google. Very large daily limit.",
+            "openrouter" => "Lots of models, smaller daily limit.",
+            "mistral"    => "European. A good backup.",
+            _            => "Free, no credit card.",
+        };
+
+        private static readonly SolidColorBrush ReadyGreen = new(Color.FromRgb(0x4A, 0xDE, 0x80));
+
+        private void BuildCloudKeyRows() { BuildFreeKeyRows(); BuildPaidKeyRows(); }
+
+        // EASY: guided card per free provider — open the site, paste the key, see "Ready".
+        private void BuildFreeKeyRows()
+        {
+            if (FreeKeysHost == null) return;
+            FreeKeysHost.Children.Clear();
+            var dim = (SolidColorBrush)FindResource("TextDim");
             foreach (var prov in CloudClient.Providers)
             {
+                if (!prov.Free) continue;
+                var p = prov; // capture
+                var card = new Border
+                {
+                    Background = (SolidColorBrush)FindResource("Bg2"),
+                    BorderBrush = (SolidColorBrush)FindResource("Border"),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(9, 7, 9, 9),
+                    Margin = new Thickness(0, 0, 0, 7)
+                };
+                var body = new StackPanel();
+
+                // title row: name + live status
+                var top = new Grid();
+                top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                top.Children.Add(new TextBlock { Text = p.Name, FontSize = 12, FontWeight = FontWeights.SemiBold });
+                var status = new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(status, 1); top.Children.Add(status);
+                body.Children.Add(top);
+                body.Children.Add(new TextBlock { Text = FreeBlurb(p.Id), FontSize = 10, Foreground = dim, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 6) });
+
+                // step 1: open the signup site
+                var getBtn = new Button { Content = "① Get free key (opens the site)", Style = (Style)FindResource("CardButton"), Height = 28, HorizontalContentAlignment = HorizontalAlignment.Center };
+                getBtn.Click += (s, e) => OpenUrl(p.KeyUrl);
+                body.Children.Add(getBtn);
+
+                // step 2: paste the key (masked, with Show)
+                body.Children.Add(new TextBlock { Text = "② Paste your key here:", FontSize = 10, Foreground = dim, Margin = new Thickness(0, 6, 0, 2) });
+                var pasteRow = new Grid();
+                pasteRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                pasteRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var pw = new PasswordBox { VerticalContentAlignment = VerticalAlignment.Center };
+                var tb = new TextBox { Visibility = Visibility.Collapsed, VerticalContentAlignment = VerticalAlignment.Center };
+                var show = new CheckBox { Content = "Show", FontSize = 11, Foreground = dim, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 0, 0, 0) };
+                var field = new Grid();
+                field.Children.Add(pw); field.Children.Add(tb);
+                pasteRow.Children.Add(field);
+                Grid.SetColumn(show, 1); pasteRow.Children.Add(show);
+                body.Children.Add(pasteRow);
+
+                void Refresh()
+                {
+                    bool set = !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id));
+                    status.Text = set ? "✓ Ready" : "not set yet";
+                    status.Foreground = set ? ReadyGreen : dim;
+                }
+                bool syncing = false;
+                pw.Password = AiSettings.Key(p.Id);
+                pw.PasswordChanged += (s, e) => { if (syncing) return; AiSettings.SetKey(p.Id, pw.Password); AiSettings.Save(); Refresh(); if (_useCloud) _ = RefreshOllamaStatusAsync(); };
+                tb.TextChanged += (s, e) => { if (syncing) return; AiSettings.SetKey(p.Id, tb.Text); AiSettings.Save(); Refresh(); if (_useCloud) _ = RefreshOllamaStatusAsync(); };
+                show.Checked += (s, e) => { syncing = true; tb.Text = AiSettings.Key(p.Id); tb.Visibility = Visibility.Visible; pw.Visibility = Visibility.Collapsed; syncing = false; };
+                show.Unchecked += (s, e) => { syncing = true; pw.Password = AiSettings.Key(p.Id); pw.Visibility = Visibility.Visible; tb.Visibility = Visibility.Collapsed; syncing = false; };
+                Refresh();
+
+                card.Child = body;
+                FreeKeysHost.Children.Add(card);
+            }
+        }
+
+        // ADVANCED: compact masked rows for the paid / bring-your-own-account providers.
+        private void BuildPaidKeyRows()
+        {
+            if (PaidKeysHost == null) return;
+            PaidKeysHost.Children.Clear();
+            var dim = (SolidColorBrush)FindResource("TextDim");
+            foreach (var prov in CloudClient.Providers)
+            {
+                if (prov.Free) continue;
                 var p = prov; // capture
                 var header = new Grid { Margin = new Thickness(0, 7, 0, 2) };
                 header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var tag = p.Free ? "free" : "your account, billed per use";
-                header.Children.Add(new TextBlock { Text = $"{p.Name}  ({tag})  ·  {p.KeyUrl}", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
-                var show = new CheckBox { Content = "Show", FontSize = 11, Foreground = (SolidColorBrush)FindResource("TextDim"), VerticalAlignment = VerticalAlignment.Center };
+                header.Children.Add(new TextBlock { Text = $"{p.Name}  ·  {p.KeyUrl}", Foreground = dim, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
+                var show = new CheckBox { Content = "Show", FontSize = 11, Foreground = dim, VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(show, 1); header.Children.Add(show);
-                CloudKeysHost.Children.Add(header);
+                PaidKeysHost.Children.Add(header);
 
                 var pw = new PasswordBox();
                 var tb = new TextBox { Visibility = Visibility.Collapsed };
@@ -2006,8 +2090,8 @@ namespace EasyEngine
                 tb.TextChanged += (s, e) => { if (syncing) return; AiSettings.SetKey(p.Id, tb.Text); AiSettings.Save(); if (_useCloud) _ = RefreshOllamaStatusAsync(); };
                 show.Checked += (s, e) => { syncing = true; tb.Text = AiSettings.Key(p.Id); tb.Visibility = Visibility.Visible; pw.Visibility = Visibility.Collapsed; syncing = false; };
                 show.Unchecked += (s, e) => { syncing = true; pw.Password = AiSettings.Key(p.Id); pw.Visibility = Visibility.Visible; tb.Visibility = Visibility.Collapsed; syncing = false; };
-                CloudKeysHost.Children.Add(pw);
-                CloudKeysHost.Children.Add(tb);
+                PaidKeysHost.Children.Add(pw);
+                PaidKeysHost.Children.Add(tb);
 
                 // the Custom provider also needs an endpoint URL + model name
                 if (p.Id == "custom")
@@ -2016,11 +2100,30 @@ namespace EasyEngine
                     urlBox.TextChanged += (s, e) => { AiSettings.CustomUrl = urlBox.Text.Trim(); AiSettings.Save(); };
                     var modelBox = new TextBox { Text = AiSettings.CustomModel, Margin = new Thickness(0, 3, 0, 0) };
                     modelBox.TextChanged += (s, e) => { AiSettings.CustomModel = modelBox.Text.Trim(); AiSettings.Save(); };
-                    CloudKeysHost.Children.Add(new TextBlock { Text = "Base URL (…/v1) and model name:", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 10, Margin = new Thickness(0, 3, 0, 0) });
-                    CloudKeysHost.Children.Add(urlBox);
-                    CloudKeysHost.Children.Add(modelBox);
+                    PaidKeysHost.Children.Add(new TextBlock { Text = "Base URL (…/v1) and model name:", Foreground = dim, FontSize = 10, Margin = new Thickness(0, 3, 0, 0) });
+                    PaidKeysHost.Children.Add(urlBox);
+                    PaidKeysHost.Children.Add(modelBox);
                 }
             }
+        }
+
+        private static void OpenUrl(string url)
+        {
+            try
+            {
+                if (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase)) url = "https://" + url;
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch { }
+        }
+
+        private void AdvancedToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (AdvancedPanel == null) return;
+            bool open = AdvancedPanel.Visibility != Visibility.Visible;
+            AdvancedPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            if (AdvancedToggleText != null)
+                AdvancedToggleText.Text = (open ? "▾" : "▸") + " Advanced — pick a model, paid keys, offline AI";
         }
 
         private void AiConfigToggle_Click(object sender, RoutedEventArgs e)
