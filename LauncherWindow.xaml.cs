@@ -10,6 +10,8 @@ namespace EasyEngine
         public LauncherWindow()
         {
             InitializeComponent();
+            var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            if (v != null) VersionText.Text = $"v{v.Major}.{v.Minor}.{v.Build}";
             LoadRecent();
             NewLocation.Text = DefaultParentFolder();
             _ = CheckOllamaAsync();
