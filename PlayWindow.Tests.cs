@@ -12,21 +12,16 @@ namespace EasyEngine
     {
         public void TLoad()
         {
+            _headless = true; // tests never play audio; sounds are only recorded + logged
             foreach (var kv in _project.Variables) _vars[kv.Key] = kv.Value;
             LoadScene(_sceneName);
         }
 
+        // Same logic tick as live play (StepLogic); only the camera/render/cleanup are skipped,
+        // so dead entities stay in the list (flagged) for the assertions.
         public void TStep(double dt = 0.016)
         {
-            _mouseClicked = _mouseDown && !_mousePrevDown; _mousePrevDown = _mouseDown;
-            _rmbClicked = _rmbDown && !_rmbPrevDown; _rmbPrevDown = _rmbDown;
-            _wheelDelta = _wheelAccum; _wheelAccum = 0;
-            _mouseWorld = new Point(_mouseScreen.X - _camX, _mouseScreen.Y - _camY);
-            UpdateBehaviors(dt);
-            UpdateBreakables(dt);
-            UpdatePhysics(dt);
-            UpdateTweens(dt);
-            UpdateParticles(dt);
+            StepLogic(dt);
             if (_pendingScene != null) { var n = _pendingScene; _pendingScene = null; LoadScene(n); }
         }
 
@@ -39,9 +34,36 @@ namespace EasyEngine
         public void TKey(string k, bool down) { var key = ParseKey(k); if (down) _keys.Add(key); else _keys.Remove(key); }
         public void TClearKeys() => _keys.Clear();
         public void TMouseDown(bool d) => _mouseDown = d;
+        public void TMouseTap() => _lmbPressLatch = true; // pressed AND released between two logic ticks
         public void TRightDown(bool d) => _rmbDown = d;
         public void TWheel(int dir) => _wheelAccum += dir * 120; // +1 up, -1 down (applied on next TStep)
         public void TMouseAt(double x, double y) { _mouseWorld = new Point(x, y); _mouseScreen = new Point(x, y); }
+
+        // debug console log
+        public DebugLog TLog => _log;
+        public bool TLogHas(string text) => _log.Has(text);
+        public int TLogCount(string category, string? contains = null) => _log.CountOf(category, contains);
+        public string TLogText() => _log.ToText();
+        public void TShowConsole(bool show) => ShowConsole(show);
+        public IReadOnlyList<string> TSounds => _soundsPlayed; // file names, in the order they were played
+        public void TPlaySound(string rel) => PlaySoundFile(rel, 0.35, "sfx", false, "selftest");
+
+        // tools / harvesting
+        public string THeld => _heldItem;
+        public int THarvestLeft(string name) => TE(name)?.HarvestLeft ?? -1;
+        public bool TFelled(string name) => TE(name)?.Felled ?? false;
+        public bool TIsUi(double x, double y) => UiHitAt(new Point(x, y)) != null;
+        public Point TUiCenter(string key) => _uiRects.TryGetValue(key, out var r) ? new Point(r.X + r.Width / 2, r.Y + r.Height / 2) : new Point(-1, -1);
+        public Point THotbarSlotCenter(int i)
+        {
+            var hb = _entities.Select(e => e.Beh(BehaviorKind.Hotbar)).FirstOrDefault(b => b != null);
+            if (hb == null) return new Point(-1, -1);
+            var r = HotbarSlotRects(hb, ParseHotbarItems(hb.Text("items", "")).Count)[i];
+            return new Point(r.X + r.Width / 2, r.Y + r.Height / 2);
+        }
+        /// <summary>A quick click at (x,y): pressed and released before the next logic tick.</summary>
+        public void TClick(double x, double y) { TMouseAt(x, y); TMouseTap(); }
+        public bool TConsoleVisible => ConsoleVisible;
 
         public int TParticles => _particles.Count;
         public int TTweens => _tweens.Count;

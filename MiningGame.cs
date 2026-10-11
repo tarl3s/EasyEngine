@@ -37,16 +37,23 @@ namespace EasyEngine
             // a grass strip on top (decoration, not solid)
             baseL.Objects.Add(Id(Box("Grass", 0, surfaceY - 6, scene.Width, 8, "#5BA85C")));
 
-            // ---- trees: breakable trunks chopped with the axe (drop wood) ----
+            // ---- trees: hold the axe, stand next to one and click — 4 hits fell it (+5 wood) ----
+            var snd = GameAssets.SaveToolSounds(project);
+            var treeSprite = GameAssets.TreeSprite(project);
+            int treeNo = 1;
             foreach (double tx in new[] { 520.0, 1020.0, 1520.0 })
             {
-                baseL.Objects.Add(Id(BreakTiles("Tree", tx, surfaceY - 4 * TS, 2, 4, "#6E4A24", "holding:axe", "wood", 1)));
-                var leaves = Box("Leaves", tx - 30, surfaceY - 4 * TS - 70, 2 * TS + 60, 80, "#3C8C3C");
-                leaves.CornerRadius = 30; baseL.Objects.Add(Id(leaves));
+                var t = Box("Tree" + treeNo++, tx, surfaceY - 192, 96, 192, "#00000000");
+                t.SpritePath = treeSprite;
+                var h = B(BehaviorKind.Harvestable);
+                h.Texts["tool"] = "axe"; h.Texts["drop"] = "wood"; h.Nums["hits"] = 4; h.Nums["amount"] = 5;
+                h.Texts["hitSound"] = snd.chop; h.Texts["fellSound"] = snd.fall;
+                t.Behaviors.Add(h);
+                baseL.Objects.Add(Id(t));
             }
 
-            // ---- player ----
-            baseL.Objects.Add(Id(Player(160, surfaceY - 120)));
+            // ---- player (after the trees, so the player and the held tool draw on top) ----
+            baseL.Objects.Add(Id(Player(160, surfaceY - 120, snd.swing, snd.denied)));
 
             // ---- shops + crafting bench ----
             baseL.Objects.Add(Id(Shop("PickShop", "#B5651D", 300, surfaceY - 60, "coins", 5, "pickaxe", "E")));
@@ -89,7 +96,7 @@ namespace EasyEngine
             ui.Objects.Add(Id(hpBar));
             ui.Objects.Add(Id(Label("CoinsHUD", 16, 46, "Coins: {coins}", "#FFD86B", 16)));
             ui.Objects.Add(Id(Label("ResHUD", 16, 72, "Wood {item:wood}  ·  Dirt {item:dirt}  ·  Stone {item:stone}", "#CFE8FF", 14)));
-            ui.Objects.Add(Id(Label("Hint", 16, 98, "Move A/D · Jump Space · Mine/chop: aim + hold Left mouse · Hotbar: wheel / 1-3 · J attack (needs sword) · E buy · C craft", "#AEB6C6", 13)));
+            ui.Objects.Add(Id(Label("Hint", 16, 98, "A/D move · Space jump · Wheel/1-3 hotbar · Pickaxe: hold Left mouse on dirt · Axe: stand by a tree + click · J attack (sword) · E buy · C craft · F1 console", "#AEB6C6", 13)));
 
             scene.Layers.Add(bg); scene.Layers.Add(baseL); scene.Layers.Add(ui);
             project.Scenes.Add(scene);
@@ -110,8 +117,9 @@ namespace EasyEngine
 
         private static GameObjectData Label(string name, double x, double y, string text, string color, double size)
         {
-            var o = Box(name, x, y, 600, size + 10, "#00000000");
-            var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Nums["fontSize"] = size;
+            var o = Box(name, x, y, 900, size + 10, "#00000000");
+            // left-aligned: the text starts at (x, y) instead of floating in the middle of a wide box
+            var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Texts["align"] = "left"; lb.Nums["fontSize"] = size;
             o.Behaviors.Add(lb);
             return o;
         }
@@ -129,14 +137,18 @@ namespace EasyEngine
             return o;
         }
 
-        private static GameObjectData Player(double x, double y)
+        private static GameObjectData Player(double x, double y, string swingSound, string deniedSound)
         {
             var o = new GameObjectData { Name = "Player", Type = "Player", X = x, Y = y, Width = 34, Height = 50, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
             var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 240; plat.Nums["jump"] = 620; o.Behaviors.Add(plat);
             o.Behaviors.Add(B(BehaviorKind.FollowCamera));
             var hp = B(BehaviorKind.Health); hp.Nums["max"] = 6; hp.Nums["respawn"] = 1; hp.Texts["var"] = "hp"; o.Behaviors.Add(hp);
             var melee = B(BehaviorKind.Melee); melee.Texts["key"] = "J"; melee.Nums["range"] = 50; melee.Nums["damage"] = 1; melee.Texts["requires"] = "holding:sword"; o.Behaviors.Add(melee);
-            var hot = B(BehaviorKind.Hotbar); hot.Texts["items"] = "pickaxe:#B5651D,axe:#9AA0A0,sword:#AEE1FF"; hot.Texts["player"] = "Player"; o.Behaviors.Add(hot);
+            var hot = B(BehaviorKind.Hotbar); hot.Texts["items"] = "pickaxe:#8D949E,axe:#B9C2CC,sword:#DDEBFF"; hot.Texts["player"] = "Player"; o.Behaviors.Add(hot);
+            // click to swing the axe/pickaxe (the sword attacks with J); the axe fells trees within reach
+            var tool = B(BehaviorKind.ToolUse); tool.Texts["tools"] = "axe,pickaxe"; tool.Nums["reach"] = 80;
+            tool.Texts["swingSound"] = swingSound; tool.Texts["deniedSound"] = deniedSound;
+            o.Behaviors.Add(tool);
             var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 240; torch.Texts["color"] = "#FFE6A0"; o.Behaviors.Add(torch);
             // mine/chop the tile under the cursor while the left mouse button is held, within reach
             // (the held tool gates WHAT breaks via each tilemap's 'requires' flag)

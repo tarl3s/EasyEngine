@@ -1,0 +1,205 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+
+namespace EasyEngine
+{
+    /// <summary>
+    /// Builds the "EasyEngine Tests" project: one scene per mechanic, each testable in isolation, with an
+    /// on-screen checklist that ticks itself and the F1 console open from the start.
+    /// First scenario: "Axe Test". Everything is made with normal engine behaviors (nothing hard-coded).
+    /// </summary>
+    public static class TestScenarios
+    {
+        public const string ProjectName = "EasyEngine Tests";
+
+        public static string Build(string parentFolder)
+        {
+            // always rebuilt from scratch (also drops any save.json that would leak old state into a test)
+            var dir = Path.Combine(parentFolder, ProjectName);
+            TryDeleteDir(dir);
+
+            var project = ProjectIO.CreateNew(ProjectName, parentFolder);
+            project.Scenes.Clear();
+            project.ConsoleOnStart = true;
+            project.Scenes.Add(AxeTest(project));
+            project.StartScene = "Axe Test";
+            ProjectIO.Save(project);
+            return project.FilePath!;
+        }
+
+        // ============================================================ AXE TEST
+        private static Scene AxeTest(Project p)
+        {
+            var (swing, chop, fall, denied) = GameAssets.SaveToolSounds(p);
+            var tree = GameAssets.TreeSprite(p);
+            var rock = GameAssets.RockSprite(p);
+
+            var scene = new Scene { Name = "Axe Test", Width = 1600, Height = 600, BackgroundColor = "#8EC5F0", AmbientLight = 1 };
+            // reset on every load (R restarts the scene): tools owned, resources and counters at zero
+            foreach (var t in new[] { "pickaxe", "axe", "sword" }) scene.Variables["item:" + t] = 1;
+            foreach (var v in new[] { "item:wood", "item:stone", "stat:swings", "stat:hits", "stat:felled", "stat:denied", "stat:missed" }) scene.Variables[v] = 0;
+
+            var bg = new Layer { Name = "Background", Kind = LayerKind.Background };
+            var baseL = new Layer { Name = "Base", Kind = LayerKind.Base };
+            var ui = new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true };
+            int id = 1;
+            GameObjectData Id(GameObjectData o) { o.Id = id++; return o; }
+
+            // sky (explicit, so this test doesn't depend on the background colour — that's the lighting test)
+            bg.Objects.Add(Id(Box("Sky", 0, 0, 1600, 600, "#8EC5F0")));
+
+            // ground
+            var ground = Box("Ground", 0, 500, 1600, 100, "#6B4A2E");
+            ground.Physics.Mode = PhysicsMode.Static; ground.Behaviors.Add(B(BehaviorKind.Solid));
+            baseL.Objects.Add(Id(ground));
+            baseL.Objects.Add(Id(Box("Grass", 0, 494, 1600, 8, "#5BA85C")));
+
+            // trees (before the player, so the player and the tool draw on top)
+            foreach (var (name, x) in new[] { ("Tree1", 420.0), ("Tree2", 760.0), ("Tree3", 1100.0) })
+            {
+                var t = Box(name, x, 500 - 192, 96, 192, "#00000000");
+                t.SpritePath = tree;
+                var h = B(BehaviorKind.Harvestable);
+                h.Texts["tool"] = "axe"; h.Texts["drop"] = "wood"; h.Nums["hits"] = 4; h.Nums["amount"] = 5;
+                h.Texts["hitSound"] = chop; h.Texts["fellSound"] = fall;
+                t.Behaviors.Add(h);
+                baseL.Objects.Add(Id(t));
+            }
+            // a rock that only the pickaxe can break (proves the axe is refused)
+            var r = Box("Rock", 1380, 500 - 48, 64, 48, "#00000000");
+            r.SpritePath = rock;
+            var rh = B(BehaviorKind.Harvestable);
+            rh.Texts["tool"] = "pickaxe"; rh.Texts["drop"] = "stone"; rh.Nums["hits"] = 3; rh.Nums["amount"] = 3;
+            rh.Texts["hitSound"] = chop; rh.Texts["fellSound"] = fall;
+            r.Behaviors.Add(rh);
+            baseL.Objects.Add(Id(r));
+
+            // the player: hotbar (starts on the pickaxe, so picking the axe is part of the test) + tool use
+            var pl = new GameObjectData { Name = "Player", Type = "Player", X = 100, Y = 440, Width = 34, Height = 52, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
+            var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 240; plat.Nums["jump"] = 620; pl.Behaviors.Add(plat);
+            pl.Behaviors.Add(B(BehaviorKind.FollowCamera));
+            var hot = B(BehaviorKind.Hotbar); hot.Texts["items"] = "pickaxe:#8D949E,axe:#B9C2CC,sword:#DDEBFF"; hot.Texts["player"] = "Player"; hot.Nums["slot"] = 0;
+            pl.Behaviors.Add(hot);
+            var tool = B(BehaviorKind.ToolUse); tool.Nums["reach"] = 80; tool.Texts["swingSound"] = swing; tool.Texts["deniedSound"] = denied;
+            pl.Behaviors.Add(tool);
+            baseL.Objects.Add(Id(pl));
+
+            // R restarts the scene (resets every counter)
+            var restart = Box("Restart", 0, 0, 4, 4, "#00000000");
+            restart.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] = "[{\"when\":\"keypress\",\"key\":\"R\",\"do\":\"goscene\",\"scene\":\"Axe Test\"}]" } });
+            baseL.Objects.Add(Id(restart));
+
+            // HUD: instructions + live counters (left), checklist (right)
+            var panel = Box("HelpPanel", 12, 62, 600, 104, "#B0101018"); panel.CornerRadius = 8;
+            ui.Objects.Add(Id(panel));
+            ui.Objects.Add(Id(Label("Help1", 24, 68, "AXE TEST   1) Pick the axe: mouse wheel, key 2, or click its slot", "#FFFFFF", 14)));
+            ui.Objects.Add(Id(Label("Help2", 24, 90, "2) Click ANYWHERE to swing   3) Walk next to a tree and click: 4 hits fell it", "#FFFFFF", 13)));
+            ui.Objects.Add(Id(Label("Help3", 24, 110, "4) Try the axe on the grey rock (it should refuse)   ·   F1 console   ·   R restart", "#FFFFFF", 13)));
+            ui.Objects.Add(Id(Label("Counters", 24, 136, "Wood {item:wood}  ·  Stone {item:stone}  ·  Swings {stat:swings}  ·  Hits {stat:hits}  ·  Felled {stat:felled}  ·  Refused {stat:denied}", "#FFD86B", 13)));
+
+            var checks = Box("Checks", 0, 0, 4, 4, "#00000000");
+            var cl = B(BehaviorKind.Checklist);
+            cl.Texts["title"] = "Axe test";
+            cl.Texts["items"] = string.Join("\n",
+                "Pick the axe => holding:axe >= 1",
+                "Swing anywhere (click) => stat:swings >= 1",
+                "Swing far from trees (miss) => stat:missed >= 1",
+                "Hit a tree => stat:hits >= 1",
+                "Fell a tree (4 hits) => stat:felled >= 1",
+                "Wood in the bag (5+) => item:wood >= 5",
+                "The rock refuses the axe => stat:denied >= 1",
+                "Bonus: the pickaxe breaks the rock => item:stone >= 3");
+            cl.Nums["width"] = 310;
+            checks.Behaviors.Add(cl);
+            ui.Objects.Add(Id(checks));
+
+            scene.Layers.Add(bg); scene.Layers.Add(baseL); scene.Layers.Add(ui);
+            return scene;
+        }
+
+        // ============================================================ helpers
+        private static BehaviorData B(BehaviorKind k) => BehaviorCatalog.Info(k).CreateData();
+
+        private static GameObjectData Box(string name, double x, double y, double w, double h, string color)
+            => new() { Name = name, Type = "Object", X = x, Y = y, Width = w, Height = h, Color = color, Physics = new PhysicsData { Mode = PhysicsMode.None } };
+
+        private static GameObjectData Label(string name, double x, double y, string text, string color, double size)
+        {
+            var o = Box(name, x, y, 580, size + 8, "#00000000");
+            var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Texts["align"] = "left"; lb.Nums["fontSize"] = size;
+            o.Behaviors.Add(lb);
+            return o;
+        }
+
+        // OneDrive can briefly lock files: retry, then fail with a clear message.
+        private static void TryDeleteDir(string dir)
+        {
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                if (!Directory.Exists(dir)) return;
+                try { Directory.Delete(dir, true); return; }
+                catch when (attempt < 2) { Thread.Sleep(400); }
+                catch (Exception ex) { throw new IOException($"Couldn't replace the old '{ProjectName}' folder (is a file open or OneDrive syncing?): {ex.Message}", ex); }
+            }
+        }
+    }
+
+    /// <summary>Generated art + sounds shared by the test scenarios and the demo games (tree, rock, tool sounds).</summary>
+    public static class GameAssets
+    {
+        public static (string swing, string chop, string fall, string denied) SaveToolSounds(Project p) => (
+            ProjectIO.SaveSound(p, SoundSynth.Whoosh(), "swing"),
+            ProjectIO.SaveSound(p, SoundSynth.Chop(), "chop"),
+            ProjectIO.SaveSound(p, SoundSynth.TreeFall(), "fall"),
+            ProjectIO.SaveSound(p, SoundSynth.Denied(), "denied"));
+
+        public static string TreeSprite(Project p) => ProjectIO.SaveSprite(p, Draw(96, 192, DrawTree), "tree");
+        public static string RockSprite(Project p) => ProjectIO.SaveSprite(p, Draw(64, 48, DrawRock), "rock");
+
+        private static BitmapSource Draw(int w, int h, Action<DrawingContext, int, int> draw)
+        {
+            var dv = new DrawingVisual();
+            using (var dc = dv.RenderOpen()) draw(dc, w, h);
+            var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+            rtb.Render(dv);
+            rtb.Freeze();
+            return rtb;
+        }
+
+        private static SolidColorBrush Br(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
+
+        private static void DrawTree(DrawingContext dc, int w, int h)
+        {
+            // trunk
+            dc.DrawRoundedRectangle(Br("#7A5230"), new Pen(Br("#4A311C"), 2), new Rect(w / 2.0 - 11, h * 0.45, 22, h * 0.55), 4, 4);
+            dc.DrawLine(new Pen(Br("#5E3E22"), 2), new Point(w / 2.0 - 3, h * 0.55), new Point(w / 2.0 - 3, h * 0.92));
+            // canopy: a few overlapping circles
+            var leaf = Br("#3C8C3C"); var leafDark = Br("#2E6E2E"); var edge = new Pen(Br("#245A24"), 2);
+            dc.DrawEllipse(leafDark, edge, new Point(w * 0.30, h * 0.34), w * 0.26, h * 0.13);
+            dc.DrawEllipse(leafDark, edge, new Point(w * 0.70, h * 0.34), w * 0.26, h * 0.13);
+            dc.DrawEllipse(leaf, edge, new Point(w * 0.50, h * 0.22), w * 0.34, h * 0.17);
+            dc.DrawEllipse(Br("#56A856"), null, new Point(w * 0.42, h * 0.17), w * 0.10, h * 0.05);
+        }
+
+        private static void DrawRock(DrawingContext dc, int w, int h)
+        {
+            var g = new StreamGeometry();
+            using (var c = g.Open())
+            {
+                c.BeginFigure(new Point(4, h - 2), true, true);
+                c.LineTo(new Point(8, h * 0.45), true, false);
+                c.LineTo(new Point(w * 0.35, 6), true, false);
+                c.LineTo(new Point(w * 0.70, 4), true, false);
+                c.LineTo(new Point(w - 5, h * 0.40), true, false);
+                c.LineTo(new Point(w - 3, h - 2), true, false);
+            }
+            dc.DrawGeometry(Br("#8A8F99"), new Pen(Br("#5A5F69"), 2), g);
+            dc.DrawLine(new Pen(Br("#A9AEB8"), 2), new Point(w * 0.35, 12), new Point(w * 0.55, h * 0.45));
+        }
+    }
+}

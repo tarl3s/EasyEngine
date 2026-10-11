@@ -17,11 +17,13 @@
                     <TextBlock Text="⬡" Foreground="{StaticResource Accent}" FontSize="46"/>
                     <TextBlock Text="EasyEngine" Foreground="{StaticResource Text}" FontSize="26" FontWeight="Bold" Margin="0,2,0,0"/>
                     <TextBlock Text="The easiest 2D game engine — you bring the art, the AI writes the code." Foreground="{StaticResource TextDim}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
-                    <TextBlock x:Name="VersionText" Text="v0.3.1" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="VersionText" Text="v0.4.0" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,6,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom" VerticalAlignment="Bottom">
                     <Button Content="＋  New Project" Style="{StaticResource AccentButton}" Height="44" FontSize="14" Click="NewProject_Click"/>
                     <Button Content="📂  Open Project…" Style="{StaticResource CardButton}" Height="44" Margin="0,10,0,0" HorizontalContentAlignment="Center" Click="OpenProject_Click"/>
+                    <Button Content="🧪  Test scenarios" Style="{StaticResource CardButton}" Height="44" Margin="0,10,0,0" HorizontalContentAlignment="Center" Click="TestScenarios_Click"
+                            ToolTip="Builds the 'EasyEngine Tests' project (one scene per mechanic, with a checklist + the F1 console) and opens it"/>
                     <TextBlock x:Name="OllamaStatus" Text="AI: checking…" Foreground="{StaticResource TextDim}" FontSize="11" Margin="2,16,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
                 <Grid/>

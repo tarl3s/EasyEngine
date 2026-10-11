@@ -4,36 +4,53 @@
         Title="Testar — EasyEngine" Height="620" Width="1000"
         WindowStartupLocation="CenterOwner"
         Background="Black" FontFamily="Segoe UI">
-    <Grid x:Name="Root" ClipToBounds="True">
-        <!-- mundo (sofre a câmera) -->
-        <Canvas x:Name="World"/>
-        <!-- escuridão ambiente (tela cheia, fixa) -->
-        <Rectangle x:Name="Darkness" Fill="Black" IsHitTestVisible="False" Opacity="0"/>
-        <!-- luzes (acima da escuridão, seguem a câmera) -->
-        <Canvas x:Name="Lights" IsHitTestVisible="False"/>
-        <!-- camadas fixas de interface (não sofrem a câmera) -->
-        <Canvas x:Name="Hud"/>
+    <!-- Shell: game area on the left, optional debug console on the right (F1) -->
+    <Grid x:Name="Shell">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition x:Name="ConsoleSplitCol" Width="0"/>
+            <ColumnDefinition x:Name="ConsoleCol" Width="0"/>
+        </Grid.ColumnDefinitions>
 
-        <!-- dialogue box -->
-        <Border x:Name="DialogBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="40,0,40,32"
-                Background="#E6101014" BorderBrush="#2EE0E0E0" BorderThickness="1" CornerRadius="10" Padding="18,14">
-            <StackPanel>
-                <TextBlock x:Name="DialogSpeaker" Foreground="#18B98A" FontWeight="Bold" FontSize="14" Margin="0,0,0,4"/>
-                <TextBlock x:Name="DialogText" Foreground="White" FontSize="16" TextWrapping="Wrap"/>
-                <TextBlock Text="▼ Enter" Foreground="#8C8C97" FontSize="11" HorizontalAlignment="Right" Margin="0,6,0,0"/>
-            </StackPanel>
-        </Border>
+        <!-- Root = the game area (camera, HUD and every layout helper size from it).
+             Transparent background so it receives the mouse everywhere inside it. -->
+        <Grid x:Name="Root" Grid.Column="0" ClipToBounds="True" Background="Transparent">
+            <!-- mundo (sofre a câmera) -->
+            <Canvas x:Name="World"/>
+            <!-- escuridão ambiente (tela cheia, fixa) -->
+            <Rectangle x:Name="Darkness" Fill="Black" IsHitTestVisible="False" Opacity="0"/>
+            <!-- luzes (acima da escuridão, seguem a câmera) -->
+            <Canvas x:Name="Lights" IsHitTestVisible="False"/>
+            <!-- camadas fixas de interface (não sofrem a câmera) -->
+            <Canvas x:Name="Hud"/>
 
-        <!-- top HUD -->
-        <Border VerticalAlignment="Top" HorizontalAlignment="Left" Margin="12"
-                Background="#AA000000" CornerRadius="8" Padding="12,8">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="⏹ Stop (Esc)" Click="Stop_Click"
-                        Background="#E5484B" Foreground="White" BorderThickness="0" Padding="12,6" Cursor="Hand"/>
-                <TextBlock x:Name="Hint" Foreground="#CCCCCC" FontSize="12" VerticalAlignment="Center" Margin="14,0,0,0"
-                           Text="Arrows / A-D move · Space jump · Esc exit"/>
-                <TextBlock x:Name="FpsText" Foreground="#8C8C97" FontSize="12" VerticalAlignment="Center" Margin="14,0,0,0"/>
-            </StackPanel>
-        </Border>
+            <!-- dialogue box -->
+            <Border x:Name="DialogBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="40,0,40,32"
+                    Background="#E6101014" BorderBrush="#2EE0E0E0" BorderThickness="1" CornerRadius="10" Padding="18,14">
+                <StackPanel>
+                    <TextBlock x:Name="DialogSpeaker" Foreground="#18B98A" FontWeight="Bold" FontSize="14" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="DialogText" Foreground="White" FontSize="16" TextWrapping="Wrap"/>
+                    <TextBlock Text="▼ Enter" Foreground="#8C8C97" FontSize="11" HorizontalAlignment="Right" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- top HUD -->
+            <Border x:Name="TopBar" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="12"
+                    Background="#AA000000" CornerRadius="8" Padding="12,8">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="⏹ Stop (Esc)" Click="Stop_Click" Focusable="False"
+                            Background="#E5484B" Foreground="White" BorderThickness="0" Padding="12,6" Cursor="Hand"/>
+                    <Button x:Name="ConsoleBtn" Content="▤ Console (F1)" Click="ConsoleBtn_Click" Focusable="False" Margin="8,0,0,0"
+                            Background="#2A2C36" Foreground="White" BorderThickness="0" Padding="10,6" Cursor="Hand"/>
+                    <TextBlock x:Name="Hint" Foreground="#CCCCCC" FontSize="12" VerticalAlignment="Center" Margin="14,0,0,0"
+                               Text="Arrows / A-D move · Space jump · Esc exit"/>
+                    <TextBlock x:Name="FpsText" Foreground="#8C8C97" FontSize="12" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <GridSplitter x:Name="ConsoleSplitter" Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Visibility="Collapsed"
+                      Background="#2C2F3A" ResizeBehavior="PreviousAndNext" ResizeDirection="Columns" Focusable="False"/>
+        <ContentControl x:Name="ConsoleHost" Grid.Column="2" Visibility="Collapsed" Focusable="False"/>
     </Grid>
 </Window>

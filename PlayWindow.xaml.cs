@@ -53,7 +53,17 @@ namespace EasyEngine
             public System.Windows.Shapes.Rectangle? BarFill;   // bar fill rectangle
             public bool DNStarted; public double DNTimer;      // day/night cycle clock
             public Canvas? HotbarCanvas;                       // hotbar UI (screen space)
-            public System.Windows.Shapes.Rectangle? HeldVisual; // the tool shown in the player's hand
+            public FrameworkElement? HeldVisual;               // the tool drawn in the player's hand (owned by the hotbar entity)
+            public string HeldName = ""; public Point HeldGrip;  // which tool it shows + where the hand holds it
+            public string HotbarSig = "", HotbarRenderSig = "";  // last selection logged / last hotbar drawn
+            // ToolUse (the swinger)
+            public double ToolCd, SwingT, SwingDur;
+            public bool ImpactPending; public double ImpactIn; public string ImpactTool = ""; public Point ImpactAt;
+            // Harvestable (tree / rock)
+            public int HarvestLeft; public double ShakeT, FallT; public int FallDir = 1; public bool Felled;
+            // Checklist
+            public Border? ChecklistPanel; public bool[]? CheckDone; public string ChecklistSig = "";
+            public List<(string text, string cond)>? CheckItems;
             // breakable tilemap runtime state (null unless this tilemap is breakable)
             public List<TileCell>? Tiles;
             public TileCell?[]? TileGrid;                      // r*cols+c → cell, for O(1) lookup
@@ -118,6 +128,8 @@ namespace EasyEngine
         private bool _mouseDown, _mousePrevDown, _mouseClicked;
         private bool _rmbDown, _rmbPrevDown, _rmbClicked;
         private double _wheelAccum, _wheelDelta; // mouse wheel: accumulated between frames, delta this frame
+        private bool _lmbPressLatch, _rmbPressLatch; // set by MouseDown, consumed by the next logic tick
+        private double _gameTime; private long _frameNo; // logic clock (same live and headless)
 
         private readonly Stopwatch _clock = new();
         private double _last;
@@ -151,6 +163,10 @@ namespace EasyEngine
             public Dictionary<string, double> WN = new(StringComparer.OrdinalIgnoreCase);
             public Dictionary<string, string> WT = new(StringComparer.OrdinalIgnoreCase);
             public double Timer; public bool Started; public bool WasTouching;
+            // console bookkeeping
+            public string Summary = "";
+            public bool WasFiring, WarnedUnknown;
+            public double LastLogT = -999; public int Skipped;
             // action reads: the action bucket, falling back to the trigger bucket ONLY for keys
             // the WHEN event does not itself consume (so a param written before "do" is still
             // found, without ever reading a value that belongs to the trigger — e.g. touch's "name").
@@ -183,33 +199,42 @@ namespace EasyEngine
             Lights.RenderTransform = _lightTransform;
 
             Loaded += (s, e) => Start();
-            Closed += (s, e) => Stop();
-            KeyDown += (s, e) =>
+            Closed += (s, e) => { WritePlayLog(); Stop(); };
+
+            // Keyboard: Preview* runs before any child control, so the game always sees its keys —
+            // except while the user types in a text box (the console search).
+            PreviewKeyDown += (s, e) =>
             {
-                _keys.Add(e.Key);
-                if (e.Key == Key.Escape) Close();
+                if (e.Key == Key.F1) { if (DevTools) ToggleConsole(); e.Handled = true; return; }
+                if (e.Key == Key.Escape) { if (Typing) { FocusGame(); e.Handled = true; } else Close(); return; }
+                if (Typing) return;
+                bool fresh = _keys.Add(e.Key);
+                if (fresh && !MovementKeys.Contains(e.Key)) Info("Input", "", $"Key {e.Key}");
                 if (_dialogOpen && (e.Key == Key.Enter || e.Key == Key.Return)) { AdvanceDialog(); e.Handled = true; }
             };
-            KeyUp += (s, e) => _keys.Remove(e.Key);
+            PreviewKeyUp += (s, e) => _keys.Remove(e.Key);
+            Deactivated += (s, e) => { _keys.Clear(); _mouseDown = false; _rmbDown = false; }; // no stuck keys after alt-tab
 
-            MouseMove += (s, e) => UpdateMouse(e);
-            MouseDown += (s, e) =>
+            // Mouse: only the game area (Root) drives the game, so clicks in the console never swing a tool.
+            Root.MouseMove += (s, e) => UpdateMouse(e);
+            Root.MouseDown += (s, e) =>
             {
                 UpdateMouse(e);
-                if (e.ChangedButton == MouseButton.Left) _mouseDown = true;
-                else if (e.ChangedButton == MouseButton.Right) _rmbDown = true;
+                FocusGame(); // clicking the game takes the keyboard back from the console
+                if (e.ChangedButton == MouseButton.Left) { _mouseDown = true; _lmbPressLatch = true; }
+                else if (e.ChangedButton == MouseButton.Right) { _rmbDown = true; _rmbPressLatch = true; }
             };
-            MouseUp += (s, e) =>
+            MouseUp += (s, e) => // on the window, so releasing anywhere always releases
             {
                 if (e.ChangedButton == MouseButton.Left) _mouseDown = false;
                 else if (e.ChangedButton == MouseButton.Right) _rmbDown = false;
             };
-            MouseWheel += (s, e) => _wheelAccum += e.Delta; // +120 up, -120 down
+            Root.MouseWheel += (s, e) => _wheelAccum += e.Delta; // +120 up, -120 down
         }
 
         private void UpdateMouse(MouseEventArgs e)
         {
-            var p = e.GetPosition(this);
+            var p = e.GetPosition(Root);
             _mouseScreen = p;
             // World is drawn through _camTransform (a translation), so undo it to get world coords.
             _mouseWorld = new Point(p.X - _camX, p.Y - _camY);
@@ -218,14 +243,18 @@ namespace EasyEngine
         private void Start()
         {
             Focusable = true; Focus();
-            SizeChanged += (s, e) => SizeDarkness();
+            Root.SizeChanged += (s, e) => SizeDarkness(); // the game area, not the window (the console takes a column)
             ApplyTheme();
+            ConsoleBtn.Visibility = DevTools ? Visibility.Visible : Visibility.Collapsed;
+            if (DevTools) Hint.Text += " · F1 console";
             foreach (var kv in _project.Variables) _vars[kv.Key] = kv.Value; // global vars
             // continue from a saved game if one exists (metroidvania/RPG progression)
             bool hadSave = LoadGame();
             string first = (hadSave && _pendingScene != null) ? _pendingScene : _sceneName;
+            if (hadSave) Info("Scene", "", $"Continued from save.json (scene '{first}')", "Delete save.json in the project folder to start fresh.");
             _pendingScene = null;
             LoadScene(first);
+            if (_project.ConsoleOnStart) ShowConsole(true);
 
             _clock.Start();
             _last = _clock.Elapsed.TotalSeconds;
@@ -239,6 +268,7 @@ namespace EasyEngine
         // ============================================================
         public List<string> RunBehaviorChecks()
         {
+            _headless = true; // never play audio in tests
             var log = new List<string>();
             void Check(string name, bool ok) => log.Add((ok ? "PASS" : "FAIL") + "  " + name);
             Entity? Find(string n) => _entities.FirstOrDefault(e => e.Data.Name == n);
@@ -586,8 +616,7 @@ namespace EasyEngine
         private void LoadScene(string name)
         {
             // stop sounds from previous scene
-            foreach (var mp in _players) { try { mp.Stop(); mp.Close(); } catch { } }
-            _players.Clear();
+            StopAllSounds();
 
             World.Children.Clear();
             Lights.Children.Clear();
@@ -598,6 +627,7 @@ namespace EasyEngine
             _tweens.Clear();
             _cameraTarget = null;
             _camX = _camY = 0;
+            _hotbarOwner = _hotbarPlayer = null; _heldItem = _heldSlotName = ""; _heldOwned = false; _heldSlot = 0;
 
             var original = _project.FindScene(name) ?? _project.Scenes[0];
             _sceneName = original.Name;
@@ -624,11 +654,16 @@ namespace EasyEngine
             }
 
             _cameraTarget = _entities.FirstOrDefault(en => en.Has(BehaviorKind.FollowCamera));
+            _uiRects.Clear();
 
+            Info("Scene", "", $"Loaded '{_scene.Name}' — {_entities.Count} objects",
+                 $"{_entities.Count(e => e.Custom != null && e.Custom.Count > 0)} with scripts · {_solids.Count} colliders · camera follows {(_cameraTarget?.Data.Name ?? "nothing")}");
+
+            PreloadSounds();
             foreach (var en in _entities)
             {
                 var snd = en.Beh(BehaviorKind.SoundEmitter);
-                if (snd != null && snd.Num("onStart", 1) >= 0.5) PlaySound(snd);
+                if (snd != null && snd.Num("onStart", 1) >= 0.5) PlaySound(snd, en.Data.Name);
             }
         }
 
@@ -772,13 +807,15 @@ namespace EasyEngine
             if (bar != null) BuildBar(en, bar);
 
             var customB = en.Beh(BehaviorKind.Custom);
-            if (customB != null) en.Custom = ParseCustom(customB.Text("script", "[]"));
+            if (customB != null) en.Custom = ParseCustom(customB.Text("script", "[]"), obj.Name);
 
             var solidB = en.Beh(BehaviorKind.Solid);
             en.OneWay = solidB != null && solidB.Num("oneWay") >= 0.5;
 
             var hp = en.Beh(BehaviorKind.Health);
             if (hp != null) { en.MaxHealth = Math.Max(1, hp.Num("max", 3)); en.CurHealth = en.MaxHealth; en.RespawnX = obj.X; en.RespawnY = obj.Y; }
+            var harv = en.Beh(BehaviorKind.Harvestable);
+            if (harv != null) en.HarvestLeft = Math.Max(1, (int)Math.Round(harv.Num("hits", 4)));
 
             foreach (var kv in obj.Variables) en.Locals[kv.Key] = kv.Value; // per-object vars
 
@@ -832,6 +869,7 @@ namespace EasyEngine
             if (label != null)
             {
                 en.LabelText = label.Text("text", "");
+                var align = label.Text("align", "center").Trim().ToLowerInvariant(); // HUD text usually wants "left"
                 var tb = new TextBlock
                 {
                     Text = en.LabelText,
@@ -839,10 +877,10 @@ namespace EasyEngine
                     FontSize = Math.Max(6, label.Num("fontSize", 20)),
                     FontFamily = ResolveFont(obj.FontFamily),
                     FontWeight = obj.Bold ? FontWeights.Bold : FontWeights.SemiBold,
-                    HorizontalAlignment = HorizontalAlignment.Center,
+                    HorizontalAlignment = align == "left" ? HorizontalAlignment.Left : align == "right" ? HorizontalAlignment.Right : HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                     TextWrapping = TextWrapping.Wrap,
-                    TextAlignment = TextAlignment.Center
+                    TextAlignment = align == "left" ? TextAlignment.Left : align == "right" ? TextAlignment.Right : TextAlignment.Center
                 };
                 en.LabelBlock = tb;
                 en.LabelEffect = label.Text("effect", "none").ToLowerInvariant();
@@ -902,24 +940,52 @@ namespace EasyEngine
             double dt = Math.Min(now - _last, 0.05);
             _last = now;
 
-            _mouseClicked = _mouseDown && !_mousePrevDown; _mousePrevDown = _mouseDown;
-            _rmbClicked = _rmbDown && !_rmbPrevDown; _rmbPrevDown = _rmbDown;
+            // a bug in one frame shows up in the console instead of taking the whole editor down
+            try
+            {
+                StepLogic(dt);
+                UpdateCamera(dt);
+                Render(dt);
+                Cleanup();
+                if (_pendingScene != null) { var n = _pendingScene; _pendingScene = null; LoadScene(n); }
+            }
+            catch (Exception ex) { LogThrottled("engine-ex:" + ex.GetType().Name + ex.Message, 1.0, LogLevel.Error, "Engine", "", ex.GetType().Name + ": " + ex.Message, ex.StackTrace ?? ""); }
+            FlushConsole();
+
+            _frames++; _fpsAccum += dt;
+            if (_fpsAccum >= 0.5) { FpsText.Text = $"{_frames / _fpsAccum:0} fps · {_entities.Count} objs · {_scene.Name}"; _frames = 0; _fpsAccum = 0; }
+        }
+
+        // One logic tick, shared by the live loop (OnFrame) and the headless tests (TStep),
+        // so automated E2E runs exactly the same code as real play. Rendering stays out of here.
+        private void StepLogic(double dt)
+        {
+            _gameTime += dt; _frameNo++;
+            // a press latched by MouseDown still counts when the button was released inside the
+            // same frame (touchpad taps), so a quick click is never lost
+            _mouseClicked = (_mouseDown && !_mousePrevDown) || _lmbPressLatch; _mousePrevDown = _mouseDown; _lmbPressLatch = false;
+            _rmbClicked = (_rmbDown && !_rmbPrevDown) || _rmbPressLatch; _rmbPrevDown = _rmbDown; _rmbPressLatch = false;
             _wheelDelta = _wheelAccum; _wheelAccum = 0;
             _mouseWorld = new Point(_mouseScreen.X - _camX, _mouseScreen.Y - _camY); // keep world mouse fresh while the camera eases
+            if (_mouseClicked) LogClick("Left");
+            if (_rmbClicked) LogClick("Right");
 
             UpdateBehaviors(dt);
             UpdateBreakables(dt);
             UpdatePhysics(dt);
             UpdateTweens(dt);
             UpdateParticles(dt);
-            UpdateCamera(dt);
-            Render(dt);
-            Cleanup();
+            UpdateFacing();
+        }
 
-            if (_pendingScene != null) { var n = _pendingScene; _pendingScene = null; LoadScene(n); }
-
-            _frames++; _fpsAccum += dt;
-            if (_fpsAccum >= 0.5) { FpsText.Text = $"{_frames / _fpsAccum:0} fps · {_entities.Count} objs · {_scene.Name}"; _frames = 0; _fpsAccum = 0; }
+        // Platformer characters face the way they move (decided after physics, so it is the same live and headless).
+        private void UpdateFacing()
+        {
+            foreach (var en in _entities)
+            {
+                if (en.Dead || en.SwingT > 0 || !en.Has(BehaviorKind.Platformer)) continue; // a swing keeps facing its target
+                if (en.VX > 1) en.Facing = 1; else if (en.VX < -1) en.Facing = -1;
+            }
         }
 
         private bool K(params Key[] keys) => keys.Any(_keys.Contains);
@@ -929,6 +995,7 @@ namespace EasyEngine
         {
             foreach (var en in _entities.ToList())
             {
+                if (en.Dead) continue; // dead this frame or earlier: never run its behaviors (death rules fire once)
                 foreach (var bh in en.Data.Behaviors)
                 {
                     switch (bh.Kind)
@@ -947,8 +1014,9 @@ namespace EasyEngine
                                     en.CurHealth = en.MaxHealth;
                                     en.X = en.RespawnX; en.Y = en.RespawnY; en.VX = 0; en.VY = 0;
                                     en.InvTimer = Math.Max(0.5, bh.Num("invincible", 1));
+                                    Info("Combat", en.Data.Name, "Died → respawned", $"at ({en.RespawnX:0}, {en.RespawnY:0})");
                                 }
-                                else { RunDeathRules(en, dt); en.Dead = true; } // enemies destroyed (run 'death' rules first)
+                                else { Info("Combat", en.Data.Name, "Died"); RunDeathRules(en, dt); en.Dead = true; } // enemies destroyed (run 'death' rules first)
                             }
                             break;
                         }
@@ -961,6 +1029,9 @@ namespace EasyEngine
                         }
                         case BehaviorKind.DayNight: UpdateDayNight(en, bh, dt); break;
                         case BehaviorKind.Hotbar: UpdateHotbar(en, bh, dt); break;
+                        case BehaviorKind.ToolUse: UpdateToolUse(en, bh, dt); break;
+                        case BehaviorKind.Harvestable: UpdateHarvestable(en, bh, dt); break;
+                        case BehaviorKind.Checklist: UpdateChecklist(en, bh, dt); break;
                         case BehaviorKind.Shop:
                         {
                             var buyer = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(bh.Text("player", "Player"), StringComparison.OrdinalIgnoreCase));
@@ -973,18 +1044,21 @@ namespace EasyEngine
                             en.ShopWas = keyDown;
                             bool once = bh.Num("once", 1) >= 0.5;
                             bool sold = en.Locals.TryGetValue("__sold", out var sd) && sd >= 1;
-                            if (pressed && !(once && sold))
+                            if (pressed && once && sold) Info("Shop", en.Data.Name, "Already bought (buy only once)");
+                            else if (pressed)
                             {
                                 string cur = bh.Text("currency", "coins");
                                 double cost = bh.Num("cost", 5);
+                                var give = bh.Text("item", "");
                                 if (Var(cur) >= cost)
                                 {
                                     _vars[cur] = Var(cur) - cost;
-                                    var give = bh.Text("item", "");
                                     if (!string.IsNullOrWhiteSpace(give)) _vars["item:" + give] = Var("item:" + give) + Math.Max(1, bh.Num("give", 1));
                                     if (once) en.Locals["__sold"] = 1;
                                     EmitParticles(en.CX, en.CY, 14, 170, 360, 0, 0.6, 6, 250, "#FFD24D");
+                                    Info("Shop", en.Data.Name, $"Bought {give} for {cost:0.##} {cur}", $"{cur} left: {Var(cur):0.##}");
                                 }
+                                else Info("Shop", en.Data.Name, $"Not enough {cur}: needs {cost:0.##}, has {Var(cur):0.##}");
                             }
                             break;
                         }
@@ -1088,7 +1162,7 @@ namespace EasyEngine
                             if (!en.PathParsed) { en.PathPts = ParsePathPoints(bh.Text("path", "")); en.PathParsed = true; en.PathIndex = 0; en.PathStep = 1; en.PatrolPause = 0; }
                             en.APMode = (int)Math.Round(bh.Num("mode", 0));
                             bool platform = en.APMode == 0;
-                            void Stop() { Stop(); }
+                            void Stop() { en.VX = 0; if (!platform) en.VY = 0; }
                             var pts = en.PathPts;
                             if (pts == null || pts.Count == 0) { Stop(); break; }
 
@@ -1667,7 +1741,7 @@ namespace EasyEngine
         // ============================================================
         //  CUSTOM MINI-LANGUAGE (when → do)
         // ============================================================
-        private List<CustomRule> ParseCustom(string json)
+        private List<CustomRule> ParseCustom(string json, string source = "")
         {
             var list = new List<CustomRule>();
             try
@@ -1698,12 +1772,39 @@ namespace EasyEngine
                             if (toTrigger) r.WT[name] = v; else r.T[name] = v;
                         }
                     }
+                    r.Summary = RuleSummary(r);
                     list.Add(r);
                 }
             }
-            catch { }
+            catch (Exception ex) { Warn("Script", source, "Script could not be read (bad JSON) — its rules are ignored", ex.Message); }
             return list;
         }
+
+        // A short human-readable form of a rule for the console, e.g. "when keypress E → additem item=wood amount=1".
+        private static string RuleSummary(CustomRule r)
+        {
+            string trig = r.When switch
+            {
+                "key" or "keydown" or "keypress" => $"{r.When} {r.WStr("key", "Space")}",
+                "timer" => $"every {r.WNum("every", 1):0.##}s",
+                "touch" => $"touch {r.WStr("name")}",
+                "ifvar" or "iflocal" => $"{r.When} {r.WStr("var")} {r.WStr("op", ">=")} {r.WNum("value"):0.##}",
+                "hasitem" => $"hasitem {r.WStr("item")}",
+                "expr" => $"({r.WStr("expr")})",
+                _ => r.When
+            };
+            var act = new System.Text.StringBuilder(r.Do.Length == 0 ? "(no action)" : r.Do);
+            foreach (var k in new[] { "var", "item", "object", "scene", "prop", "where", "sound", "text" })
+                if (r.T.TryGetValue(k, out var v) && v.Length > 0) act.Append($" {k}={(v.Length > 24 ? v[..24] + "…" : v)}");
+            if (r.T.TryGetValue("expr", out var ex)) act.Append($" = ({ex})");
+            else foreach (var k in new[] { "to", "amount", "value", "force", "count", "factor" })
+                    if (r.N.TryGetValue(k, out var nv)) { act.Append($" {k}={nv:0.##}"); break; }
+            return $"when {trig} → {act}" + (r.T.TryGetValue("cond", out var c) ? $"  only if {c}" : "");
+        }
+
+        // Triggers that stay true frame after frame: logged only when they START firing.
+        private static bool ContinuousWhen(string when) => when is "always" or "key" or "keydown" or "ifvar" or "iflocal" or "hasitem"
+            or "expr" or "isnight" or "isday" or "mouseover" or "hover" or "mousedown";
 
         private void RunCustom(Entity en, double dt)
         {
@@ -1757,6 +1858,19 @@ namespace EasyEngine
                 // universal guard: "cond" is a full expression that must be truthy for the rule to fire
                 if (fire && r.T.ContainsKey("cond"))
                     fire = EvalExpr(r.Str("cond"), en) != 0;
+
+                // console: continuous triggers log when they start; discrete ones at most once per 0.2s per rule
+                if (fire)
+                {
+                    if (ContinuousWhen(r.When)) { if (!r.WasFiring) Info("Script", en.Data.Name, "rule started: " + r.Summary); }
+                    else if (_gameTime - r.LastLogT >= 0.2)
+                    {
+                        Info("Script", en.Data.Name, "rule fired: " + r.Summary, r.Skipped > 0 ? $"{r.Skipped} more fire(s) were rate-limited" : "");
+                        r.LastLogT = _gameTime; r.Skipped = 0;
+                    }
+                    else r.Skipped++;
+                }
+                r.WasFiring = fire;
                 if (fire) DoCustom(en, r, dt);
             }
         }
@@ -1764,7 +1878,8 @@ namespace EasyEngine
         private void RunDeathRules(Entity en, double dt)
         {
             if (en.Custom == null) return;
-            foreach (var r in en.Custom) if (r.When == "death") DoCustom(en, r, dt);
+            foreach (var r in en.Custom)
+                if (r.When == "death") { Info("Script", en.Data.Name, "death rule: " + r.Summary); DoCustom(en, r, dt); }
         }
 
         private void DoCustom(Entity en, CustomRule r, double dt)
@@ -1848,6 +1963,20 @@ namespace EasyEngine
                     }
                     break;
                 }
+                case "playsound": PlaySoundFile(r.Str("sound"), r.Num("volume", 0.8), r.Str("channel", "sfx"), false, en.Data.Name); break;
+                case "log": // "Write to the console" — like Unity's Debug.Log, with {variable} substitution
+                {
+                    var lvl = r.Str("level", "info").ToLowerInvariant() switch { "warn" or "warning" => LogLevel.Warn, "error" => LogLevel.Error, _ => LogLevel.Info };
+                    Log(lvl, "Script", en.Data.Name, Substitute(r.Str("text", r.Str("message", ""))));
+                    break;
+                }
+                default:
+                    if (!r.WarnedUnknown)
+                    {
+                        r.WarnedUnknown = true;
+                        Warn("Script", en.Data.Name, $"Unknown action '{r.Do}' — this rule does nothing", "Check the spelling, or pick the action in the block editor.\nRule: " + r.Summary);
+                    }
+                    break;
             }
         }
 
@@ -2336,10 +2465,16 @@ namespace EasyEngine
             if (cell.Broken) return;
             // a tilemap can require a flag/item to be breakable at all (e.g. "holding:pickaxe")
             var requires = bh.Text("requires", "");
-            if (!string.IsNullOrWhiteSpace(requires) && Var(requires) < 0.5) return;
+            if (!string.IsNullOrWhiteSpace(requires) && Var(requires) < 0.5)
+            {
+                LogThrottled("tile-req:" + map.Data.Name, 1.0, LogLevel.Warn, "Tile", map.Data.Name, $"Tile can't break — needs {requires} = 1 (now {Var(requires):0})");
+                return;
+            }
             cell.Hp -= Math.Max(1, amount);
             if (cell.Hp > 0) return;
             cell.Broken = true;
+            var dropName = bh.Text("drop", "");
+            Info("Tile", map.Data.Name, $"Broke tile ({cell.C},{cell.R})" + (dropName.Length > 0 ? $" → +{Math.Max(1, bh.Num("dropAmount", 1)):0} {dropName}" : ""));
             var host = map.ScreenSpace ? Hud : World;
             if (cell.Visual != null) host.Children.Remove(cell.Visual);
             if (cell.Collider != null) { cell.Collider.Dead = true; _solids.Remove(cell.Collider); }
@@ -2468,102 +2603,7 @@ namespace EasyEngine
             Place(bh.Text("moon", ""), night && !topdown, nightLen > 0 ? (t - dayLen) / nightLen : 0);
         }
 
-        // ---- hotbar / inventory ----
-        private static List<(string name, string color)> ParseHotbarItems(string spec)
-        {
-            var list = new List<(string, string)>();
-            foreach (var part in (spec ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                var bits = part.Split(':', 2);
-                string name = bits[0].Trim();
-                if (name.Length == 0) continue;
-                list.Add((name, bits.Length > 1 ? bits[1].Trim() : "#CCCCCC"));
-            }
-            return list;
-        }
-
-        private void UpdateHotbar(Entity en, BehaviorData bh, double dt)
-        {
-            var items = ParseHotbarItems(bh.Text("items", ""));
-            if (items.Count == 0) return;
-
-            int sel = (int)Math.Round(en.Locals.TryGetValue("__slot", out var sv) ? sv : bh.Num("slot", 0));
-            if (_wheelDelta < 0) sel++;
-            else if (_wheelDelta > 0) sel--;
-            for (int i = 0; i < items.Count && i < 9; i++)
-                if (_keys.Contains(Key.D1 + i) || _keys.Contains(Key.NumPad1 + i)) sel = i;
-            sel = ((sel % items.Count) + items.Count) % items.Count;
-            en.Locals["__slot"] = sel;
-
-            // each item gets a "holding:<name>" flag = 1 only when it's the selected, owned slot.
-            // clear every name first, then set the selected one (handles duplicate slot names).
-            foreach (var it in items) _vars["holding:" + it.name] = 0;
-            if (Var("item:" + items[sel].name) >= 1) _vars["holding:" + items[sel].name] = 1;
-            _vars["heldSlot"] = sel;
-
-            if (en.HotbarCanvas == null) { en.HotbarCanvas = new Canvas(); Hud.Children.Add(en.HotbarCanvas); }
-            RenderHotbar(en.HotbarCanvas, items, sel, bh);
-
-            var player = _entities.FirstOrDefault(z => !z.Dead && z.Data.Name.Equals(bh.Text("player", "Player"), StringComparison.OrdinalIgnoreCase));
-            UpdateHeldVisual(en, player, items, sel);
-        }
-
-        private void RenderHotbar(Canvas canvas, List<(string name, string color)> items, int sel, BehaviorData bh)
-        {
-            canvas.Children.Clear();
-            double size = Math.Max(24, bh.Num("size", 46)), gap = 6;
-            double W = Root.ActualWidth > 10 ? Root.ActualWidth : 960;
-            double H = Root.ActualHeight > 10 ? Root.ActualHeight : 540;
-            double totalW = items.Count * size + (items.Count - 1) * gap;
-            double x0 = (W - totalW) / 2, y0 = H - size - 16;
-            for (int i = 0; i < items.Count; i++)
-            {
-                double x = x0 + i * (size + gap);
-                bool owned = Var("item:" + items[i].name) >= 1;
-                var slot = new Border
-                {
-                    Width = size, Height = size, CornerRadius = new CornerRadius(6),
-                    Background = new SolidColorBrush(Color.FromArgb(owned ? (byte)210 : (byte)90, 24, 24, 30)),
-                    BorderBrush = i == sel ? Brushes.White : new SolidColorBrush(Color.FromArgb(160, 90, 90, 100)),
-                    BorderThickness = new Thickness(i == sel ? 3 : 1.5)
-                };
-                Canvas.SetLeft(slot, x); Canvas.SetTop(slot, y0); canvas.Children.Add(slot);
-
-                var swatch = new System.Windows.Shapes.Rectangle { Width = size * 0.5, Height = size * 0.5, RadiusX = 3, RadiusY = 3, Fill = Brush(items[i].color), Opacity = owned ? 1 : 0.3 };
-                Canvas.SetLeft(swatch, x + size * 0.25); Canvas.SetTop(swatch, y0 + size * 0.18); canvas.Children.Add(swatch);
-
-                double count = Var("item:" + items[i].name);
-                if (count > 1)
-                {
-                    var cnt = new TextBlock { Text = ((long)count).ToString(), Foreground = Brushes.White, FontSize = 11, FontWeight = FontWeights.Bold };
-                    Canvas.SetLeft(cnt, x + size - 16); Canvas.SetTop(cnt, y0 + size - 16); canvas.Children.Add(cnt);
-                }
-                var key = new TextBlock { Text = (i + 1).ToString(), Foreground = new SolidColorBrush(Color.FromArgb(180, 220, 220, 220)), FontSize = 9 };
-                Canvas.SetLeft(key, x + 3); Canvas.SetTop(key, y0 + 2); canvas.Children.Add(key);
-            }
-        }
-
-        private void UpdateHeldVisual(Entity en, Entity? player, List<(string name, string color)> items, int sel)
-        {
-            bool owned = sel >= 0 && sel < items.Count && Var("item:" + items[sel].name) >= 1;
-            if (player == null || !owned)
-            {
-                if (en.HeldVisual != null) en.HeldVisual.Visibility = Visibility.Collapsed;
-                return;
-            }
-            if (en.HeldVisual == null)
-            {
-                en.HeldVisual = new System.Windows.Shapes.Rectangle { Width = 7, Height = 18, RadiusX = 2, RadiusY = 2, Stroke = Brushes.Black, StrokeThickness = 1, IsHitTestVisible = false };
-                (player.ScreenSpace ? Hud : World).Children.Add(en.HeldVisual);
-            }
-            en.HeldVisual.Visibility = Visibility.Visible;
-            en.HeldVisual.Fill = Brush(items[sel].color);
-            // position it at the player's hand, on the facing side, tilted like a held tool
-            double hx = player.Facing >= 0 ? player.X + player.W - 3 : player.X - 4;
-            double hy = player.Y + player.H * 0.35;
-            Canvas.SetLeft(en.HeldVisual, hx); Canvas.SetTop(en.HeldVisual, hy);
-            en.HeldVisual.RenderTransform = new RotateTransform(player.Facing >= 0 ? 35 : -35, 3.5, 9);
-        }
+        // (hotbar / tool use / harvesting live in PlayWindow.Tools.cs)
 
         private void DamageEntity(Entity t, double amount, double kb, double fromCX)
         {
@@ -2781,13 +2821,21 @@ namespace EasyEngine
                         px += _camX * (1 - factor) * -1; py += _camY * (1 - factor) * -1;
                     }
                 }
+                if (en.ShakeT > 0) px += Math.Sin(en.ShakeT * 90) * 4 * (en.ShakeT / 0.25); // a harvestable shaking from a hit
                 Canvas.SetLeft(en.Visual, px);
                 Canvas.SetTop(en.Visual, py);
 
-                // facing flip for platformer characters
-                if (en.Has(BehaviorKind.Platformer))
+                // a felled tree topples over its base (away from the player) and fades out
+                if (en.Felled && en.FallT > 0)
                 {
-                    if (en.VX > 1) en.Facing = 1; else if (en.VX < -1) en.Facing = -1;
+                    double u = 1 - en.FallT / 0.6;
+                    en.Visual.RenderTransformOrigin = new Point(0.5, 1);
+                    en.Visual.RenderTransform = new RotateTransform(en.FallDir * 88 * u * u);
+                    en.Visual.Opacity = en.FallT < 0.18 ? en.FallT / 0.18 : 1;
+                }
+                // facing flip for platformer characters (Facing itself is decided in StepLogic)
+                else if (en.Has(BehaviorKind.Platformer))
+                {
                     en.Visual.RenderTransformOrigin = new Point(0.5, 0.5);
                     en.Visual.RenderTransform = new ScaleTransform(en.Facing, 1);
                 }
@@ -2804,6 +2852,7 @@ namespace EasyEngine
                     Canvas.SetTop(en.LightVisual, en.CY - r);
                 }
             }
+            RenderHeldTool();
         }
 
         // picks idle/walk automatically, else default animation
@@ -2863,41 +2912,26 @@ namespace EasyEngine
             {
                 var en = _entities[i];
                 if (!en.Dead) continue;
-                World.Children.Remove(en.Visual);
+                World.Children.Remove(en.Visual); Hud.Children.Remove(en.Visual); // screen-space entities live in Hud
                 if (en.LightVisual != null) Lights.Children.Remove(en.LightVisual);
                 if (en.HotbarCanvas != null) Hud.Children.Remove(en.HotbarCanvas);
+                if (en.ChecklistPanel != null) Hud.Children.Remove(en.ChecklistPanel);
                 if (en.HeldVisual != null) { Hud.Children.Remove(en.HeldVisual); World.Children.Remove(en.HeldVisual); }
                 _solids.Remove(en);
                 _entities.RemoveAt(i);
             }
         }
 
-        private void PlaySound(BehaviorData snd)
-        {
-            var path = ProjectIO.AbsoluteAsset(_project, snd.Text("asset", ""));
-            if (path == null) return;
-            try
-            {
-                // mixing: final volume = sound volume × channel volume × master volume (vars default to 1)
-                string channel = snd.Text("channel", "sfx").ToLowerInvariant();
-                double chVol = _vars.TryGetValue("vol." + channel, out var cv) ? cv : 1;
-                double master = _vars.TryGetValue("vol.master", out var mv) ? mv : 1;
-                var mp = new MediaPlayer { Volume = Math.Clamp(snd.Num("volume", 0.8) * chVol * master, 0, 1) };
-                mp.Open(new Uri(path));
-                if (snd.Num("loop", 0) >= 0.5) mp.MediaEnded += (s, e) => { mp.Position = TimeSpan.Zero; mp.Play(); };
-                mp.Play();
-                _players.Add(mp);
-            }
-            catch { }
-        }
+        // SoundEmitter: plays its asset (looping ones become music players)
+        private void PlaySound(BehaviorData snd, string source = "")
+            => PlaySoundFile(snd.Text("asset", ""), snd.Num("volume", 0.8), snd.Text("channel", "sfx"), snd.Num("loop", 0) >= 0.5, source);
 
         private void Stop_Click(object sender, RoutedEventArgs e) => Close();
 
         private void Stop()
         {
             CompositionTarget.Rendering -= OnFrame;
-            foreach (var mp in _players) { try { mp.Stop(); mp.Close(); } catch { } }
-            _players.Clear();
+            StopAllSounds();
         }
 
         private SolidColorBrush Brush(string hex) => new(ParseColor(hex, Color.FromRgb(0x9A, 0x9A, 0xA0)));

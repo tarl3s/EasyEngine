@@ -141,7 +141,8 @@ namespace EasyEngine
             new BehaviorInfo { Kind = BehaviorKind.Label, Name = "Label / HUD text", Icon = "🔤",
                 Desc = "Shows text on the object. Use {variableName} to show a variable, e.g. \"Score: {score}\". Put it on a UI layer to keep it fixed on screen. effect animates the text: typewriter (types out), fade (fades in/out), blink, or pulse.",
                 Nums = { new("fontSize","Font size",20), new("effectSpeed","Effect speed",0) },
-                Texts = { new("text","Text","Score: {score}"), new("color","Color (hex)","#FFFFFF"), new("effect","Effect (none/typewriter/fade/blink/pulse)","none") } },
+                Texts = { new("text","Text","Score: {score}"), new("color","Color (hex)","#FFFFFF"), new("effect","Effect (none/typewriter/fade/blink/pulse)","none"),
+                          new("align","Alignment (left/center/right)","center") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Health, Name = "Health", Icon = "❤",
                 Desc = "Gives hit points. When they reach 0: respawn=1 → respawn at last checkpoint/start (for the player); respawn=0 → the object is destroyed (for enemies). Writes the value to a variable for a Label.",
@@ -195,6 +196,23 @@ namespace EasyEngine
                 Nums = { new("slot","Starting slot",0), new("size","Slot size (px)",46) },
                 Texts = { new("items","Slots (name:#color, comma-separated)","pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF"),
                           new("player","Player object (shows the held tool)","Player") } },
+
+            new BehaviorInfo { Kind = BehaviorKind.ToolUse, Name = "Tool Use (swing)", Icon = "🪓",
+                Desc = "Put it on the player. Click ANYWHERE in the game to swing the tool in hand (from the Hotbar): it plays the swing sound and, a moment later, hits the nearest Harvestable within reach that accepts that tool. Far away = a miss; wrong tool = refused. Everything shows in the F1 console.",
+                Nums = { new("reach","Reach (px from the player)",80), new("cooldown","Time between swings (s)",0.35), new("swingTime","Swing duration (s)",0.25) },
+                Texts = { new("tools","Which held items swing (comma list, empty = any)",""), new("tool","Tool when there is no Hotbar",""),
+                          new("swingSound","Swing sound",""), new("deniedSound","Refused sound","") } },
+
+            new BehaviorInfo { Kind = BehaviorKind.Harvestable, Name = "Harvestable (tree / rock)", Icon = "🌳",
+                Desc = "Something you chop or mine with a tool. It takes 'hits' hits from the right tool (e.g. axe), shaking each time; on the last hit it falls and gives 'amount' of 'drop' (e.g. 5 wood). Needs a player with Tool Use.",
+                Nums = { new("hits","Hits to fell",4), new("amount","Resources dropped",5), new("shake","Shake when hit (0/1)",1), new("fall","Topple when felled (0/1)",1) },
+                Texts = { new("tool","Tool needed (empty = any)","axe"), new("drop","Resource dropped (item name)","wood"),
+                          new("hitSound","Hit sound",""), new("fellSound","Felled sound","") } },
+
+            new BehaviorInfo { Kind = BehaviorKind.Checklist, Name = "Test Checklist", Icon = "☑",
+                Desc = "An on-screen checklist for testing. Each line is 'Text => condition' (one per line or separated by ';'). A line ticks ✓ by itself when its condition becomes true (e.g. holding:axe >= 1, stat:hits >= 1, item:wood >= 5) and stays ticked. Logs to the F1 console and sets check:done / check:total / check:all.",
+                Nums = { new("width","Panel width (px)",300) },
+                Texts = { new("title","Title","Test checklist"), new("items","Lines (Text => condition)",""), new("corner","Corner (tr / tl)","tr") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Shop, Name = "Shop / Crafting bench", Icon = "🛒",
                 Desc = "Stand near it and press the key to pay a cost and receive an item. Set 'currency' to 'coins' for a shop, or to an item like 'item:wood' for a crafting bench (e.g. craft a sword from wood). Buys once by default.",

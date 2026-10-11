@@ -34,8 +34,25 @@ dotnet run            # abre o menu inicial (launcher)
 Modos de linha de comando:
 
 - `dotnet run -- --play <projeto.eeproj>` — abre direto no jogo, sem editor
-- `dotnet run -- --selftest` — teste automático (abre editor + roda uma cena)
-- `dotnet run -- --exprtest` / `--behtest` / `--aijsontest` — baterias de teste headless
+- `dotnet run -- --selftest` — teste automático (abre editor + roda uma cena, abre o console e toca os sons)
+- `dotnet run -- --fulltest` — bateria completa headless (comportamentos, scripts, editor de blocos, ferramentas, E2E); log em `%TEMP%\easyengine_fulltest.log`
+- `dotnet run -- --e2e` — joga o cenário "Axe Test" passo a passo, sem janela; log por etapa em `%TEMP%\easyengine_e2e.log`
+- `dotnet run -- --scenarios` — gera o projeto **EasyEngine Tests** (um cenário por mecânica) na pasta `Jogos`
+- `dotnet run -- --exprtest` / `--behtest` / `--aijsontest` / `--blocktest` — baterias específicas
+
+## Testar mecânicas isoladas
+
+No menu inicial, **🧪 Test scenarios** recria e abre o projeto *EasyEngine Tests*. Cada cena testa uma mecânica sozinha,
+com um **checklist na tela** que marca ✓ sozinho a cada etapa. Primeiro cenário: **Axe Test**: escolher o machado,
+golpear em qualquer lugar, derrubar uma árvore com 4 golpes e ver a pedra recusar o machado.
+
+## Console de debug (F1)
+
+Durante o teste de um jogo, **F1** (ou o botão *Console*) abre um console no estilo do Unity. Ele mostra o que o jogo está
+fazendo: cliques, item na mão, golpes, acertos, regras de script disparadas, sons tocados, avisos e erros.
+Tem filtros por nível e categoria, busca, contagem ×N para linhas repetidas e um painel de detalhes.
+Ao fechar o jogo, a sessão é salva em `%TEMP%\easyengine_play.log`.
+Nos scripts e no editor de blocos, a ação **Write to the console** (`log`) escreve sua própria linha, com `{variavel}`.
 
 ## Como a IA funciona
 

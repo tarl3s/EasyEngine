@@ -83,6 +83,10 @@ namespace EasyEngine
             new("setvolume", "Set volume", new[] { new Field("channel", "Channel", "text", "master"), new Field("to", "Level (0-1)", "num", "1") }),
             new("breaktile", "Break a tile", new[] { new Field("where", "Which", "choice", "touching", new[] { "touching", "below", "above", "left", "right", "front", "atmouse" }) },
                 "Breaks a tile of a breakable tilemap: any it overlaps (touching), the one below/above/beside/in front of it, or the one at the mouse."),
+            new("playsound", "Play a sound", new[] { new Field("sound", "Sound", "sound"), new Field("volume", "Volume (0-1)", "num", "0.8") },
+                "Plays a sound file from the project's Assets/sounds folder."),
+            new("log",       "Write to the console", new[] { new Field("text", "Message", "text"), new Field("level", "Level", "choice", "info", new[] { "info", "warn", "error" }) },
+                "Shows a line in the debug console (F1 while playing). Use {variable} to print a value, e.g. Coins: {coins}."),
             new("save",      "Save the game", Array.Empty<Field>()),
             new("load",      "Load the game", Array.Empty<Field>()),
         };
@@ -304,7 +308,7 @@ namespace EasyEngine
                 cb.SelectionChanged += (s, e) => { var sel = cb.SelectedItem as string ?? ""; rule[f.Key] = sel == "(none)" ? "" : sel; };
                 ctrl = cb;
             }
-            else if (f.Type == "obj" || f.Type == "scene" || f.Type == "key")
+            else if (f.Type == "obj" || f.Type == "scene" || f.Type == "key" || f.Type == "sound")
             {
                 var cb = new ComboBox { Height = 28, MinWidth = 120 };
                 var items = SuggestionsFor(f.Type).ToList();
@@ -329,6 +333,15 @@ namespace EasyEngine
         {
             if (type == "key") return CommonKeys;
             if (type == "scene") return _project.Scenes.Select(s => s.Name);
+            if (type == "sound") // the project's sound files, as the relative paths the runtime plays
+            {
+                if (string.IsNullOrEmpty(_project.FolderPath)) return Array.Empty<string>();
+                var dir = System.IO.Path.Combine(_project.FolderPath, "Assets", "sounds");
+                if (!System.IO.Directory.Exists(dir)) return Array.Empty<string>();
+                return System.IO.Directory.GetFiles(dir)
+                    .Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
+                    .Select(f => System.IO.Path.Combine("Assets", "sounds", System.IO.Path.GetFileName(f)));
+            }
             // obj: names of objects in the scene (+ "self" for the set action)
             var names = _scene.Layers.SelectMany(l => l.Objects).Select(o => o.Name).Distinct();
             return new[] { "self" }.Concat(names);

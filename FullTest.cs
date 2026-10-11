@@ -440,6 +440,16 @@ public partial class App
                 pw.TMouseAt(100, 760); pw.TMouseDown(true); pw.TSteps(5);
                 return pw.TItem("dirt") < 0.5;
             });
+            Test("mining: the axe fells a tree (4 clicks next to it) and gives wood", () =>
+            {
+                var proj = BuildMining();
+                var pw = new PlayWindow(proj, proj.StartScene ?? proj.Scenes[0].Name); sims.Add(pw);
+                pw.TLoad();
+                pw.TSetVar("item:axe", 1); pw.TKey("D2", true); pw.TStep(); pw.TKey("D2", false); pw.TSteps(3); // own + select the axe
+                pw.TPlace("Player", 466, 660); pw.TSteps(15);                                                 // stand left of Tree1 (x 520)
+                for (int k = 0; k < 4; k++) { pw.TClick(568, 620); pw.TSteps(25); }
+                return pw.THeld == "axe" && pw.TFelled("Tree1") && pw.TItem("wood") >= 5;
+            });
             Test("mining: mining is limited to a reach around the player", () =>
             {
                 var proj = BuildMining();
@@ -449,6 +459,222 @@ public partial class App
                 pw.TMouseAt(1500, 760); pw.TMouseDown(true); pw.TSteps(5); // far from the player
                 return pw.TItem("dirt") < 0.5;
             });
+
+            // ========================= N) ENGINE REGRESSIONS (v0.4.0 foundations) =========================
+            Test("engine: Advanced Patrol with an empty path stops instead of crashing", () =>
+            {
+                var p = Sim("[]", extra: (pr, sc) =>
+                {
+                    var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
+                    var ap = new BehaviorData { Kind = BehaviorKind.AdvancedPatrol }; ap.Texts["path"] = ""; ap.Nums["mode"] = 1;
+                    l.Objects.Add(new GameObjectData { Id = 2, Name = "AP", Type = "Object", X = 300, Y = 300, Width = 30, Height = 30, Color = "#8844FF", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { ap } });
+                });
+                p.TSteps(5); return Math.Abs(p.TVX("AP")) < 0.01;
+            });
+            Test("engine: death rules fire exactly once", () =>
+            {
+                var p = Sim("[{\"when\":\"death\",\"do\":\"addvar\",\"var\":\"deaths\",\"amount\":1}]", extra: MakeKillable);
+                p.TSteps(30); return Math.Abs(p.TVar("deaths") - 1) < 0.01;
+            });
+            Test("engine: a click pressed and released within one frame still registers", () =>
+            {
+                var p = Sim("[{\"when\":\"mousepress\",\"do\":\"addvar\",\"var\":\"n\",\"amount\":1}]");
+                p.TMouseTap(); p.TStep(); p.TStep();
+                return Math.Abs(p.TVar("n") - 1) < 0.01;
+            });
+            Test("engine: every behavior kind has a catalog entry", () =>
+                Enum.GetValues<BehaviorKind>().All(k => BehaviorCatalog.All.Any(b => b.Kind == k)));
+
+            // ========================= O) DEBUG CONSOLE =========================
+            Test("console: the 'log' action writes a line with {variable} substitution", () =>
+            {
+                var p = Sim("[{\"when\":\"start\",\"do\":\"setvar\",\"var\":\"coins\",\"to\":7},{\"when\":\"start\",\"do\":\"log\",\"text\":\"Coins: {coins}\"}]");
+                p.TSteps(2); return p.TLogHas("Coins: 7");
+            });
+            Test("console: a continuous rule ('always') logs once, not every frame", () =>
+            {
+                var p = Sim("[{\"when\":\"always\",\"do\":\"addvar\",\"var\":\"n\",\"amount\":1}]");
+                p.TSteps(30); return p.TLogCount("Script", "rule started") == 1 && p.TVar("n") >= 30;
+            });
+            Test("console: a key-press rule logs each press", () =>
+            {
+                var p = Sim("[{\"when\":\"keypress\",\"key\":\"F\",\"cooldown\":0.05,\"do\":\"addvar\",\"var\":\"n\",\"amount\":1}]");
+                p.TKey("F", true); p.TStep(); p.TKey("F", false); p.TSteps(20);
+                p.TKey("F", true); p.TStep(); p.TKey("F", false);
+                return p.TLogCount("Script", "rule fired") >= 2;
+            });
+            Test("console: an unknown action warns once", () =>
+            {
+                var p = Sim("[{\"when\":\"always\",\"do\":\"flyaway\"}]");
+                p.TSteps(10); return p.TLogCount("Script", "Unknown action") == 1;
+            });
+            Test("console: a broken script JSON is reported", () =>
+            {
+                var p = Sim("[{\"when\":\"always\",, \"do\":");
+                p.TStep(); return p.TLogHas("bad JSON");
+            });
+            Test("console: identical lines merge into one entry with a count", () =>
+            {
+                var log = new DebugLog();
+                for (int i = 0; i < 3; i++) log.Add(i, i, LogLevel.Info, "Tool", "Player", "swing");
+                log.Add(4, 4, LogLevel.Info, "Tool", "Player", "hit");
+                return log.Entries.Count == 2 && log.Entries[0].Count == 3 && log.Infos == 4;
+            });
+            Test("console: search and level filters narrow the list", () =>
+            {
+                var log = new DebugLog();
+                log.Add(0, 0, LogLevel.Info, "Tool", "Player", "swing");
+                log.Add(1, 1, LogLevel.Warn, "Tool", "Player", "not owned");
+                log.Add(2, 2, LogLevel.Info, "Scene", "", "loaded");
+                var view = new DebugConsoleView(log); view.Flush();
+                int all = view.TestVisibleCount;
+                view.TestShowLevel(LogLevel.Info, false); int warnsOnly = view.TestVisibleCount;
+                view.TestShowLevel(LogLevel.Info, true); view.TestSearch("loaded"); int searched = view.TestVisibleCount;
+                return all == 3 && warnsOnly == 1 && searched == 1;
+            });
+            Test("editor: 'Write to the console' block round-trips", () =>
+            {
+                var once = RT("[{\"when\":\"click\",\"do\":\"log\",\"text\":\"hp={hp}\",\"level\":\"warn\"}]");
+                return RT(once) == once && once.Contains("hp={hp}") && once.Contains("warn");
+            });
+
+            // ========================= P) SOUND =========================
+            Test("sound: generated effects are valid WAV files, long enough, and all different", () =>
+            {
+                var clips = new[] { SoundSynth.Whoosh(), SoundSynth.Chop(), SoundSynth.TreeFall(), SoundSynth.Denied() };
+                bool Valid(byte[] w) => w.Length > 44 && Encoding.ASCII.GetString(w, 0, 4) == "RIFF" && Encoding.ASCII.GetString(w, 8, 4) == "WAVE"
+                                        && BitConverter.ToInt32(w, 40) == w.Length - 44 && (w.Length - 44) / 2.0 / SoundSynth.Rate >= 0.15;
+                return clips.All(Valid) && clips.Select(c => Convert.ToBase64String(c)).Distinct().Count() == 4;
+            });
+            Test("sound: 'playsound' records + logs the sound (muted in tests)", () =>
+            {
+                var p = Sim("[{\"when\":\"start\",\"do\":\"playsound\",\"sound\":\"Assets\\\\sounds\\\\chop.wav\"}]",
+                    extra: (pr, sc) => ProjectIO.SaveSound(pr, SoundSynth.Chop(), "chop"));
+                p.TSteps(2); return p.TSounds.Contains("chop.wav") && p.TLogHas("♪ chop.wav");
+            });
+            Test("sound: a missing sound file is reported, not silently ignored", () =>
+            {
+                var p = Sim("[{\"when\":\"start\",\"do\":\"playsound\",\"sound\":\"Assets\\\\sounds\\\\nope.wav\"}]");
+                p.TSteps(2); return p.TLogHas("Sound file not found") && p.TSounds.Count == 0;
+            });
+            Test("editor: 'Play a sound' block round-trips", () =>
+            {
+                var once = RT("[{\"when\":\"click\",\"do\":\"playsound\",\"sound\":\"Assets\\\\sounds\\\\chop.wav\",\"volume\":0.5}]");
+                return RT(once) == once && once.Contains("chop.wav");
+            });
+
+            // ========================= Q) TOOL USE + HARVESTABLE =========================
+            PlayWindow ToolSim(Action<Project, Scene> scene, bool ownAxe = true, bool ownPick = true)
+            {
+                var p = Sim("[]", extra: scene);
+                if (ownAxe) p.TSetVar("item:axe", 1);
+                if (ownPick) p.TSetVar("item:pickaxe", 1);
+                p.TSteps(5); // land on the ground; the hotbar puts the item in hand
+                return p;
+            }
+            Test("tool: a click anywhere swings (logged + counted); far from trees it's a miss", () =>
+            {
+                var p = ToolSim(ToolScene(nearTree: false));
+                p.TClick(650, 250); p.TSteps(30);
+                return p.TVar("stat:swings") == 1 && p.TVar("stat:hits") == 0 && p.TVar("stat:missed") == 1
+                       && p.TLogHas("Axe swing") && p.TLogHas("Nothing in reach") && p.TLogHas("Tree2");
+            });
+            Test("tool: 4 axe hits fell the tree, drop 5 wood, and it disappears", () =>
+            {
+                var p = ToolSim(ToolScene());
+                for (int k = 0; k < 4; k++) { p.TClick(310, 440); p.TSteps(25); }
+                bool felled = p.TFelled("Tree1") && p.TVar("stat:hits") == 4 && Math.Abs(p.TItem("wood") - 5) < 0.01 && p.TLogHas("FELLED");
+                p.TSteps(45); // the topple finishes
+                return felled && p.TDead("Tree1") && p.TLogHas("Hit 3/4");
+            });
+            Test("tool: the rock refuses the axe (needs a pickaxe)", () =>
+            {
+                var p = ToolSim(ToolScene(nearTree: false, rock: true));
+                p.TClick(310, 440); p.TSteps(30);
+                return p.TVar("stat:denied") == 1 && p.TVar("stat:hits") == 0 && p.TLogHas("needs a pickaxe");
+            });
+            Test("tool: the pickaxe breaks the rock", () =>
+            {
+                var p = ToolSim(ToolScene(nearTree: false, rock: true, slot: 0));
+                for (int k = 0; k < 3; k++) { p.TClick(310, 440); p.TSteps(25); }
+                return p.TFelled("Rock") && Math.Abs(p.TItem("stone") - 5) < 0.01;
+            });
+            Test("tool: the cooldown stops a double swing", () =>
+            {
+                var p = ToolSim(ToolScene());
+                p.TClick(310, 440); p.TStep(); p.TClick(310, 440); p.TStep();
+                p.TSteps(25);
+                return p.TVar("stat:swings") == 1 && p.TVar("stat:hits") == 1;
+            });
+            Test("tool: clicking a hotbar slot selects it and does not swing", () =>
+            {
+                var p = ToolSim(ToolScene());
+                var c = p.THotbarSlotCenter(0);
+                bool isUi = p.TIsUi(c.X, c.Y);
+                p.TClick(c.X, c.Y); p.TSteps(25);
+                return isUi && p.TVar("heldSlot") == 0 && p.THeld == "pickaxe" && p.TVar("stat:swings") == 0;
+            });
+            Test("tool: an unowned slot warns and does not swing", () =>
+            {
+                var p = ToolSim(ToolScene(), ownAxe: false);
+                p.TClick(310, 440); p.TSteps(25);
+                return p.TVar("stat:swings") == 0 && p.TLogHas("not owned");
+            });
+            Test("tool: a felled tree can't be hit again", () =>
+            {
+                var p = ToolSim(ToolScene(farTree: false));
+                for (int k = 0; k < 4; k++) { p.TClick(310, 440); p.TSteps(25); }
+                p.TSteps(45);
+                p.TClick(310, 440); p.TSteps(25);
+                return p.TVar("stat:hits") == 4 && p.TVar("stat:swings") == 5;
+            });
+            Test("tool: without a hotbar, the fixed 'tool' parameter is used", () =>
+            {
+                var p = ToolSim(ToolScene(hotbar: false, fixedTool: "axe"));
+                p.TClick(310, 440); p.TSteps(25);
+                return p.TVar("stat:hits") == 1;
+            });
+            Test("tool: the swing sound plays first, the chop a few frames later", () =>
+            {
+                var p = ToolSim(ToolScene(sounds: true));
+                p.TClick(310, 440); p.TStep();
+                bool swingNow = p.TSounds.Contains("swing.wav") && !p.TSounds.Contains("chop.wav");
+                p.TSteps(25);
+                return swingNow && p.TSounds.ToList().IndexOf("swing.wav") < p.TSounds.ToList().IndexOf("chop.wav");
+            });
+
+            // ========================= R) CHECKLIST =========================
+            Action<Project, Scene> Checklist(string items) => (pr, sc) =>
+            {
+                var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
+                l.Objects.Add(new GameObjectData { Id = 50, Name = "Checks", Type = "Object", X = 0, Y = 0, Width = 4, Height = 4, Color = "#00000000", Physics = new PhysicsData { Mode = PhysicsMode.None },
+                    Behaviors = { new BehaviorData { Kind = BehaviorKind.Checklist, Texts = { ["items"] = items, ["title"] = "Test" } } } });
+            };
+            Test("checklist: lines tick when true and stay ticked; ALL PASSED at the end", () =>
+            {
+                var p = Sim("[]", extra: Checklist("Get 3 coins => coins >= 3; Press E => pressedE >= 1"));
+                p.TSetVar("coins", 3); p.TStep();
+                bool one = p.TVar("check:done") == 1;
+                p.TSetVar("coins", 0); p.TStep();
+                bool stays = p.TVar("check:done") == 1;
+                p.TSetVar("pressedE", 1); p.TStep();
+                return one && stays && p.TVar("check:all") == 1 && p.TLogHas("✓ Get 3 coins") && p.TLogHas("ALL PASSED");
+            });
+            Test("checklist: a line without '=>' is reported", () =>
+            {
+                var p = Sim("[]", extra: Checklist("no arrow here; Ok => 1"));
+                p.TStep(); return p.TLogHas("without '=>'") && p.TVar("check:total") == 1;
+            });
+            Test("checklist: its panel counts as UI (clicks on it don't reach the game)", () =>
+            {
+                var p = Sim("[]", extra: Checklist("A => 0"));
+                p.TStep(); var c = p.TUiCenter("the checklist");
+                return c.X > 0 && p.TIsUi(c.X, c.Y);
+            });
+
+            // ========================= S) E2E: the "Axe Test" scenario, played step by step =========================
+            foreach (var (step, ok, lines) in RunAxeE2E())
+                Test("e2e axe: " + step + (ok ? "" : "  ⟶ " + string.Join(" | ", lines.TakeLast(4))), () => ok);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
@@ -536,6 +762,37 @@ public partial class App
         var tmp = Path.Combine(Path.GetTempPath(), "EE_FullTerr_" + Guid.NewGuid().ToString("N").Substring(0, 6));
         Directory.CreateDirectory(tmp);
         return ProjectIO.Load(MiningGame.Build(tmp));
+    }
+
+    // ---- tool use / harvesting scene: ground, a player (Hotbar + ToolUse), trees and an optional rock ----
+    // Player box: x 200..230. Near tree at x 290 (gap 60, inside reach 80); far tree at x 1000.
+    private static Action<Project, Scene> ToolScene(string items = "pickaxe:#B5651D,axe:#9AA0A0", int slot = 1, bool hotbar = true, string fixedTool = "",
+        bool nearTree = true, bool farTree = true, bool rock = false, bool sounds = false)
+    {
+        return (p, s) =>
+        {
+            var l = s.Layers.First(z => z.Kind == LayerKind.Base);
+            l.Objects.Add(new GameObjectData { Id = 40, Name = "Ground", Type = "Object", X = 0, Y = 500, Width = 3000, Height = 40, Color = "#4A5A3A", Physics = new PhysicsData { Mode = PhysicsMode.Static }, Behaviors = { new BehaviorData { Kind = BehaviorKind.Solid } } });
+            string swing = "", chop = "", fall = "", denied = "";
+            if (sounds)
+            {
+                swing = ProjectIO.SaveSound(p, SoundSynth.Whoosh(), "swing");
+                chop = ProjectIO.SaveSound(p, SoundSynth.Chop(), "chop");
+                fall = ProjectIO.SaveSound(p, SoundSynth.TreeFall(), "fall");
+                denied = ProjectIO.SaveSound(p, SoundSynth.Denied(), "denied");
+            }
+            GameObjectData Harv(int id, string name, double x, string tool, string drop, int hits) =>
+                new() { Id = id, Name = name, Type = "Object", X = x, Y = 380, Width = 40, Height = 120, Color = "#6E4A24", Physics = new PhysicsData { Mode = PhysicsMode.None },
+                        Behaviors = { new BehaviorData { Kind = BehaviorKind.Harvestable, Nums = { ["hits"] = hits, ["amount"] = 5 }, Texts = { ["tool"] = tool, ["drop"] = drop, ["hitSound"] = chop, ["fellSound"] = fall } } } };
+            if (nearTree) l.Objects.Add(Harv(41, "Tree1", 290, "axe", "wood", 4));
+            if (farTree) l.Objects.Add(Harv(42, "Tree2", 1000, "axe", "wood", 4));
+            if (rock) l.Objects.Add(Harv(43, "Rock", 290, "pickaxe", "stone", 3));
+            var pl = new GameObjectData { Id = 44, Name = "Player", Type = "Player", X = 200, Y = 450, Width = 30, Height = 50, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
+            pl.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Platformer });
+            if (hotbar) pl.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Hotbar, Nums = { ["slot"] = slot }, Texts = { ["items"] = items, ["player"] = "Player" } });
+            pl.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.ToolUse, Nums = { ["reach"] = 80, ["cooldown"] = 0.35, ["swingTime"] = 0.25 }, Texts = { ["tool"] = fixedTool, ["swingSound"] = swing, ["deniedSound"] = denied } });
+            l.Objects.Add(pl);
+        };
     }
 
     // ---- hotbar + mining setups ----

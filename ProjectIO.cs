@@ -158,6 +158,21 @@ namespace EasyEngine
             return Path.Combine("Assets", "sprites", Path.GetFileName(dest));
         }
 
+        /// <summary>Saves WAV bytes in Assets/sounds (never overwriting) and returns the project-relative path.</summary>
+        public static string SaveSound(Project p, byte[] wav, string baseName)
+        {
+            if (string.IsNullOrEmpty(p.FolderPath))
+                throw new InvalidOperationException("Project has no folder.");
+            var destDir = Path.Combine(p.FolderPath, "Assets", "sounds");
+            Directory.CreateDirectory(destDir);
+            var stem = Sanitize(string.IsNullOrWhiteSpace(baseName) ? "sound" : baseName);
+            var dest = Path.Combine(destDir, stem + ".wav");
+            int i = 1;
+            while (File.Exists(dest)) dest = Path.Combine(destDir, $"{stem}_{i++}.wav");
+            File.WriteAllBytes(dest, wav);
+            return Path.Combine("Assets", "sounds", Path.GetFileName(dest));
+        }
+
         public static string? AbsoluteAsset(Project p, string? relative)
         {
             if (string.IsNullOrEmpty(relative) || string.IsNullOrEmpty(p.FolderPath)) return null;
@@ -210,9 +225,12 @@ namespace EasyEngine
             catch { return new(); }
         }
 
+        // Test runs create many throwaway projects; with this on they never touch the user's Recent list.
+        public static bool SuppressRecent { get; set; }
+
         public static void AddRecent(Project p)
         {
-            if (string.IsNullOrEmpty(p.FilePath)) return;
+            if (SuppressRecent || string.IsNullOrEmpty(p.FilePath)) return;
             var list = GetRecent();
             list.RemoveAll(r => string.Equals(r.Path, p.FilePath, StringComparison.OrdinalIgnoreCase));
             list.Insert(0, new RecentProject

@@ -77,7 +77,10 @@ namespace EasyEngine
         AdvancedPatrol,   // follows a hand-drawn path with platformer physics (jumps over obstacles)
         DayNight,         // day/night cycle: animates ambient light, moves a sun/moon, sets isDay/isNight vars
         Hotbar,           // inventory hotbar: pick a slot with the wheel/number keys, shows the held tool in hand
-        Shop              // buy/craft: press a key nearby to pay a cost (coins or an item) and receive an item
+        Shop,             // buy/craft: press a key nearby to pay a cost (coins or an item) and receive an item
+        ToolUse,          // click anywhere to swing the held tool; it hits a Harvestable within reach
+        Harvestable,      // a tree/rock/ore: takes N hits from the right tool, then falls and drops a resource
+        Checklist         // on-screen test checklist: each line ticks itself when its condition becomes true
     }
 
     // ======================= DADOS =======================
@@ -224,6 +227,7 @@ namespace EasyEngine
         public Dictionary<string, double> Variables { get; set; } = new(); // global (shared across the whole game)
         public GameTheme Theme { get; set; } = new();          // in-game look & feel
         public string? StartScene { get; set; } // scene the game starts on
+        public bool ConsoleOnStart { get; set; } // open the F1 debug console when play starts (test scenarios)
 
         [JsonIgnore] public string? FilePath { get; set; } // .eeproj path on disk
         [JsonIgnore] public string? FolderPath { get; set; }

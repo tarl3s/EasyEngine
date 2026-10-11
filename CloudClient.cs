@@ -200,6 +200,8 @@ namespace EasyEngine
         public static Dictionary<string, string> DockLayout { get; set; } = new();
         public static string CustomUrl { get; set; } = "";   // Custom provider: OpenAI-compatible base URL
         public static string CustomModel { get; set; } = ""; // Custom provider: model name
+        public static string? AiChoice { get; set; }         // last "Which AI to use" pick (the combo item's Tag); null = never chosen
+        public static string LocalModel { get; set; } = "";  // name typed for "Custom local model…"
 
         public static string Key(string providerId) => CloudKeys.TryGetValue(providerId, out var v) ? v : "";
         public static void SetKey(string providerId, string value) { CloudKeys[providerId] = value?.Trim() ?? ""; }
@@ -220,6 +222,8 @@ namespace EasyEngine
                     DockLayout = data.DockLayout ?? new();
                     CustomUrl = data.CustomUrl ?? "";
                     CustomModel = data.CustomModel ?? "";
+                    AiChoice = data.AiChoice;
+                    LocalModel = data.LocalModel ?? "";
                 }
             }
             catch { }
@@ -227,7 +231,7 @@ namespace EasyEngine
 
         public static void Save()
         {
-            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel })); }
+            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel })); }
             catch { }
         }
 
@@ -238,6 +242,8 @@ namespace EasyEngine
             [JsonPropertyName("dockLayout")] public Dictionary<string, string>? DockLayout { get; set; }
             [JsonPropertyName("customUrl")]  public string? CustomUrl { get; set; }
             [JsonPropertyName("customModel")] public string? CustomModel { get; set; }
+            [JsonPropertyName("aiChoice")]   public string? AiChoice { get; set; }
+            [JsonPropertyName("localModel")] public string? LocalModel { get; set; }
         }
     }
 }

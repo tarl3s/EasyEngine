@@ -120,6 +120,13 @@ namespace EasyEngine
             catch (Exception ex) { MessageBox.Show("Delete failed: " + ex.Message); }
         }
 
+        // Rebuilds the "EasyEngine Tests" project (isolated scenarios) and opens it in the editor — press Test to play.
+        private void TestScenarios_Click(object sender, RoutedEventArgs e)
+        {
+            try { OpenEditor(ProjectIO.Load(TestScenarios.Build(DefaultParentFolder()))); }
+            catch (Exception ex) { MessageBox.Show("Couldn't build the test scenarios:\n" + ex.Message, "EasyEngine"); }
+        }
+
         private void OpenEditor(Project project)
         {
             var editor = new MainWindow(project);

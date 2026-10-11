@@ -142,19 +142,11 @@
                             <Button x:Name="AiConfigToggle" Click="AiConfigToggle_Click" Style="{StaticResource CardButton}" HorizontalContentAlignment="Stretch" Padding="8,5">
                                 <TextBlock x:Name="AiConfigSummary" FontSize="12" Text="⚙ AI settings"/>
                             </Button>
-                            <StackPanel x:Name="AiConfigPanel" Visibility="Collapsed" Margin="0,6,0,0">
-                                <!-- EASY SETUP: turn on the free smart AI in 3 taps -->
-                                <TextBlock FontSize="13" FontWeight="SemiBold" Text="Turn on the smart AI — it's free" Margin="0,0,0,2"/>
-                                <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}"
-                                           Text="Pick ONE below. Tap &quot;Get free key&quot;, sign in, copy the key it shows, and paste it here. No credit card. You only do this once."/>
-                                <StackPanel x:Name="FreeKeysHost" Margin="0,8,0,0"/>
-
-                                <!-- ADVANCED: hidden by default -->
-                                <Button x:Name="AdvancedToggle" Click="AdvancedToggle_Click" Style="{StaticResource CardButton}" HorizontalContentAlignment="Left" Padding="8,5" Margin="0,12,0,0">
-                                    <TextBlock x:Name="AdvancedToggleText" FontSize="11" Foreground="{StaticResource TextDim}" Text="▸ Advanced — pick a model, paid keys, offline AI"/>
-                                </Button>
-                                <StackPanel x:Name="AdvancedPanel" Visibility="Collapsed" Margin="0,6,0,0">
-                                    <TextBlock Text="Which AI to use" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <!-- the settings scroll on their own (capped height) so the chat input + log always stay visible -->
+                            <ScrollViewer x:Name="AiConfigScroll" VerticalScrollBarVisibility="Auto" PreviewMouseWheel="AiConfigScroll_PreviewMouseWheel">
+                            <StackPanel x:Name="AiConfigPanel" Visibility="Collapsed" Margin="0,6,4,0">
+                                <!-- WHICH AI: the main choice, always at the top -->
+                                <TextBlock Text="Which AI to use" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <ComboBox x:Name="StrengthCombo" SelectionChanged="StrengthCombo_SelectionChanged">
                                         <ComboBoxItem Content="☁ Cloud — Auto (rotate free providers)" Tag="cloud:auto"/>
                                         <ComboBoxItem Content="☁ Groq 120B (free)"   Tag="cloud:groq"/>
@@ -172,12 +164,25 @@
                                         <ComboBoxItem Content="🔥 Local — needs GPU/RAM (14b)"   Tag="qwen2.5-coder:14b"/>
                                         <ComboBoxItem Content="🛠 Custom local model…"           Tag=""/>
                                     </ComboBox>
-                                    <TextBox x:Name="CustomModel" Visibility="Collapsed" Margin="0,6,0,0" TextChanged="CustomModel_TextChanged"/>
-                                    <TextBlock Text="Paid keys — your own account, billed per use" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                <TextBox x:Name="CustomModel" Visibility="Collapsed" Margin="0,6,0,0" TextChanged="CustomModel_TextChanged"/>
+
+                                <!-- EASY SETUP: turn on the free smart AI in 3 taps -->
+                                <TextBlock FontSize="13" FontWeight="SemiBold" Text="Turn on the smart AI — it's free" Margin="0,14,0,2"/>
+                                <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}"
+                                           Text="Pick ONE below. Tap &quot;Get free key&quot;, sign in, copy the key it shows, and paste it here. No credit card. You only do this once."/>
+                                <StackPanel x:Name="FreeKeysHost" Margin="0,8,0,0"/>
+
+                                <!-- ADVANCED: hidden by default -->
+                                <Button x:Name="AdvancedToggle" Click="AdvancedToggle_Click" Style="{StaticResource CardButton}" HorizontalContentAlignment="Left" Padding="8,5" Margin="0,12,0,0">
+                                    <TextBlock x:Name="AdvancedToggleText" FontSize="11" Foreground="{StaticResource TextDim}" Text="▸ Advanced — paid keys, offline AI"/>
+                                </Button>
+                                <StackPanel x:Name="AdvancedPanel" Visibility="Collapsed" Margin="0,6,0,0">
+                                    <TextBlock Text="Paid keys — your own account, billed per use" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,4,0,2"/>
                                     <StackPanel x:Name="PaidKeysHost"/>
                                     <TextBlock x:Name="OllamaStatus" Margin="0,8,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Text="Checking Ollama…"/>
                                 </StackPanel>
                             </StackPanel>
+                            </ScrollViewer>
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Top" Margin="12,0,12,8">
                             <Grid Height="34">

@@ -17,6 +17,12 @@ public partial class App : Application
         var playIdx = Array.IndexOf(e.Args, "--play");
         if (playIdx >= 0 && playIdx + 1 < e.Args.Length) { RunStandalone(e.Args[playIdx + 1]); return; }
 
+        // test modes create many throwaway projects — keep them out of the user's Recent list
+        string[] testModes = { "--selftest", "--aitest", "--blocktest", "--exprtest", "--behtest", "--aijsontest", "--fulltest", "--e2e" };
+        if (e.Args.Any(a => testModes.Contains(a))) ProjectIO.SuppressRecent = true;
+
+        if (e.Args.Contains("--restore-recent")) { RunRestoreRecent(); return; }
+
         if (e.Args.Contains("--selftest")) { RunSelfTest(); return; }
 
         if (e.Args.Contains("--aitest")) { RunAiTest(e.Args); return; }
@@ -36,6 +42,10 @@ public partial class App : Application
         if (e.Args.Contains("--fulltest")) { RunFullTest(); return; }
 
         if (e.Args.Contains("--mining")) { RunMining(); return; }
+
+        if (e.Args.Contains("--e2e")) { RunE2E(); return; }
+
+        if (e.Args.Contains("--scenarios")) { RunScenarios(); return; }
 
         // exported standalone game: a 'game' folder with a .eeproj sits next to the exe → play it directly
         if (!e.Args.Contains("--editor"))
@@ -73,7 +83,8 @@ public partial class App : Application
             var play = new PlayWindow(project, project.StartScene ?? project.Scenes[0].Name)
             {
                 WindowState = WindowState.Maximized,
-                Title = project.Name
+                Title = project.Name,
+                DevTools = false // exported game: no F1 console, no play log
             };
             MainWindow = play;
             play.Closed += (s, ev) => Shutdown();
@@ -289,6 +300,45 @@ public partial class App : Application
         Shutdown();
     }
 
+    // One-off repair: put every project found one level under Desktop\Jogos back into the Recent list
+    // (older test runs had pushed the user's real projects out of it). Oldest first, so the newest ends on top.
+    private void RunRestoreRecent()
+    {
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        var log = Path.Combine(Path.GetTempPath(), "easyengine_restore.log");
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Jogos");
+            var files = Directory.Exists(parent)
+                ? Directory.GetDirectories(parent).SelectMany(d => Directory.GetFiles(d, "*.eeproj")).OrderBy(File.GetLastWriteTime).ToList()
+                : new List<string>();
+            foreach (var f in files)
+            {
+                try { ProjectIO.Load(f); sb.AppendLine("restored: " + f); }
+                catch (Exception ex) { sb.AppendLine("skipped: " + f + " (" + ex.Message + ")"); }
+            }
+        }
+        catch (Exception ex) { sb.AppendLine("ERROR: " + ex); }
+        try { File.WriteAllText(log, sb.ToString()); } catch { }
+        Shutdown();
+    }
+
+    // Builds the "EasyEngine Tests" project (isolated test scenarios) into Desktop\Jogos.
+    private void RunScenarios()
+    {
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        var log = Path.Combine(Path.GetTempPath(), "easyengine_scenarios.log");
+        try
+        {
+            var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Jogos");
+            Directory.CreateDirectory(parent);
+            File.WriteAllText(log, "SCENARIOS BUILT: " + TestScenarios.Build(parent) + Environment.NewLine);
+        }
+        catch (Exception ex) { try { File.WriteAllText(log, "ERROR: " + ex + Environment.NewLine); } catch { } }
+        Shutdown();
+    }
+
     private void RunMining()
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -402,6 +452,13 @@ public partial class App : Application
             var play = new PlayWindow(project, project.StartScene ?? project.Scenes[0].Name) { Owner = editor };
             play.Show();
             Write("play window shown OK");
+            play.TShowConsole(true);
+            if (!play.TConsoleVisible) throw new Exception("debug console did not open");
+            Write("debug console opened OK");
+            // real playback of the generated effects (a MediaFailed would show up as a console Error below)
+            foreach (var (wav, name) in new[] { (SoundSynth.Whoosh(), "whoosh"), (SoundSynth.Chop(), "chop"), (SoundSynth.TreeFall(), "fall"), (SoundSynth.Denied(), "denied") })
+                play.TPlaySound(ProjectIO.SaveSound(project, wav, name));
+            Write("sound effects played");
 
             // exercise the animation window (UI-only path)
             var anyObj = project.GetStartScene().Layers.SelectMany(l => l.Objects).FirstOrDefault();
@@ -415,8 +472,10 @@ public partial class App : Application
             timer.Tick += (s, ev) =>
             {
                 timer.Stop();
+                int errors = play.TLog.Errors; string firstError = play.TLog.Entries.FirstOrDefault(x => x.Level == LogLevel.Error)?.FullText() ?? "";
                 try { vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { }
                 Write("ran loop ~2.5s, closed OK");
+                if (errors > 0) { Write($"SELFTEST FAIL: {errors} error(s) in the play console:\n{firstError}"); Shutdown(); return; }
                 Write("SELFTEST PASS");
                 Shutdown();
             };

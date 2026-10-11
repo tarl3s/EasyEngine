@@ -116,9 +116,31 @@ namespace EasyEngine
             UpdateAiTarget();
             AiSettings.Load();
             BuildCloudKeyRows();
-            StrengthCombo.SelectedIndex = 0; // default = Cloud (Auto)
+            RestoreAiChoice();
             if (!AnyCloudKey()) AiConfigPanel.Visibility = Visibility.Visible; // no key yet → show setup
+            // the settings scroll inside a capped height so the Build row, chat input and log stay visible
+            AiPanel.SizeChanged += (s, e) => AiConfigScroll.MaxHeight = Math.Max(160, AiPanel.ActualHeight - 300);
             _ = RefreshOllamaStatusAsync();
+        }
+
+        // Re-select the AI the user picked last time (by its Tag); falls back to Cloud (Auto).
+        private void RestoreAiChoice()
+        {
+            if (!string.IsNullOrEmpty(AiSettings.LocalModel)) CustomModel.Text = AiSettings.LocalModel;
+            var saved = AiSettings.AiChoice;
+            var match = saved == null ? null
+                : StrengthCombo.Items.OfType<ComboBoxItem>().FirstOrDefault(i => string.Equals((string)(i.Tag ?? ""), saved, StringComparison.Ordinal));
+            if (match != null) StrengthCombo.SelectedItem = match;
+            else StrengthCombo.SelectedIndex = 0; // default = Cloud (Auto)
+        }
+
+        // Mouse wheel scrolls the AI settings even while the pointer is over a key box or the combo
+        // (those controls swallow the wheel otherwise). An open dropdown keeps scrolling itself.
+        private void AiConfigScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (Mouse.Captured is ComboBox) return;
+            AiConfigScroll.ScrollToVerticalOffset(AiConfigScroll.VerticalOffset - e.Delta / 3.0);
+            e.Handled = true;
         }
 
         // ============================================================
@@ -1529,6 +1551,7 @@ namespace EasyEngine
                 foreach (var tp in info.Texts)
                 {
                     if (bh.Kind == BehaviorKind.SoundEmitter && tp.Key == "asset") SoundRow(obj, bh, panel);
+                    else if (tp.Key.EndsWith("Sound", StringComparison.OrdinalIgnoreCase)) SoundRow(obj, bh, panel, tp.Key, tp.Label);
                     else if (bh.Kind == BehaviorKind.GoToScene && tp.Key == "scene") ScenePickerRow(bh, panel);
                     else if (bh.Kind == BehaviorKind.Custom && tp.Key == "script") ScriptRow(bh, panel);
                     else if (bh.Kind == BehaviorKind.AdvancedPatrol && tp.Key == "path") AdvancedPatrolRow(obj, bh, panel);
@@ -1934,22 +1957,30 @@ namespace EasyEngine
         private void ShowColorPicker(FrameworkElement anchor, string initial, Action<string> onPick)
             => ColorPickerPopup.Open(anchor, initial, onPick, PushUndo);
 
-        private void SoundRow(GameObjectData obj, BehaviorData bh, Panel target)
+        // A sound parameter: pick a .wav/.mp3 (copied into Assets/sounds). Used for SoundEmitter's "asset"
+        // and for any behavior text parameter whose key ends in "Sound" (hitSound, swingSound…).
+        private void SoundRow(GameObjectData obj, BehaviorData bh, Panel target, string key = "asset", string label = "Sound file")
         {
-            var grid = RowGrid("Sound file", target);
+            var grid = RowGrid(label, target);
             var inner = new StackPanel { Orientation = Orientation.Horizontal };
-            var current = bh.Text("asset", "");
+            var current = bh.Text(key, "");
             var pick = new Button { Content = string.IsNullOrEmpty(current) ? "Choose…" : Path.GetFileName(current), Style = (Style)FindResource("CardButton"), Height = 28, Padding = new Thickness(8, 0, 8, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
             pick.Click += (s, e) =>
             {
                 var dlg = new OpenFileDialog { Title = "Choose sound", Filter = "Audio|*.wav;*.mp3" };
                 if (dlg.ShowDialog() == true)
                 {
-                    try { PushUndo(); bh.Texts["asset"] = ProjectIO.ImportAsset(_project, dlg.FileName, "sounds"); BuildInspector(obj); Dirty(); }
+                    try { PushUndo(); bh.Texts[key] = ProjectIO.ImportAsset(_project, dlg.FileName, "sounds"); BuildInspector(obj); Dirty(); }
                     catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
                 }
             };
             inner.Children.Add(pick);
+            if (!string.IsNullOrEmpty(current))
+            {
+                var clear = new Button { Content = "✕", ToolTip = "No sound", Style = (Style)FindResource("CardButton"), Height = 28, Width = 28, Margin = new Thickness(4, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+                clear.Click += (s, e) => { PushUndo(); bh.Texts[key] = ""; BuildInspector(obj); Dirty(); };
+                inner.Children.Add(clear);
+            }
             Grid.SetColumn(inner, 1); grid.Children.Add(inner);
         }
 
@@ -2008,10 +2039,16 @@ namespace EasyEngine
             }
             else _model = custom ? CustomModel.Text.Trim() : tag;
 
+            if (AiSettings.AiChoice != tag) { AiSettings.AiChoice = tag; AiSettings.Save(); } // remembered across editor launches
             _ = RefreshOllamaStatusAsync();
         }
 
-        private void CustomModel_TextChanged(object sender, TextChangedEventArgs e) { _model = CustomModel.Text.Trim(); _ = RefreshOllamaStatusAsync(); }
+        private void CustomModel_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            _model = CustomModel.Text.Trim();
+            if (AiSettings.LocalModel != _model) { AiSettings.LocalModel = _model; AiSettings.Save(); }
+            _ = RefreshOllamaStatusAsync();
+        }
 
         // ---- cloud provider keys (one masked row per free provider) ----
         private bool AnyCloudKey() => CloudClient.Providers.Any(p => !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id)));
@@ -2158,7 +2195,7 @@ namespace EasyEngine
             bool open = AdvancedPanel.Visibility != Visibility.Visible;
             AdvancedPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
             if (AdvancedToggleText != null)
-                AdvancedToggleText.Text = (open ? "▾" : "▸") + " Advanced — pick a model, paid keys, offline AI";
+                AdvancedToggleText.Text = (open ? "▾" : "▸") + " Advanced — paid keys, offline AI";
         }
 
         private void AiConfigToggle_Click(object sender, RoutedEventArgs e)
@@ -2816,6 +2853,9 @@ namespace EasyEngine
                 "generator" or "emitter" => BehaviorKind.Spawner,
                 "audio" or "sfx" or "music" or "sound" => BehaviorKind.SoundEmitter,
                 "glow" or "lamp" or "lantern" or "lighting" => BehaviorKind.LightSource,
+                "tool" or "swing" or "swingtool" or "usetool" or "axeuse" or "chop" => BehaviorKind.ToolUse,
+                "tree" or "choppable" or "mineable" or "resource" or "harvest" or "ore" => BehaviorKind.Harvestable,
+                "objectives" or "tasks" or "testchecklist" or "checks" => BehaviorKind.Checklist,
                 "scrollbackground" => BehaviorKind.Parallax,
                 "collect" or "coin" or "pickup" or "gem" or "collect ible" => BehaviorKind.Collectible,
                 "door" or "teleport" or "goto" or "scenechange" or "portal" or "nextlevel" => BehaviorKind.GoToScene,
