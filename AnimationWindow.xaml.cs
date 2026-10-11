@@ -166,8 +166,9 @@ namespace EasyEngine
             var left = SmallBtn("◀"); left.Click += (s, e) => MoveFrame(index, -1);
             var num = new TextBlock { Text = (index + 1).ToString(), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) };
             var right = SmallBtn("▶"); right.Click += (s, e) => MoveFrame(index, +1);
+            var edit = SmallBtn("✎"); edit.ToolTip = "Edit in the sprite editor"; edit.Click += (s, e) => EditFrame(index);
             var del = SmallBtn("✕"); del.Foreground = (SolidColorBrush)FindResource("Danger"); del.Click += (s, e) => DeleteFrame(index);
-            row.Children.Add(left); row.Children.Add(num); row.Children.Add(right); row.Children.Add(del);
+            row.Children.Add(left); row.Children.Add(num); row.Children.Add(right); row.Children.Add(edit); row.Children.Add(del);
             stack.Children.Add(row);
 
             return stack;
@@ -219,6 +220,55 @@ namespace EasyEngine
             if (files == null || files.Length == 0) return;
             ImportInto(_cur, files);
             RefreshFrames(); RestartPreview(); RefreshAnimList();
+        }
+
+        // ---------------- built-in sprite editor ----------------
+        private string? DrawSprite(string? editAbsolute = null)
+        {
+            var win = new SpriteEditorWindow(_project, 32, editAbsolute) { Owner = this };
+            return win.ShowDialog() == true ? win.SavedRelativePath : null;
+        }
+
+        private void DrawSprite_Click(object sender, RoutedEventArgs e)
+        {
+            var rel = DrawSprite();
+            if (rel == null) return;
+            if (_cur != null)
+            {
+                _cur.Frames.Add(rel);
+                RefreshFrames(); RestartPreview(); RefreshAnimList();
+            }
+            else
+            {
+                var name = InputDialog.Prompt(this, "New animation", "Animation name (e.g. idle, walk):", SuggestName());
+                if (name == null) return;
+                var anim = new SpriteAnimation { Name = name };
+                anim.Frames.Add(rel);
+                _obj.Animations.Add(anim);
+                if (_obj.DefaultAnimation == null) _obj.DefaultAnimation = anim.Name;
+                RefreshAnimList(); SelectAnim(anim);
+            }
+        }
+
+        private void DrawFrame_Click(object sender, RoutedEventArgs e)
+        {
+            if (_cur == null) return;
+            var rel = DrawSprite();
+            if (rel == null) return;
+            _cur.Frames.Add(rel);
+            RefreshFrames(); RestartPreview(); RefreshAnimList();
+        }
+
+        private void EditFrame(int index)
+        {
+            if (_cur == null || index < 0 || index >= _cur.Frames.Count) return;
+            var abs = ProjectIO.AbsoluteAsset(_project, _cur.Frames[index]);
+            var rel = DrawSprite(abs);
+            if (rel == null) return;
+            var old = _cur.Frames[index];
+            _cur.Frames[index] = rel;
+            _cache.Remove(old);
+            RefreshFrames(); RestartPreview();
         }
 
         private void ImportInto(SpriteAnimation anim, string[] files)

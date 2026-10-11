@@ -46,12 +46,13 @@ namespace EasyEngine
                 Nums = { new("controls","Default controls (0/1)",1),
                          new("speed","Speed",260), new("jump","Jump force",640),
                          new("doubleJump","Double jump (0/1)",0), new("wallJump","Wall jump (0/1)",0),
-                         new("dash","Dash (0/1)",0), new("dashSpeed","Dash speed",560) },
+                         new("dash","Dash (0/1)",0), new("dashSpeed","Dash speed",560),
+                         new("collide","Collide with walls (0/1)",1) },
                 Texts = { new("dashKey","Dash key","LeftShift"), new("leftKey","Left key",""), new("rightKey","Right key",""), new("jumpKey","Jump key","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.TopDown, Name = "Top-Down Movement", Icon = "✛",
                 Desc = "Moves in 8 directions, no gravity. 'controls' = respond to the default keys (WASD/arrows). Turn it off for enemies (set custom keys or move it with a script).",
-                Nums = { new("controls","Default controls (0/1)",1), new("speed","Speed",220) },
+                Nums = { new("controls","Default controls (0/1)",1), new("speed","Speed",220), new("collide","Collide with walls (0/1)",1) },
                 Texts = { new("upKey","Up key",""), new("downKey","Down key",""), new("leftKey","Left key",""), new("rightKey","Right key","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.FollowCamera, Name = "Follow Camera", Icon = "🎥",
@@ -72,6 +73,21 @@ namespace EasyEngine
                     new("slowSteps","Slow-down steps (0=none)",0),
                     new("pause","Pause at ends, sec (0=none)",0)
                 } },
+
+            new BehaviorInfo { Kind = BehaviorKind.AdvancedPatrol, Name = "Advanced Patrol", Icon = "✎",
+                Desc = "Follows a path you draw with the mouse, using platformer physics — it walks the route, jumps up steps, and hops over obstacles in its way. Select it, click 'Draw path', then click points on the scene.",
+                Nums = {
+                    new("mode","Movement format",0), // 0=platform, 1=top-down, 2=free/fly
+                    new("speed","Speed",130),
+                    new("jump","Jump strength (platform)",640),
+                    new("autoJump","Jump over obstacles (0/1)",1),
+                    new("pathfind","Pathfinding — route around walls (top-down) (0/1)",0),
+                    new("repeat","Repeat",0),
+                    new("pause","Pause at the end, sec",0),
+                    new("pauseStart","Pause at the start, sec",0),
+                    new("collide","Collide with walls (0/1)",1)
+                },
+                Texts = { new("path","Path points (drawn)","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Chase, Name = "Chase", Icon = "🎯",
                 Desc = "Chases another object by name.",

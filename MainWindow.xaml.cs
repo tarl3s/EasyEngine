@@ -30,8 +30,9 @@ namespace EasyEngine
         private readonly OllamaClient _ollama = new();
         private readonly CloudClient _cloud = new();
         private string _model = "qwen2.5-coder:1.5b";
-        private bool _useCloud;                                   // true = Groq (nuvem); false = Ollama (local)
-        private string _cloudModel = "openai/gpt-oss-120b";       // modelo usado quando _useCloud
+        private bool _useCloud;                       // true = cloud provider; false = Ollama (local)
+        private string _cloudProvider = "auto";       // "auto" or a provider id (groq/gemini/openrouter)
+        private string _cloudModelOverride = "";       // optional model override for the selected provider
 
         // tolerant JSON parsing — small models sometimes add // comments or trailing commas
         private static readonly JsonDocumentOptions LenientJson = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
@@ -76,6 +77,10 @@ namespace EasyEngine
         private bool _tmPainting;
         private readonly Dictionary<int, Rectangle> _tmCellRects = new();
 
+        // AdvancedPatrol: drawing a path on the scene
+        private BehaviorData? _pathDrawBh;
+        private GameObjectData? _pathDrawObj;
+
         // scene zoom
         private double _zoom = 1.0;
         private const double MinZoom = 0.08, MaxZoom = 6.0;
@@ -110,9 +115,9 @@ namespace EasyEngine
             SetAiMode(false);
             UpdateAiTarget();
             AiSettings.Load();
-            _syncingKey = true; GroqKey.Password = AiSettings.GroqApiKey; _syncingKey = false;
-            StrengthCombo.SelectedIndex = 0; // default = Cloud (Groq) 120B
-            if (string.IsNullOrWhiteSpace(AiSettings.GroqApiKey)) AiConfigPanel.Visibility = Visibility.Visible; // no key yet → show setup
+            BuildCloudKeyRows();
+            StrengthCombo.SelectedIndex = 0; // default = Cloud (Auto)
+            if (!AnyCloudKey()) AiConfigPanel.Visibility = Visibility.Visible; // no key yet → show setup
             _ = RefreshOllamaStatusAsync();
         }
 
@@ -543,6 +548,97 @@ namespace EasyEngine
             }
             UpdateSelectionOutline();
             AddResizeHandles();
+            DrawPathOverlay();
+        }
+
+        private void AdvancedPatrolRow(GameObjectData obj, BehaviorData bh, Panel panel)
+        {
+            bool drawing = ReferenceEquals(_pathDrawBh, bh);
+            int count = ParseEditorPath(bh.Text("path", "")).Count;
+
+            panel.Children.Add(new TextBlock
+            {
+                Text = drawing
+                    ? "Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done."
+                    : (count > 0 ? $"Route: {count} point(s). Tip: the grid turns on while drawing so clicks snap to it."
+                                 : "No route yet. Click 'Draw path' (the grid turns on automatically), then click points on the scene to trace where it should go."),
+                Foreground = (SolidColorBrush)FindResource("TextDim"),
+                FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            var draw = new Button { Content = drawing ? "✓ Finish" : "✎ Draw path", Height = 28, FontSize = 11, Padding = new Thickness(10, 0, 10, 0), Style = (Style)FindResource("CardButton") };
+            draw.Click += (s, e) =>
+            {
+                if (ReferenceEquals(_pathDrawBh, bh)) { _pathDrawBh = null; _pathDrawObj = null; Status("Path saved."); }
+                else
+                {
+                    PushUndo();
+                    _pathDrawBh = bh; _pathDrawObj = obj;
+                    if (!_snap) { _snap = true; GridToggle.Content = "Grid: on"; } // grid on so points snap
+                    Status("Draw mode: click points on the scene, then click Finish.");
+                }
+                BuildInspector(obj); RenderScene();
+            };
+            var clear = new Button { Content = "Clear", Height = 28, FontSize = 11, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6, 0, 0, 0), Style = (Style)FindResource("GhostButton") };
+            clear.Click += (s, e) => { PushUndo(); bh.Texts["path"] = ""; Dirty(); BuildInspector(obj); RenderScene(); };
+            row.Children.Add(draw); row.Children.Add(clear);
+            panel.Children.Add(row);
+        }
+
+        // ---- AdvancedPatrol path (editor) ----
+        private List<(double x, double y)> ParseEditorPath(string json)
+        {
+            var list = new List<(double, double)>();
+            if (string.IsNullOrWhiteSpace(json)) return list;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        double x = el.TryGetProperty("x", out var xp) ? xp.GetDouble() : 0;
+                        double y = el.TryGetProperty("y", out var yp) ? yp.GetDouble() : 0;
+                        list.Add((x, y));
+                    }
+            }
+            catch { }
+            return list;
+        }
+
+        private void SetEditorPath(BehaviorData bh, List<(double x, double y)> pts)
+        {
+            var sb = new StringBuilder("[");
+            for (int i = 0; i < pts.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append($"{{\"x\":{pts[i].x:0.##},\"y\":{pts[i].y:0.##}}}");
+            }
+            sb.Append(']');
+            bh.Texts["path"] = sb.ToString();
+        }
+
+        private void DrawPathOverlay()
+        {
+            var obj = _pathDrawObj ?? _selected;
+            var bh = obj?.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.AdvancedPatrol);
+            if (bh == null) return;
+            var pts = ParseEditorPath(bh.Text("path", ""));
+            if (pts.Count == 0) return;
+
+            var accent = (SolidColorBrush)FindResource("Accent");
+            if (pts.Count >= 2)
+            {
+                var poly = new System.Windows.Shapes.Polyline { Stroke = accent, StrokeThickness = 2, StrokeDashArray = new DoubleCollection { 4, 3 }, IsHitTestVisible = false };
+                foreach (var (x, y) in pts) poly.Points.Add(new Point(x, y));
+                SceneCanvas.Children.Add(poly);
+            }
+            for (int i = 0; i < pts.Count; i++)
+            {
+                var dot = new System.Windows.Shapes.Ellipse { Width = 11, Height = 11, Fill = i == 0 ? Brushes.LimeGreen : accent, Stroke = Brushes.White, StrokeThickness = 1, IsHitTestVisible = false };
+                Canvas.SetLeft(dot, pts[i].x - 5.5); Canvas.SetTop(dot, pts[i].y - 5.5);
+                SceneCanvas.Children.Add(dot);
+            }
         }
 
         private void DrawGrid()
@@ -634,6 +730,18 @@ namespace EasyEngine
 
         private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            if (_pathDrawBh != null)
+            {
+                var p = e.GetPosition(SceneCanvas);
+                if (_snap) { p.X = Math.Round(p.X / GridSize) * GridSize; p.Y = Math.Round(p.Y / GridSize) * GridSize; }
+                var pts = ParseEditorPath(_pathDrawBh.Text("path", ""));
+                pts.Add((p.X, p.Y));
+                SetEditorPath(_pathDrawBh, pts); Dirty();
+                RenderScene();
+                if (_pathDrawObj != null) BuildInspector(_pathDrawObj);
+                e.Handled = true;
+                return;
+            }
             if (_tmObj != null && ReferenceEquals(_selected, _tmObj))
             {
                 PushUndo();
@@ -1251,6 +1359,9 @@ namespace EasyEngine
         // ============================================================
         private void BuildInspector(GameObjectData? obj)
         {
+            // leaving the object we were drawing a path for → exit draw mode
+            if (_pathDrawObj != null && !ReferenceEquals(obj, _pathDrawObj)) { _pathDrawBh = null; _pathDrawObj = null; }
+
             InspectorRoot.Children.Clear();
             if (obj == null) { BuildSceneInspector(); return; }
 
@@ -1281,7 +1392,7 @@ namespace EasyEngine
             SpriteRow(obj);
             if (obj.SpritePath != null || obj.Animations.Count > 0)
                 ComboRow("Image fit", new[] { "Stretch", "Tile (repeat)" }, obj.TileImage ? 1 : 0, i => { obj.TileImage = i == 1; RenderScene(); Dirty(); });
-            NumRow("Opacity", obj.Opacity, v => { obj.Opacity = Math.Clamp(v, 0, 1); RenderScene(); Dirty(); });
+            SliderRow("Opacity", obj.Opacity, 0, 1, v => { obj.Opacity = Math.Clamp(v, 0, 1); RenderScene(); Dirty(); }, percent: true);
             NumRow("Corner radius", obj.CornerRadius < 0 ? 4 : obj.CornerRadius, v => { obj.CornerRadius = Math.Max(0, v); RenderScene(); Dirty(); });
             ColorRow("Border color", obj.BorderColor ?? "#000000", v => { obj.BorderColor = v; Dirty(); });
             NumRow("Border width", obj.BorderWidth, v => { obj.BorderWidth = Math.Max(0, v); Dirty(); });
@@ -1407,6 +1518,36 @@ namespace EasyEngine
             {
                 foreach (var np in info.Nums)
                 {
+                    if (bh.Kind == BehaviorKind.AdvancedPatrol && np.Key == "mode")
+                    {
+                        var mg = RowGrid("Format", panel);
+                        var cb = new ComboBox { Height = 28, VerticalAlignment = VerticalAlignment.Center };
+                        cb.Items.Add("Platformer (gravity + jumps)");
+                        cb.Items.Add("Top-down (free + pathfinding)");
+                        cb.Items.Add("Free / flying (straight line)");
+                        cb.SelectedIndex = Math.Clamp((int)Math.Round(bh.Num("mode", 0)), 0, 2);
+                        cb.SelectionChanged += (s, e) => { bh.Nums["mode"] = cb.SelectedIndex; Dirty(); if (_selected == obj) BuildInspector(obj); };
+                        Grid.SetColumn(cb, 1); mg.Children.Add(cb);
+                        continue;
+                    }
+                    if (bh.Kind == BehaviorKind.AdvancedPatrol && np.Key == "repeat")
+                    {
+                        var rg = RowGrid("Repeat", panel);
+                        var cb = new ComboBox { Height = 28, VerticalAlignment = VerticalAlignment.Center };
+                        cb.Items.Add("Back and forth (retrace)");
+                        cb.Items.Add("Loop (straight back to start)");
+                        cb.Items.Add("Once (stop at the end)");
+                        cb.SelectedIndex = Math.Clamp((int)Math.Round(bh.Num("repeat", 0)), 0, 2);
+                        cb.SelectionChanged += (s, e) => { bh.Nums["repeat"] = cb.SelectedIndex; Dirty(); };
+                        Grid.SetColumn(cb, 1); rg.Children.Add(cb);
+                        continue;
+                    }
+                    if (bh.Kind == BehaviorKind.AdvancedPatrol)
+                    {
+                        int m = (int)Math.Round(bh.Num("mode", 0));
+                        if (np.Key == "pathfind" && m != 1) continue;                       // pathfinding only in top-down
+                        if ((np.Key == "jump" || np.Key == "autoJump") && m != 0) continue;  // jumping only in platformer
+                    }
                     if (np.Label.Contains("(0/1)"))
                         CheckRow(np.Label.Replace("(0/1)", "").Trim(), bh.Num(np.Key, np.Default) >= 0.5, v => { bh.Nums[np.Key] = v ? 1 : 0; Dirty(); }, panel);
                     else
@@ -1417,6 +1558,7 @@ namespace EasyEngine
                     if (bh.Kind == BehaviorKind.SoundEmitter && tp.Key == "asset") SoundRow(obj, bh, panel);
                     else if (bh.Kind == BehaviorKind.GoToScene && tp.Key == "scene") ScenePickerRow(bh, panel);
                     else if (bh.Kind == BehaviorKind.Custom && tp.Key == "script") ScriptRow(bh, panel);
+                    else if (bh.Kind == BehaviorKind.AdvancedPatrol && tp.Key == "path") AdvancedPatrolRow(obj, bh, panel);
                     else TextRow(tp.Label, bh.Text(tp.Key, tp.Default), v => { bh.Texts[tp.Key] = v; Dirty(); }, panel);
                 }
             }
@@ -1459,11 +1601,23 @@ namespace EasyEngine
 
         private void ScriptRow(BehaviorData bh, Panel target)
         {
-            target.Children.Add(new TextBlock { Text = "Rules (JSON) — usually written by the AI:", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 2, 0, 4), TextWrapping = TextWrapping.Wrap });
+            var blockBtn = new Button { Content = "🧩  Build with blocks (easy)", Style = (Style)FindResource("AccentButton"), Height = 36, Margin = new Thickness(0, 2, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Center };
+            blockBtn.Click += (s, e) =>
+            {
+                var win = new BlockEditorWindow(_project, _scene, bh.Text("script", "[]")) { Owner = this };
+                if (win.ShowDialog() == true)
+                {
+                    PushUndo(); bh.Texts["script"] = win.ResultJson; Dirty();
+                    if (_selected != null) BuildInspector(_selected);
+                }
+            };
+            target.Children.Add(blockBtn);
+
+            target.Children.Add(new TextBlock { Text = "Advanced — raw rules (JSON). The blocks above edit this for you.", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 2, 0, 4), TextWrapping = TextWrapping.Wrap });
             var tb = new TextBox
             {
                 Text = bh.Text("script", "[]"),
-                AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 130,
+                AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 110,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 FontFamily = new FontFamily("Consolas"), FontSize = 11,
                 VerticalContentAlignment = VerticalAlignment.Top
@@ -1675,6 +1829,26 @@ namespace EasyEngine
             return grid;
         }
 
+        private void SliderRow(string label, double value, double min, double max, Action<double> onChange, Panel? target = null, bool percent = false)
+        {
+            var grid = RowGrid(label, target);
+            var inner = new Grid();
+            inner.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            inner.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+            var slider = new Slider { Minimum = min, Maximum = max, Value = Math.Clamp(value, min, max), VerticalAlignment = VerticalAlignment.Center, IsMoveToPointEnabled = true };
+            var val = new TextBlock { Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Right, Margin = new Thickness(6, 0, 0, 0) };
+            void Show(double v) => val.Text = percent ? $"{Math.Round(v * 100)}%" : v.ToString("0.##");
+            Show(slider.Value);
+            bool dragging = false;
+            slider.ValueChanged += (s, e) => { Show(slider.Value); if (!dragging) { PushUndo(); dragging = true; } onChange(slider.Value); };
+            slider.PreviewMouseUp += (s, e) => dragging = false;
+            slider.LostMouseCapture += (s, e) => dragging = false;
+            slider.LostKeyboardFocus += (s, e) => dragging = false;
+            Grid.SetColumn(slider, 0); Grid.SetColumn(val, 1);
+            inner.Children.Add(slider); inner.Children.Add(val);
+            Grid.SetColumn(inner, 1); grid.Children.Add(inner);
+        }
+
         private void TextRow(string label, string value, Action<string> onChange, Panel? target = null)
         {
             var grid = RowGrid(label, target);
@@ -1728,14 +1902,19 @@ namespace EasyEngine
             inner.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             inner.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var tb = new TextBox { Text = value, Height = 30 };
-            var swatch = new Rectangle { Width = 24, Height = 24, Margin = new Thickness(6, 0, 0, 0), RadiusX = 4, RadiusY = 4, Fill = BrushFrom(value, "#000") };
+            var swatch = new Rectangle { Width = 26, Height = 26, Margin = new Thickness(6, 0, 0, 0), RadiusX = 4, RadiusY = 4, Fill = BrushFrom(value, "#000"), Stroke = (Brush)FindResource("Border"), StrokeThickness = 1, Cursor = Cursors.Hand, ToolTip = "Click to pick a color" };
             void Commit() { PushUndo(); onChange(tb.Text); swatch.Fill = BrushFrom(tb.Text, "#000"); }
             tb.LostFocus += (s, e) => Commit();
             tb.KeyDown += (s, e) => { if (e.Key == Key.Enter) Commit(); };
+            swatch.MouseLeftButtonUp += (s, e) =>
+                ShowColorPicker(swatch, tb.Text, hex => { tb.Text = hex; swatch.Fill = BrushFrom(hex, "#000"); onChange(hex); });
             Grid.SetColumn(tb, 0); Grid.SetColumn(swatch, 1);
             inner.Children.Add(tb); inner.Children.Add(swatch);
             Grid.SetColumn(inner, 1); grid.Children.Add(inner);
         }
+
+        private void ShowColorPicker(FrameworkElement anchor, string initial, Action<string> onPick)
+            => ColorPickerPopup.Open(anchor, initial, onPick, PushUndo);
 
         private void SoundRow(GameObjectData obj, BehaviorData bh, Panel target)
         {
@@ -1803,7 +1982,13 @@ namespace EasyEngine
             CloudKeyPanel.Visibility = _useCloud ? Visibility.Visible : Visibility.Collapsed;
             CustomModel.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
 
-            if (_useCloud) _cloudModel = tag.Substring("cloud:".Length);
+            if (_useCloud)
+            {
+                var rest = tag.Substring("cloud:".Length); // "auto" | providerId | providerId|model
+                int bar = rest.IndexOf('|');
+                if (bar >= 0) { _cloudProvider = rest.Substring(0, bar); _cloudModelOverride = rest.Substring(bar + 1); }
+                else { _cloudProvider = rest; _cloudModelOverride = ""; }
+            }
             else _model = custom ? CustomModel.Text.Trim() : tag;
 
             _ = RefreshOllamaStatusAsync();
@@ -1811,41 +1996,35 @@ namespace EasyEngine
 
         private void CustomModel_TextChanged(object sender, TextChangedEventArgs e) { _model = CustomModel.Text.Trim(); _ = RefreshOllamaStatusAsync(); }
 
-        private bool _syncingKey;
+        // ---- cloud provider keys (one masked row per free provider) ----
+        private bool AnyCloudKey() => CloudClient.Providers.Any(p => !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id)));
 
-        private void GroqKey_PasswordChanged(object sender, RoutedEventArgs e)
+        private void BuildCloudKeyRows()
         {
-            if (_syncingKey) return;
-            AiSettings.GroqApiKey = GroqKey.Password.Trim();
-            AiSettings.Save();
-            if (_useCloud) _ = RefreshOllamaStatusAsync();
-        }
-
-        private void GroqKeyPlain_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (_syncingKey) return;
-            AiSettings.GroqApiKey = GroqKeyPlain.Text.Trim();
-            AiSettings.Save();
-            if (_useCloud) _ = RefreshOllamaStatusAsync();
-        }
-
-        private void GroqKeyShow_Changed(object sender, RoutedEventArgs e)
-        {
-            if (GroqKey == null || GroqKeyPlain == null) return;
-            _syncingKey = true;
-            if (GroqKeyShow.IsChecked == true)
+            if (CloudKeysHost == null) return;
+            CloudKeysHost.Children.Clear();
+            foreach (var prov in CloudClient.Providers)
             {
-                GroqKeyPlain.Text = AiSettings.GroqApiKey;
-                GroqKeyPlain.Visibility = Visibility.Visible;
-                GroqKey.Visibility = Visibility.Collapsed;
+                var p = prov; // capture
+                var header = new Grid { Margin = new Thickness(0, 5, 0, 2) };
+                header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                header.Children.Add(new TextBlock { Text = $"{p.Name}  ·  {p.KeyUrl}", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
+                var show = new CheckBox { Content = "Show", FontSize = 11, Foreground = (SolidColorBrush)FindResource("TextDim"), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(show, 1); header.Children.Add(show);
+                CloudKeysHost.Children.Add(header);
+
+                var pw = new PasswordBox();
+                var tb = new TextBox { Visibility = Visibility.Collapsed };
+                bool syncing = false;
+                pw.Password = AiSettings.Key(p.Id);
+                pw.PasswordChanged += (s, e) => { if (syncing) return; AiSettings.SetKey(p.Id, pw.Password); AiSettings.Save(); if (_useCloud) _ = RefreshOllamaStatusAsync(); };
+                tb.TextChanged += (s, e) => { if (syncing) return; AiSettings.SetKey(p.Id, tb.Text); AiSettings.Save(); if (_useCloud) _ = RefreshOllamaStatusAsync(); };
+                show.Checked += (s, e) => { syncing = true; tb.Text = AiSettings.Key(p.Id); tb.Visibility = Visibility.Visible; pw.Visibility = Visibility.Collapsed; syncing = false; };
+                show.Unchecked += (s, e) => { syncing = true; pw.Password = AiSettings.Key(p.Id); pw.Visibility = Visibility.Visible; tb.Visibility = Visibility.Collapsed; syncing = false; };
+                CloudKeysHost.Children.Add(pw);
+                CloudKeysHost.Children.Add(tb);
             }
-            else
-            {
-                GroqKey.Password = AiSettings.GroqApiKey;
-                GroqKey.Visibility = Visibility.Visible;
-                GroqKeyPlain.Visibility = Visibility.Collapsed;
-            }
-            _syncingKey = false;
         }
 
         private void AiConfigToggle_Click(object sender, RoutedEventArgs e)
@@ -1854,19 +2033,22 @@ namespace EasyEngine
             AiConfigPanel.Visibility = AiConfigPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
         }
 
+        private string CloudLabel()
+        {
+            if (_cloudProvider == "auto") return "Auto";
+            var name = CloudClient.Provider(_cloudProvider)?.Name ?? _cloudProvider;
+            if (string.IsNullOrEmpty(_cloudModelOverride)) return name;
+            var sm = _cloudModelOverride.Contains('/') ? _cloudModelOverride[(_cloudModelOverride.IndexOf('/') + 1)..] : _cloudModelOverride;
+            return $"{name} · {sm}";
+        }
+
         private void UpdateAiConfigSummary()
         {
             if (AiConfigSummary == null) return;
             if (_useCloud)
-            {
-                var shortName = _cloudModel.Contains('/') ? _cloudModel[(_cloudModel.IndexOf('/') + 1)..] : _cloudModel;
-                bool hasKey = !string.IsNullOrWhiteSpace(AiSettings.GroqApiKey);
-                AiConfigSummary.Text = hasKey ? $"⚙ ☁ Groq · {shortName}" : "⚙ ☁ Groq — tap to set your free key";
-            }
+                AiConfigSummary.Text = AnyCloudKey() ? $"⚙ ☁ Cloud · {CloudLabel()}" : "⚙ ☁ Cloud — tap to add a free key";
             else
-            {
                 AiConfigSummary.Text = $"⚙ ⚡ Local · {_model}";
-            }
         }
 
         private async Task RefreshOllamaStatusAsync()
@@ -1876,12 +2058,16 @@ namespace EasyEngine
 
             if (_useCloud)
             {
-                bool hasKey = !string.IsNullOrWhiteSpace(AiSettings.GroqApiKey);
+                bool hasKey = AnyCloudKey();
                 OllamaDot.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : BrushFrom("#F4C03B", "#F4C03B");
                 OllamaStatus.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : BrushFrom("#F4C03B", "#F4C03B");
-                OllamaStatus.Text = hasKey
-                    ? $"☁ Cloud (Groq) · model \"{_cloudModel}\". Fast and runs off your PC."
-                    : "☁ Cloud (Groq) selected — paste your free API key above to use it.";
+                if (!hasKey)
+                    OllamaStatus.Text = "☁ Cloud selected — add a free API key below (any provider works).";
+                else
+                {
+                    var names = string.Join(", ", CloudClient.Providers.Where(p => !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id))).Select(p => p.Name));
+                    OllamaStatus.Text = $"☁ Cloud · {CloudLabel()}. Keys set: {names}. Hitting one's daily limit auto-switches to the next.";
+                }
                 return;
             }
 
@@ -1907,21 +2093,40 @@ namespace EasyEngine
             }
         }
 
-        // Modelo mostrado nas bolhas/status; muda conforme local ou nuvem.
-        private string ActiveModelLabel => _useCloud ? $"Groq · {_cloudModel}" : _model;
+        private string ActiveModelLabel => _useCloud ? $"Cloud · {CloudLabel()}" : _model;
 
-        // Roteia a geração pro provedor atual (Ollama local ou Groq nuvem). Mesma assinatura dos dois.
-        private Task<string> AiGenerateAsync(string prompt, string system, bool json, double temperature, CancellationToken ct = default)
-            => _useCloud
-                ? _cloud.GenerateAsync(_cloudModel, prompt, system, AiSettings.GroqApiKey, json, temperature, ct)
-                : _ollama.GenerateAsync(_model, prompt, system, json, temperature, ct);
+        // Routes generation to the active provider. Cloud mode tries providers in order and falls back when one is out of quota.
+        private async Task<string> AiGenerateAsync(string prompt, string system, bool json, double temperature, CancellationToken ct = default)
+        {
+            if (!_useCloud) return await _ollama.GenerateAsync(_model, prompt, system, json, temperature, ct);
+
+            var order = new List<CloudProvider>();
+            if (_cloudProvider != "auto")
+            {
+                var sel = CloudClient.Provider(_cloudProvider);
+                if (sel != null) order.Add(string.IsNullOrEmpty(_cloudModelOverride) ? sel : sel with { Model = _cloudModelOverride });
+            }
+            foreach (var p in CloudClient.Providers) if (!order.Any(o => o.Id == p.Id)) order.Add(p);
+            order = order.Where(p => !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id))).ToList();
+
+            if (order.Count == 0) throw new CloudException("No cloud API key set. Add a free key in the AI settings (⚙).");
+
+            CloudException? last = null;
+            for (int i = 0; i < order.Count; i++)
+            {
+                var p = order[i];
+                try { return await _cloud.GenerateAsync(p, prompt, system, AiSettings.Key(p.Id), json, temperature, ct); }
+                catch (CloudException ex) when (ex.RateLimited && i < order.Count - 1) { last = ex; } // out of quota → try the next provider; other errors surface
+            }
+            throw last ?? new CloudException("All free providers are out of quota right now. Try again later.");
+        }
 
         private async void AiSend_Click(object sender, RoutedEventArgs e)
         {
             var prompt = AiInput.Text.Trim();
             if (prompt.Length == 0) return;
-            if (_useCloud) { if (string.IsNullOrWhiteSpace(AiSettings.GroqApiKey)) { Status("Paste your free Groq API key first"); return; } }
-            else if (string.IsNullOrWhiteSpace(_model)) { Status("Choose an AI model"); return; }
+            if (_useCloud && !AnyCloudKey()) { Status("Add a free cloud API key first (⚙ AI settings)"); return; }
+            if (!_useCloud && string.IsNullOrWhiteSpace(_model)) { Status("Choose an AI model"); return; }
 
             if (_aiBrainstorm)
             {
@@ -1943,7 +2148,7 @@ namespace EasyEngine
 
             try
             {
-                var sys = BuildProjectPrompt();
+                var sys = BuildProjectPrompt(compact: _useCloud); // leaner prompt on the cloud (token limits); full detail on local
                 var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
                 bool ok = ApplyProjectSpec(reply, prompt, out var summary);
 
@@ -2130,7 +2335,7 @@ namespace EasyEngine
 
         private static string Compact(string s) => System.Text.RegularExpressions.Regex.Replace(s ?? "", @"\s+", " ").Trim();
 
-        private string BuildProjectPrompt()
+        private string BuildProjectPrompt(bool compact = false)
         {
             var sb = new StringBuilder();
             sb.AppendLine("You are the game-builder AI of a 2D engine. Output ONLY a JSON object. Schema:");
@@ -2160,6 +2365,13 @@ namespace EasyEngine
                 sb.AppendLine($"  {info.Kind}: {nums}" + (texts.Length > 0 ? $" ({texts})" : ""));
             }
             sb.AppendLine();
+            if (compact)
+            {
+                sb.AppendLine("For logic the kinds can't do, use a \"custom\" rule list: [{\"when\":<start|always|key|keypress|timer|touch|death|ifvar|iflocal|hasitem|expr|click|rightclick|mouseover|mousepress>,...params...,\"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|goscene|setvar|addvar|setlocal|addlocal|set|additem|removeitem|boost|setspeed|say|save|load>,...params...}]. Params by name: key, every, name, var/op/value, force, speed, vx/vy, dx/dy, to, amount, factor, text, scene, item, directions, prop. ANY value can be an \"expr\" string (math; reads self.x/self.cx/self.health, OtherObj.cx, a variable, item:NAME, mousex, time, dist(x1,y1,x2,y2)). Guard any rule with \"cond\":\"<expr>\". 'WHEN X happens, effect' is ALWAYS a custom rule (condition→action), never a static param.");
+                sb.AppendLine("Player = Platformer, physics Dynamic, controls=1 (dash/doubleJump/wallJump are 0/1 nums). Enemies: controls=0; prefer Patrol/Chase/custom. Killable enemy = Health respawn=0; player = respawn=1. Moving platform = Solid+Patrol. To spawn during play: make it asPrefab:true, then a Spawner or a custom spawn rule. Per-object looks: opacity, cornerRadius, borderColor+borderWidth, color, font. Draw art: \"pixelArt\":{\"palette\":{\"X\":\"#RRGGBB\"},\"rows\":[\"..XX..\"]} ('.'=transparent, <=16px). Only touch the exact object(s)/layer(s) the user names.");
+            }
+            else
+            {
             sb.AppendLine("Intent → kind: walk+jump=Platformer; top-down/8-dir=TopDown; ground/wall/platform=Solid; camera=FollowCamera; patrol=Patrol; chase player=Chase; shoot on key=Shooter; melee/sword/attack=Melee; hp/lives=Health; spike/hazard/contact damage=Damager; checkpoint=Checkpoint; coin/pickup=Collectible; door/next level=GoToScene; HUD/score text=Label; glow=LightSource; spinning=Spin; spawner=Spawner; parallax bg=Parallax.");
             sb.AppendLine("Intent → kind (NEW): pushable crate/box/sokoban block=Pushable; lever/switch/toggle=Switch; locked gate/ability-gate/barrier that opens with a key=Gate (NOT GoToScene — Gate blocks the way, GoToScene changes scene); NPC/sign/chest/press-E-to-talk=Interact; pick up an ability or key that unlocks something=AbilityPickup; invisible trigger zone/region/level-exit area=Area.");
             sb.AppendLine("Gate opens when its var meets the condition: {\"kind\":\"Gate\",\"texts\":{\"var\":\"hasRedKey\"},\"nums\":{\"value\":1}}. Give the key with AbilityPickup {\"kind\":\"AbilityPickup\",\"texts\":{\"var\":\"hasRedKey\"}}. Metroidvania ability+gate: AbilityPickup texts{var:hasDash,grant:dash} then Gate texts{var:hasDash}.");
@@ -2185,6 +2397,11 @@ namespace EasyEngine
             sb.AppendLine("- \"when it dies, do X\" (explode, drop item, spawn particles) => a custom rule with \"when\":\"death\".");
             sb.AppendLine("- A MOVING platform = a new object with Solid + Patrol (NOT Platformer). A one-way platform = Solid oneWay=1 (keep physics Static).");
             sb.AppendLine("- Patrol nums: speed, distance, axis (0=horizontal, 1=vertical), smooth (1=ease to a stop at the ends), slowSteps (how many times it slows near an end; 0=no slowing), pause (seconds stopped at each end; 0=none). E.g. vertical lift that waits: Patrol axis=1, smooth=1, pause=1.5.");
+            sb.AppendLine("- AdvancedPatrol = follows a free route the USER draws in the editor. You can ADD it but cannot draw the route — tell the user to select it and click 'Draw path'. Nums: mode (0=platformer gravity+jumps, 1=top-down free, 2=free/flying), speed, jump, autoJump, pathfind (route around walls; top-down only), repeat (0=back-and-forth, 1=loop, 2=once), pause, pauseStart, collide (1=has hitbox, 0=passes through walls).");
+            sb.AppendLine("- Platformer/TopDown/AdvancedPatrol have a 'collide' num (default 1). Set collide=0 to make a character ignore walls/tilemaps (no hitbox / ghost).");
+            sb.AppendLine();
+            sb.AppendLine("DRAW SPRITES (pixel art): you can DRAW an object's look. On a create/edit object add \"pixelArt\":{\"palette\":{\"X\":\"#RRGGBB\",...},\"rows\":[\"..XX..\",...]}. Each row is a string; each character is a palette key; '.' or space = transparent. Keep it small (<=16x16 is best, up to 32). Match the object's width/height to the art size for crisp pixels. Only do this when the user asks you to draw/make art, or when no image was given and art would help.");
+            sb.AppendLine("For animations with drawn frames: \"animations\":[{\"name\":\"walk\",\"fps\":8,\"loop\":true,\"frames\":[{\"palette\":{...},\"rows\":[...]},{\"palette\":{...},\"rows\":[...]}]}]. Name them idle/walk/jump/crouch so the engine auto-plays them. Example tiny coin: {\"pixelArt\":{\"palette\":{\"Y\":\"#ffd700\",\"o\":\"#b8860b\"},\"rows\":[\".YYY.\",\"YoYoY\",\"YoYoY\",\"YoYoY\",\".YYY.\"]}}.");
             sb.AppendLine();
             sb.AppendLine("CUSTOM behavior — for ANY special/unique logic the kinds can't do (enemy patterns, dialogue, variables, inventory, conditions). ALWAYS use \"custom\" for things like 'every N do X', timed attacks, phases:");
             sb.AppendLine("CRUCIAL: 'WHEN <something> happens, <effect>' (e.g. 'when the player hits X, go 2x faster', 'when touch spike, lose a life') is ALWAYS a custom rule (condition → action). NEVER express it by changing a static param — a static param would apply from the start, not on the event.");
@@ -2203,6 +2420,7 @@ namespace EasyEngine
             sb.AppendLine("{\"create\":[{\"name\":\"Jumper\",\"x\":640,\"y\":300,\"width\":48,\"height\":48,\"color\":\"#E5484B\",\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Health\",\"nums\":{\"max\":3,\"respawn\":0}},{\"kind\":\"Damager\",\"texts\":{\"target\":\"Player\"}}],\"custom\":[{\"when\":\"timer\",\"every\":1.1,\"do\":\"jump\",\"force\":540},{\"when\":\"timer\",\"every\":1.1,\"do\":\"addlocal\",\"var\":\"jumps\",\"amount\":1},{\"when\":\"iflocal\",\"var\":\"jumps\",\"op\":\">=\",\"value\":3,\"do\":\"velocity\",\"vx\":-320,\"vy\":-200},{\"when\":\"iflocal\",\"var\":\"jumps\",\"op\":\">=\",\"value\":3,\"do\":\"setlocal\",\"var\":\"jumps\",\"to\":0}]}]}");
             sb.AppendLine("Example — \"spawn rocks that fall from the sky when I press Y\":");
             sb.AppendLine("{\"create\":[{\"name\":\"Rock\",\"width\":40,\"height\":40,\"color\":\"#8A7A6A\",\"physics\":\"Dynamic\",\"asPrefab\":true}],\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Spawner\",\"texts\":{\"target\":\"Rock\",\"key\":\"Y\",\"at\":\"top\"},\"nums\":{\"max\":0}}]}]}");
+            }
             sb.AppendLine();
 
             // scene inventory so the AI can target/avoid-dup
@@ -2315,7 +2533,7 @@ namespace EasyEngine
             // infer physics from resulting behaviors (don't trust the model's physics field)
             bool HasK(BehaviorKind k) => result.Any(x => x.Kind == k);
             bool hasMover = HasK(BehaviorKind.Platformer) || HasK(BehaviorKind.TopDown) || HasK(BehaviorKind.Patrol) ||
-                            HasK(BehaviorKind.Chase) || HasK(BehaviorKind.Projectile) || HasK(BehaviorKind.Shooter);
+                            HasK(BehaviorKind.AdvancedPatrol) || HasK(BehaviorKind.Chase) || HasK(BehaviorKind.Projectile) || HasK(BehaviorKind.Shooter);
             var low = userPrompt.ToLowerInvariant();
             bool gravityIntent = new[] { "gravity", "gravid", "fall", "falling", "cair", "queda" }.Any(low.Contains);
             PhysicsMode desired = target.Physics.Mode;
@@ -2341,6 +2559,11 @@ namespace EasyEngine
                 var rel = ResolveImage(sp.GetString() ?? "");
                 if (rel != null) { obj.SpritePath = rel; changed = true; }
             }
+            if (spec.TryGetProperty("pixelArt", out var pa) && pa.ValueKind == JsonValueKind.Object)
+            {
+                var rel = RenderPixelArt(pa, obj.Name + "_sprite");
+                if (rel != null) { obj.SpritePath = rel; changed = true; }
+            }
             // appearance / aesthetics
             if (spec.TryGetProperty("opacity", out var op) && AsNum(op, out var opv)) { obj.Opacity = Math.Clamp(opv, 0, 1); changed = true; }
             if (spec.TryGetProperty("borderColor", out var bc) && bc.ValueKind == JsonValueKind.String) { obj.BorderColor = bc.GetString(); changed = true; }
@@ -2360,10 +2583,14 @@ namespace EasyEngine
             {
                 if (a.ValueKind != JsonValueKind.Object) continue;
                 var anim = new SpriteAnimation { Name = a.TryGetProperty("name", out var nm) ? (nm.GetString() ?? "anim") : "anim" };
-                if (a.TryGetProperty("fps", out var fps) && fps.ValueKind == JsonValueKind.Number) anim.Fps = Math.Clamp(fps.GetDouble(), 1, 60);
+                if (a.TryGetProperty("fps", out var fps) && AsNum(fps, out var fpsv)) anim.Fps = Math.Clamp(fpsv, 1, 60);
+                if (a.TryGetProperty("loop", out var lp) && AsBool(lp, out var lpv)) anim.Loop = lpv;
                 if (a.TryGetProperty("frames", out var fr) && fr.ValueKind == JsonValueKind.Array)
                     foreach (var f in fr.EnumerateArray())
+                    {
                         if (f.ValueKind == JsonValueKind.String) { var rel = ResolveImage(f.GetString() ?? ""); if (rel != null) anim.Frames.Add(rel); }
+                        else if (f.ValueKind == JsonValueKind.Object) { var rel = RenderPixelArt(f, obj.Name + "_" + anim.Name + "_" + anim.Frames.Count); if (rel != null) anim.Frames.Add(rel); }
+                    }
                 if (anim.Frames.Count == 0) continue;
                 obj.Animations.RemoveAll(x => x.Name.Equals(anim.Name, StringComparison.OrdinalIgnoreCase));
                 obj.Animations.Add(anim);
@@ -2371,6 +2598,57 @@ namespace EasyEngine
                 changed = true;
             }
             return changed;
+        }
+
+        // ---- AI-drawn sprites: pixel art described as a palette + rows of characters → PNG ----
+        private static bool ParseColorBgra(string s, out (byte b, byte g, byte r, byte a) c)
+        {
+            c = (0, 0, 0, 0);
+            if (string.IsNullOrWhiteSpace(s)) return true; // transparent
+            var t = s.Trim().ToLowerInvariant();
+            if (t is "." or "none" or "transparent" or "clear" or "empty") return true;
+            try { var col = (Color)ColorConverter.ConvertFromString(s.Trim()); c = (col.B, col.G, col.R, 255); return true; }
+            catch { return false; }
+        }
+
+        private string? RenderPixelArt(JsonElement art, string baseName)
+        {
+            if (string.IsNullOrEmpty(_project.FolderPath)) return null; // need a saved project to write the PNG
+            JsonElement rowsEl;
+            if (!(art.TryGetProperty("rows", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array) &&
+                !(art.TryGetProperty("pixels", out rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)) return null;
+
+            var rows = new List<string>();
+            foreach (var r in rowsEl.EnumerateArray()) if (r.ValueKind == JsonValueKind.String) rows.Add(r.GetString() ?? "");
+            if (rows.Count == 0) return null;
+
+            var pal = new Dictionary<char, (byte b, byte g, byte r, byte a)>();
+            if (art.TryGetProperty("palette", out var pj) && pj.ValueKind == JsonValueKind.Object)
+                foreach (var p in pj.EnumerateObject())
+                {
+                    if (p.Name.Length == 0) continue;
+                    var val = p.Value.ValueKind == JsonValueKind.String ? (p.Value.GetString() ?? "") : "";
+                    if (ParseColorBgra(val, out var col)) pal[p.Name[0]] = col;
+                }
+
+            int h = Math.Min(rows.Count, 128);
+            int w = Math.Min(128, rows.Max(r => r.Length));
+            if (w < 1 || h < 1) return null;
+            var data = new byte[w * h * 4];
+            for (int y = 0; y < h; y++)
+            {
+                var row = rows[y];
+                for (int x = 0; x < w && x < row.Length; x++)
+                {
+                    char ch = row[x];
+                    if (ch is '.' or ' ' or '0') continue; // transparent background
+                    if (!pal.TryGetValue(ch, out var col) || col.a == 0) continue;
+                    int i = (y * w + x) * 4;
+                    data[i] = col.b; data[i + 1] = col.g; data[i + 2] = col.r; data[i + 3] = 255;
+                }
+            }
+            var bmp = System.Windows.Media.Imaging.BitmapSource.Create(w, h, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, data, w * 4);
+            try { return ProjectIO.SaveSprite(_project, bmp, baseName); } catch { return null; }
         }
 
         // Maps the model's loose kind strings to real BehaviorKinds (synonyms) — key to small-model reliability.
@@ -2390,6 +2668,7 @@ namespace EasyEngine
                 "bullet" or "projectilemove" => BehaviorKind.Projectile,
                 "follow" or "camera" or "followcam" or "camerafollow" => BehaviorKind.FollowCamera,
                 "pace" or "backandforth" => BehaviorKind.Patrol,
+                "advancedpatrol" or "advanced patrol" or "pathpatrol" or "smartpatrol" or "patrolpath" or "drawnpath" => BehaviorKind.AdvancedPatrol,
                 "pursue" or "follower" or "chaseplayer" => BehaviorKind.Chase,
                 "rotate" or "rotation" or "spinning" => BehaviorKind.Spin,
                 "generator" or "emitter" => BehaviorKind.Spawner,
@@ -2465,7 +2744,7 @@ namespace EasyEngine
         // behaviors that turn an object into a platform/coin/enemy/door/etc. — almost never belong on the Player
         private static readonly BehaviorKind[] NonPlayerKinds =
         {
-            BehaviorKind.Solid, BehaviorKind.Collectible, BehaviorKind.Patrol, BehaviorKind.Chase,
+            BehaviorKind.Solid, BehaviorKind.Collectible, BehaviorKind.Patrol, BehaviorKind.AdvancedPatrol, BehaviorKind.Chase,
             BehaviorKind.GoToScene, BehaviorKind.Parallax, BehaviorKind.DestroyOffscreen, BehaviorKind.Projectile,
             BehaviorKind.Pushable, BehaviorKind.Switch, BehaviorKind.Gate, BehaviorKind.Interact,
             BehaviorKind.AbilityPickup, BehaviorKind.Area, BehaviorKind.Generator,

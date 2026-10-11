@@ -23,6 +23,10 @@ public partial class App : Application
 
         if (e.Args.Contains("--makegame")) { RunMakeGame(); return; }
 
+        if (e.Args.Contains("--spritetest")) { RunSpriteTest(); return; }
+
+        if (e.Args.Contains("--blocktest")) { RunBlockTest(); return; }
+
         if (e.Args.Contains("--exprtest")) { RunExprTest(); return; }
 
         if (e.Args.Contains("--behtest")) { RunBehTest(); return; }
@@ -274,6 +278,22 @@ public partial class App : Application
             // Smooth patrol with pause at the ends.
             layer.Objects.Add(O(26, "SmoothWalker", 2600, 2700, 40, 40, PhysicsMode.None,
                 B(BehaviorKind.Patrol, new[] { ("speed", 80.0), ("distance", 150.0), ("smooth", 1.0), ("slowSteps", 3.0), ("pause", 1.0) })));
+            // Advanced patrol following a drawn path.
+            layer.Objects.Add(O(27, "PathWalker", 2900, 2700, 40, 40, PhysicsMode.None,
+                B(BehaviorKind.AdvancedPatrol, new[] { ("speed", 120.0) }, new[] { ("path", "[{\"x\":3200,\"y\":2720},{\"x\":2900,\"y\":2720}]") })));
+            // Hitbox off on a platformer: becomes a free mover (no gravity) instead of falling forever.
+            layer.Objects.Add(O(33, "PGhost", 5600, 100, 40, 40, PhysicsMode.Dynamic, B(BehaviorKind.Platformer, new[] { ("collide", 0.0) })));
+            // Advanced patrol, top-down mode with pathfinding enabled.
+            layer.Objects.Add(O(28, "PathFinder", 3500, 2700, 40, 40, PhysicsMode.None,
+                B(BehaviorKind.AdvancedPatrol, new[] { ("speed", 120.0), ("mode", 1.0), ("pathfind", 1.0) }, new[] { ("path", "[{\"x\":3800,\"y\":2720},{\"x\":3500,\"y\":2720}]") })));
+            // Top-down collision: a top-down mover must be stopped by a solid wall.
+            layer.Objects.Add(O(29, "TDWall", 4200, 2700, 40, 160, PhysicsMode.Static, B(BehaviorKind.Solid)));
+            layer.Objects.Add(O(30, "TDGuy", 4100, 2760, 40, 40, PhysicsMode.None, B(BehaviorKind.TopDown, new[] { ("speed", 200.0) })));
+            // Hitbox off: a top-down mover with collide=0 passes straight through the wall.
+            layer.Objects.Add(O(31, "TDGhost", 4100, 2760, 40, 40, PhysicsMode.None, B(BehaviorKind.TopDown, new[] { ("speed", 200.0), ("collide", 0.0) })));
+            // Diagnostic: top-down advanced patrol between two far points (no walls around).
+            layer.Objects.Add(O(32, "APTD", 5000, 2760, 40, 40, PhysicsMode.None,
+                B(BehaviorKind.AdvancedPatrol, new[] { ("speed", 150.0), ("mode", 1.0) }, new[] { ("path", "[{\"x\":5300,\"y\":2780},{\"x\":5000,\"y\":2780}]") })));
 
             var play = new PlayWindow(project, scene.Name); // not shown; headless
             var results = play.RunBehaviorChecks();
@@ -329,6 +349,17 @@ public partial class App : Application
             editor.TestApplySpec("{\"create\":[{\"name\":\"RedGate\",\"behaviors\":[{\"kind\":\"lockeddoor\",\"texts\":{\"var\":\"hasRedKey\"}}]}]}");
             var gate = editor.TestFindObject("RedGate");
             Check("Synonym 'lockeddoor' → Gate", gate != null && gate.Behaviors.Any(b => b.Kind == BehaviorKind.Gate));
+
+            // 5) AI-drawn pixel-art sprite → renders a PNG and sets the object's sprite
+            editor.TestApplySpec("{\"create\":[{\"name\":\"Coin\",\"width\":16,\"height\":16,\"pixelArt\":{\"palette\":{\"Y\":\"#ffd700\",\"o\":\"#b8860b\"},\"rows\":[\".YYY.\",\"YoYoY\",\"YoYoY\",\"YoYoY\",\".YYY.\"]}}]}");
+            var coin = editor.TestFindObject("Coin");
+            bool coinPng = coin?.SpritePath != null && File.Exists(Path.Combine(project.FolderPath!, coin.SpritePath));
+            Check("AI pixelArt rendered a sprite PNG", coinPng);
+
+            // 6) AI-drawn animation frames
+            editor.TestApplySpec("{\"create\":[{\"name\":\"Blinker\",\"animations\":[{\"name\":\"idle\",\"fps\":4,\"frames\":[{\"palette\":{\"R\":\"#ff0000\"},\"rows\":[\"RR\",\"RR\"]},{\"palette\":{\"B\":\"#0000ff\"},\"rows\":[\"BB\",\"BB\"]}]}]}]}");
+            var blinker = editor.TestFindObject("Blinker");
+            Check("AI drew a 2-frame animation", blinker != null && blinker.Animations.Count == 1 && blinker.Animations[0].Frames.Count == 2);
         }
         catch (Exception ex) { sb.AppendLine("FATAL: " + ex); fail++; }
         sb.Insert(0, "aijsontest " + DateTime.Now + "\n");
@@ -349,6 +380,59 @@ public partial class App : Application
             if (Directory.Exists(existing)) Directory.Delete(existing, true);
             var file = DemoGame.Build(parent);
             File.WriteAllText(log, "GAME BUILT: " + file + Environment.NewLine);
+        }
+        catch (Exception ex) { try { File.WriteAllText(log, "ERROR: " + ex + Environment.NewLine); } catch { } }
+        Shutdown();
+    }
+
+    private void RunBlockTest()
+    {
+        var log = Path.Combine(Path.GetTempPath(), "easyengine_blocktest.log");
+        var sb = new System.Text.StringBuilder(); int pass = 0, fail = 0;
+        void Check(string n, bool ok) { if (ok) pass++; else fail++; sb.AppendLine((ok ? "PASS" : "FAIL") + "  " + n); }
+        try
+        {
+            var temp = Path.Combine(Path.GetTempPath(), "EE_Block_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+            Directory.CreateDirectory(temp);
+            var project = ProjectIO.CreateNew("Block", temp);
+            var scene = project.GetStartScene();
+
+            string RT(string js) => new BlockEditorWindow(project, scene, js).SerializeTest();
+            bool Has(string json, Func<System.Text.Json.JsonElement, bool> pred)
+            { using var d = System.Text.Json.JsonDocument.Parse(json); return d.RootElement.EnumerateArray().Any(pred); }
+
+            var coin = RT("[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1},{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\"}]");
+            using (var d = System.Text.Json.JsonDocument.Parse(coin)) Check("Coin keeps 2 rules", d.RootElement.GetArrayLength() == 2);
+            Check("Coin addvar coins survives", Has(coin, r => r.TryGetProperty("do", out var dv) && dv.GetString() == "addvar" && r.TryGetProperty("var", out var vv) && vv.GetString() == "coins"));
+
+            var legacy = RT("[{\"when\":\"keypress\",\"key\":\"B\",\"cooldown\":1,\"if\":\"coins\",\"ifop\":\">=\",\"ifval\":15,\"do\":\"boost\",\"factor\":1.4}]");
+            Check("Legacy if→cond", Has(legacy, r => r.TryGetProperty("cond", out var cv) && (cv.GetString() ?? "").Contains("coins") && (cv.GetString() ?? "").Contains("15")));
+            Check("Legacy drops ifval key", !Has(legacy, r => r.TryGetProperty("ifval", out _)));
+            Check("Legacy keeps boost factor", Has(legacy, r => r.TryGetProperty("factor", out var fv) && Math.Abs(fv.GetDouble() - 1.4) < 0.001));
+
+            var expr = RT("[{\"when\":\"click\",\"do\":\"setvar\",\"var\":\"coins\",\"expr\":\"coins - 15\"}]");
+            Check("Expr value round-trips", Has(expr, r => r.TryGetProperty("expr", out var ev) && (ev.GetString() ?? "").Replace(" ", "").Contains("coins-15")));
+
+            Check("Round-trip is stable (idempotent)", RT(coin) == coin);
+        }
+        catch (Exception ex) { sb.AppendLine("FATAL: " + ex); fail++; }
+        sb.Insert(0, "blocktest " + DateTime.Now + "\n");
+        sb.AppendLine($"\n{pass}/{pass + fail} passed" + (fail == 0 ? "  — ALL PASS" : $"  — {fail} FAILED"));
+        try { File.WriteAllText(log, sb.ToString()); } catch { }
+        Shutdown();
+    }
+
+    private void RunSpriteTest()
+    {
+        var log = Path.Combine(Path.GetTempPath(), "easyengine_spritetest.log");
+        try
+        {
+            var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Jogos");
+            Directory.CreateDirectory(parent);
+            var existing = Path.Combine(parent, "Sprite Test");
+            if (Directory.Exists(existing)) Directory.Delete(existing, true);
+            var file = SpriteTestGame.Build(parent);
+            File.WriteAllText(log, "SPRITE TEST BUILT: " + file + Environment.NewLine);
         }
         catch (Exception ex) { try { File.WriteAllText(log, "ERROR: " + ex + Environment.NewLine); } catch { } }
         Shutdown();

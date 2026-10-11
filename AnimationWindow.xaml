@@ -15,8 +15,10 @@
         <Border Grid.Column="0" Background="{StaticResource Bg1}">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="ANIMATIONS" Style="{StaticResource SectionHeader}"/>
-                <Button DockPanel.Dock="Bottom" Content="＋  ADD ANIMATION" Style="{StaticResource AccentButton}"
-                        Height="56" FontSize="16" Margin="12,8,12,14" Click="AddAnimation_Click"/>
+                <StackPanel DockPanel.Dock="Bottom" Margin="12,8,12,14">
+                    <Button Content="＋  ADD ANIMATION" Style="{StaticResource AccentButton}" Height="52" FontSize="15" Click="AddAnimation_Click"/>
+                    <Button Content="🎨  Draw a sprite" Style="{StaticResource CardButton}" Height="36" FontSize="13" Margin="0,8,0,0" HorizontalContentAlignment="Center" Click="DrawSprite_Click"/>
+                </StackPanel>
                 <ListBox x:Name="AnimList" Background="Transparent" BorderThickness="0" Margin="6,0,6,0"
                          SelectionChanged="AnimList_SelectionChanged"/>
             </DockPanel>
@@ -64,7 +66,10 @@
 
                 <!-- frames -->
                 <TextBlock DockPanel.Dock="Top" Text="FRAMES" Style="{StaticResource SectionHeader}" Margin="0,16,0,8"/>
-                <Button DockPanel.Dock="Top" Content="＋ Add frames" Style="{StaticResource CardButton}" Height="32" HorizontalAlignment="Left" Padding="14,0" HorizontalContentAlignment="Center" Click="AddFrames_Click"/>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                    <Button Content="＋ Add frames" Style="{StaticResource CardButton}" Height="32" Padding="14,0" HorizontalContentAlignment="Center" Click="AddFrames_Click"/>
+                    <Button Content="🎨 Draw frame" Style="{StaticResource CardButton}" Height="32" Padding="14,0" Margin="8,0,0,0" HorizontalContentAlignment="Center" Click="DrawFrame_Click"/>
+                </StackPanel>
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,10,0,0">
                     <WrapPanel x:Name="FramesPanel" Orientation="Horizontal"/>
                 </ScrollViewer>

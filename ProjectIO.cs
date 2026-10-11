@@ -141,6 +141,23 @@ namespace EasyEngine
             return Path.Combine("Assets", kind, Path.GetFileName(dest));
         }
 
+        /// <summary>Saves a drawn bitmap as a PNG in Assets/sprites and returns its project-relative path.</summary>
+        public static string SaveSprite(Project p, System.Windows.Media.Imaging.BitmapSource bmp, string baseName)
+        {
+            if (string.IsNullOrEmpty(p.FolderPath))
+                throw new InvalidOperationException("Project has no folder.");
+            var destDir = Path.Combine(p.FolderPath, "Assets", "sprites");
+            Directory.CreateDirectory(destDir);
+            var stem = Sanitize(string.IsNullOrWhiteSpace(baseName) ? "sprite" : baseName);
+            var dest = Path.Combine(destDir, stem + ".png");
+            int i = 1;
+            while (File.Exists(dest)) dest = Path.Combine(destDir, $"{stem}_{i++}.png");
+            var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+            using (var fs = File.Create(dest)) enc.Save(fs);
+            return Path.Combine("Assets", "sprites", Path.GetFileName(dest));
+        }
+
         public static string? AbsoluteAsset(Project p, string? relative)
         {
             if (string.IsNullOrEmpty(relative) || string.IsNullOrEmpty(p.FolderPath)) return null;

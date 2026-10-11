@@ -50,7 +50,8 @@ namespace EasyEngine
         Minimap,          // HUD minimap showing the scene + markers
         Particles,        // particle emitter (explosions, sparkles, trails)
         UIButton,         // clickable UI button that runs an effect
-        Bar               // HUD bar that fills based on a variable (health/progress)
+        Bar,              // HUD bar that fills based on a variable (health/progress)
+        AdvancedPatrol    // follows a hand-drawn path with platformer physics (jumps over obstacles)
     }
 
     // ======================= DADOS =======================

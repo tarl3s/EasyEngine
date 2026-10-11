@@ -29,6 +29,13 @@ namespace EasyEngine
             public double StartX, StartY;
             public int Dir = 1;
             public double PatrolPause; // smooth patrol: seconds remaining stopped at an end
+            // AdvancedPatrol (hand-drawn path following)
+            public List<(double x, double y)>? PathPts;
+            public bool PathParsed;
+            public int PathIndex;
+            public int PathStep = 1; // +1 forward, -1 backward (ping-pong)
+            public double PathTry;   // time spent trying to reach the current waypoint
+            public int APMode;       // AdvancedPatrol format: 0=platform, 1=top-down, 2=free/fly
             public double SpawnTimer;
             public int Spawned;
             public bool SpawnKeyWas;
@@ -279,6 +286,26 @@ namespace EasyEngine
             }
             else Check("SmoothWalker entity exists", false);
 
+            // ---- ADVANCED PATROL (follows a drawn path) ----
+            var pathWalker = Find("PathWalker");
+            if (pathWalker != null)
+            {
+                pathWalker.PathParsed = false; // reparse
+                UpdateBehaviors(0.016);
+                Check("Advanced patrol parses its path", pathWalker.PathPts != null && pathWalker.PathPts.Count == 2);
+                Check("Advanced patrol moves toward the first waypoint", pathWalker.VX > 1);
+            }
+            else Check("PathWalker entity exists", false);
+
+            var pathFinder = Find("PathFinder");
+            if (pathFinder != null)
+            {
+                pathFinder.PathParsed = false; pathFinder.PathTimer = 0;
+                UpdateBehaviors(0.016);
+                Check("Advanced patrol with pathfinding moves toward its route", Math.Abs(pathFinder.VX) > 1);
+            }
+            else Check("PathFinder entity exists", false);
+
             // ---- INTERACT (press key near NPC fires effect) ----
             var npc = Find("NPC1");
             if (npc != null && player != null)
@@ -459,6 +486,53 @@ namespace EasyEngine
                 Check("Bar is full at hp=4/4", hb.BarFill != null && Math.Abs(hb.BarFill.Width - hb.W) < 0.5);
             }
             else Check("HealthBar exists", false);
+
+            // ---- TOP-DOWN COLLISION (runs a physics loop; kept LAST so it can't disturb other checks) ----
+            var tdWall = Find("TDWall");
+            var tdGuy = Find("TDGuy");
+            if (tdGuy != null && tdWall != null)
+            {
+                tdGuy.X = 4100; tdGuy.Y = 2760; tdGuy.VX = 0; tdGuy.VY = 0;
+                _keys.Add(Key.D); // hold "right" toward the wall
+                for (int i = 0; i < 80; i++) { UpdateBehaviors(0.016); UpdatePhysics(0.016); }
+                _keys.Remove(Key.D);
+                Check("Top-down entity is blocked by a solid wall", tdGuy.X + tdGuy.W <= tdWall.X + 1);
+            }
+            else Check("TDGuy/TDWall exist", false);
+
+            var tdGhost = Find("TDGhost");
+            if (tdGhost != null && tdWall != null)
+            {
+                tdGhost.X = 4100; tdGhost.Y = 2760; tdGhost.VX = 0; tdGhost.VY = 0;
+                _keys.Add(Key.D);
+                for (int i = 0; i < 80; i++) { UpdateBehaviors(0.016); UpdatePhysics(0.016); }
+                _keys.Remove(Key.D);
+                Check("Hitbox off (collide=0) passes through the wall", tdGhost.X > tdWall.X + tdWall.W);
+            }
+            else Check("TDGhost exists", false);
+
+            var pGhost = Find("PGhost");
+            if (pGhost != null)
+            {
+                pGhost.X = 5600; pGhost.Y = 100; pGhost.VX = 0; pGhost.VY = 0; pGhost.Dead = false;
+                for (int i = 0; i < 80; i++) { UpdateBehaviors(0.016); UpdatePhysics(0.016); }
+                Check("Hitbox-off platformer doesn't fall forever", !pGhost.Dead && Math.Abs(pGhost.Y - 100) < 5);
+            }
+            else Check("PGhost exists", false);
+
+            var apTd = Find("APTD");
+            if (apTd != null)
+            {
+                apTd.X = 5000; apTd.Y = 2760; apTd.PathParsed = false; apTd.PathTry = 0;
+                double minDistToFar = 99999, maxX = apTd.CX;
+                for (int i = 0; i < 300; i++)
+                {
+                    UpdateBehaviors(0.016); UpdatePhysics(0.016);
+                    minDistToFar = Math.Min(minDistToFar, Math.Abs(5300 - apTd.CX));
+                    maxX = Math.Max(maxX, apTd.CX);
+                }
+                Check("Top-down AP reaches its far waypoint closely (within 12px)", minDistToFar < 12);
+            }
 
             return log;
         }
@@ -926,6 +1000,94 @@ namespace EasyEngine
                             SetV(en.Dir * spd * mult);
                             break;
                         }
+                        case BehaviorKind.AdvancedPatrol:
+                        {
+                            if (!en.PathParsed) { en.PathPts = ParsePathPoints(bh.Text("path", "")); en.PathParsed = true; en.PathIndex = 0; en.PathStep = 1; en.PatrolPause = 0; }
+                            en.APMode = (int)Math.Round(bh.Num("mode", 0));
+                            bool platform = en.APMode == 0;
+                            var pts = en.PathPts;
+                            if (pts == null || pts.Count == 0) { en.VX = 0; if (!platform) en.VY = 0; break; }
+
+                            double apSpeed = bh.Num("speed", 130), apJump = bh.Num("jump", 640);
+                            bool autoJump = bh.Num("autoJump", 1) >= 0.5;
+                            int repeat = (int)Math.Round(bh.Num("repeat", 0)); // 0=back-and-forth, 1=loop, 2=once
+                            bool pathfind = bh.Num("pathfind", 0) >= 0.5 && en.APMode == 1; // grid pathfinding fits top-down
+                            double pauseEnd = Math.Max(0, bh.Num("pause", 0));
+                            double pauseStart = Math.Max(0, bh.Num("pauseStart", 0));
+
+                            if (en.PatrolPause > 0) { en.PatrolPause -= dt; en.VX = 0; if (!platform) en.VY = 0; break; }
+
+                            en.PathIndex = Math.Clamp(en.PathIndex, 0, pts.Count - 1);
+                            var (tx, ty) = pts[en.PathIndex];
+
+                            // reached the current waypoint? tolerance tracks the per-frame step (not the object size),
+                            // so it stops ON the point instead of turning around early. (platform ignores Y — gravity handles it)
+                            double reachTol = Math.Max(6, apSpeed * dt * 1.2);
+                            bool reachX = Math.Abs(tx - en.CX) < reachTol;
+                            bool reachY = Math.Abs(ty - en.CY) < reachTol;
+                            bool reached = platform ? reachX : (reachX && reachY);
+
+                            en.PathTry += dt;
+                            if (reached || en.PathTry > 4.0)
+                            {
+                                en.PathTry = 0;
+                                bool atLast = en.PathIndex >= pts.Count - 1;
+                                bool atFirst = en.PathIndex <= 0;
+                                if (atLast && pauseEnd > 0) en.PatrolPause = pauseEnd;
+                                else if (atFirst && pauseStart > 0) en.PatrolPause = pauseStart;
+
+                                int next = en.PathIndex + en.PathStep;
+                                if (next >= pts.Count || next < 0)
+                                {
+                                    if (repeat == 1) en.PathIndex = en.PathStep > 0 ? 0 : pts.Count - 1;      // loop (circuit)
+                                    else if (repeat == 2) { en.VX = 0; if (!platform) en.VY = 0; break; }      // once: stop at the end
+                                    else { en.PathStep = -en.PathStep; en.PathIndex = Math.Clamp(en.PathIndex + en.PathStep, 0, pts.Count - 1); } // back-and-forth (retrace)
+                                }
+                                else en.PathIndex = next;
+
+                                if (en.PatrolPause > 0) { en.VX = 0; if (!platform) en.VY = 0; break; }
+                                (tx, ty) = pts[en.PathIndex];
+                            }
+
+                            // where to steer: straight to the waypoint, or the next grid step (pathfinding, top-down only)
+                            double steerX = tx, steerY = ty;
+                            if (pathfind)
+                            {
+                                en.PathTimer -= dt;
+                                if (en.PathTimer <= 0) { en.PathTimer = 0.25; var (nx, ny) = NextPathStep(en, tx, ty, Math.Max(16, en.W)); en.PathNX = nx; en.PathNY = ny; }
+                                steerX = en.PathNX; steerY = en.PathNY;
+                            }
+
+                            if (platform)
+                            {
+                                double sdx = tx - en.CX;
+                                int dir = sdx > 0.5 ? 1 : (sdx < -0.5 ? -1 : 0);
+                                bool atX = Math.Abs(sdx) < reachTol;
+                                en.VX = atX ? 0 : dir * apSpeed;
+                                if (dir != 0) en.Facing = dir;
+                                bool wantUp = ty < en.CY - en.H * 0.5;
+                                bool obstacle = autoJump && !atX && SolidBeside(en, dir != 0 ? dir : en.Facing);
+                                if (en.Grounded && (wantUp || obstacle)) en.VY = -apJump;
+                            }
+                            else // top-down / free
+                            {
+                                double ddx = steerX - en.CX, ddy = steerY - en.CY;
+                                if (pathfind)
+                                {
+                                    // move one axis at a time (grid is 4-connected) so the hitbox doesn't catch tile corners
+                                    if (Math.Abs(ddx) >= Math.Abs(ddy)) { en.VX = Math.Abs(ddx) > 1 ? Math.Sign(ddx) * apSpeed : 0; en.VY = 0; }
+                                    else { en.VY = Math.Abs(ddy) > 1 ? Math.Sign(ddy) * apSpeed : 0; en.VX = 0; }
+                                }
+                                else
+                                {
+                                    double len = Math.Sqrt(ddx * ddx + ddy * ddy);
+                                    if (len > 1) { en.VX = ddx / len * apSpeed; en.VY = ddy / len * apSpeed; }
+                                    else { en.VX = 0; en.VY = 0; }
+                                }
+                                if (Math.Abs(ddx) > 1) en.Facing = ddx > 0 ? 1 : -1;
+                            }
+                            break;
+                        }
                         case BehaviorKind.Chase:
                         {
                             var t = _entities.FirstOrDefault(x => x.Data.Name == bh.Text("target", "Player") && !x.Dead);
@@ -1288,7 +1450,9 @@ namespace EasyEngine
         }
 
         // Grid BFS: returns the world-space center of the next cell to move toward (routes around solids).
-        private (double x, double y) NextPathStep(Entity en, Entity target, double cell)
+        private (double x, double y) NextPathStep(Entity en, Entity target, double cell) => NextPathStep(en, target.CX, target.CY, cell);
+
+        private (double x, double y) NextPathStep(Entity en, double targetX, double targetY, double cell)
         {
             int cols = Math.Max(1, (int)Math.Ceiling(_scene.Width / cell));
             int rows = Math.Max(1, (int)Math.Ceiling(_scene.Height / cell));
@@ -1303,7 +1467,7 @@ namespace EasyEngine
                 int c0 = Cx(s.X), c1 = Cx(s.X + s.W), r0 = Cy(s.Y), r1 = Cy(s.Y + s.H);
                 for (int c = c0; c <= c1; c++) for (int r = r0; r <= r1; r++) blocked[c, r] = true;
             }
-            int sc = Cx(en.CX), sr = Cy(en.CY), gc = Cx(target.CX), gr = Cy(target.CY);
+            int sc = Cx(en.CX), sr = Cy(en.CY), gc = Cx(targetX), gr = Cy(targetY);
             blocked[sc, sr] = false; blocked[gc, gr] = false;
 
             // BFS
@@ -1324,7 +1488,7 @@ namespace EasyEngine
                     seen[nc, nr] = true; prev[nc, nr] = (c, r); q.Enqueue((nc, nr));
                 }
             }
-            if (!found) return (target.CX, target.CY); // no path → head straight
+            if (!found) return (targetX, targetY); // no path → head straight
 
             // reconstruct path goal→start; the FIRST step from start is the last node we collect
             var path = new List<(int c, int r)>();
@@ -1335,7 +1499,7 @@ namespace EasyEngine
                 path.Add(cur);
                 cur = prev[cur.c, cur.r];
             }
-            if (path.Count == 0) return (target.CX, target.CY); // already in the goal cell
+            if (path.Count == 0) return (targetX, targetY); // already in the goal cell
             var step = path[^1];
             return ((step.c + 0.5) * cell, (step.r + 0.5) * cell);
         }
@@ -1742,18 +1906,58 @@ namespace EasyEngine
             if (!string.IsNullOrEmpty(target) && _project.FindScene(target) != null) _pendingScene = target;
         }
 
-        // Platformer always gets gravity/collision physics (falls & jumps) even with controls off — e.g. a Patrol+Platformer enemy.
-        private bool IsDynamic(Entity en) => (en.Data.Physics.Mode == PhysicsMode.Dynamic || en.Has(BehaviorKind.Platformer)) && !en.Has(BehaviorKind.TopDown);
+        // Platformer/AdvancedPatrol(platform) get gravity + collision. With the hitbox off (collide=0) a character
+        // becomes a free mover (no gravity, no collision, no fall-off-world) so it doesn't fall forever.
+        private bool IsDynamic(Entity en) => (en.Data.Physics.Mode == PhysicsMode.Dynamic || en.Has(BehaviorKind.Platformer) || (en.Has(BehaviorKind.AdvancedPatrol) && en.APMode == 0)) && !en.Has(BehaviorKind.TopDown) && CollisionEnabled(en);
+
+        private static List<(double x, double y)> ParsePathPoints(string json)
+        {
+            var list = new List<(double, double)>();
+            if (string.IsNullOrWhiteSpace(json)) return list;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    foreach (var e in doc.RootElement.EnumerateArray())
+                    {
+                        double x = e.TryGetProperty("x", out var xp) ? xp.GetDouble() : 0;
+                        double y = e.TryGetProperty("y", out var yp) ? yp.GetDouble() : 0;
+                        list.Add((x, y));
+                    }
+            }
+            catch { }
+            return list;
+        }
+
+        // Whether this character's hitbox is active (collides with solids/tilemaps). Default on; a "collide" num of 0 turns it off.
+        private static bool CollisionEnabled(Entity en)
+        {
+            var bh = en.Beh(BehaviorKind.Platformer) ?? en.Beh(BehaviorKind.TopDown) ?? en.Beh(BehaviorKind.AdvancedPatrol);
+            return bh == null || bh.Num("collide", 1) >= 0.5;
+        }
+
+        // Top-down movers collide with solids/tilemaps on all sides but have no gravity.
+        private bool IsTopDownCollider(Entity en) =>
+            !IsDynamic(en) && CollisionEnabled(en) && (en.Has(BehaviorKind.TopDown) || (en.Has(BehaviorKind.AdvancedPatrol) && en.APMode == 1));
 
         private void UpdatePhysics(double dt)
         {
-            // 1) move non-dynamic movers (platforms, patrol, projectiles) and record how far they moved
+            // 1) move non-dynamic movers (platforms, patrol, projectiles, free-flying) without collision
             foreach (var en in _entities)
             {
-                if (en.Dead || IsDynamic(en)) continue;
+                if (en.Dead || IsDynamic(en) || IsTopDownCollider(en)) continue;
                 double ox = en.X, oy = en.Y;
                 en.X += en.VX * dt; en.Y += en.VY * dt;
                 en.PlatDX = en.X - ox; en.PlatDY = en.Y - oy;
+            }
+
+            // 1b) top-down movers: move with wall/tilemap collision, no gravity
+            foreach (var en in _entities)
+            {
+                if (en.Dead || !IsTopDownCollider(en)) continue;
+                en.X += en.VX * dt; ResolveX(en);
+                en.Grounded = false;
+                en.Y += en.VY * dt; ResolveY(en, dt);
             }
 
             // 2) dynamic entities (with gravity, collision, moving-platform carry)
@@ -1761,17 +1965,19 @@ namespace EasyEngine
             {
                 if (en.Dead || !IsDynamic(en)) continue;
 
-                var ground = SolidUnder(en);
+                bool collide = CollisionEnabled(en);
+
+                var ground = collide ? SolidUnder(en) : null;
                 if (ground != null) { en.X += ground.PlatDX; en.Y += ground.PlatDY; }
 
                 if (en.DashTimer <= 0) en.VY += Gravity * en.Data.Physics.GravityScale * dt;
 
                 en.X += en.VX * dt;
-                ResolveX(en);
+                if (collide) ResolveX(en);
 
                 en.Grounded = false;
                 en.Y += en.VY * dt;
-                ResolveY(en, dt);
+                if (collide) ResolveY(en, dt);
 
                 // fell off the world → lose a hit point and respawn (prevents falling forever)
                 if (en.Y > _scene.Height + 320)
@@ -2250,10 +2456,19 @@ namespace EasyEngine
         {
             var anims = en.Data.Animations;
             if (anims.Count == 0) return null;
-            bool moving = Math.Abs(en.VX) > 5 || (Math.Abs(en.VY) > 5 && !en.Has(BehaviorKind.Platformer));
             SpriteAnimation? Find(params string[] names) => anims.FirstOrDefault(a => names.Any(n => a.Name.Equals(n, StringComparison.OrdinalIgnoreCase)));
-            if (moving) { var w = Find("walk", "run", "move"); if (w != null) return w; }
-            else { var i = Find("idle", "stand"); if (i != null) return i; }
+            bool plat = en.Has(BehaviorKind.Platformer);
+
+            // airborne → jump/fall animation
+            if (plat && !en.Grounded) { var j = Find("jump", "fall", "air"); if (j != null) return j; }
+            // the controlled player holding down on the ground → crouch (not enemies that don't read keys)
+            bool controlled = (en.Beh(BehaviorKind.Platformer)?.Num("controls", 1) ?? 0) >= 0.5;
+            bool crouching = plat && controlled && en.Grounded && K(Key.Down, Key.S);
+            if (crouching) { var c = Find("crouch", "duck", "slide"); if (c != null) return c; }
+
+            bool moving = Math.Abs(en.VX) > 5 || (Math.Abs(en.VY) > 5 && !plat);
+            if (moving && !crouching) { var w = Find("walk", "run", "move"); if (w != null) return w; }
+            var idle = Find("idle", "stand"); if (idle != null) return idle;
             return en.Data.ResolveDefaultAnimation();
         }
 
