@@ -334,6 +334,93 @@ public partial class App
             });
             Test("editor: isnight/isday blocks round-trip", () => RT("[{\"when\":\"isnight\",\"do\":\"spawn\",\"object\":\"Zombie\"}]") == RT(RT("[{\"when\":\"isnight\",\"do\":\"spawn\",\"object\":\"Zombie\"}]")));
 
+            // ========================= K) HOTBAR + MINING (Mining primitives) =========================
+            Test("wheel: wheeldown event fires on scroll down", () => { var p = Sim("[{\"when\":\"wheeldown\",\"do\":\"addvar\",\"var\":\"n\",\"amount\":1}]"); p.TWheel(-1); p.TStep(); return p.TVar("n") >= 1; });
+            Test("wheel: wheelup event fires on scroll up", () => { var p = Sim("[{\"when\":\"wheelup\",\"do\":\"addvar\",\"var\":\"n\",\"amount\":1}]"); p.TWheel(1); p.TStep(); return p.TVar("n") >= 1; });
+            Test("hotbar: selected owned slot sets its holding flag", () =>
+            {
+                var p = Sim("[]", extra: AddHotbar("pick:#111111,axe:#222222"));
+                p.TSetVar("item:pick", 1); p.TStep();
+                return Math.Abs(p.TVar("holding:pick") - 1) < 0.01 && p.TVar("holding:axe") < 0.5;
+            });
+            Test("hotbar: an unowned slot holds nothing", () => { var p = Sim("[]", extra: AddHotbar("pick:#111111")); p.TStep(); return p.TVar("holding:pick") < 0.5; });
+            Test("hotbar: the wheel changes the selected slot", () =>
+            {
+                var p = Sim("[]", extra: AddHotbar("pick:#111111,axe:#222222,sword:#333333"));
+                p.TStep(); double s0 = p.TVar("heldSlot");
+                p.TWheel(-1); p.TStep(); double s1 = p.TVar("heldSlot");
+                return Math.Abs(s0) < 0.01 && Math.Abs(s1 - 1) < 0.01;
+            });
+            Test("mining: a broken tile drops its resource", () =>
+            {
+                var p = Sim("[{\"when\":\"start\",\"do\":\"breaktile\",\"where\":\"touching\"}]", extra: BreakMapRes(200, 200, "dirt", ""));
+                p.TSteps(2); return p.TItem("dirt") >= 1;
+            });
+            Test("mining: 'requires' gates breaking until the flag is set", () =>
+            {
+                var blocked = Sim("[{\"when\":\"start\",\"do\":\"breaktile\",\"where\":\"touching\"}]", extra: BreakMapRes(200, 200, "", "holding:pickaxe"));
+                blocked.TSteps(2);
+                var allowed = Sim("[{\"when\":\"start\",\"do\":\"breaktile\",\"where\":\"touching\"}]", extra: BreakMapRes(200, 200, "", "holding:pickaxe"));
+                allowed.TSetVar("holding:pickaxe", 1); allowed.TSteps(2);
+                return blocked.TTiles("Map") == 9 && allowed.TTiles("Map") == 8;
+            });
+
+            // ========================= L) SHOP / CRAFTING =========================
+            Test("shop: buying charges currency and grants the item", () =>
+            {
+                var p = Sim("[]", extra: AddShop("coins", 5, "pickaxe"));
+                p.TSetVar("coins", 10); p.TKey("E", true); p.TStep();
+                return Math.Abs(p.TVar("coins") - 5) < 0.01 && p.TItem("pickaxe") >= 1;
+            });
+            Test("shop: can't buy without enough currency", () =>
+            {
+                var p = Sim("[]", extra: AddShop("coins", 5, "pickaxe"));
+                p.TSetVar("coins", 2); p.TKey("E", true); p.TStep();
+                return Math.Abs(p.TVar("coins") - 2) < 0.01 && p.TItem("pickaxe") < 0.5;
+            });
+            Test("shop: buys only once", () =>
+            {
+                var p = Sim("[]", extra: AddShop("coins", 5, "pickaxe"));
+                p.TSetVar("coins", 20);
+                p.TKey("E", true); p.TStep();            // buy
+                p.TKey("E", false); p.TStep();           // release
+                p.TKey("E", true); p.TStep();            // press again → blocked
+                return Math.Abs(p.TVar("coins") - 15) < 0.01 && p.TItem("pickaxe") >= 1;
+            });
+            Test("craft: an item currency works as a bench (wood → sword)", () =>
+            {
+                var p = Sim("[]", extra: AddShop("item:wood", 3, "sword"));
+                p.TSetVar("item:wood", 5); p.TKey("E", true); p.TStep();
+                return Math.Abs(p.TItem("wood") - 2) < 0.01 && p.TItem("sword") >= 1;
+            });
+
+            // ========================= M) MINING DEMO SMOKE TEST =========================
+            Test("mining: the demo project loads and runs without error", () =>
+            {
+                var proj = BuildMining();
+                var pw = new PlayWindow(proj, proj.StartScene ?? proj.Scenes[0].Name); sims.Add(pw);
+                pw.TLoad(); pw.TSteps(60);
+                return pw.TExists("Player") && pw.TAlive("Coin") > 0; // player alive, coins were generated (once)
+            });
+            Test("mining: holding the pickaxe mines dirt into the inventory", () =>
+            {
+                var proj = BuildMining();
+                var pw = new PlayWindow(proj, proj.StartScene ?? proj.Scenes[0].Name); sims.Add(pw);
+                pw.TLoad();
+                pw.TSetVar("item:pickaxe", 1); pw.TSteps(2);   // own + select the pickaxe (hotbar slot 0)
+                pw.TMouseAt(100, 760);                          // aim at a dirt tile (Dirt starts at y=720)
+                pw.TMouseDown(true); pw.TSteps(5);
+                return pw.TItem("dirt") >= 1;
+            });
+            Test("mining: without the pickaxe, dirt can't be mined", () =>
+            {
+                var proj = BuildMining();
+                var pw = new PlayWindow(proj, proj.StartScene ?? proj.Scenes[0].Name); sims.Add(pw);
+                pw.TLoad();
+                pw.TMouseAt(100, 760); pw.TMouseDown(true); pw.TSteps(5);
+                return pw.TItem("dirt") < 0.5;
+            });
+
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
             var bplay = new PlayWindow(bp, bs); sims.Add(bplay);
@@ -414,6 +501,52 @@ public partial class App
     }
     private static Action<Project, Scene> Combine(params Action<Project, Scene>[] setups) =>
         (p, s) => { foreach (var a in setups) a(p, s); };
+
+    private static Project BuildMining()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "EE_FullTerr_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+        Directory.CreateDirectory(tmp);
+        return ProjectIO.Load(MiningGame.Build(tmp));
+    }
+
+    // ---- hotbar + mining setups ----
+    private static Action<Project, Scene> AddHotbar(string items)
+    {
+        return (p, s) =>
+        {
+            var l = s.Layers.First(z => z.Kind == LayerKind.Base);
+            var bh = new BehaviorData { Kind = BehaviorKind.Hotbar };
+            bh.Texts["items"] = items; bh.Texts["player"] = "none";
+            l.Objects.Add(new GameObjectData { Id = 70, Name = "HB", Type = "Object", X = 0, Y = 0, Width = 10, Height = 10, Color = "#FFFFFF", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { bh } });
+        };
+    }
+    private static Action<Project, Scene> BreakMapRes(double x, double y, string drop, string requires)
+    {
+        return (p, s) =>
+        {
+            var l = s.Layers.First(z => z.Kind == LayerKind.Base);
+            var bh = new BehaviorData { Kind = BehaviorKind.Tilemap };
+            bh.Texts["palette"] = "[{\"color\":\"#8B5A2B\",\"solid\":true}]";
+            bh.Texts["data"] = "{\"cols\":3,\"rows\":3,\"cells\":[1,1,1,1,1,1,1,1,1]}";
+            bh.Nums["tileSize"] = 32; bh.Nums["breakable"] = 1;
+            if (drop.Length > 0) bh.Texts["drop"] = drop;
+            if (requires.Length > 0) bh.Texts["requires"] = requires;
+            l.Objects.Add(new GameObjectData { Id = 93, Name = "Map", Type = "Object", X = x, Y = y, Width = 96, Height = 96, Color = "#000000", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { bh } });
+        };
+    }
+
+    private static Action<Project, Scene> AddShop(string currency, double cost, string item, bool once = true)
+    {
+        return (p, s) =>
+        {
+            var l = s.Layers.First(z => z.Kind == LayerKind.Base);
+            var bh = new BehaviorData { Kind = BehaviorKind.Shop };
+            bh.Texts["currency"] = currency; bh.Texts["item"] = item; bh.Texts["key"] = "E"; bh.Texts["player"] = "P";
+            bh.Nums["cost"] = cost; bh.Nums["radius"] = 80; bh.Nums["once"] = once ? 1 : 0;
+            l.Objects.Add(new GameObjectData { Id = 60, Name = "Shop", Type = "Object", X = 200, Y = 200, Width = 40, Height = 40, Color = "#884422", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { bh } });
+            l.Objects.Add(new GameObjectData { Id = 61, Name = "P", Type = "Object", X = 210, Y = 210, Width = 20, Height = 20, Color = "#44AAFF", Physics = new PhysicsData { Mode = PhysicsMode.None } });
+        };
+    }
 
     // ---- day/night setups ----
     private static Action<Project, Scene> AddDayNight(params (string key, double val)[] nums)

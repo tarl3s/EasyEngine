@@ -37,6 +37,8 @@ namespace EasyEngine
             new("hasitem",    "While it has an item", new[] { new Field("item", "Item", "text") }),
             new("isnight",    "While it's night", Array.Empty<Field>(), "Needs a Day/Night cycle object in the scene. Great for enemies that only come out at night."),
             new("isday",      "While it's day", Array.Empty<Field>(), "Needs a Day/Night cycle object in the scene."),
+            new("wheelup",    "When the mouse wheel scrolls up", Array.Empty<Field>()),
+            new("wheeldown",  "When the mouse wheel scrolls down", Array.Empty<Field>()),
             new("expr",       "While a condition is true", new[] { new Field("expr", "Condition", "text") }),
             new("click",      "When clicked", Array.Empty<Field>()),
             new("rightclick", "When right-clicked", Array.Empty<Field>()),

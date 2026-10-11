@@ -35,6 +35,8 @@ public partial class App : Application
 
         if (e.Args.Contains("--fulltest")) { RunFullTest(); return; }
 
+        if (e.Args.Contains("--mining")) { RunMining(); return; }
+
         // exported standalone game: a 'game' folder with a .eeproj sits next to the exe → play it directly
         if (!e.Args.Contains("--editor"))
         {
@@ -284,6 +286,23 @@ public partial class App : Application
         sb.Insert(0, "aijsontest " + DateTime.Now + "\n");
         sb.AppendLine($"\n{pass}/{pass + fail} passed" + (fail == 0 ? "  — ALL PASS" : $"  — {fail} FAILED"));
         try { File.WriteAllText(log, sb.ToString()); } catch { }
+        Shutdown();
+    }
+
+    private void RunMining()
+    {
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        var log = Path.Combine(Path.GetTempPath(), "easyengine_mining.log");
+        try
+        {
+            var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Jogos");
+            Directory.CreateDirectory(parent);
+            var existing = Path.Combine(parent, "Mining Demo");
+            if (Directory.Exists(existing)) Directory.Delete(existing, true);
+            var file = MiningGame.Build(parent);
+            File.WriteAllText(log, "MINING BUILT: " + file + Environment.NewLine);
+        }
+        catch (Exception ex) { try { File.WriteAllText(log, "ERROR: " + ex + Environment.NewLine); } catch { } }
         Shutdown();
     }
 

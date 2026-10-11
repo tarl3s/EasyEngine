@@ -20,6 +20,7 @@ namespace EasyEngine
         {
             _mouseClicked = _mouseDown && !_mousePrevDown; _mousePrevDown = _mouseDown;
             _rmbClicked = _rmbDown && !_rmbPrevDown; _rmbPrevDown = _rmbDown;
+            _wheelDelta = _wheelAccum; _wheelAccum = 0;
             UpdateBehaviors(dt);
             UpdateBreakables(dt);
             UpdatePhysics(dt);
@@ -38,6 +39,7 @@ namespace EasyEngine
         public void TClearKeys() => _keys.Clear();
         public void TMouseDown(bool d) => _mouseDown = d;
         public void TRightDown(bool d) => _rmbDown = d;
+        public void TWheel(int dir) => _wheelAccum += dir * 120; // +1 up, -1 down (applied on next TStep)
         public void TMouseAt(double x, double y) { _mouseWorld = new Point(x, y); _mouseScreen = new Point(x, y); }
 
         public int TParticles => _particles.Count;

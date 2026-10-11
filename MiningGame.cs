@@ -1,0 +1,184 @@
+using System.Collections.Generic;
+using System.Linq;
+
+namespace EasyEngine
+{
+    /// <summary>
+    /// Builds a Mining demo entirely from engine features: procedural coins (once),
+    /// breakable ground/stone/trees mined with the right tool, a hotbar (mouse wheel) that shows
+    /// the held tool in hand, shops + a crafting bench, a health bar, enemies that drop coins,
+    /// a day/night cycle with a sun & moon, particles and light.
+    /// </summary>
+    public static class MiningGame
+    {
+        private const int TS = 40;
+
+        public static string Build(string parentFolder)
+        {
+            var project = ProjectIO.CreateNew("Mining Demo", parentFolder);
+            project.Scenes.Clear();
+            project.StartScene = "World";
+            project.Variables["coins"] = 0;
+
+            var scene = new Scene { Name = "World", Width = 2000, Height = 1200, BackgroundColor = "#6FA8DC" };
+            var bg = new Layer { Name = "Background", Kind = LayerKind.Background };
+            var baseL = new Layer { Name = "Base", Kind = LayerKind.Base };
+            var ui = new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true };
+            int id = 1;
+            GameObjectData Id(GameObjectData o) { o.Id = id++; return o; }
+
+            int cols = (int)scene.Width / TS;        // 50
+            double surfaceY = 720;                   // top of the dirt
+
+            // ---- terrain: dirt then stone, both breakable, mined with the pickaxe ----
+            int dirtRows = 4, stoneRows = ((int)scene.Height - (int)surfaceY) / TS - dirtRows;
+            baseL.Objects.Add(Id(BreakTiles("Dirt", 0, surfaceY, cols, dirtRows, "#7A5230", "holding:pickaxe", "dirt", 1)));
+            baseL.Objects.Add(Id(BreakTiles("Stone", 0, surfaceY + dirtRows * TS, cols, stoneRows, "#6B6B74", "holding:pickaxe", "stone", 2)));
+            // a grass strip on top (decoration, not solid)
+            baseL.Objects.Add(Id(Box("Grass", 0, surfaceY - 6, scene.Width, 8, "#5BA85C")));
+
+            // ---- trees: breakable trunks chopped with the axe (drop wood) ----
+            foreach (double tx in new[] { 520.0, 1020.0, 1520.0 })
+            {
+                baseL.Objects.Add(Id(BreakTiles("Tree", tx, surfaceY - 4 * TS, 2, 4, "#6E4A24", "holding:axe", "wood", 1)));
+                var leaves = Box("Leaves", tx - 30, surfaceY - 4 * TS - 70, 2 * TS + 60, 80, "#3C8C3C");
+                leaves.CornerRadius = 30; baseL.Objects.Add(Id(leaves));
+            }
+
+            // ---- player ----
+            baseL.Objects.Add(Id(Player(160, surfaceY - 120)));
+
+            // ---- shops + crafting bench ----
+            baseL.Objects.Add(Id(Shop("PickShop", "#B5651D", 300, surfaceY - 60, "coins", 5, "pickaxe", "E")));
+            baseL.Objects.Add(Id(Label("PickLbl", 250, surfaceY - 96, "Pickaxe — E (5 coins)", "#FFF2C0", 13)));
+            baseL.Objects.Add(Id(Shop("AxeShop", "#9AA0A0", 820, surfaceY - 60, "coins", 8, "axe", "E")));
+            baseL.Objects.Add(Id(Label("AxeLbl", 770, surfaceY - 96, "Axe — E (8 coins)", "#FFF2C0", 13)));
+            baseL.Objects.Add(Id(Shop("Bench", "#8A5A2B", 1300, surfaceY - 56, "item:wood", 8, "sword", "C")));
+            baseL.Objects.Add(Id(Label("BenchLbl", 1232, surfaceY - 92, "Bench — C (8 wood → sword)", "#AEE1FF", 13)));
+
+            // ---- coins scattered once (procedural) ----
+            var gen = Box("CoinField", 220, 300, 1500, 360, "#00000000");
+            var genB = B(BehaviorKind.Generator);
+            genB.Nums["count"] = 14; genB.Texts["prefab"] = "Coin"; genB.Texts["mode"] = "once"; genB.Texts["layout"] = "scatter"; genB.Texts["id"] = "coinfield";
+            gen.Behaviors.Add(genB);
+            baseL.Objects.Add(Id(gen));
+
+            // ---- enemies: two at the start + a night spawner ----
+            baseL.Objects.Add(Id(Slime(700, surfaceY - 44)));
+            baseL.Objects.Add(Id(Slime(1400, surfaceY - 44)));
+            var spawner = Box("NightSpawner", 1000, surfaceY - 60, 20, 20, "#00000000");
+            var sp = new BehaviorData { Kind = BehaviorKind.Custom };
+            sp.Texts["script"] = "[{\"when\":\"timer\",\"every\":6,\"do\":\"spawn\",\"object\":\"Slime\",\"cond\":\"isNight >= 1\"}]";
+            spawner.Behaviors.Add(sp);
+            baseL.Objects.Add(Id(spawner));
+
+            // ---- day / night controller + sun & moon (UI = screen space) ----
+            var dn = Box("DayNight", 0, 0, 10, 10, "#00000000");
+            var dnB = B(BehaviorKind.DayNight);
+            dnB.Nums["mode"] = 0; dnB.Nums["dayLength"] = 40; dnB.Nums["nightLength"] = 28; dnB.Nums["transition"] = 5;
+            dnB.Nums["dayLight"] = 1; dnB.Nums["nightLight"] = 0.22; dnB.Nums["arcHeight"] = 170;
+            dnB.Texts["sun"] = "Sun"; dnB.Texts["moon"] = "Moon";
+            dn.Behaviors.Add(dnB);
+            baseL.Objects.Add(Id(dn));
+            var sun = Box("Sun", -100, -100, 46, 46, "#FFD24D"); sun.CornerRadius = 23; ui.Objects.Add(Id(sun));
+            var moon = Box("Moon", -100, -100, 38, 38, "#D8E4FF"); moon.CornerRadius = 19; ui.Objects.Add(Id(moon));
+
+            // ---- HUD (screen space) ----
+            var hpBar = Box("HpBar", 16, 16, 220, 22, "#00000000");
+            var barB = B(BehaviorKind.Bar); barB.Texts["var"] = "hp"; barB.Nums["max"] = 6; hpBar.Behaviors.Add(barB);
+            ui.Objects.Add(Id(hpBar));
+            ui.Objects.Add(Id(Label("CoinsHUD", 16, 46, "Coins: {coins}", "#FFD86B", 16)));
+            ui.Objects.Add(Id(Label("ResHUD", 16, 72, "Wood {item:wood}  ·  Dirt {item:dirt}  ·  Stone {item:stone}", "#CFE8FF", 14)));
+            ui.Objects.Add(Id(Label("Hint", 16, 1160, "Move A/D · Jump Space · Mine/chop: aim + hold Left mouse · Hotbar: mouse wheel / 1-3 · J attack · E buy · C craft", "#AEB6C6", 13)));
+
+            scene.Layers.Add(bg); scene.Layers.Add(baseL); scene.Layers.Add(ui);
+            project.Scenes.Add(scene);
+
+            // ---- prefabs spawned at runtime ----
+            project.Prefabs.Add(new PrefabDef { Name = "Coin", Template = CoinTemplate() });
+            project.Prefabs.Add(new PrefabDef { Name = "Slime", Template = Slime(0, 0) });
+
+            ProjectIO.Save(project);
+            return project.FilePath!;
+        }
+
+        // ---------------- factories ----------------
+        private static BehaviorData B(BehaviorKind k) => BehaviorCatalog.Info(k).CreateData();
+
+        private static GameObjectData Box(string name, double x, double y, double w, double h, string color)
+            => new() { Name = name, Type = "Object", X = x, Y = y, Width = w, Height = h, Color = color, Physics = new PhysicsData { Mode = PhysicsMode.None } };
+
+        private static GameObjectData Label(string name, double x, double y, string text, string color, double size)
+        {
+            var o = Box(name, x, y, 600, size + 10, "#00000000");
+            var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Nums["fontSize"] = size;
+            o.Behaviors.Add(lb);
+            return o;
+        }
+
+        private static GameObjectData BreakTiles(string name, double x, double y, int cols, int rows, string color, string requires, string drop, int hits)
+        {
+            var o = Box(name, x, y, cols * TS, rows * TS, "#00000000");
+            var bh = new BehaviorData { Kind = BehaviorKind.Tilemap };
+            bh.Texts["palette"] = "[{\"color\":\"" + color + "\",\"solid\":true}]";
+            bh.Texts["data"] = "{\"cols\":" + cols + ",\"rows\":" + rows + ",\"cells\":[" + string.Join(",", Enumerable.Repeat("1", cols * rows)) + "]}";
+            bh.Nums["tileSize"] = TS; bh.Nums["breakable"] = 1; bh.Nums["breakHits"] = hits;
+            bh.Nums["byMelee"] = 0; bh.Nums["byBullet"] = 0; bh.Nums["byDamage"] = 0; // only the aim+click mining breaks these
+            bh.Texts["requires"] = requires; bh.Texts["drop"] = drop;
+            o.Behaviors.Add(bh);
+            return o;
+        }
+
+        private static GameObjectData Player(double x, double y)
+        {
+            var o = new GameObjectData { Name = "Player", Type = "Player", X = x, Y = y, Width = 34, Height = 50, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
+            var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 240; plat.Nums["jump"] = 620; o.Behaviors.Add(plat);
+            o.Behaviors.Add(B(BehaviorKind.FollowCamera));
+            var hp = B(BehaviorKind.Health); hp.Nums["max"] = 6; hp.Nums["respawn"] = 1; hp.Texts["var"] = "hp"; o.Behaviors.Add(hp);
+            var melee = B(BehaviorKind.Melee); melee.Texts["key"] = "J"; melee.Nums["range"] = 46; melee.Nums["damage"] = 1; o.Behaviors.Add(melee);
+            var hot = B(BehaviorKind.Hotbar); hot.Texts["items"] = "pickaxe:#B5651D,axe:#9AA0A0,sword:#AEE1FF"; hot.Texts["player"] = "Player"; o.Behaviors.Add(hot);
+            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 240; torch.Texts["color"] = "#FFE6A0"; o.Behaviors.Add(torch);
+            // mine/chop the tile under the cursor while the left mouse button is held (the held tool gates what breaks)
+            var cust = new BehaviorData { Kind = BehaviorKind.Custom };
+            cust.Texts["script"] = "[{\"when\":\"always\",\"do\":\"breaktile\",\"where\":\"atmouse\",\"cond\":\"mousedown >= 1\"}]";
+            o.Behaviors.Add(cust);
+            return o;
+        }
+
+        private static GameObjectData Slime(double x, double y)
+        {
+            var o = new GameObjectData { Name = "Slime", Type = "Enemy", X = x, Y = y, Width = 40, Height = 30, Color = "#8E54E9", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
+            var plat = B(BehaviorKind.Platformer); plat.Nums["controls"] = 0; o.Behaviors.Add(plat);
+            var pat = B(BehaviorKind.Patrol); pat.Nums["speed"] = 60; pat.Nums["distance"] = 160; o.Behaviors.Add(pat);
+            var dmg = B(BehaviorKind.Damager); dmg.Texts["target"] = "Player"; dmg.Nums["damage"] = 1; dmg.Nums["knockback"] = 300; o.Behaviors.Add(dmg);
+            var hp = B(BehaviorKind.Health); hp.Nums["max"] = 2; hp.Nums["respawn"] = 0; o.Behaviors.Add(hp);
+            var cust = new BehaviorData { Kind = BehaviorKind.Custom };
+            cust.Texts["script"] = "[{\"when\":\"death\",\"do\":\"spawn\",\"object\":\"Coin\"},{\"when\":\"death\",\"do\":\"emit\",\"count\":16,\"color\":\"#8E54E9\"}]";
+            o.Behaviors.Add(cust);
+            return o;
+        }
+
+        private static GameObjectData CoinTemplate()
+        {
+            var o = new GameObjectData { Name = "Coin", Type = "Object", X = 0, Y = 0, Width = 22, Height = 22, Color = "#FFD24D", Physics = new PhysicsData { Mode = PhysicsMode.None } };
+            o.CornerRadius = 11;
+            var cust = new BehaviorData { Kind = BehaviorKind.Custom };
+            cust.Texts["script"] = "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1}," +
+                                    "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"emit\",\"count\":8,\"color\":\"#FFD24D\"}," +
+                                    "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\"}]";
+            o.Behaviors.Add(cust);
+            return o;
+        }
+
+        private static GameObjectData Shop(string name, string color, double x, double y, string currency, double cost, string item, string key)
+        {
+            var o = new GameObjectData { Name = name, Type = "Object", X = x, Y = y, Width = 44, Height = 56, Color = color, Physics = new PhysicsData { Mode = PhysicsMode.None } };
+            o.CornerRadius = 6;
+            var sh = B(BehaviorKind.Shop);
+            sh.Texts["currency"] = currency; sh.Texts["item"] = item; sh.Texts["key"] = key; sh.Texts["player"] = "Player";
+            sh.Nums["cost"] = cost; sh.Nums["radius"] = 80; sh.Nums["once"] = 1;
+            o.Behaviors.Add(sh);
+            return o;
+        }
+    }
+}

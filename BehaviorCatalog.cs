@@ -172,8 +172,11 @@ namespace EasyEngine
                          new("byDamage","Break with damagers/hazards (0/1)",1),
                          new("byStomp","Break by landing on top (0/1)",0),
                          new("byTouch","Break by touching (0/1)",0),
-                         new("breakParticles","Puff of particles when broken (0/1)",1) },
-                Texts = { new("palette","Palette (JSON)","[]"), new("data","Tiles (JSON)","") } },
+                         new("breakParticles","Puff of particles when broken (0/1)",1),
+                         new("dropAmount","How many resources each tile drops",1) },
+                Texts = { new("palette","Palette (JSON)","[]"), new("data","Tiles (JSON)",""),
+                          new("requires","Needs this flag/item to break (e.g. holding:pickaxe)",""),
+                          new("drop","Resource dropped when broken (item name)","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.DayNight, Name = "Day / Night cycle", Icon = "🌗",
                 Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). Optionally give it a Sun sprite (moves across the sky in both Top-down and Platformer) and a Moon sprite (shown at night — Platformer only). Works for Top-down and Platformer.",
@@ -186,6 +189,17 @@ namespace EasyEngine
                          new("startAtNight","Start at night (0/1)",0),
                          new("arcHeight","Sun/Moon arc height (px)",120) },
                 Texts = { new("sun","Sun sprite (object name)",""), new("moon","Moon sprite (object name)","") } },
+
+            new BehaviorInfo { Kind = BehaviorKind.Hotbar, Name = "Hotbar / Inventory", Icon = "🎒",
+                Desc = "A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.",
+                Nums = { new("slot","Starting slot",0), new("size","Slot size (px)",46) },
+                Texts = { new("items","Slots (name:#color, comma-separated)","pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF"),
+                          new("player","Player object (shows the held tool)","Player") } },
+
+            new BehaviorInfo { Kind = BehaviorKind.Shop, Name = "Shop / Crafting bench", Icon = "🛒",
+                Desc = "Stand near it and press the key to pay a cost and receive an item. Set 'currency' to 'coins' for a shop, or to an item like 'item:wood' for a crafting bench (e.g. craft a sword from wood). Buys once by default.",
+                Nums = { new("cost","Cost",5), new("give","Amount given",1), new("radius","How close (px)",70), new("once","Buy only once (0/1)",1) },
+                Texts = { new("key","Buy key","E"), new("currency","Pay with (coins, or item:wood…)","coins"), new("item","Item you receive","pickaxe"), new("player","Buyer object","Player") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Pushable, Name = "Pushable Block", Icon = "📦",
                 Desc = "A solid block the player (or 'pusher') can push around. Great for sokoban-style puzzles and block-and-switch puzzles. Give it physics Dynamic if it should also fall.",

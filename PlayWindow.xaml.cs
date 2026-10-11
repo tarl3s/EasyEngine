@@ -52,6 +52,8 @@ namespace EasyEngine
             public double TweenScale = 1;                      // current tweened scale
             public System.Windows.Shapes.Rectangle? BarFill;   // bar fill rectangle
             public bool DNStarted; public double DNTimer;      // day/night cycle clock
+            public Canvas? HotbarCanvas;                       // hotbar UI (screen space)
+            public System.Windows.Shapes.Rectangle? HeldVisual; // the tool shown in the player's hand
             // breakable tilemap runtime state (null unless this tilemap is breakable)
             public List<TileCell>? Tiles;
             public TileCell?[]? TileGrid;                      // r*cols+c → cell, for O(1) lookup
@@ -115,6 +117,7 @@ namespace EasyEngine
         private Point _mouseWorld, _mouseScreen;
         private bool _mouseDown, _mousePrevDown, _mouseClicked;
         private bool _rmbDown, _rmbPrevDown, _rmbClicked;
+        private double _wheelAccum, _wheelDelta; // mouse wheel: accumulated between frames, delta this frame
 
         private readonly Stopwatch _clock = new();
         private double _last;
@@ -201,6 +204,7 @@ namespace EasyEngine
                 if (e.ChangedButton == MouseButton.Left) _mouseDown = false;
                 else if (e.ChangedButton == MouseButton.Right) _rmbDown = false;
             };
+            MouseWheel += (s, e) => _wheelAccum += e.Delta; // +120 up, -120 down
         }
 
         private void UpdateMouse(MouseEventArgs e)
@@ -900,6 +904,7 @@ namespace EasyEngine
 
             _mouseClicked = _mouseDown && !_mousePrevDown; _mousePrevDown = _mouseDown;
             _rmbClicked = _rmbDown && !_rmbPrevDown; _rmbPrevDown = _rmbDown;
+            _wheelDelta = _wheelAccum; _wheelAccum = 0;
 
             UpdateBehaviors(dt);
             UpdateBreakables(dt);
@@ -954,6 +959,34 @@ namespace EasyEngine
                             break;
                         }
                         case BehaviorKind.DayNight: UpdateDayNight(en, bh, dt); break;
+                        case BehaviorKind.Hotbar: UpdateHotbar(en, bh, dt); break;
+                        case BehaviorKind.Shop:
+                        {
+                            var buyer = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(bh.Text("player", "Player"), StringComparison.OrdinalIgnoreCase));
+                            if (buyer == null) break;
+                            double radius = bh.Num("radius", 70);
+                            double dx = en.CX - buyer.CX, dy = en.CY - buyer.CY;
+                            bool near = (dx * dx + dy * dy) <= radius * radius || Overlap(en, buyer);
+                            bool keyDown = near && _keys.Contains(ParseKey(bh.Text("key", "E")));
+                            bool pressed = keyDown && !en.SwitchWas; // buy once per key press
+                            en.SwitchWas = keyDown;
+                            bool once = bh.Num("once", 1) >= 0.5;
+                            bool sold = en.Locals.TryGetValue("__sold", out var sd) && sd >= 1;
+                            if (pressed && !(once && sold))
+                            {
+                                string cur = bh.Text("currency", "coins");
+                                double cost = bh.Num("cost", 5);
+                                if (Var(cur) >= cost)
+                                {
+                                    _vars[cur] = Var(cur) - cost;
+                                    var give = bh.Text("item", "");
+                                    if (!string.IsNullOrWhiteSpace(give)) _vars["item:" + give] = Var("item:" + give) + Math.Max(1, bh.Num("give", 1));
+                                    if (once) en.Locals["__sold"] = 1;
+                                    EmitParticles(en.CX, en.CY, 14, 170, 360, 0, 0.6, 6, 250, "#FFD24D");
+                                }
+                            }
+                            break;
+                        }
                         case BehaviorKind.Melee:
                         {
                             if (en.MeleeTimer > 0) { en.MeleeTimer -= dt; break; }
@@ -1705,6 +1738,8 @@ namespace EasyEngine
                     case "hasitem": fire = Var("item:" + r.WStr("item")) >= 1; break;
                     case "isnight": fire = Var("isNight") >= 0.5; break;
                     case "isday": fire = Var("isNight") < 0.5; break;
+                    case "wheelup": fire = _wheelDelta > 0; break;
+                    case "wheeldown": fire = _wheelDelta < 0; break;
                     case "expr": fire = EvalExpr(r.WStr("expr"), en) != 0; break;
                     case "click": fire = _mouseClicked && PointInEntity(en); break;
                     case "rightclick": fire = _rmbClicked && PointInEntity(en); break;
@@ -1843,6 +1878,7 @@ namespace EasyEngine
                 case "mousescreeny": return _mouseScreen.Y;
                 case "mousedown": return _mouseDown ? 1 : 0;
                 case "rightdown": return _rmbDown ? 1 : 0;
+                case "wheel": return _wheelDelta > 0 ? 1 : (_wheelDelta < 0 ? -1 : 0);
                 case "time": return _clock.Elapsed.TotalSeconds;
                 case "true": return 1;
                 case "false": return 0;
@@ -2294,6 +2330,9 @@ namespace EasyEngine
         private void DamageCell(Entity map, BehaviorData bh, TileCell cell, int amount)
         {
             if (cell.Broken) return;
+            // a tilemap can require a flag/item to be breakable at all (e.g. "holding:pickaxe")
+            var requires = bh.Text("requires", "");
+            if (!string.IsNullOrWhiteSpace(requires) && Var(requires) < 0.5) return;
             cell.Hp -= Math.Max(1, amount);
             if (cell.Hp > 0) return;
             cell.Broken = true;
@@ -2301,6 +2340,9 @@ namespace EasyEngine
             if (cell.Visual != null) host.Children.Remove(cell.Visual);
             if (cell.Collider != null) { cell.Collider.Dead = true; _solids.Remove(cell.Collider); }
             if (map.TileGrid != null) { int idx = cell.R * map.TileCols + cell.C; if (idx >= 0 && idx < map.TileGrid.Length) map.TileGrid[idx] = null; }
+            // a broken tile can drop a resource into the inventory (e.g. dirt/wood/stone)
+            var drop = bh.Text("drop", "");
+            if (!string.IsNullOrWhiteSpace(drop)) _vars["item:" + drop] = Var("item:" + drop) + Math.Max(1, bh.Num("dropAmount", 1));
             if (bh.Num("breakParticles", 1) >= 0.5)
                 EmitParticles(cell.X + cell.W / 2, cell.Y + cell.H / 2, 10, 160, 360, 0, 0.5, Math.Max(3, cell.W / 6), 500, cell.Color);
         }
@@ -2420,6 +2462,105 @@ namespace EasyEngine
             }
             Place(bh.Text("sun", ""), !night, dayLen > 0 ? t / dayLen : 0);
             Place(bh.Text("moon", ""), night && !topdown, nightLen > 0 ? (t - dayLen) / nightLen : 0);
+        }
+
+        // ---- hotbar / inventory ----
+        private static List<(string name, string color)> ParseHotbarItems(string spec)
+        {
+            var list = new List<(string, string)>();
+            foreach (var part in (spec ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var bits = part.Split(':', 2);
+                string name = bits[0].Trim();
+                if (name.Length == 0) continue;
+                list.Add((name, bits.Length > 1 ? bits[1].Trim() : "#CCCCCC"));
+            }
+            return list;
+        }
+
+        private void UpdateHotbar(Entity en, BehaviorData bh, double dt)
+        {
+            var items = ParseHotbarItems(bh.Text("items", ""));
+            if (items.Count == 0) return;
+
+            int sel = (int)Math.Round(en.Locals.TryGetValue("__slot", out var sv) ? sv : bh.Num("slot", 0));
+            if (_wheelDelta < 0) sel++;
+            else if (_wheelDelta > 0) sel--;
+            for (int i = 0; i < items.Count && i < 9; i++)
+                if (_keys.Contains(Key.D1 + i) || _keys.Contains(Key.NumPad1 + i)) sel = i;
+            sel = ((sel % items.Count) + items.Count) % items.Count;
+            en.Locals["__slot"] = sel;
+
+            // each item gets a "holding:<name>" flag = 1 only when it's the selected, owned slot
+            for (int i = 0; i < items.Count; i++)
+            {
+                bool owned = Var("item:" + items[i].name) >= 1;
+                _vars["holding:" + items[i].name] = (i == sel && owned) ? 1 : 0;
+            }
+            _vars["heldSlot"] = sel;
+
+            if (en.HotbarCanvas == null) { en.HotbarCanvas = new Canvas(); Hud.Children.Add(en.HotbarCanvas); }
+            RenderHotbar(en.HotbarCanvas, items, sel, bh);
+
+            var player = _entities.FirstOrDefault(z => !z.Dead && z.Data.Name.Equals(bh.Text("player", "Player"), StringComparison.OrdinalIgnoreCase));
+            UpdateHeldVisual(en, player, items, sel);
+        }
+
+        private void RenderHotbar(Canvas canvas, List<(string name, string color)> items, int sel, BehaviorData bh)
+        {
+            canvas.Children.Clear();
+            double size = Math.Max(24, bh.Num("size", 46)), gap = 6;
+            double W = Root.ActualWidth > 10 ? Root.ActualWidth : 960;
+            double H = Root.ActualHeight > 10 ? Root.ActualHeight : 540;
+            double totalW = items.Count * size + (items.Count - 1) * gap;
+            double x0 = (W - totalW) / 2, y0 = H - size - 16;
+            for (int i = 0; i < items.Count; i++)
+            {
+                double x = x0 + i * (size + gap);
+                bool owned = Var("item:" + items[i].name) >= 1;
+                var slot = new Border
+                {
+                    Width = size, Height = size, CornerRadius = new CornerRadius(6),
+                    Background = new SolidColorBrush(Color.FromArgb(owned ? (byte)210 : (byte)90, 24, 24, 30)),
+                    BorderBrush = i == sel ? Brushes.White : new SolidColorBrush(Color.FromArgb(160, 90, 90, 100)),
+                    BorderThickness = new Thickness(i == sel ? 3 : 1.5)
+                };
+                Canvas.SetLeft(slot, x); Canvas.SetTop(slot, y0); canvas.Children.Add(slot);
+
+                var swatch = new System.Windows.Shapes.Rectangle { Width = size * 0.5, Height = size * 0.5, RadiusX = 3, RadiusY = 3, Fill = Brush(items[i].color), Opacity = owned ? 1 : 0.3 };
+                Canvas.SetLeft(swatch, x + size * 0.25); Canvas.SetTop(swatch, y0 + size * 0.18); canvas.Children.Add(swatch);
+
+                double count = Var("item:" + items[i].name);
+                if (count > 1)
+                {
+                    var cnt = new TextBlock { Text = ((long)count).ToString(), Foreground = Brushes.White, FontSize = 11, FontWeight = FontWeights.Bold };
+                    Canvas.SetLeft(cnt, x + size - 16); Canvas.SetTop(cnt, y0 + size - 16); canvas.Children.Add(cnt);
+                }
+                var key = new TextBlock { Text = (i + 1).ToString(), Foreground = new SolidColorBrush(Color.FromArgb(180, 220, 220, 220)), FontSize = 9 };
+                Canvas.SetLeft(key, x + 3); Canvas.SetTop(key, y0 + 2); canvas.Children.Add(key);
+            }
+        }
+
+        private void UpdateHeldVisual(Entity en, Entity? player, List<(string name, string color)> items, int sel)
+        {
+            bool owned = sel >= 0 && sel < items.Count && Var("item:" + items[sel].name) >= 1;
+            if (player == null || !owned)
+            {
+                if (en.HeldVisual != null) en.HeldVisual.Visibility = Visibility.Collapsed;
+                return;
+            }
+            if (en.HeldVisual == null)
+            {
+                en.HeldVisual = new System.Windows.Shapes.Rectangle { Width = 7, Height = 18, RadiusX = 2, RadiusY = 2, Stroke = Brushes.Black, StrokeThickness = 1, IsHitTestVisible = false };
+                (player.ScreenSpace ? Hud : World).Children.Add(en.HeldVisual);
+            }
+            en.HeldVisual.Visibility = Visibility.Visible;
+            en.HeldVisual.Fill = Brush(items[sel].color);
+            // position it at the player's hand, on the facing side, tilted like a held tool
+            double hx = player.Facing >= 0 ? player.X + player.W - 3 : player.X - 4;
+            double hy = player.Y + player.H * 0.35;
+            Canvas.SetLeft(en.HeldVisual, hx); Canvas.SetTop(en.HeldVisual, hy);
+            en.HeldVisual.RenderTransform = new RotateTransform(player.Facing >= 0 ? 35 : -35, 3.5, 9);
         }
 
         private void DamageEntity(Entity t, double amount, double kb, double fromCX)

@@ -75,7 +75,9 @@ namespace EasyEngine
         UIButton,         // clickable UI button that runs an effect
         Bar,              // HUD bar that fills based on a variable (health/progress)
         AdvancedPatrol,   // follows a hand-drawn path with platformer physics (jumps over obstacles)
-        DayNight          // day/night cycle: animates ambient light, moves a sun/moon, sets isDay/isNight vars
+        DayNight,         // day/night cycle: animates ambient light, moves a sun/moon, sets isDay/isNight vars
+        Hotbar,           // inventory hotbar: pick a slot with the wheel/number keys, shows the held tool in hand
+        Shop              // buy/craft: press a key nearby to pay a cost (coins or an item) and receive an item
     }
 
     // ======================= DADOS =======================
