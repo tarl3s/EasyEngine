@@ -175,6 +175,18 @@ namespace EasyEngine
                          new("breakParticles","Puff of particles when broken (0/1)",1) },
                 Texts = { new("palette","Palette (JSON)","[]"), new("data","Tiles (JSON)","") } },
 
+            new BehaviorInfo { Kind = BehaviorKind.DayNight, Name = "Day / Night cycle", Icon = "🌗",
+                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). Optionally give it a Sun sprite (moves across the sky in both Top-down and Platformer) and a Moon sprite (shown at night — Platformer only). Works for Top-down and Platformer.",
+                Nums = { new("mode","0 = Platformer, 1 = Top-down",0),
+                         new("dayLength","Day length (seconds)",60),
+                         new("nightLength","Night length (seconds)",60),
+                         new("transition","Dawn/dusk fade (seconds)",4),
+                         new("dayLight","Brightness by day (0-1)",1),
+                         new("nightLight","Brightness at night (0-1)",0.25),
+                         new("startAtNight","Start at night (0/1)",0),
+                         new("arcHeight","Sun/Moon arc height (px)",120) },
+                Texts = { new("sun","Sun sprite (object name)",""), new("moon","Moon sprite (object name)","") } },
+
             new BehaviorInfo { Kind = BehaviorKind.Pushable, Name = "Pushable Block", Icon = "📦",
                 Desc = "A solid block the player (or 'pusher') can push around. Great for sokoban-style puzzles and block-and-switch puzzles. Give it physics Dynamic if it should also fall.",
                 Nums = { new("weight","Weight (1=easy, higher=slower)",1) },

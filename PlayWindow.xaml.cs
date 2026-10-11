@@ -51,6 +51,7 @@ namespace EasyEngine
             public bool ParticleStarted; public double ParticleTimer; // emitter state
             public double TweenScale = 1;                      // current tweened scale
             public System.Windows.Shapes.Rectangle? BarFill;   // bar fill rectangle
+            public bool DNStarted; public double DNTimer;      // day/night cycle clock
             // breakable tilemap runtime state (null unless this tilemap is breakable)
             public List<TileCell>? Tiles;
             public TileCell?[]? TileGrid;                      // r*cols+c → cell, for O(1) lookup
@@ -952,6 +953,7 @@ namespace EasyEngine
                                 DamageEntity(t, bh.Num("damage", 1), bh.Num("knockback", 320), en.CX);
                             break;
                         }
+                        case BehaviorKind.DayNight: UpdateDayNight(en, bh, dt); break;
                         case BehaviorKind.Melee:
                         {
                             if (en.MeleeTimer > 0) { en.MeleeTimer -= dt; break; }
@@ -1701,6 +1703,8 @@ namespace EasyEngine
                         fire = CompareVar(en.Locals.TryGetValue(r.WStr("var"), out var lv) ? lv : 0, r.WStr("op", ">="), r.WNum("value"));
                         break;
                     case "hasitem": fire = Var("item:" + r.WStr("item")) >= 1; break;
+                    case "isnight": fire = Var("isNight") >= 0.5; break;
+                    case "isday": fire = Var("isNight") < 0.5; break;
                     case "expr": fire = EvalExpr(r.WStr("expr"), en) != 0; break;
                     case "click": fire = _mouseClicked && PointInEntity(en); break;
                     case "rightclick": fire = _rmbClicked && PointInEntity(en); break;
@@ -2364,6 +2368,58 @@ namespace EasyEngine
                     if (byTouch) BreakOverlap(map, bh, a.X, a.Y, a.W, a.H, 1);
                 }
             }
+        }
+
+        // ---- day / night cycle ----
+        private void UpdateDayNight(Entity en, BehaviorData bh, double dt)
+        {
+            double dayLen = Math.Max(0.5, bh.Num("dayLength", 60));
+            double nightLen = Math.Max(0.5, bh.Num("nightLength", 60));
+            double total = dayLen + nightLen;
+            double trans = Math.Clamp(bh.Num("transition", 4), 0, Math.Min(dayLen, nightLen) / 2);
+            double dayLight = Math.Clamp(bh.Num("dayLight", 1), 0, 1);
+            double nightLight = Math.Clamp(bh.Num("nightLight", 0.25), 0, 1);
+
+            if (!en.DNStarted) { en.DNStarted = true; en.DNTimer = bh.Num("startAtNight", 0) >= 0.5 ? dayLen : 0; }
+            en.DNTimer += dt;
+            if (en.DNTimer >= total) en.DNTimer -= total * Math.Floor(en.DNTimer / total);
+            double t = en.DNTimer;
+            bool night = t >= dayLen;
+
+            // "dayness" 0..1 drives the light: ramps up at dawn, flat by day, ramps down at dusk, flat (0) at night
+            double dayness;
+            if (night) dayness = 0;
+            else if (trans > 0 && t < trans) dayness = t / trans;
+            else if (trans > 0 && t > dayLen - trans) dayness = (dayLen - t) / trans;
+            else dayness = 1;
+            dayness = Math.Clamp(dayness, 0, 1);
+            double light = nightLight + (dayLight - nightLight) * dayness;
+
+            Darkness.Opacity = Math.Clamp(1 - light, 0, 1);
+            _vars["isNight"] = night ? 1 : 0;
+            _vars["isDay"] = night ? 0 : 1;
+            _vars["timeOfDay"] = total > 0 ? t / total : 0;
+            _vars["dayness"] = dayness;
+
+            // move the sun / moon across the sky
+            bool topdown = bh.Num("mode", 0) >= 0.5;
+            double arcH = bh.Num("arcHeight", 120);
+            double W = Root.ActualWidth > 10 ? Root.ActualWidth : 960;
+            void Place(string name, bool active, double phase)
+            {
+                if (string.IsNullOrWhiteSpace(name)) return;
+                var e = _entities.FirstOrDefault(z => !z.Dead && z.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                if (e == null) return;
+                var vis = active ? Visibility.Visible : Visibility.Collapsed;
+                e.Visual.Visibility = vis;
+                if (e.LightVisual != null) e.LightVisual.Visibility = vis;
+                if (!active) return;
+                double margin = 40, p = Math.Clamp(phase, 0, 1);
+                e.X = margin + p * (W - 2 * margin) - e.W / 2;      // left → right
+                e.Y = 30 + (1 - Math.Sin(p * Math.PI)) * arcH;       // arc: highest at the middle
+            }
+            Place(bh.Text("sun", ""), !night, dayLen > 0 ? t / dayLen : 0);
+            Place(bh.Text("moon", ""), night && !topdown, nightLen > 0 ? (t - dayLen) / nightLen : 0);
         }
 
         private void DamageEntity(Entity t, double amount, double kb, double fromCX)

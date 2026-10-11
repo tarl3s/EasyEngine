@@ -280,6 +280,60 @@ public partial class App
                 p.TSteps(3); return p.TTiles("Map") == 1; // decoration survives
             });
 
+            // ========================= J) DAY / NIGHT CYCLE =========================
+            Test("daynight: starts in day (isDay=1)", () =>
+            {
+                var p = Sim("[]", extra: AddDayNight(("dayLength", 10), ("nightLength", 10), ("transition", 0)));
+                p.TSteps(3); return p.TVar("isDay") >= 1 && p.TVar("isNight") < 0.5 && p.TVar("dayness") > 0.9;
+            });
+            Test("daynight: crosses into night after the day length", () =>
+            {
+                var p = Sim("[]", extra: AddDayNight(("dayLength", 1), ("nightLength", 2), ("transition", 0)));
+                p.TSteps(80); return p.TVar("isNight") >= 1 && p.TVar("dayness") < 0.1; // ~1.28s in → night
+            });
+            Test("daynight: startAtNight begins at night", () =>
+            {
+                var p = Sim("[]", extra: AddDayNight(("startAtNight", 1), ("dayLength", 10), ("nightLength", 10)));
+                p.TSteps(2); return p.TVar("isNight") >= 1;
+            });
+            Test("daynight: night is darker than day (lower light)", () =>
+            {
+                var day = Sim("[]", extra: AddDayNight(("dayLength", 10), ("nightLength", 10), ("transition", 0), ("dayLight", 1), ("nightLight", 0.2)));
+                day.TSteps(3);
+                var night = Sim("[]", extra: AddDayNight(("startAtNight", 1), ("dayLength", 10), ("nightLength", 10), ("transition", 0), ("dayLight", 1), ("nightLight", 0.2)));
+                night.TSteps(3);
+                return day.TVar("dayness") > night.TVar("dayness");
+            });
+            Test("daynight: the sun moves across the sky during day", () =>
+            {
+                Action<Project, Scene> setup = (pr, sc) =>
+                {
+                    var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
+                    var dn = new BehaviorData { Kind = BehaviorKind.DayNight };
+                    dn.Nums["dayLength"] = 5; dn.Nums["nightLength"] = 5; dn.Nums["transition"] = 0; dn.Texts["sun"] = "Sun";
+                    l.Objects.Add(new GameObjectData { Id = 80, Name = "DN", Type = "Object", X = 0, Y = 0, Width = 10, Height = 10, Color = "#FFFFFF", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { dn } });
+                    l.Objects.Add(new GameObjectData { Id = 81, Name = "Sun", Type = "Object", X = 0, Y = 0, Width = 24, Height = 24, Color = "#FFDD55", Physics = new PhysicsData { Mode = PhysicsMode.None } });
+                };
+                var p = Sim("[]", extra: setup);
+                p.TSteps(3); double x1 = p.TX("Sun");
+                p.TSteps(40); double x2 = p.TX("Sun");
+                return x2 > x1; // the sun travels left → right as the day advances
+            });
+            Test("daynight: isnight event fires only at night", () =>
+            {
+                var night = Sim("[{\"when\":\"isnight\",\"do\":\"setvar\",\"var\":\"spawned\",\"to\":1}]", extra: AddDayNight(("startAtNight", 1), ("dayLength", 10), ("nightLength", 10)));
+                night.TSteps(3);
+                var day = Sim("[{\"when\":\"isnight\",\"do\":\"setvar\",\"var\":\"spawned\",\"to\":1}]", extra: AddDayNight(("dayLength", 10), ("nightLength", 10), ("transition", 0)));
+                day.TSteps(3);
+                return night.TVar("spawned") >= 1 && day.TVar("spawned") < 0.5;
+            });
+            Test("daynight: isday event fires only by day", () =>
+            {
+                var p = Sim("[{\"when\":\"isday\",\"do\":\"setvar\",\"var\":\"ok\",\"to\":1}]", extra: AddDayNight(("dayLength", 10), ("nightLength", 10), ("transition", 0)));
+                p.TSteps(3); return p.TVar("ok") >= 1;
+            });
+            Test("editor: isnight/isday blocks round-trip", () => RT("[{\"when\":\"isnight\",\"do\":\"spawn\",\"object\":\"Zombie\"}]") == RT(RT("[{\"when\":\"isnight\",\"do\":\"spawn\",\"object\":\"Zombie\"}]")));
+
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
             var bplay = new PlayWindow(bp, bs); sims.Add(bplay);
@@ -360,6 +414,18 @@ public partial class App
     }
     private static Action<Project, Scene> Combine(params Action<Project, Scene>[] setups) =>
         (p, s) => { foreach (var a in setups) a(p, s); };
+
+    // ---- day/night setups ----
+    private static Action<Project, Scene> AddDayNight(params (string key, double val)[] nums)
+    {
+        return (p, s) =>
+        {
+            var l = s.Layers.First(z => z.Kind == LayerKind.Base);
+            var bh = new BehaviorData { Kind = BehaviorKind.DayNight };
+            foreach (var (k, v) in nums) bh.Nums[k] = v;
+            l.Objects.Add(new GameObjectData { Id = 80, Name = "DN", Type = "Object", X = 0, Y = 0, Width = 10, Height = 10, Color = "#FFFFFF", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { bh } });
+        };
+    }
 
     // ---- scene setups for specific tests ----
     private static void AddEnemyPrefab(Project p, Scene s) =>

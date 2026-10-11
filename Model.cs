@@ -74,7 +74,8 @@ namespace EasyEngine
         Particles,        // particle emitter (explosions, sparkles, trails)
         UIButton,         // clickable UI button that runs an effect
         Bar,              // HUD bar that fills based on a variable (health/progress)
-        AdvancedPatrol    // follows a hand-drawn path with platformer physics (jumps over obstacles)
+        AdvancedPatrol,   // follows a hand-drawn path with platformer physics (jumps over obstacles)
+        DayNight          // day/night cycle: animates ambient light, moves a sun/moon, sets isDay/isNight vars
     }
 
     // ======================= DADOS =======================
