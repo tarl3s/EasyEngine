@@ -5,6 +5,29 @@ using System.Text.Json.Serialization;
 
 namespace EasyEngine
 {
+    /// <summary>Shared parser for an AdvancedPatrol route stored as a JSON array of {x,y} points (editor + runtime).</summary>
+    public static class PathPoints
+    {
+        public static List<(double x, double y)> Parse(string json)
+        {
+            var list = new List<(double x, double y)>();
+            if (string.IsNullOrWhiteSpace(json)) return list;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        double x = el.TryGetProperty("x", out var xp) ? xp.GetDouble() : 0;
+                        double y = el.TryGetProperty("y", out var yp) ? yp.GetDouble() : 0;
+                        list.Add((x, y));
+                    }
+            }
+            catch { }
+            return list;
+        }
+    }
+
     // ======================= ENUMS =======================
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum LayerKind { Background, Base, UI, Custom }

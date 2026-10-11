@@ -587,24 +587,7 @@ namespace EasyEngine
         }
 
         // ---- AdvancedPatrol path (editor) ----
-        private List<(double x, double y)> ParseEditorPath(string json)
-        {
-            var list = new List<(double, double)>();
-            if (string.IsNullOrWhiteSpace(json)) return list;
-            try
-            {
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                    foreach (var el in doc.RootElement.EnumerateArray())
-                    {
-                        double x = el.TryGetProperty("x", out var xp) ? xp.GetDouble() : 0;
-                        double y = el.TryGetProperty("y", out var yp) ? yp.GetDouble() : 0;
-                        list.Add((x, y));
-                    }
-            }
-            catch { }
-            return list;
-        }
+        private static List<(double x, double y)> ParseEditorPath(string json) => PathPoints.Parse(json);
 
         private void SetEditorPath(BehaviorData bh, List<(double x, double y)> pts)
         {
@@ -1520,26 +1503,16 @@ namespace EasyEngine
                 {
                     if (bh.Kind == BehaviorKind.AdvancedPatrol && np.Key == "mode")
                     {
-                        var mg = RowGrid("Format", panel);
-                        var cb = new ComboBox { Height = 28, VerticalAlignment = VerticalAlignment.Center };
-                        cb.Items.Add("Platformer (gravity + jumps)");
-                        cb.Items.Add("Top-down (free + pathfinding)");
-                        cb.Items.Add("Free / flying (straight line)");
-                        cb.SelectedIndex = Math.Clamp((int)Math.Round(bh.Num("mode", 0)), 0, 2);
-                        cb.SelectionChanged += (s, e) => { bh.Nums["mode"] = cb.SelectedIndex; Dirty(); if (_selected == obj) BuildInspector(obj); };
-                        Grid.SetColumn(cb, 1); mg.Children.Add(cb);
+                        ChoiceRow("Format", panel, (int)Math.Round(bh.Num("mode", 0)),
+                            new[] { "Platformer (gravity + jumps)", "Top-down (free + pathfinding)", "Free / flying (straight line)" },
+                            i => { bh.Nums["mode"] = i; if (_selected == obj) BuildInspector(obj); });
                         continue;
                     }
                     if (bh.Kind == BehaviorKind.AdvancedPatrol && np.Key == "repeat")
                     {
-                        var rg = RowGrid("Repeat", panel);
-                        var cb = new ComboBox { Height = 28, VerticalAlignment = VerticalAlignment.Center };
-                        cb.Items.Add("Back and forth (retrace)");
-                        cb.Items.Add("Loop (straight back to start)");
-                        cb.Items.Add("Once (stop at the end)");
-                        cb.SelectedIndex = Math.Clamp((int)Math.Round(bh.Num("repeat", 0)), 0, 2);
-                        cb.SelectionChanged += (s, e) => { bh.Nums["repeat"] = cb.SelectedIndex; Dirty(); };
-                        Grid.SetColumn(cb, 1); rg.Children.Add(cb);
+                        ChoiceRow("Repeat", panel, (int)Math.Round(bh.Num("repeat", 0)),
+                            new[] { "Back and forth (retrace)", "Loop (straight back to start)", "Once (stop at the end)" },
+                            i => bh.Nums["repeat"] = i);
                         continue;
                     }
                     if (bh.Kind == BehaviorKind.AdvancedPatrol)
@@ -1847,6 +1820,16 @@ namespace EasyEngine
             Grid.SetColumn(slider, 0); Grid.SetColumn(val, 1);
             inner.Children.Add(slider); inner.Children.Add(val);
             Grid.SetColumn(inner, 1); grid.Children.Add(inner);
+        }
+
+        private void ChoiceRow(string label, Panel panel, int current, string[] options, Action<int> onPick)
+        {
+            var g = RowGrid(label, panel);
+            var cb = new ComboBox { Height = 28, VerticalAlignment = VerticalAlignment.Center };
+            foreach (var o in options) cb.Items.Add(o);
+            cb.SelectedIndex = Math.Clamp(current, 0, options.Length - 1);
+            cb.SelectionChanged += (s, e) => { onPick(cb.SelectedIndex); Dirty(); };
+            Grid.SetColumn(cb, 1); g.Children.Add(cb);
         }
 
         private void TextRow(string label, string value, Action<string> onChange, Panel? target = null)

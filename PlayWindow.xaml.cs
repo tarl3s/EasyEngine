@@ -59,6 +59,7 @@ namespace EasyEngine
             // one-way / moving platform
             public bool OneWay;
             public double PlatDX, PlatDY;
+            public bool FrameDynamic, FrameTopDown, FrameCollide; // physics category, classified once per frame
             // phase-2 behavior state
             public bool SolidDisabled;                 // Door: opened → stops colliding
             public bool SwitchWas, InteractWas, AreaWas; // edge-trigger memory
@@ -1005,8 +1006,9 @@ namespace EasyEngine
                             if (!en.PathParsed) { en.PathPts = ParsePathPoints(bh.Text("path", "")); en.PathParsed = true; en.PathIndex = 0; en.PathStep = 1; en.PatrolPause = 0; }
                             en.APMode = (int)Math.Round(bh.Num("mode", 0));
                             bool platform = en.APMode == 0;
+                            void Stop() { Stop(); }
                             var pts = en.PathPts;
-                            if (pts == null || pts.Count == 0) { en.VX = 0; if (!platform) en.VY = 0; break; }
+                            if (pts == null || pts.Count == 0) { Stop(); break; }
 
                             double apSpeed = bh.Num("speed", 130), apJump = bh.Num("jump", 640);
                             bool autoJump = bh.Num("autoJump", 1) >= 0.5;
@@ -1015,7 +1017,7 @@ namespace EasyEngine
                             double pauseEnd = Math.Max(0, bh.Num("pause", 0));
                             double pauseStart = Math.Max(0, bh.Num("pauseStart", 0));
 
-                            if (en.PatrolPause > 0) { en.PatrolPause -= dt; en.VX = 0; if (!platform) en.VY = 0; break; }
+                            if (en.PatrolPause > 0) { en.PatrolPause -= dt; Stop(); break; }
 
                             en.PathIndex = Math.Clamp(en.PathIndex, 0, pts.Count - 1);
                             var (tx, ty) = pts[en.PathIndex];
@@ -1040,12 +1042,12 @@ namespace EasyEngine
                                 if (next >= pts.Count || next < 0)
                                 {
                                     if (repeat == 1) en.PathIndex = en.PathStep > 0 ? 0 : pts.Count - 1;      // loop (circuit)
-                                    else if (repeat == 2) { en.VX = 0; if (!platform) en.VY = 0; break; }      // once: stop at the end
+                                    else if (repeat == 2) { Stop(); break; }      // once: stop at the end
                                     else { en.PathStep = -en.PathStep; en.PathIndex = Math.Clamp(en.PathIndex + en.PathStep, 0, pts.Count - 1); } // back-and-forth (retrace)
                                 }
                                 else en.PathIndex = next;
 
-                                if (en.PatrolPause > 0) { en.VX = 0; if (!platform) en.VY = 0; break; }
+                                if (en.PatrolPause > 0) { Stop(); break; }
                                 (tx, ty) = pts[en.PathIndex];
                             }
 
@@ -1910,24 +1912,7 @@ namespace EasyEngine
         // becomes a free mover (no gravity, no collision, no fall-off-world) so it doesn't fall forever.
         private bool IsDynamic(Entity en) => (en.Data.Physics.Mode == PhysicsMode.Dynamic || en.Has(BehaviorKind.Platformer) || (en.Has(BehaviorKind.AdvancedPatrol) && en.APMode == 0)) && !en.Has(BehaviorKind.TopDown) && CollisionEnabled(en);
 
-        private static List<(double x, double y)> ParsePathPoints(string json)
-        {
-            var list = new List<(double, double)>();
-            if (string.IsNullOrWhiteSpace(json)) return list;
-            try
-            {
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                    foreach (var e in doc.RootElement.EnumerateArray())
-                    {
-                        double x = e.TryGetProperty("x", out var xp) ? xp.GetDouble() : 0;
-                        double y = e.TryGetProperty("y", out var yp) ? yp.GetDouble() : 0;
-                        list.Add((x, y));
-                    }
-            }
-            catch { }
-            return list;
-        }
+        private static List<(double x, double y)> ParsePathPoints(string json) => PathPoints.Parse(json);
 
         // Whether this character's hitbox is active (collides with solids/tilemaps). Default on; a "collide" num of 0 turns it off.
         private static bool CollisionEnabled(Entity en)
@@ -1936,16 +1921,24 @@ namespace EasyEngine
             return bh == null || bh.Num("collide", 1) >= 0.5;
         }
 
-        // Top-down movers collide with solids/tilemaps on all sides but have no gravity.
-        private bool IsTopDownCollider(Entity en) =>
-            !IsDynamic(en) && CollisionEnabled(en) && (en.Has(BehaviorKind.TopDown) || (en.Has(BehaviorKind.AdvancedPatrol) && en.APMode == 1));
-
         private void UpdatePhysics(double dt)
         {
+            // classify each entity once per frame (avoids re-running IsDynamic/CollisionEnabled several times each)
+            foreach (var en in _entities)
+            {
+                if (en.Dead) continue;
+                bool collide = CollisionEnabled(en);
+                bool topDownBehav = en.Has(BehaviorKind.TopDown);
+                bool dyn = (en.Data.Physics.Mode == PhysicsMode.Dynamic || en.Has(BehaviorKind.Platformer) || (en.Has(BehaviorKind.AdvancedPatrol) && en.APMode == 0)) && !topDownBehav && collide;
+                en.FrameCollide = collide;
+                en.FrameDynamic = dyn;
+                en.FrameTopDown = !dyn && collide && (topDownBehav || (en.Has(BehaviorKind.AdvancedPatrol) && en.APMode == 1));
+            }
+
             // 1) move non-dynamic movers (platforms, patrol, projectiles, free-flying) without collision
             foreach (var en in _entities)
             {
-                if (en.Dead || IsDynamic(en) || IsTopDownCollider(en)) continue;
+                if (en.Dead || en.FrameDynamic || en.FrameTopDown) continue;
                 double ox = en.X, oy = en.Y;
                 en.X += en.VX * dt; en.Y += en.VY * dt;
                 en.PlatDX = en.X - ox; en.PlatDY = en.Y - oy;
@@ -1954,7 +1947,7 @@ namespace EasyEngine
             // 1b) top-down movers: move with wall/tilemap collision, no gravity
             foreach (var en in _entities)
             {
-                if (en.Dead || !IsTopDownCollider(en)) continue;
+                if (en.Dead || !en.FrameTopDown) continue;
                 en.X += en.VX * dt; ResolveX(en);
                 en.Grounded = false;
                 en.Y += en.VY * dt; ResolveY(en, dt);
@@ -1963,9 +1956,9 @@ namespace EasyEngine
             // 2) dynamic entities (with gravity, collision, moving-platform carry)
             foreach (var en in _entities)
             {
-                if (en.Dead || !IsDynamic(en)) continue;
+                if (en.Dead || !en.FrameDynamic) continue;
 
-                bool collide = CollisionEnabled(en);
+                bool collide = en.FrameCollide;
 
                 var ground = collide ? SolidUnder(en) : null;
                 if (ground != null) { en.X += ground.PlatDX; en.Y += ground.PlatDY; }
@@ -2452,23 +2445,34 @@ namespace EasyEngine
             if (src != null) en.Brush.ImageSource = src;
         }
 
+        private static readonly string[] JumpNames = { "jump", "fall", "air" };
+        private static readonly string[] CrouchNames = { "crouch", "duck", "slide" };
+        private static readonly string[] WalkNames = { "walk", "run", "move" };
+        private static readonly string[] IdleNames = { "idle", "stand" };
+
         private SpriteAnimation? ChooseAnim(Entity en)
         {
             var anims = en.Data.Animations;
             if (anims.Count == 0) return null;
-            SpriteAnimation? Find(params string[] names) => anims.FirstOrDefault(a => names.Any(n => a.Name.Equals(n, StringComparison.OrdinalIgnoreCase)));
+            SpriteAnimation? Find(string[] names)
+            {
+                foreach (var a in anims)
+                    foreach (var n in names)
+                        if (a.Name.Equals(n, StringComparison.OrdinalIgnoreCase)) return a;
+                return null;
+            }
             bool plat = en.Has(BehaviorKind.Platformer);
 
             // airborne → jump/fall animation
-            if (plat && !en.Grounded) { var j = Find("jump", "fall", "air"); if (j != null) return j; }
+            if (plat && !en.Grounded) { var j = Find(JumpNames); if (j != null) return j; }
             // the controlled player holding down on the ground → crouch (not enemies that don't read keys)
             bool controlled = (en.Beh(BehaviorKind.Platformer)?.Num("controls", 1) ?? 0) >= 0.5;
             bool crouching = plat && controlled && en.Grounded && K(Key.Down, Key.S);
-            if (crouching) { var c = Find("crouch", "duck", "slide"); if (c != null) return c; }
+            if (crouching) { var c = Find(CrouchNames); if (c != null) return c; }
 
             bool moving = Math.Abs(en.VX) > 5 || (Math.Abs(en.VY) > 5 && !plat);
-            if (moving && !crouching) { var w = Find("walk", "run", "move"); if (w != null) return w; }
-            var idle = Find("idle", "stand"); if (idle != null) return idle;
+            if (moving && !crouching) { var w = Find(WalkNames); if (w != null) return w; }
+            var idle = Find(IdleNames); if (idle != null) return idle;
             return en.Data.ResolveDefaultAnimation();
         }
 

@@ -315,11 +315,33 @@ namespace EasyEngine
         }
 
         // ---- shape / blur helpers (write _data only; caller Flushes) ----
-        private void StampData(int cx, int cy, bool erase)
+        // Bounds of the square brush centred on (cx,cy), clamped to the canvas. Returns false if empty.
+        private bool BrushBox(int cx, int cy, out int x0, out int y0, out int x1, out int y1)
         {
             int half = _brush / 2;
-            int x0 = Math.Max(0, cx - half), y0 = Math.Max(0, cy - half);
-            int x1 = Math.Min(_w - 1, cx - half + _brush - 1), y1 = Math.Min(_h - 1, cy - half + _brush - 1);
+            x0 = Math.Max(0, cx - half); y0 = Math.Max(0, cy - half);
+            x1 = Math.Min(_w - 1, cx - half + _brush - 1); y1 = Math.Min(_h - 1, cy - half + _brush - 1);
+            return x1 >= x0 && y1 >= y0;
+        }
+
+        // Bresenham line; calls plot(x,y) at each step.
+        private static void WalkLine(int x0, int y0, int x1, int y1, Action<int, int> plot)
+        {
+            int dx = Math.Abs(x1 - x0), dy = Math.Abs(y1 - y0);
+            int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy;
+            while (true)
+            {
+                plot(x0, y0);
+                if (x0 == x1 && y0 == y1) break;
+                int e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x0 += sx; }
+                if (e2 < dx) { err += dx; y0 += sy; }
+            }
+        }
+
+        private void StampData(int cx, int cy, bool erase)
+        {
+            if (!BrushBox(cx, cy, out int x0, out int y0, out int x1, out int y1)) return;
             for (int y = y0; y <= y1; y++)
                 for (int x = x0; x <= x1; x++)
                 {
@@ -329,19 +351,7 @@ namespace EasyEngine
                 }
         }
 
-        private void DrawLineData(int x0, int y0, int x1, int y1)
-        {
-            int dx = Math.Abs(x1 - x0), dy = Math.Abs(y1 - y0);
-            int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy;
-            while (true)
-            {
-                StampData(x0, y0, false);
-                if (x0 == x1 && y0 == y1) break;
-                int e2 = 2 * err;
-                if (e2 > -dy) { err -= dy; x0 += sx; }
-                if (e2 < dx) { err += dx; y0 += sy; }
-            }
-        }
+        private void DrawLineData(int x0, int y0, int x1, int y1) => WalkLine(x0, y0, x1, y1, (x, y) => StampData(x, y, false));
 
         private void DrawRectData(int ax, int ay, int bx, int by)
         {
@@ -352,10 +362,7 @@ namespace EasyEngine
 
         private void BlurStamp(int cx, int cy)
         {
-            int half = _brush / 2;
-            int x0 = Math.Max(0, cx - half), y0 = Math.Max(0, cy - half);
-            int x1 = Math.Min(_w - 1, cx - half + _brush - 1), y1 = Math.Min(_h - 1, cy - half + _brush - 1);
-            if (x1 < x0 || y1 < y0) return;
+            if (!BrushBox(cx, cy, out int x0, out int y0, out int x1, out int y1)) return;
             var outBuf = new (int i, byte b, byte g, byte r, byte a)[(x1 - x0 + 1) * (y1 - y0 + 1)];
             int k = 0;
             for (int y = y0; y <= y1; y++)
@@ -375,19 +382,7 @@ namespace EasyEngine
             _bmp.WritePixels(new Int32Rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1), _data, _w * 4, off);
         }
 
-        private void BlurLine(int x0, int y0, int x1, int y1)
-        {
-            int dx = Math.Abs(x1 - x0), dy = Math.Abs(y1 - y0);
-            int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy;
-            while (true)
-            {
-                BlurStamp(x0, y0);
-                if (x0 == x1 && y0 == y1) break;
-                int e2 = 2 * err;
-                if (e2 > -dy) { err -= dy; x0 += sx; }
-                if (e2 < dx) { err += dx; y0 += sy; }
-            }
-        }
+        private void BlurLine(int x0, int y0, int x1, int y1) => WalkLine(x0, y0, x1, y1, BlurStamp);
 
         // ---- shapes / polygon / jumble ----
         private void SetPixelData(int x, int y)
@@ -473,10 +468,7 @@ namespace EasyEngine
 
         private void JumbleStamp(int cx, int cy)
         {
-            int half = _brush / 2;
-            int x0 = Math.Max(0, cx - half), y0 = Math.Max(0, cy - half);
-            int x1 = Math.Min(_w - 1, cx - half + _brush - 1), y1 = Math.Min(_h - 1, cy - half + _brush - 1);
-            if (x1 < x0 || y1 < y0) return;
+            if (!BrushBox(cx, cy, out int x0, out int y0, out int x1, out int y1)) return;
             int count = (x1 - x0 + 1) * (y1 - y0 + 1);
             for (int s = 0; s < count; s++)
             {
@@ -612,35 +604,13 @@ namespace EasyEngine
 
         private void Paint(int cx, int cy)
         {
-            int half = _brush / 2;
-            int x0 = Math.Max(0, cx - half), y0 = Math.Max(0, cy - half);
-            int x1 = Math.Min(_w - 1, cx - half + _brush - 1), y1 = Math.Min(_h - 1, cy - half + _brush - 1);
-            if (x1 < x0 || y1 < y0) return;
-            bool erase = _tool == Tool.Eraser;
-            for (int y = y0; y <= y1; y++)
-                for (int x = x0; x <= x1; x++)
-                {
-                    int i = (y * _w + x) * 4;
-                    if (erase) { _data[i] = _data[i + 1] = _data[i + 2] = _data[i + 3] = 0; }
-                    else { _data[i] = _cb; _data[i + 1] = _cg; _data[i + 2] = _cr; _data[i + 3] = 255; }
-                }
+            if (!BrushBox(cx, cy, out int x0, out int y0, out int x1, out int y1)) return;
+            StampData(cx, cy, _tool == Tool.Eraser);
             int off = (y0 * _w + x0) * 4;
             _bmp.WritePixels(new Int32Rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1), _data, _w * 4, off);
         }
 
-        private void PaintLine(int x0, int y0, int x1, int y1)
-        {
-            int dx = Math.Abs(x1 - x0), dy = Math.Abs(y1 - y0);
-            int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx - dy;
-            while (true)
-            {
-                Paint(x0, y0);
-                if (x0 == x1 && y0 == y1) break;
-                int e2 = 2 * err;
-                if (e2 > -dy) { err -= dy; x0 += sx; }
-                if (e2 < dx) { err += dx; y0 += sy; }
-            }
-        }
+        private void PaintLine(int x0, int y0, int x1, int y1) => WalkLine(x0, y0, x1, y1, Paint);
 
         private void Pick(int x, int y)
         {
@@ -655,10 +625,8 @@ namespace EasyEngine
         {
             int start = (y * _w + x) * 4;
             byte tb = _data[start], tg = _data[start + 1], tr = _data[start + 2], ta = _data[start + 3];
-            byte nb = _tool == Tool.Eraser ? (byte)0 : _cb, ng = _cg, nr = _cr, na = (byte)255;
-            // (fill always paints with current color here)
-            nb = _cb; ng = _cg; nr = _cr; na = 255;
-            if (tb == nb && tg == ng && tr == nr && ta == na) return; // already that color
+            byte nb = _cb, ng = _cg, nr = _cr, na = 255; // fill with the current colour
+            if (tb == nb && tg == ng && tr == nr && ta == na) return; // already that colour
 
             var stack = new System.Collections.Generic.Stack<(int, int)>();
             stack.Push((x, y));
