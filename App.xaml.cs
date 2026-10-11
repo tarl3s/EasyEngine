@@ -33,6 +33,8 @@ public partial class App : Application
 
         if (e.Args.Contains("--aijsontest")) { RunAiJsonTest(); return; }
 
+        if (e.Args.Contains("--fulltest")) { RunFullTest(); return; }
+
         // exported standalone game: a 'game' folder with a .eeproj sits next to the exe → play it directly
         if (!e.Args.Contains("--editor"))
         {
@@ -211,91 +213,8 @@ public partial class App : Application
         var log = Path.Combine(Path.GetTempPath(), "easyengine_behtest.log");
         try
         {
-            var temp = Path.Combine(Path.GetTempPath(), "EE_BehTest_" + Guid.NewGuid().ToString("N").Substring(0, 6));
-            Directory.CreateDirectory(temp);
-            var project = ProjectIO.CreateNew("BehTest", temp);
-            var scene = project.GetStartScene();
-            scene.Width = 9000; scene.Height = 3000; // room for all the test objects + pathfinding grid
-            var layer = scene.Layers.FirstOrDefault(l => l.Kind == LayerKind.Base) ?? scene.Layers[0];
-
-            BehaviorData B(BehaviorKind k, (string, double)[]? nums = null, (string, string)[]? texts = null)
-            {
-                var d = new BehaviorData { Kind = k };
-                if (nums != null) foreach (var (kk, v) in nums) d.Nums[kk] = v;
-                if (texts != null) foreach (var (kk, v) in texts) d.Texts[kk] = v;
-                return d;
-            }
-            GameObjectData O(int id, string name, double x, double y, double w, double h, PhysicsMode phys, params BehaviorData[] bs)
-            {
-                var o = new GameObjectData { Id = id, Name = name, Type = "Object", X = x, Y = y, Width = w, Height = h, Color = "#AAAAAA", Physics = new PhysicsData { Mode = phys } };
-                foreach (var b in bs) o.Behaviors.Add(b);
-                return o;
-            }
-
-            layer.Objects.Add(O(1, "Player", 0, 0, 48, 48, PhysicsMode.Dynamic, B(BehaviorKind.Platformer)));
-            layer.Objects.Add(O(2, "Gate1", 500, 0, 40, 120, PhysicsMode.None, B(BehaviorKind.Gate, new[] { ("value", 1.0) }, new[] { ("var", "hasKey") })));
-            layer.Objects.Add(O(3, "Switch1", 1000, 0, 40, 40, PhysicsMode.None, B(BehaviorKind.Switch, null, new[] { ("var", "sw"), ("mode", "touch"), ("trigger", "Player") })));
-            layer.Objects.Add(O(4, "Pickup1", 2000, 0, 32, 32, PhysicsMode.None, B(BehaviorKind.AbilityPickup, null, new[] { ("var", "hasDash"), ("collector", "Player"), ("grant", "dash") })));
-            layer.Objects.Add(O(5, "Area1", 3000, 0, 100, 100, PhysicsMode.None, B(BehaviorKind.Area, new[] { ("to", 1.0), ("once", 1.0) }, new[] { ("action", "setvar"), ("var", "entered"), ("target", "Player") })));
-            layer.Objects.Add(O(6, "Pusher", 4000, 0, 40, 40, PhysicsMode.None));
-            layer.Objects.Add(O(7, "Block1", 4040, 0, 40, 40, PhysicsMode.None, B(BehaviorKind.Pushable, null, new[] { ("pusher", "Pusher") })));
-            layer.Objects.Add(O(8, "NPC1", 5000, 0, 40, 60, PhysicsMode.None, B(BehaviorKind.Interact, new[] { ("radius", 60.0), ("to", 1.0) }, new[] { ("key", "E"), ("action", "setvar"), ("var", "talked"), ("trigger", "Player") })));
-            layer.Objects.Add(O(9, "Gem1", 6000, 0, 24, 24, PhysicsMode.None, B(BehaviorKind.Collectible, null, new[] { ("collector", "Player"), ("id", "gem1") })));
-            layer.Objects.Add(O(10, "World", 7000, 0, 600, 400, PhysicsMode.None, B(BehaviorKind.Generator, new[] { ("count", 12.0) }, new[] { ("prefab", "Tile"), ("mode", "once"), ("layout", "scatter"), ("id", "genA") })));
-            project.Prefabs.Add(new PrefabDef { Name = "Tile", Template = new GameObjectData { Id = 999, Name = "Tile", Type = "Object", Width = 20, Height = 20, Color = "#88AAFF" } });
-
-            // Phase 4 (aesthetics): a styled box + a label with a text effect
-            var styled = O(11, "StyledBox", 8000, 0, 50, 50, PhysicsMode.None);
-            styled.Opacity = 0.5; styled.CornerRadius = 16; styled.BorderColor = "#00E5FF"; styled.BorderWidth = 3;
-            layer.Objects.Add(styled);
-            layer.Objects.Add(O(12, "Title", 8100, 0, 200, 50, PhysicsMode.None,
-                B(BehaviorKind.Label, new[] { ("effectSpeed", 30.0) }, new[] { ("text", "HELLO WORLD"), ("effect", "typewriter") })));
-            project.Theme.DialogCorner = 14; project.Theme.DialogEffect = "typewriter"; project.Theme.DialogBg = "#223344";
-
-            // Phase 5: pathfinding, spring, bounce, minimap
-            layer.Objects.Add(O(13, "Chaser", 200, 1500, 24, 24, PhysicsMode.None, B(BehaviorKind.PathChase, new[] { ("speed", 120.0), ("cell", 20.0) }, new[] { ("target", "Player") })));
-            layer.Objects.Add(O(14, "PWall", 380, 1400, 40, 400, PhysicsMode.Static, B(BehaviorKind.Solid)));
-            layer.Objects.Add(O(15, "SpringPad", 500, 1500, 40, 20, PhysicsMode.None, B(BehaviorKind.Spring, new[] { ("force", 820.0) }, new[] { ("dir", "up") })));
-            layer.Objects.Add(O(16, "Faller", 500, 1485, 24, 24, PhysicsMode.Dynamic));
-            var ball = O(17, "Ball", 700, 1500, 20, 20, PhysicsMode.Dynamic);
-            ball.Physics.Bounciness = 0.7; layer.Objects.Add(ball);
-            layer.Objects.Add(O(18, "BFloor", 680, 1560, 80, 20, PhysicsMode.Static, B(BehaviorKind.Solid)));
-            layer.Objects.Add(O(19, "Map", 50, 50, 10, 10, PhysicsMode.None, B(BehaviorKind.Minimap, new[] { ("size", 160.0) }, new[] { ("corner", "tr"), ("player", "Player") })));
-
-            // "the works": particles, tween, UI button, bar
-            layer.Objects.Add(O(20, "Boom", 1000, 2500, 20, 20, PhysicsMode.None, B(BehaviorKind.Particles, new[] { ("burst", 10.0), ("life", 0.8) }, new[] { ("on", "start") })));
-            layer.Objects.Add(O(21, "Tweeny", 1200, 2500, 30, 30, PhysicsMode.None));
-            layer.Objects.Add(O(22, "MenuBtn", 1300, 2500, 120, 40, PhysicsMode.None, B(BehaviorKind.UIButton, new[] { ("to", 1.0) }, new[] { ("action", "setvar"), ("var", "clicked") })));
-            layer.Objects.Add(O(23, "HealthBar", 1500, 2500, 100, 16, PhysicsMode.None, B(BehaviorKind.Bar, new[] { ("max", 4.0) }, new[] { ("var", "hp") })));
-
-            // Patrol + Platformer on the same enemy (controls off, like the non-player safeguard): patrol must still drive it.
-            layer.Objects.Add(O(24, "Walker", 2000, 2700, 40, 40, PhysicsMode.Dynamic,
-                B(BehaviorKind.Patrol, new[] { ("speed", 80.0), ("distance", 200.0) }),
-                B(BehaviorKind.Platformer, new[] { ("controls", 0.0) })));
-            // Vertical patrol.
-            layer.Objects.Add(O(25, "VWalker", 2300, 2700, 40, 40, PhysicsMode.None,
-                B(BehaviorKind.Patrol, new[] { ("speed", 80.0), ("distance", 150.0), ("axis", 1.0) })));
-            // Smooth patrol with pause at the ends.
-            layer.Objects.Add(O(26, "SmoothWalker", 2600, 2700, 40, 40, PhysicsMode.None,
-                B(BehaviorKind.Patrol, new[] { ("speed", 80.0), ("distance", 150.0), ("smooth", 1.0), ("slowSteps", 3.0), ("pause", 1.0) })));
-            // Advanced patrol following a drawn path.
-            layer.Objects.Add(O(27, "PathWalker", 2900, 2700, 40, 40, PhysicsMode.None,
-                B(BehaviorKind.AdvancedPatrol, new[] { ("speed", 120.0) }, new[] { ("path", "[{\"x\":3200,\"y\":2720},{\"x\":2900,\"y\":2720}]") })));
-            // Hitbox off on a platformer: becomes a free mover (no gravity) instead of falling forever.
-            layer.Objects.Add(O(33, "PGhost", 5600, 100, 40, 40, PhysicsMode.Dynamic, B(BehaviorKind.Platformer, new[] { ("collide", 0.0) })));
-            // Advanced patrol, top-down mode with pathfinding enabled.
-            layer.Objects.Add(O(28, "PathFinder", 3500, 2700, 40, 40, PhysicsMode.None,
-                B(BehaviorKind.AdvancedPatrol, new[] { ("speed", 120.0), ("mode", 1.0), ("pathfind", 1.0) }, new[] { ("path", "[{\"x\":3800,\"y\":2720},{\"x\":3500,\"y\":2720}]") })));
-            // Top-down collision: a top-down mover must be stopped by a solid wall.
-            layer.Objects.Add(O(29, "TDWall", 4200, 2700, 40, 160, PhysicsMode.Static, B(BehaviorKind.Solid)));
-            layer.Objects.Add(O(30, "TDGuy", 4100, 2760, 40, 40, PhysicsMode.None, B(BehaviorKind.TopDown, new[] { ("speed", 200.0) })));
-            // Hitbox off: a top-down mover with collide=0 passes straight through the wall.
-            layer.Objects.Add(O(31, "TDGhost", 4100, 2760, 40, 40, PhysicsMode.None, B(BehaviorKind.TopDown, new[] { ("speed", 200.0), ("collide", 0.0) })));
-            // Diagnostic: top-down advanced patrol between two far points (no walls around).
-            layer.Objects.Add(O(32, "APTD", 5000, 2760, 40, 40, PhysicsMode.None,
-                B(BehaviorKind.AdvancedPatrol, new[] { ("speed", 150.0), ("mode", 1.0) }, new[] { ("path", "[{\"x\":5300,\"y\":2780},{\"x\":5000,\"y\":2780}]") })));
-
-            var play = new PlayWindow(project, scene.Name); // not shown; headless
+            var (project, sceneName) = BuildBehaviorScene();
+            var play = new PlayWindow(project, sceneName); // not shown; headless
             var results = play.RunBehaviorChecks();
             int pass = results.Count(r => r.StartsWith("PASS")), fail = results.Count - pass;
             var sb = new System.Text.StringBuilder();

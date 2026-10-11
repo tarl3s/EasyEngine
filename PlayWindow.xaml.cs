@@ -51,6 +51,10 @@ namespace EasyEngine
             public bool ParticleStarted; public double ParticleTimer; // emitter state
             public double TweenScale = 1;                      // current tweened scale
             public System.Windows.Shapes.Rectangle? BarFill;   // bar fill rectangle
+            // breakable tilemap runtime state (null unless this tilemap is breakable)
+            public List<TileCell>? Tiles;
+            public TileCell?[]? TileGrid;                      // r*cols+c → cell, for O(1) lookup
+            public double TileTS, TileX0, TileY0; public int TileCols, TileRows;
 
             // platformer controller state
             public double Coyote, JumpBuf, DashTimer, DashVX, DashVY;
@@ -80,6 +84,15 @@ namespace EasyEngine
             public double CY => Y + H / 2;
             public bool Has(BehaviorKind k) => Data.Behaviors.Any(b => b.Kind == k);
             public BehaviorData? Beh(BehaviorKind k) => Data.Behaviors.FirstOrDefault(b => b.Kind == k);
+        }
+
+        // One tile of a breakable tilemap: its own visual + collider so it can be removed on break.
+        private class TileCell
+        {
+            public int R, C; public double X, Y, W, H; public bool Solid; public int Hp = 1; public bool Broken;
+            public string Color = "#888888";
+            public System.Windows.Shapes.Rectangle? Visual;
+            public Entity? Collider;
         }
 
         private readonly Project _project;
@@ -125,11 +138,21 @@ namespace EasyEngine
         public class CustomRule
         {
             public string When = "always", Do = "";
+            // action params (everything after "do") — read by DoCustom
             public Dictionary<string, double> N = new(StringComparer.OrdinalIgnoreCase);
             public Dictionary<string, string> T = new(StringComparer.OrdinalIgnoreCase);
+            // trigger params (everything before "do") — read by the WHEN events.
+            // Kept separate so an event param and an action param can share a name
+            // (e.g. "while var:g >= 5  →  setvar var:ok") without colliding.
+            public Dictionary<string, double> WN = new(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, string> WT = new(StringComparer.OrdinalIgnoreCase);
             public double Timer; public bool Started; public bool WasTouching;
             public double Num(string k, double d = 0) => N.TryGetValue(k, out var v) ? v : d;
             public string Str(string k, string d = "") => T.TryGetValue(k, out var v) ? v : d;
+            // trigger reads: prefer the trigger bucket, fall back to the action bucket
+            // (so single-occurrence params written either side still resolve).
+            public double WNum(string k, double d = 0) => WN.TryGetValue(k, out var v) ? v : (N.TryGetValue(k, out var v2) ? v2 : d);
+            public string WStr(string k, string d = "") => WT.TryGetValue(k, out var v) ? v : (T.TryGetValue(k, out var v2) ? v2 : d);
         }
 
         public PlayWindow(Project project, string startSceneName)
@@ -862,6 +885,7 @@ namespace EasyEngine
             _rmbClicked = _rmbDown && !_rmbPrevDown; _rmbPrevDown = _rmbDown;
 
             UpdateBehaviors(dt);
+            UpdateBreakables(dt);
             UpdatePhysics(dt);
             UpdateTweens(dt);
             UpdateParticles(dt);
@@ -927,6 +951,9 @@ namespace EasyEngine
                                     if (t.X < hx + hw && t.X + t.W > hx && t.Y < hy + hh && t.Y + t.H > hy)
                                         DamageEntity(t, bh.Num("damage", 1), bh.Num("knockback", 260), en.CX);
                                 }
+                                // melee also breaks breakable tilemaps caught in the swing
+                                foreach (var map in _entities)
+                                    if (map.Tiles != null) { var mb = map.Beh(BehaviorKind.Tilemap); if (mb != null && mb.Num("byMelee", 1) >= 0.5) BreakOverlap(map, mb, hx, hy, hw, hh, (int)Math.Max(1, bh.Num("damage", 1))); }
                                 ShowSlash(hx, hy, hw, hh);
                             }
                             break;
@@ -1596,13 +1623,25 @@ namespace EasyEngine
                 {
                     if (el.ValueKind != JsonValueKind.Object) continue;
                     var r = new CustomRule();
+                    bool seenDo = false;
                     foreach (var p in el.EnumerateObject())
                     {
                         var name = p.Name.ToLowerInvariant();
-                        if (name == "when") r.When = (p.Value.GetString() ?? "always").ToLowerInvariant();
-                        else if (name == "do") r.Do = (p.Value.GetString() ?? "").ToLowerInvariant();
-                        else if (p.Value.ValueKind == JsonValueKind.Number) r.N[name] = p.Value.GetDouble();
-                        else if (p.Value.ValueKind == JsonValueKind.String) r.T[name] = p.Value.GetString() ?? "";
+                        if (name == "when") { r.When = (p.Value.GetString() ?? "always").ToLowerInvariant(); continue; }
+                        if (name == "do") { r.Do = (p.Value.GetString() ?? "").ToLowerInvariant(); seenDo = true; continue; }
+                        // guards always live in the action bucket, wherever they appear, so the guard code finds them
+                        bool guard = name is "cond" or "if" or "ifop" or "ifval";
+                        bool toTrigger = !seenDo && !guard; // params before "do" belong to the WHEN trigger
+                        if (p.Value.ValueKind == JsonValueKind.Number)
+                        {
+                            double v = p.Value.GetDouble();
+                            if (toTrigger) r.WN[name] = v; else r.N[name] = v;
+                        }
+                        else if (p.Value.ValueKind == JsonValueKind.String)
+                        {
+                            string v = p.Value.GetString() ?? "";
+                            if (toTrigger) r.WT[name] = v; else r.T[name] = v;
+                        }
                     }
                     list.Add(r);
                 }
@@ -1622,31 +1661,31 @@ namespace EasyEngine
                     case "start": if (!r.Started) { fire = true; r.Started = true; } break;
                     case "always": fire = true; break;
                     case "key":
-                    case "keydown": fire = _keys.Contains(ParseKey(r.Str("key", "Space"))); break;
+                    case "keydown": fire = _keys.Contains(ParseKey(r.WStr("key", "Space"))); break;
                     case "keypress":
                         r.Timer -= dt;
-                        if (_keys.Contains(ParseKey(r.Str("key", "Space"))) && r.Timer <= 0) { fire = true; r.Timer = Math.Max(0.05, r.Num("cooldown", 0.3)); }
+                        if (_keys.Contains(ParseKey(r.WStr("key", "Space"))) && r.Timer <= 0) { fire = true; r.Timer = Math.Max(0.05, r.WNum("cooldown", 0.3)); }
                         break;
                     case "timer":
                         r.Timer -= dt;
-                        if (r.Timer <= 0) { fire = true; r.Timer = Math.Max(0.05, r.Num("every", 1)); }
+                        if (r.Timer <= 0) { fire = true; r.Timer = Math.Max(0.05, r.WNum("every", 1)); }
                         break;
                     case "touch":
                     {
-                        var o = _entities.FirstOrDefault(x => x != en && !x.Dead && x.Data.Name.Equals(r.Str("name"), StringComparison.OrdinalIgnoreCase) && Overlap(en, x));
+                        var o = _entities.FirstOrDefault(x => x != en && !x.Dead && x.Data.Name.Equals(r.WStr("name"), StringComparison.OrdinalIgnoreCase) && Overlap(en, x));
                         bool now = o != null;
                         fire = now && !r.WasTouching; // only on the frame contact STARTS (not every frame)
                         r.WasTouching = now;
                         break;
                     }
                     case "ifvar":
-                        fire = CompareVar(Var(r.Str("var")), r.Str("op", ">="), r.Num("value"));
+                        fire = CompareVar(Var(r.WStr("var")), r.WStr("op", ">="), r.WNum("value"));
                         break;
                     case "iflocal":
-                        fire = CompareVar(en.Locals.TryGetValue(r.Str("var"), out var lv) ? lv : 0, r.Str("op", ">="), r.Num("value"));
+                        fire = CompareVar(en.Locals.TryGetValue(r.WStr("var"), out var lv) ? lv : 0, r.WStr("op", ">="), r.WNum("value"));
                         break;
-                    case "hasitem": fire = Var("item:" + r.Str("item")) >= 1; break;
-                    case "expr": fire = EvalExpr(r.Str("expr"), en) != 0; break;
+                    case "hasitem": fire = Var("item:" + r.WStr("item")) >= 1; break;
+                    case "expr": fire = EvalExpr(r.WStr("expr"), en) != 0; break;
                     case "click": fire = _mouseClicked && PointInEntity(en); break;
                     case "rightclick": fire = _rmbClicked && PointInEntity(en); break;
                     case "mousedown": fire = _mouseDown && PointInEntity(en); break;
@@ -1729,6 +1768,27 @@ namespace EasyEngine
                     break;
                 }
                 case "setvolume": _vars["vol." + r.Str("channel", "master")] = r.Num("to", 1); break;
+                case "breaktile":
+                {
+                    string where = r.Str("where", "touching").ToLowerInvariant();
+                    foreach (var map in _entities)
+                    {
+                        if (map.Tiles == null) continue;
+                        var mb = map.Beh(BehaviorKind.Tilemap); if (mb == null) continue;
+                        double ts = map.TileTS;
+                        switch (where)
+                        {
+                            case "atmouse": { var cell = CellAt(map, _mouseWorld.X, _mouseWorld.Y); if (cell != null) DamageCell(map, mb, cell, 9999); break; }
+                            case "below": BreakOverlap(map, mb, en.X + 2, en.Y + en.H, en.W - 4, ts, 9999); break;
+                            case "above": BreakOverlap(map, mb, en.X + 2, en.Y - ts, en.W - 4, ts, 9999); break;
+                            case "left": BreakOverlap(map, mb, en.X - ts, en.Y + 2, ts, en.H - 4, 9999); break;
+                            case "right": BreakOverlap(map, mb, en.X + en.W, en.Y + 2, ts, en.H - 4, 9999); break;
+                            case "front": { double fx = en.Facing >= 0 ? en.X + en.W : en.X - ts; BreakOverlap(map, mb, fx, en.Y + 2, ts, en.H - 4, 9999); break; }
+                            default: BreakOverlap(map, mb, en.X, en.Y, en.W, en.H, 9999); break; // touching
+                        }
+                    }
+                    break;
+                }
             }
         }
 
@@ -2156,6 +2216,13 @@ namespace EasyEngine
             catch { }
             if (cols == 0 || rows == 0) return;
 
+            if (bh.Num("breakable", 0) >= 0.5)
+            {
+                en.Tiles = new List<TileCell>();
+                en.TileGrid = new TileCell?[cols * rows];
+                en.TileTS = ts; en.TileX0 = obj.X; en.TileY0 = obj.Y; en.TileCols = cols; en.TileRows = rows;
+            }
+
             var host = screenSpace ? Hud : World;
             bool Solid(int r, int c) { int v = cells[r * cols + c]; return v > 0 && v <= pal.Count && pal[v - 1].solid; }
 
@@ -2168,9 +2235,27 @@ namespace EasyEngine
                     var rect = new System.Windows.Shapes.Rectangle { Width = ts + 0.5, Height = ts + 0.5, Fill = Brush(pal[v - 1].color), IsHitTestVisible = false };
                     Canvas.SetLeft(rect, obj.X + c * ts); Canvas.SetTop(rect, obj.Y + r * ts);
                     host.Children.Add(rect);
+                    if (en.Tiles != null) // breakable: keep each painted cell so we can remove it later
+                    {
+                        var cell = new TileCell { R = r, C = c, X = obj.X + c * ts, Y = obj.Y + r * ts, W = ts, H = ts, Solid = Solid(r, c), Hp = Math.Max(1, (int)bh.Num("breakHits", 1)), Color = pal[v - 1].color, Visual = rect };
+                        en.Tiles.Add(cell);
+                        en.TileGrid![r * cols + c] = cell;
+                    }
                 }
 
-            // colliders: merge horizontal runs of solid cells into one box each
+            if (en.Tiles != null)
+            {
+                // breakable: one collider per solid tile (so a single tile can be removed)
+                foreach (var cell in en.Tiles)
+                    if (cell.Solid)
+                    {
+                        cell.Collider = new Entity { Data = obj, X = cell.X, Y = cell.Y, W = cell.W, H = cell.H };
+                        _solids.Add(cell.Collider);
+                    }
+                return;
+            }
+
+            // non-breakable: merge horizontal runs of solid cells into one box each (cheaper)
             for (int r = 0; r < rows; r++)
             {
                 int c = 0;
@@ -2180,6 +2265,85 @@ namespace EasyEngine
                     int start = c;
                     while (c < cols && Solid(r, c)) c++;
                     _solids.Add(new Entity { Data = obj, X = obj.X + start * ts, Y = obj.Y + r * ts, W = (c - start) * ts, H = ts });
+                }
+            }
+        }
+
+        // ---- breakable tilemaps ----
+        // Damage one tile; when its hit points reach 0, remove its visual + collider and puff particles.
+        private void DamageCell(Entity map, BehaviorData bh, TileCell cell, int amount)
+        {
+            if (cell.Broken) return;
+            cell.Hp -= Math.Max(1, amount);
+            if (cell.Hp > 0) return;
+            cell.Broken = true;
+            var host = map.ScreenSpace ? Hud : World;
+            if (cell.Visual != null) host.Children.Remove(cell.Visual);
+            if (cell.Collider != null) { cell.Collider.Dead = true; _solids.Remove(cell.Collider); }
+            if (map.TileGrid != null) { int idx = cell.R * map.TileCols + cell.C; if (idx >= 0 && idx < map.TileGrid.Length) map.TileGrid[idx] = null; }
+            if (bh.Num("breakParticles", 1) >= 0.5)
+                EmitParticles(cell.X + cell.W / 2, cell.Y + cell.H / 2, 10, 160, 360, 0, 0.5, Math.Max(3, cell.W / 6), 500, cell.Color);
+        }
+
+        // The live cell at a world point (or null).
+        private TileCell? CellAt(Entity map, double wx, double wy)
+        {
+            if (map.TileGrid == null) return null;
+            int c = (int)Math.Floor((wx - map.TileX0) / map.TileTS);
+            int r = (int)Math.Floor((wy - map.TileY0) / map.TileTS);
+            if (c < 0 || r < 0 || c >= map.TileCols || r >= map.TileRows) return null;
+            var cell = map.TileGrid[r * map.TileCols + c];
+            return (cell != null && !cell.Broken) ? cell : null;
+        }
+
+        // Break the first live cell overlapping an AABB; true if one was broken.
+        private bool BreakOverlap(Entity map, BehaviorData bh, double ax, double ay, double aw, double ah, int amount)
+        {
+            if (map.TileGrid == null) return false;
+            int c0 = Math.Max(0, (int)Math.Floor((ax - map.TileX0) / map.TileTS));
+            int c1 = Math.Min(map.TileCols - 1, (int)Math.Floor((ax + aw - 0.001 - map.TileX0) / map.TileTS));
+            int r0 = Math.Max(0, (int)Math.Floor((ay - map.TileY0) / map.TileTS));
+            int r1 = Math.Min(map.TileRows - 1, (int)Math.Floor((ay + ah - 0.001 - map.TileY0) / map.TileTS));
+            for (int r = r0; r <= r1; r++)
+                for (int c = c0; c <= c1; c++)
+                {
+                    var cell = map.TileGrid[r * map.TileCols + c];
+                    if (cell != null && !cell.Broken) { DamageCell(map, bh, cell, amount); return true; }
+                }
+            return false;
+        }
+
+        // Per-frame: let bullets / damagers / stomping / touching break breakable tilemaps.
+        private void UpdateBreakables(double dt)
+        {
+            foreach (var map in _entities)
+            {
+                if (map.Dead || map.Tiles == null) continue;
+                var bh = map.Beh(BehaviorKind.Tilemap); if (bh == null) continue;
+                bool byBullet = bh.Num("byBullet", 1) >= 0.5;
+                bool byDamage = bh.Num("byDamage", 1) >= 0.5;
+                bool byTouch = bh.Num("byTouch", 0) >= 0.5;
+                bool byStomp = bh.Num("byStomp", 0) >= 0.5;
+                if (!(byBullet || byDamage || byTouch || byStomp)) continue;
+
+                foreach (var a in _entities.ToList())
+                {
+                    if (a.Dead || a == map) continue;
+                    if (byBullet && a.Has(BehaviorKind.Projectile))
+                    {
+                        if (BreakOverlap(map, bh, a.X, a.Y, a.W, a.H, 1)) a.Dead = true;
+                        continue;
+                    }
+                    if (byDamage && a.Has(BehaviorKind.Damager))
+                    {
+                        BreakOverlap(map, bh, a.X, a.Y, a.W, a.H, (int)Math.Max(1, a.Beh(BehaviorKind.Damager)!.Num("damage", 1)));
+                        continue;
+                    }
+                    bool character = a.Has(BehaviorKind.Platformer) || a.Has(BehaviorKind.TopDown) || a.Data.Physics.Mode == PhysicsMode.Dynamic;
+                    if (!character) continue;
+                    if (byStomp && a.VY >= -1) // landing on / standing on a tile top (not jumping up through it)
+                        if (BreakOverlap(map, bh, a.X + 2, a.Y + a.H - 1, a.W - 4, 5, 1) && a.VY > 10) a.VY = -Math.Abs(a.VY) * 0.5;
+                    if (byTouch) BreakOverlap(map, bh, a.X, a.Y, a.W, a.H, 1);
                 }
             }
         }

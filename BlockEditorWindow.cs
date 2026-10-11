@@ -39,8 +39,13 @@ namespace EasyEngine
             new("click",      "When clicked", Array.Empty<Field>()),
             new("rightclick", "When right-clicked", Array.Empty<Field>()),
             new("mouseover",  "While the mouse is over it", Array.Empty<Field>()),
+            new("mousedown",  "While the mouse is pressed on it", Array.Empty<Field>()),
             new("mousepress", "When the mouse is clicked (anywhere)", Array.Empty<Field>()),
         };
+
+        private static readonly string[] TweenProps = { "x", "y", "opacity", "rot", "w", "h", "scale" };
+        private static readonly string[] Eases = { "linear", "easein", "easeout", "easeinout" };
+        private static readonly string[] YesNo = { "0", "1" };
 
         private static readonly BlockDef[] Actions =
         {
@@ -67,6 +72,13 @@ namespace EasyEngine
             new("boost",     "Multiply its speed", new[] { new Field("factor", "Times", "num", "2") }, "2 = twice as fast, 0.5 = half. Affects Platformer/Top-down speed."),
             new("setspeed",  "Set its speed level", new[] { new Field("factor", "Level", "num", "1") }, "1 = normal, 0.5 = half, 2 = double. Resets the boost."),
             new("say",       "Show a message", new[] { new Field("text", "Text", "text"), new Field("speaker", "Speaker (optional)", "text") }),
+            new("emit",      "Burst of particles", new[] { new Field("count", "How many", "num", "16"), new Field("speed", "Speed", "num", "180"), new Field("spread", "Spread (°)", "num", "360"), new Field("angle", "Angle (°)", "num", "0"), new Field("life", "Life (s)", "num", "0.8"), new Field("size", "Size", "num", "8"), new Field("gravity", "Gravity", "num", "400"), new Field("color", "Color", "text", "#FFD24D") },
+                "A one-off puff of particles (sparks, dust, explosions)."),
+            new("tween",     "Glide a property", new[] { new Field("prop", "Property", "choice", "x", TweenProps), new Field("to", "To", "val", "0"), new Field("duration", "Over (s)", "num", "0.5"), new Field("ease", "Ease", "choice", "linear", Eases), new Field("loop", "Loop (0/1)", "num", "0"), new Field("yoyo", "Yoyo (0/1)", "num", "0") },
+                "Smoothly animates a property to a value. Loop repeats; yoyo bounces back and forth."),
+            new("setvolume", "Set volume", new[] { new Field("channel", "Channel", "text", "master"), new Field("to", "Level (0-1)", "num", "1") }),
+            new("breaktile", "Break a tile", new[] { new Field("where", "Which", "choice", "touching", new[] { "touching", "below", "above", "left", "right", "front", "atmouse" }) },
+                "Breaks a tile of a breakable tilemap: any it overlaps (touching), the one below/above/beside/in front of it, or the one at the mouse."),
             new("save",      "Save the game", Array.Empty<Field>()),
             new("load",      "Load the game", Array.Empty<Field>()),
         };
@@ -76,7 +88,10 @@ namespace EasyEngine
             public string When = "keypress";
             public string Do = "jump";
             public string Cond = "";
-            public Dictionary<string, string> P = new(StringComparer.OrdinalIgnoreCase);
+            // trigger (WHEN) params and action (DO) params are kept apart so a trigger
+            // field and an action field can share a name (e.g. ifvar's "var" + setvar's "var").
+            public Dictionary<string, string> WhenP = new(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, string> DoP = new(StringComparer.OrdinalIgnoreCase);
         }
 
         private readonly Project _project;
@@ -168,7 +183,7 @@ namespace EasyEngine
             whenCombo.SelectionChanged += (s, e) => { if (whenCombo.SelectedItem is ComboBoxItem it) { rule.When = (string)it.Tag; RenderRules(); } };
             panel.Children.Add(whenCombo);
             AddHint(panel, DefOf(Events, rule.When).Hint);
-            panel.Children.Add(FieldsPanel(DefOf(Events, rule.When), rule));
+            panel.Children.Add(FieldsPanel(DefOf(Events, rule.When), rule.WhenP));
 
             // DO row
             panel.Children.Add(Pill("→ DO", "#2BB673"));
@@ -176,7 +191,7 @@ namespace EasyEngine
             doCombo.SelectionChanged += (s, e) => { if (doCombo.SelectedItem is ComboBoxItem it) { rule.Do = (string)it.Tag; RenderRules(); } };
             panel.Children.Add(doCombo);
             AddHint(panel, DefOf(Actions, rule.Do).Hint);
-            panel.Children.Add(FieldsPanel(DefOf(Actions, rule.Do), rule));
+            panel.Children.Add(FieldsPanel(DefOf(Actions, rule.Do), rule.DoP));
 
             // optional condition (guided builder)
             BuildCond(panel, rule);
@@ -261,19 +276,19 @@ namespace EasyEngine
 
         private static BlockDef DefOf(BlockDef[] defs, string id) => Array.Find(defs, d => d.Id == id) ?? defs[0];
 
-        private FrameworkElement FieldsPanel(BlockDef def, RuleModel rule)
+        private FrameworkElement FieldsPanel(BlockDef def, Dictionary<string, string> bag)
         {
             var wrap = new WrapPanel { Margin = new Thickness(6, 2, 0, 2) };
-            foreach (var f in def.Fields) wrap.Children.Add(FieldControl(f, rule));
+            foreach (var f in def.Fields) wrap.Children.Add(FieldControl(f, bag));
             return wrap;
         }
 
-        private FrameworkElement FieldControl(Field f, RuleModel rule)
+        private FrameworkElement FieldControl(Field f, Dictionary<string, string> rule)
         {
             var stack = new StackPanel { Margin = new Thickness(0, 0, 10, 4) };
             stack.Children.Add(new TextBlock { Text = f.Label, Foreground = B("TextDim", "#AAA"), FontSize = 10, Margin = new Thickness(2, 0, 0, 1) });
-            string cur = rule.P.TryGetValue(f.Key, out var v) ? v : f.Default;
-            rule.P[f.Key] = cur; // ensure defaults are saved
+            string cur = rule.TryGetValue(f.Key, out var v) ? v : f.Default;
+            rule[f.Key] = cur; // ensure defaults are saved
 
             Control ctrl;
             if (f.Type == "choice")
@@ -282,7 +297,7 @@ namespace EasyEngine
                 foreach (var o in f.Options ?? Array.Empty<string>()) cb.Items.Add(o.Length == 0 ? "(none)" : o);
                 cb.SelectedItem = cur.Length == 0 ? "(none)" : cur;
                 if (cb.SelectedItem == null && cb.Items.Count > 0) cb.SelectedIndex = 0;
-                cb.SelectionChanged += (s, e) => { var sel = cb.SelectedItem as string ?? ""; rule.P[f.Key] = sel == "(none)" ? "" : sel; };
+                cb.SelectionChanged += (s, e) => { var sel = cb.SelectedItem as string ?? ""; rule[f.Key] = sel == "(none)" ? "" : sel; };
                 ctrl = cb;
             }
             else if (f.Type == "obj" || f.Type == "scene" || f.Type == "key")
@@ -292,14 +307,14 @@ namespace EasyEngine
                 if (!string.IsNullOrEmpty(cur) && !items.Contains(cur)) items.Insert(0, cur); // keep a value that isn't in the list
                 foreach (var o in items) cb.Items.Add(o);
                 cb.SelectedItem = cur;
-                if (cb.SelectedItem == null && cb.Items.Count > 0) { cb.SelectedIndex = 0; rule.P[f.Key] = (string)cb.Items[0]; }
-                cb.SelectionChanged += (s, e) => rule.P[f.Key] = cb.SelectedItem as string ?? "";
+                if (cb.SelectedItem == null && cb.Items.Count > 0) { cb.SelectedIndex = 0; rule[f.Key] = (string)cb.Items[0]; }
+                cb.SelectionChanged += (s, e) => rule[f.Key] = cb.SelectedItem as string ?? "";
                 ctrl = cb;
             }
             else // num, text, val
             {
                 var tb = new TextBox { Height = 28, MinWidth = f.Type == "text" ? 140 : 70, Text = cur, VerticalContentAlignment = VerticalAlignment.Center };
-                tb.TextChanged += (s, e) => rule.P[f.Key] = tb.Text;
+                tb.TextChanged += (s, e) => rule[f.Key] = tb.Text;
                 ctrl = tb;
             }
             stack.Children.Add(ctrl);
@@ -326,35 +341,37 @@ namespace EasyEngine
                 {
                     if (el.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
                     var r = new RuleModel { When = "always", Do = "" };
+                    bool seenDo = false;
+                    string? actionExpr = null;
+                    var guards = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var p in el.EnumerateObject())
                     {
                         var name = p.Name.ToLowerInvariant();
                         string val = p.Value.ValueKind == System.Text.Json.JsonValueKind.String ? (p.Value.GetString() ?? "")
                                    : p.Value.ValueKind == System.Text.Json.JsonValueKind.Number ? p.Value.GetDouble().ToString(CultureInfo.InvariantCulture)
                                    : p.Value.ToString();
-                        if (name == "when") r.When = val.ToLowerInvariant();
-                        else if (name == "do") r.Do = val.ToLowerInvariant();
-                        else if (name == "cond") r.Cond = val;
-                        else if (name == "expr" && r.When != "expr") r.P["__expr"] = val; // action-side expression
-                        else r.P[name] = val;
+                        if (name == "when") { r.When = val.ToLowerInvariant(); continue; }
+                        if (name == "do") { r.Do = val.ToLowerInvariant(); seenDo = true; continue; }
+                        if (name == "cond") { r.Cond = val; continue; }
+                        if (name is "if" or "ifop" or "ifval") { guards[name] = val; continue; }
+                        if (name == "expr" && (seenDo || r.When != "expr")) { actionExpr = val; continue; } // action-side expression
+                        if (!seenDo) r.WhenP[name] = val; else r.DoP[name] = val; // trigger vs action bucket
                     }
                     if (r.When == "keydown") r.When = "key";
                     if (r.Do == "accel") r.Do = "accelerate";
                     // an action-side expression ("expr") belongs in that action's value field
-                    if (r.P.TryGetValue("__expr", out var ax))
+                    if (actionExpr != null)
                     {
                         var valField = Array.Find(DefOf(Actions, r.Do).Fields, f => f.Type == "val");
-                        if (valField != null) r.P[valField.Key] = ax;
-                        r.P.Remove("__expr");
+                        if (valField != null) r.DoP[valField.Key] = actionExpr;
                     }
                     // upgrade the legacy if/ifop/ifval guard into the "Only if" condition
-                    if (r.P.TryGetValue("if", out var gv))
+                    if (guards.TryGetValue("if", out var gv))
                     {
-                        var op = r.P.TryGetValue("ifop", out var go) ? go : ">=";
-                        var val = r.P.TryGetValue("ifval", out var gval) ? gval : "0";
+                        var op = guards.TryGetValue("ifop", out var go) ? go : ">=";
+                        var val = guards.TryGetValue("ifval", out var gval) ? gval : "0";
                         var cond = $"{gv} {op} {val}";
                         r.Cond = string.IsNullOrWhiteSpace(r.Cond) ? cond : $"({r.Cond}) && ({cond})";
-                        r.P.Remove("if"); r.P.Remove("ifop"); r.P.Remove("ifval");
                     }
                     _rules.Add(r);
                 }
@@ -370,42 +387,47 @@ namespace EasyEngine
                 var r = _rules[i];
                 if (i > 0) sb.Append(',');
                 sb.Append('{');
-                var parts = new List<string>();
-                var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "when", "do", "cond", "__expr" };
-                parts.Add($"\"when\":{Q(r.When)}");
 
-                void Emit(BlockDef def)
+                void Emit(List<string> into, BlockDef def, Dictionary<string, string> bag, HashSet<string> used)
                 {
                     foreach (var f in def.Fields)
                     {
                         used.Add(f.Key);
-                        string raw = r.P.TryGetValue(f.Key, out var v) ? v : f.Default;
+                        string raw = bag.TryGetValue(f.Key, out var v) ? v : f.Default;
                         if (string.IsNullOrWhiteSpace(raw) && f.Type != "num") continue;
                         if (f.Type == "num")
                         {
-                            if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) parts.Add($"\"{f.Key}\":{d.ToString(CultureInfo.InvariantCulture)}");
+                            if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) into.Add($"\"{f.Key}\":{d.ToString(CultureInfo.InvariantCulture)}");
                         }
                         else if (f.Type == "val")
                         {
-                            if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) parts.Add($"\"{f.Key}\":{d.ToString(CultureInfo.InvariantCulture)}");
-                            else { parts.Add($"\"expr\":{Q(raw)}"); used.Add("expr"); } // expression value
+                            if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) into.Add($"\"{f.Key}\":{d.ToString(CultureInfo.InvariantCulture)}");
+                            else { into.Add($"\"expr\":{Q(raw)}"); used.Add("expr"); } // expression value
                         }
-                        else parts.Add($"\"{f.Key}\":{Q(raw)}");
+                        else into.Add($"\"{f.Key}\":{Q(raw)}");
+                    }
+                    // preserve any params this block doesn't model (so AI-written rules survive editing)
+                    foreach (var kv in bag)
+                    {
+                        if (used.Contains(kv.Key) || string.IsNullOrWhiteSpace(kv.Value)) continue;
+                        used.Add(kv.Key);
+                        if (double.TryParse(kv.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) into.Add($"\"{kv.Key}\":{d.ToString(CultureInfo.InvariantCulture)}");
+                        else into.Add($"\"{kv.Key}\":{Q(kv.Value)}");
                     }
                 }
 
-                Emit(DefOf(Events, r.When));
-                parts.Add($"\"do\":{Q(r.Do)}");
-                Emit(DefOf(Actions, r.Do));
-                if (!string.IsNullOrWhiteSpace(r.Cond)) parts.Add($"\"cond\":{Q(r.Cond)}");
+                // trigger params go before "do", action params after — so the runtime can
+                // tell them apart even when a trigger and an action field share a name.
+                var whenParts = new List<string>();
+                Emit(whenParts, DefOf(Events, r.When), r.WhenP, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "when", "do", "cond" });
+                var doParts = new List<string>();
+                Emit(doParts, DefOf(Actions, r.Do), r.DoP, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "when", "do", "cond" });
 
-                // preserve any params we don't model (so AI-written rules survive editing)
-                foreach (var kv in r.P)
-                {
-                    if (used.Contains(kv.Key) || string.IsNullOrWhiteSpace(kv.Value)) continue;
-                    if (double.TryParse(kv.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) parts.Add($"\"{kv.Key}\":{d.ToString(CultureInfo.InvariantCulture)}");
-                    else parts.Add($"\"{kv.Key}\":{Q(kv.Value)}");
-                }
+                var parts = new List<string> { $"\"when\":{Q(r.When)}" };
+                parts.AddRange(whenParts);
+                parts.Add($"\"do\":{Q(r.Do)}");
+                parts.AddRange(doParts);
+                if (!string.IsNullOrWhiteSpace(r.Cond)) parts.Add($"\"cond\":{Q(r.Cond)}");
 
                 sb.Append(string.Join(",", parts));
                 sb.Append('}');

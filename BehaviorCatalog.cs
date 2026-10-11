@@ -163,8 +163,16 @@ namespace EasyEngine
                 Texts = { new("target","Target (name)","Player") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Tilemap, Name = "Tilemap", Icon = "▦",
-                Desc = "A grid of tiles you paint in the editor (ground, walls, level geometry). Solid tiles become collision automatically. Add it to an empty object, then paint with the Tiles panel.",
-                Nums = { new("tileSize","Tile size",32) },
+                Desc = "A grid of tiles you paint in the editor (ground, walls, level geometry). Solid tiles become collision automatically. Add it to an empty object, then paint with the Tiles panel. Turn on 'Breakable' to let individual tiles be destroyed (by bullets, melee, damagers, stomping, touching, or the 'Break a tile' block).",
+                Nums = { new("tileSize","Tile size",32),
+                         new("breakable","Breakable (0/1)",0),
+                         new("breakHits","Hits to break each tile",1),
+                         new("byBullet","Break with bullets (0/1)",1),
+                         new("byMelee","Break with melee (0/1)",1),
+                         new("byDamage","Break with damagers/hazards (0/1)",1),
+                         new("byStomp","Break by landing on top (0/1)",0),
+                         new("byTouch","Break by touching (0/1)",0),
+                         new("breakParticles","Puff of particles when broken (0/1)",1) },
                 Texts = { new("palette","Palette (JSON)","[]"), new("data","Tiles (JSON)","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Pushable, Name = "Pushable Block", Icon = "📦",
