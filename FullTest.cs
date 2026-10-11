@@ -246,6 +246,40 @@ public partial class App
             });
             Test("editor: 'break tile' block round-trips", () => RT(RT("[{\"when\":\"click\",\"do\":\"breaktile\",\"where\":\"below\"}]")) == RT("[{\"when\":\"click\",\"do\":\"breaktile\",\"where\":\"below\"}]"));
 
+            // ========================= I) CODE-REVIEW REGRESSIONS =========================
+            // custom #1: an omitted trigger param uses its default, NOT an action param of the same name
+            Test("trigger 'value' defaults to 0 (not the action's value)", () =>
+            {
+                var fires = Sim("[{\"when\":\"ifvar\",\"var\":\"hp\",\"op\":\"<=\",\"do\":\"setvar\",\"var\":\"dead\",\"value\":1}]");
+                fires.TSetVar("hp", 0); fires.TSteps(2);
+                var holds = Sim("[{\"when\":\"ifvar\",\"var\":\"hp\",\"op\":\"<=\",\"do\":\"setvar\",\"var\":\"dead\",\"value\":1}]");
+                holds.TSetVar("hp", 1); holds.TSteps(2);
+                return fires.TVar("dead") >= 1 && holds.TVar("dead") < 0.5; // hp<=0: fires at 0, not at 1
+            });
+            // custom #2: an action param written before "do" is still honored
+            Test("action param before 'do' is honored", () =>
+            {
+                var p = Sim("[{\"when\":\"keypress\",\"key\":\"Space\",\"force\":900,\"do\":\"jump\"}]", extra: MakePlatformerOnFloor);
+                p.TSteps(30); p.TKey("Space", true); p.TStep();
+                return p.TVY("A") < -700; // used 900, not the 600 default
+            });
+            // touch 'name' + spawn: spawn uses its default, not the touch target's name
+            Test("touch name does not leak into spawn", () =>
+            {
+                var p = Sim("[{\"when\":\"touch\",\"name\":\"B\",\"do\":\"spawn\"}]", extra: Combine(AddTouchTarget, AddEnemyPrefab));
+                p.TSteps(3); return p.TAlive("Enemy") >= 1;
+            });
+            // editor #1: an action param before "do" round-trips to the right value (not the default)
+            Test("editor keeps action param written before 'do'", () => RT("[{\"when\":\"always\",\"force\":999,\"do\":\"jump\"}]").Contains("999"));
+            // editor #2: an expr-event condition written before "when" survives round-trip
+            Test("editor keeps expr-event condition before 'when'", () => RT("[{\"expr\":\"hp<5\",\"when\":\"expr\",\"do\":\"jump\"}]").Replace(" ", "").Contains("hp<5"));
+            // breakable: a non-solid (decorative) tile is not broken and does not consume a bullet
+            Test("breakable: non-solid tiles are not breakable", () =>
+            {
+                var p = Sim("[{\"when\":\"start\",\"do\":\"shoot\",\"directions\":1,\"speed\":0}]", extra: BreakMapNonSolid(200, 200));
+                p.TSteps(3); return p.TTiles("Map") == 1; // decoration survives
+            });
+
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
             var bplay = new PlayWindow(bp, bs); sims.Add(bplay);
@@ -301,6 +335,19 @@ public partial class App
             bh.Nums["tileSize"] = 32; bh.Nums["breakable"] = 1;
             foreach (var (k, v) in nums) bh.Nums[k] = v;
             l.Objects.Add(new GameObjectData { Id = 90, Name = "Map", Type = "Object", X = x, Y = y, Width = cols * 32, Height = rows * 32, Color = "#000000", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { bh } });
+        };
+    }
+    // a 1x1 breakable tilemap whose single tile is NON-solid (decoration)
+    private static Action<Project, Scene> BreakMapNonSolid(double x, double y)
+    {
+        return (p, s) =>
+        {
+            var l = s.Layers.First(z => z.Kind == LayerKind.Base);
+            var bh = new BehaviorData { Kind = BehaviorKind.Tilemap };
+            bh.Texts["palette"] = "[{\"color\":\"#55AA55\",\"solid\":false}]";
+            bh.Texts["data"] = "{\"cols\":1,\"rows\":1,\"cells\":[1]}";
+            bh.Nums["tileSize"] = 32; bh.Nums["breakable"] = 1;
+            l.Objects.Add(new GameObjectData { Id = 92, Name = "Map", Type = "Object", X = x, Y = y, Width = 32, Height = 32, Color = "#000000", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { bh } });
         };
     }
     private static Action<Project, Scene> AddFaller(double x, double y)

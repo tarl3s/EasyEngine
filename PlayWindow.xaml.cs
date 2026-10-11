@@ -147,12 +147,26 @@ namespace EasyEngine
             public Dictionary<string, double> WN = new(StringComparer.OrdinalIgnoreCase);
             public Dictionary<string, string> WT = new(StringComparer.OrdinalIgnoreCase);
             public double Timer; public bool Started; public bool WasTouching;
-            public double Num(string k, double d = 0) => N.TryGetValue(k, out var v) ? v : d;
-            public string Str(string k, string d = "") => T.TryGetValue(k, out var v) ? v : d;
-            // trigger reads: prefer the trigger bucket, fall back to the action bucket
-            // (so single-occurrence params written either side still resolve).
-            public double WNum(string k, double d = 0) => WN.TryGetValue(k, out var v) ? v : (N.TryGetValue(k, out var v2) ? v2 : d);
-            public string WStr(string k, string d = "") => WT.TryGetValue(k, out var v) ? v : (T.TryGetValue(k, out var v2) ? v2 : d);
+            // action reads: the action bucket, falling back to the trigger bucket ONLY for keys
+            // the WHEN event does not itself consume (so a param written before "do" is still
+            // found, without ever reading a value that belongs to the trigger — e.g. touch's "name").
+            public double Num(string k, double d = 0) => N.TryGetValue(k, out var v) ? v : (!TriggerConsumes(When, k) && WN.TryGetValue(k, out var v2) ? v2 : d);
+            public string Str(string k, string d = "") => T.TryGetValue(k, out var v) ? v : (!TriggerConsumes(When, k) && WT.TryGetValue(k, out var v2) ? v2 : d);
+            // trigger reads: the trigger bucket only (default when absent) — never the action bucket,
+            // so an omitted trigger param uses its default instead of an action param of the same name.
+            public double WNum(string k, double d = 0) => WN.TryGetValue(k, out var v) ? v : d;
+            public string WStr(string k, string d = "") => WT.TryGetValue(k, out var v) ? v : d;
+
+            // which param keys each WHEN event reads for itself (so action reads skip these on fallback)
+            private static readonly Dictionary<string, string[]> TriggerKeys = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["key"] = new[] { "key" }, ["keydown"] = new[] { "key" }, ["keypress"] = new[] { "key", "cooldown" },
+                ["timer"] = new[] { "every" }, ["touch"] = new[] { "name" },
+                ["ifvar"] = new[] { "var", "op", "value" }, ["iflocal"] = new[] { "var", "op", "value" },
+                ["hasitem"] = new[] { "item" }, ["expr"] = new[] { "expr" },
+            };
+            private static bool TriggerConsumes(string when, string key)
+                => TriggerKeys.TryGetValue(when, out var ks) && System.Array.Exists(ks, x => string.Equals(x, key, System.StringComparison.OrdinalIgnoreCase));
         }
 
         public PlayWindow(Project project, string startSceneName)
@@ -772,7 +786,9 @@ namespace EasyEngine
                 { en.Dead = true; en.Visual.Visibility = Visibility.Collapsed; }
 
             _entities.Add(en);
-            if (obj.Physics.Mode == PhysicsMode.Static || en.Has(BehaviorKind.Solid) || en.Has(BehaviorKind.Gate) || en.Has(BehaviorKind.Pushable) || en.Has(BehaviorKind.Spring))
+            // a Tilemap's collision comes from its tile colliders (merged or per-tile), never the whole-map box
+            if (!en.Has(BehaviorKind.Tilemap) &&
+                (obj.Physics.Mode == PhysicsMode.Static || en.Has(BehaviorKind.Solid) || en.Has(BehaviorKind.Gate) || en.Has(BehaviorKind.Pushable) || en.Has(BehaviorKind.Spring)))
                 _solids.Add(en);
             return en;
         }
@@ -1778,7 +1794,7 @@ namespace EasyEngine
                         double ts = map.TileTS;
                         switch (where)
                         {
-                            case "atmouse": { var cell = CellAt(map, _mouseWorld.X, _mouseWorld.Y); if (cell != null) DamageCell(map, mb, cell, 9999); break; }
+                            case "atmouse": { var mp = map.ScreenSpace ? _mouseScreen : _mouseWorld; var cell = CellAt(map, mp.X, mp.Y); if (cell != null) DamageCell(map, mb, cell, 9999); break; }
                             case "below": BreakOverlap(map, mb, en.X + 2, en.Y + en.H, en.W - 4, ts, 9999); break;
                             case "above": BreakOverlap(map, mb, en.X + 2, en.Y - ts, en.W - 4, ts, 9999); break;
                             case "left": BreakOverlap(map, mb, en.X - ts, en.Y + 2, ts, en.H - 4, 9999); break;
@@ -2293,7 +2309,7 @@ namespace EasyEngine
             int r = (int)Math.Floor((wy - map.TileY0) / map.TileTS);
             if (c < 0 || r < 0 || c >= map.TileCols || r >= map.TileRows) return null;
             var cell = map.TileGrid[r * map.TileCols + c];
-            return (cell != null && !cell.Broken) ? cell : null;
+            return (cell != null && !cell.Broken && cell.Solid) ? cell : null;
         }
 
         // Break the first live cell overlapping an AABB; true if one was broken.
@@ -2308,7 +2324,7 @@ namespace EasyEngine
                 for (int c = c0; c <= c1; c++)
                 {
                     var cell = map.TileGrid[r * map.TileCols + c];
-                    if (cell != null && !cell.Broken) { DamageCell(map, bh, cell, amount); return true; }
+                    if (cell != null && !cell.Broken && cell.Solid) { DamageCell(map, bh, cell, amount); return true; }
                 }
             return false;
         }
@@ -2326,7 +2342,7 @@ namespace EasyEngine
                 bool byStomp = bh.Num("byStomp", 0) >= 0.5;
                 if (!(byBullet || byDamage || byTouch || byStomp)) continue;
 
-                foreach (var a in _entities.ToList())
+                foreach (var a in _entities)
                 {
                     if (a.Dead || a == map) continue;
                     if (byBullet && a.Has(BehaviorKind.Projectile))
@@ -2341,8 +2357,10 @@ namespace EasyEngine
                     }
                     bool character = a.Has(BehaviorKind.Platformer) || a.Has(BehaviorKind.TopDown) || a.Data.Physics.Mode == PhysicsMode.Dynamic;
                     if (!character) continue;
-                    if (byStomp && a.VY >= -1) // landing on / standing on a tile top (not jumping up through it)
-                        if (BreakOverlap(map, bh, a.X + 2, a.Y + a.H - 1, a.W - 4, 5, 1) && a.VY > 10) a.VY = -Math.Abs(a.VY) * 0.5;
+                    // stomp: only a real downward impact breaks it (not merely standing/walking on top).
+                    // Probe ahead of the feet by the fall distance so it fires on the impact frame.
+                    if (byStomp && a.VY > 80)
+                        if (BreakOverlap(map, bh, a.X + 2, a.Y + a.H, a.W - 4, Math.Max(4, a.VY * dt + 2), 1)) a.VY = -Math.Abs(a.VY) * 0.5;
                     if (byTouch) BreakOverlap(map, bh, a.X, a.Y, a.W, a.H, 1);
                 }
             }

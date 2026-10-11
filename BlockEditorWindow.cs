@@ -341,9 +341,11 @@ namespace EasyEngine
                 {
                     if (el.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
                     var r = new RuleModel { When = "always", Do = "" };
+                    // pass 1: read the structural keys and collect the rest (with their side of "do")
                     bool seenDo = false;
                     string? actionExpr = null;
                     var guards = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    var others = new List<(string name, string val, bool beforeDo)>();
                     foreach (var p in el.EnumerateObject())
                     {
                         var name = p.Name.ToLowerInvariant();
@@ -354,15 +356,29 @@ namespace EasyEngine
                         if (name == "do") { r.Do = val.ToLowerInvariant(); seenDo = true; continue; }
                         if (name == "cond") { r.Cond = val; continue; }
                         if (name is "if" or "ifop" or "ifval") { guards[name] = val; continue; }
-                        if (name == "expr" && (seenDo || r.When != "expr")) { actionExpr = val; continue; } // action-side expression
-                        if (!seenDo) r.WhenP[name] = val; else r.DoP[name] = val; // trigger vs action bucket
+                        others.Add((name, val, !seenDo));
                     }
                     if (r.When == "keydown") r.When = "key";
                     if (r.Do == "accel") r.Do = "accelerate";
+
+                    // pass 2: bucket each param by WHICH block defines it (not just its side of "do"),
+                    // so an action param written before "do" (or vice-versa) still lands in the right bucket.
+                    var evDef = DefOf(Events, r.When);
+                    var acDef = DefOf(Actions, r.Do);
+                    bool EvHas(string k) => Array.Exists(evDef.Fields, f => f.Key.Equals(k, StringComparison.OrdinalIgnoreCase));
+                    bool AcHas(string k) => Array.Exists(acDef.Fields, f => f.Key.Equals(k, StringComparison.OrdinalIgnoreCase));
+                    foreach (var (name, val, beforeDo) in others)
+                    {
+                        if (name == "expr" && !(EvHas("expr") && beforeDo)) { actionExpr = val; continue; } // action-side expression value
+                        bool ev = EvHas(name), ac = AcHas(name);
+                        if (ev && !ac) r.WhenP[name] = val;
+                        else if (ac && !ev) r.DoP[name] = val;
+                        else if (beforeDo) r.WhenP[name] = val; else r.DoP[name] = val; // shared/unknown key → use its side of "do"
+                    }
                     // an action-side expression ("expr") belongs in that action's value field
                     if (actionExpr != null)
                     {
-                        var valField = Array.Find(DefOf(Actions, r.Do).Fields, f => f.Type == "val");
+                        var valField = Array.Find(acDef.Fields, f => f.Type == "val");
                         if (valField != null) r.DoP[valField.Key] = actionExpr;
                     }
                     // upgrade the legacy if/ifop/ifval guard into the "Only if" condition
