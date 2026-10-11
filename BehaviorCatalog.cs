@@ -110,7 +110,7 @@ namespace EasyEngine
                 Texts = { new("asset","Sound file",""), new("channel","Channel (music/sfx)","sfx") } },
 
             new BehaviorInfo { Kind = BehaviorKind.LightSource, Name = "Light", Icon = "💡",
-                Desc = "Emits a 2D glow around it. Depends on the scene's ambient light.",
+                Desc = "Lights up the darkness around it (a soft hole in the night, plus a light tint). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle).",
                 Nums = { new("radius","Radius",200), new("intensity","Intensity (0-1)",0.9) },
                 Texts = { new("color","Color (hex)","#FFE9A8") } },
 
@@ -191,7 +191,7 @@ namespace EasyEngine
                          new("nightLight","Brightness at night (0-1)",0.25),
                          new("startAtNight","Start at night (0/1)",0),
                          new("arcHeight","Sun/Moon arc height (px)",120) },
-                Texts = { new("sun","Sun sprite (object name)",""), new("moon","Moon sprite (object name)","") } },
+                Texts = { new("sun","Sun sprite (object name)",""), new("moon","Moon sprite (object name)",""), new("nightColor","Night tint (hex)","#0A1030") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Hotbar, Name = "Hotbar / Inventory", Icon = "🎒",
                 Desc = "A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.",

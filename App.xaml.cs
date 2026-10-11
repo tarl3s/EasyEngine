@@ -460,6 +460,16 @@ public partial class App : Application
                 play.TPlaySound(ProjectIO.SaveSound(project, wav, name));
             Write("sound effects played");
 
+            // the lighting scenario in a real, rendering window (sky colour, light holes, night tint)
+            var scenDir = Path.Combine(Path.GetTempPath(), "EE_SelfTest_scen_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+            Directory.CreateDirectory(scenDir);
+            var scen = ProjectIO.Load(TestScenarios.Build(scenDir));
+            scen.ConsoleOnStart = false;
+            var lightPlay = new PlayWindow(scen, "Lighting Test") { Owner = editor };
+            lightPlay.Show();
+            lightPlay.TSetTime("night");
+            Write("lighting scenario shown at night OK");
+
             // exercise the animation window (UI-only path)
             var anyObj = project.GetStartScene().Layers.SelectMany(l => l.Objects).FirstOrDefault();
             AnimationWindow? anim = null;
@@ -472,8 +482,11 @@ public partial class App : Application
             timer.Tick += (s, ev) =>
             {
                 timer.Stop();
-                int errors = play.TLog.Errors; string firstError = play.TLog.Entries.FirstOrDefault(x => x.Level == LogLevel.Error)?.FullText() ?? "";
-                try { vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { }
+                int errors = play.TLog.Errors + lightPlay.TLog.Errors;
+                string firstError = play.TLog.Entries.Concat(lightPlay.TLog.Entries).FirstOrDefault(x => x.Level == LogLevel.Error)?.FullText() ?? "";
+                Write($"lighting window: {lightPlay.TLightHoles} light holes, darkness {lightPlay.TDarkness:0.00}, sky {lightPlay.TSkyColor}");
+                if (lightPlay.TLightHoles != 2 || lightPlay.TDarkness < 0.5) { Write("SELFTEST FAIL: lighting did not render as expected"); try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { } Shutdown(); return; }
+                try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { }
                 Write("ran loop ~2.5s, closed OK");
                 if (errors > 0) { Write($"SELFTEST FAIL: {errors} error(s) in the play console:\n{firstError}"); Shutdown(); return; }
                 Write("SELFTEST PASS");

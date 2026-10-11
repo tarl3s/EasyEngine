@@ -83,6 +83,8 @@ namespace EasyEngine
             new("setvolume", "Set volume", new[] { new Field("channel", "Channel", "text", "master"), new Field("to", "Level (0-1)", "num", "1") }),
             new("breaktile", "Break a tile", new[] { new Field("where", "Which", "choice", "touching", new[] { "touching", "below", "above", "left", "right", "front", "atmouse" }) },
                 "Breaks a tile of a breakable tilemap: any it overlaps (touching), the one below/above/beside/in front of it, or the one at the mouse."),
+            new("settime",   "Set time of day", new[] { new Field("time", "Time", "choice", "night", new[] { "day", "noon", "dusk", "night", "midnight" }) },
+                "Jumps the Day/Night cycle to that moment (needs a Day/Night cycle object in the scene)."),
             new("playsound", "Play a sound", new[] { new Field("sound", "Sound", "sound"), new Field("volume", "Volume (0-1)", "num", "0.8") },
                 "Plays a sound file from the project's Assets/sounds folder."),
             new("log",       "Write to the console", new[] { new Field("text", "Message", "text"), new Field("level", "Level", "choice", "info", new[] { "info", "warn", "error" }) },

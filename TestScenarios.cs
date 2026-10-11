@@ -27,6 +27,7 @@ namespace EasyEngine
             project.Scenes.Clear();
             project.ConsoleOnStart = true;
             project.Scenes.Add(AxeTest(project));
+            project.Scenes.Add(LightingTest());
             project.StartScene = "Axe Test";
             ProjectIO.Save(project);
             return project.FilePath!;
@@ -129,6 +130,77 @@ namespace EasyEngine
             return scene;
         }
 
+        // ============================================================ LIGHTING TEST
+        // Day/night + lights. NO sky rectangle on purpose: the blue comes from the scene's background colour.
+        private static Scene LightingTest()
+        {
+            var scene = new Scene { Name = "Lighting Test", Width = 1400, Height = 600, BackgroundColor = "#8EC5F0", AmbientLight = 1 };
+            foreach (var v in new[] { "dn:nights", "dn:days", "confirmLook" }) scene.Variables[v] = 0;
+            var baseL = new Layer { Name = "Base", Kind = LayerKind.Base };
+            var ui = new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true };
+            int id = 1;
+            GameObjectData Id(GameObjectData o) { o.Id = id++; return o; }
+
+            var ground = Box("Ground", 0, 500, 1400, 100, "#6B4A2E");
+            ground.Physics.Mode = PhysicsMode.Static; ground.Behaviors.Add(B(BehaviorKind.Solid));
+            baseL.Objects.Add(Id(ground));
+            baseL.Objects.Add(Id(Box("Grass", 0, 494, 1400, 8, "#5BA85C")));
+
+            // a lamp post: its light only matters at night
+            baseL.Objects.Add(Id(Box("LampPole", 716, 380, 8, 120, "#3A3A46")));
+            var lamp = Box("Lamp", 704, 362, 32, 22, "#FFE7A0"); lamp.CornerRadius = 6;
+            var ll = B(BehaviorKind.LightSource); ll.Nums["radius"] = 210; ll.Nums["intensity"] = 0.95; ll.Texts["color"] = "#FFD27A";
+            lamp.Behaviors.Add(ll);
+            baseL.Objects.Add(Id(lamp));
+
+            // the player carries a torch
+            var pl = new GameObjectData { Name = "Player", Type = "Player", X = 200, Y = 440, Width = 34, Height = 52, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
+            var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 240; plat.Nums["jump"] = 620; pl.Behaviors.Add(plat);
+            pl.Behaviors.Add(B(BehaviorKind.FollowCamera));
+            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 170; torch.Nums["intensity"] = 0.95; torch.Texts["color"] = "#FFE6A0";
+            pl.Behaviors.Add(torch);
+            baseL.Objects.Add(Id(pl));
+
+            // the cycle (short, so a whole day+night fits in ~35 s) + keys to jump around
+            var dn = Box("DayNight", 0, 0, 4, 4, "#00000000");
+            var dnB = B(BehaviorKind.DayNight);
+            dnB.Nums["dayLength"] = 20; dnB.Nums["nightLength"] = 15; dnB.Nums["transition"] = 3; dnB.Nums["nightLight"] = 0.12; dnB.Nums["arcHeight"] = 150;
+            dnB.Texts["sun"] = "Sun"; dnB.Texts["moon"] = "Moon";
+            dn.Behaviors.Add(dnB);
+            dn.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] =
+                "[{\"when\":\"keypress\",\"key\":\"N\",\"do\":\"settime\",\"time\":\"night\"}," +
+                "{\"when\":\"keypress\",\"key\":\"M\",\"do\":\"settime\",\"time\":\"day\"}," +
+                "{\"when\":\"keypress\",\"key\":\"Y\",\"do\":\"setvar\",\"var\":\"confirmLook\",\"to\":1}," +
+                "{\"when\":\"keypress\",\"key\":\"R\",\"do\":\"goscene\",\"scene\":\"Lighting Test\"}]" } });
+            baseL.Objects.Add(Id(dn));
+
+            var sun = Box("Sun", -100, -100, 46, 46, "#FFD24D"); sun.CornerRadius = 23; ui.Objects.Add(Id(sun));
+            var moon = Box("Moon", -100, -100, 38, 38, "#D8E4FF"); moon.CornerRadius = 19; ui.Objects.Add(Id(moon));
+
+            var panel = Box("HelpPanel", 12, 62, 600, 104, "#B0101018"); panel.CornerRadius = 8;
+            ui.Objects.Add(Id(panel));
+            ui.Objects.Add(Id(Label("Help1", 24, 68, "LIGHTING TEST   Day ~20 s, night ~15 s (or press N = night, M = morning)", "#FFFFFF", 14)));
+            ui.Objects.Add(Id(Label("Help2", 24, 90, "By day: blue sky, no glow on you.  At night: dark-blue sky + the moon", "#FFFFFF", 13)));
+            ui.Objects.Add(Id(Label("Help3", 24, 110, "+ soft light around you and the lamp.  Looks right? Y  ·  F1 console  ·  R restart", "#FFFFFF", 13)));
+            ui.Objects.Add(Id(Label("Counters", 24, 136, "Nights {dn:nights}  ·  Days {dn:days}  ·  Night now {isNight}", "#FFD86B", 13)));
+
+            var checks = Box("Checks", 0, 0, 4, 4, "#00000000");
+            var cl = B(BehaviorKind.Checklist);
+            cl.Texts["title"] = "Lighting test";
+            cl.Texts["items"] = string.Join("\n",
+                "Starts in full daylight => isDay >= 1 && dayness >= 0.99",
+                "Night falls (wait, or press N) => dn:nights >= 1",
+                "Day comes back (wait, or press M) => dn:days >= 1",
+                "It all looks right — press Y => confirmLook >= 1");
+            cl.Nums["width"] = 320;
+            checks.Behaviors.Add(cl);
+            ui.Objects.Add(Id(checks));
+
+            scene.Layers.Add(new Layer { Name = "Background", Kind = LayerKind.Background });
+            scene.Layers.Add(baseL); scene.Layers.Add(ui);
+            return scene;
+        }
+
         // ============================================================ helpers
         private static BehaviorData B(BehaviorKind k) => BehaviorCatalog.Info(k).CreateData();
 
@@ -137,7 +209,7 @@ namespace EasyEngine
 
         private static GameObjectData Label(string name, double x, double y, string text, string color, double size)
         {
-            var o = Box(name, x, y, 580, size + 8, "#00000000");
+            var o = Box(name, x, y, 900, size + 8, "#00000000");
             var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Texts["align"] = "left"; lb.Nums["fontSize"] = size;
             o.Behaviors.Add(lb);
             return o;

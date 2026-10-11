@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace EasyEngine
 {
@@ -47,6 +48,16 @@ namespace EasyEngine
         public void TShowConsole(bool show) => ShowConsole(show);
         public IReadOnlyList<string> TSounds => _soundsPlayed; // file names, in the order they were played
         public void TPlaySound(string rel) => PlaySoundFile(rel, 0.35, "sfx", false, "selftest");
+
+        // lighting
+        public void TUpdateLighting() => UpdateLighting();
+        public void TSetTime(string when) => Dispatcher.BeginInvoke(new System.Action(() => SetTimeOfDay(when, "selftest")), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        public int TLightHoles => _lightMasks.Count;
+        public double TDarkness => Darkness.Opacity;
+        public double TGlow => Lights.Opacity;
+        public string TSkyColor => (Root.Background as SolidColorBrush)?.Color.ToString() ?? "";
+        public string TDarkColor => (Darkness.Fill as SolidColorBrush)?.Color.ToString() ?? "";
+        public bool TVisible(string name) { var e = TE(name); return e != null && !e.Dead && e.Visual.Visibility == Visibility.Visible; }
 
         // tools / harvesting
         public string THeld => _heldItem;

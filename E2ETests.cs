@@ -20,19 +20,84 @@ public partial class App
         int pass = 0, fail = 0;
         try
         {
-            foreach (var (step, ok, lines) in RunAxeE2E())
+            foreach (var (title, run) in new (string, Func<List<(string, bool, List<string>)>>)[] { ("Axe Test", RunAxeE2E), ("Lighting Test", RunLightingE2E) })
             {
-                if (ok) pass++; else fail++;
-                sb.AppendLine((ok ? "PASS" : "FAIL") + "  " + step);
-                foreach (var l in lines) sb.AppendLine("          " + l);
+                sb.AppendLine($"===== {title} =====");
+                foreach (var (step, ok, lines) in run())
+                {
+                    if (ok) pass++; else fail++;
+                    sb.AppendLine((ok ? "PASS" : "FAIL") + "  " + step);
+                    foreach (var l in lines) sb.AppendLine("          " + l);
+                }
+                sb.AppendLine();
             }
         }
         catch (Exception ex) { sb.AppendLine("FATAL: " + ex); fail++; }
         try { foreach (var dir in Directory.GetDirectories(Path.GetTempPath(), "EE_FullE2E_*")) try { Directory.Delete(dir, true); } catch { } } catch { }
-        sb.Insert(0, $"e2e — Axe Test scenario — {DateTime.Now}\n\n");
+        sb.Insert(0, $"e2e — test scenarios — {DateTime.Now}\n\n");
         sb.AppendLine($"\n{pass}/{pass + fail} steps passed" + (fail == 0 ? "  — ALL PASS" : $"  — {fail} FAILED"));
         try { File.WriteAllText(log, sb.ToString()); } catch { }
         Shutdown();
+    }
+
+    /// <summary>Plays the "Lighting Test" scene headless: sky colour, daylight, N → night, M → morning, the cycle on its own.</summary>
+    internal static List<(string step, bool ok, List<string> lines)> RunLightingE2E()
+    {
+        var results = new List<(string, bool, List<string>)>();
+        var tmp = Path.Combine(Path.GetTempPath(), "EE_FullE2E_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+        Directory.CreateDirectory(tmp);
+        var project = ProjectIO.Load(TestScenarios.Build(tmp));
+        var pw = new PlayWindow(project, "Lighting Test");
+        try
+        {
+            pw.TLoad();
+            pw.TSteps(10);
+            long seq = 0;
+            void Step(string name, Func<bool> check)
+            {
+                bool ok; string err = "";
+                try { ok = check(); } catch (Exception ex) { ok = false; err = ex.GetType().Name + ": " + ex.Message; }
+                var lines = pw.TLog.Entries.Where(e => e.Seq > seq).Select(e => $"{e.TimeText,7} {e.Line}{(e.Count > 1 ? "  ×" + e.Count : "")}").ToList();
+                lines.Add($"   state: darkness {pw.TDarkness:0.00} · glow {pw.TGlow:0.00} · holes {pw.TLightHoles} · night {pw.TVar("isNight")} · sky {pw.TSkyColor} · dark {pw.TDarkColor}");
+                if (err.Length > 0) lines.Add("EXCEPTION " + err);
+                seq = pw.TLog.LastSeq;
+                results.Add((name, ok, lines));
+            }
+            void Key(string k) { pw.TKey(k, true); pw.TStep(); pw.TKey(k, false); pw.TSteps(3); pw.TUpdateLighting(); }
+
+            Step("The sky is the scene's blue (no more black sky)", () => pw.TSkyColor == "#FF8EC5F0");
+
+            Step("It starts in FULL daylight: no darkness and no glow on the player", () =>
+            {
+                pw.TUpdateLighting();
+                return pw.TVar("isDay") == 1 && pw.TVar("dayness") >= 0.99 && pw.TDarkness < 0.01 && pw.TGlow < 0.01 && pw.TVisible("Sun") && !pw.TVisible("Moon");
+            });
+
+            Step("Each light (torch + lamp) cuts its own hole in the darkness", () => pw.TLightHoles == 2);
+
+            Step("N jumps to night: dark-blue darkness, moon up, sun gone, the lights glow", () =>
+            {
+                Key("N");
+                return pw.TVar("isNight") == 1 && pw.TDarkness >= 0.8 && pw.TDarkColor == "#FF0A1030" && pw.TGlow > 0.3
+                       && pw.TVisible("Moon") && !pw.TVisible("Sun") && pw.TLogHas("Night falls") && pw.TVar("dn:nights") == 1;
+            });
+
+            Step("M brings the morning back: no darkness, no glow, sun up", () =>
+            {
+                Key("M");
+                return pw.TVar("isDay") == 1 && pw.TDarkness < 0.01 && pw.TGlow < 0.01 && pw.TVisible("Sun") && !pw.TVisible("Moon") && pw.TVar("dn:days") == 1;
+            });
+
+            Step("Left alone, the cycle reaches night again by itself (~20 s of day)", () =>
+            {
+                pw.TSteps(1300); pw.TUpdateLighting();
+                return pw.TVar("dn:nights") >= 2;
+            });
+
+            Step("Pressing Y completes the checklist (ALL PASSED)", () => { Key("Y"); pw.TStep(); return pw.TVar("check:all") == 1 && pw.TLogHas("ALL PASSED"); });
+        }
+        finally { try { pw.Close(); } catch { } }
+        return results;
     }
 
     /// <summary>Plays the "Axe Test" scene headless. Returns one (step, ok, console lines) per step.</summary>

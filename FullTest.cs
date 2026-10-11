@@ -704,6 +704,8 @@ public partial class App
             // ========================= S) E2E: the "Axe Test" scenario, played step by step =========================
             foreach (var (step, ok, lines) in RunAxeE2E())
                 Test("e2e axe: " + step + (ok ? "" : "  ⟶ " + string.Join(" | ", lines.TakeLast(4))), () => ok);
+            foreach (var (step, ok, lines) in RunLightingE2E())
+                Test("e2e lighting: " + step + (ok ? "" : "  ⟶ " + string.Join(" | ", lines.TakeLast(4))), () => ok);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();

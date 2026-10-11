@@ -638,6 +638,7 @@ namespace EasyEngine
             Title = $"Test — {_project.Name} · {_scene.Name}";
 
             Darkness.Opacity = Math.Clamp(1.0 - _scene.AmbientLight, 0, 1);
+            ApplySky();
             SizeDarkness();
 
             foreach (var layer in _scene.Layers)
@@ -1940,6 +1941,7 @@ namespace EasyEngine
                     }
                     break;
                 }
+                case "settime": SetTimeOfDay(r.Str("time", "night"), en.Data.Name); break;
                 case "playsound": PlaySoundFile(r.Str("sound"), r.Num("volume", 0.8), r.Str("channel", "sfx"), false, en.Data.Name); break;
                 case "log": // "Write to the console" — like Unity's Debug.Log, with {variable} substitution
                 {
@@ -2538,11 +2540,23 @@ namespace EasyEngine
             double dayLight = Math.Clamp(bh.Num("dayLight", 1), 0, 1);
             double nightLight = Math.Clamp(bh.Num("nightLight", 0.25), 0, 1);
 
-            if (!en.DNStarted) { en.DNStarted = true; en.DNTimer = bh.Num("startAtNight", 0) >= 0.5 ? dayLen : 0; }
+            // start in the morning, already fully lit (starting at t=0 was the darkest moment of dawn)
+            if (!en.DNStarted) { en.DNStarted = true; en.DNTimer = bh.Num("startAtNight", 0) >= 0.5 ? dayLen : trans; }
             en.DNTimer += dt;
             if (en.DNTimer >= total) en.DNTimer -= total * Math.Floor(en.DNTimer / total);
             double t = en.DNTimer;
             bool night = t >= dayLen;
+
+            // count transitions (dn:nights / dn:days) and log them
+            double was = en.Locals.TryGetValue("__wasNight", out var wn) ? wn : -1;
+            if (was >= 0 && (was >= 0.5) != night)
+            {
+                string k = night ? "dn:nights" : "dn:days";
+                _vars[k] = Var(k) + 1;
+                Info("DayNight", en.Data.Name, night ? "Night falls" : "Day breaks", $"cycle time {t:0.0}s");
+            }
+            en.Locals["__wasNight"] = night ? 1 : 0;
+            SetDarknessColor(bh.Text("nightColor", "#0A1030")); // the night is deep blue, not pure black
 
             // "dayness" 0..1 drives the light: ramps up at dawn, flat by day, ramps down at dusk, flat (0) at night
             double dayness;
@@ -2574,7 +2588,7 @@ namespace EasyEngine
                 if (!active) return;
                 double margin = 40, p = Math.Clamp(phase, 0, 1);
                 e.X = margin + p * (W - 2 * margin) - e.W / 2;      // left → right
-                e.Y = 30 + (1 - Math.Sin(p * Math.PI)) * arcH;       // arc: highest at the middle
+                e.Y = 64 + (1 - Math.Sin(p * Math.PI)) * arcH;       // arc: highest at the middle (below the top bar)
             }
             Place(bh.Text("sun", ""), !night, dayLen > 0 ? t / dayLen : 0);
             Place(bh.Text("moon", ""), night && !topdown, nightLen > 0 ? (t - dayLen) / nightLen : 0);
@@ -2759,6 +2773,7 @@ namespace EasyEngine
         {
             _camTransform.X = _camX; _camTransform.Y = _camY;
             _lightTransform.X = _camX; _lightTransform.Y = _camY;
+            UpdateLighting();
             UpdateDialogTypewriter(dt);
 
             foreach (var en in _entities)
