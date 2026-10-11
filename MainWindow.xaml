@@ -146,10 +146,15 @@
                                 <TextBlock Text="AI strength" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                 <ComboBox x:Name="StrengthCombo" SelectionChanged="StrengthCombo_SelectionChanged">
                                     <ComboBoxItem Content="☁ Cloud — Auto (rotate free providers)" Tag="cloud:auto"/>
-                                    <ComboBoxItem Content="☁ Cloud — Groq 120B (smart)"   Tag="cloud:groq"/>
-                                    <ComboBoxItem Content="☁ Cloud — Groq 20B (light/fast)" Tag="cloud:groq|openai/gpt-oss-20b"/>
-                                    <ComboBoxItem Content="☁ Cloud — Gemini (free)"      Tag="cloud:gemini"/>
-                                    <ComboBoxItem Content="☁ Cloud — OpenRouter (free)"  Tag="cloud:openrouter"/>
+                                    <ComboBoxItem Content="☁ Groq 120B (free)"   Tag="cloud:groq"/>
+                                    <ComboBoxItem Content="☁ Groq 20B (free, fast)" Tag="cloud:groq|openai/gpt-oss-20b"/>
+                                    <ComboBoxItem Content="☁ Gemini (free)"      Tag="cloud:gemini"/>
+                                    <ComboBoxItem Content="☁ OpenRouter (free)"  Tag="cloud:openrouter"/>
+                                    <ComboBoxItem Content="☁ Mistral (free)"     Tag="cloud:mistral"/>
+                                    <ComboBoxItem Content="💳 OpenAI / ChatGPT (your API key)" Tag="cloud:openai"/>
+                                    <ComboBoxItem Content="💳 Claude / Anthropic (your API key)" Tag="cloud:anthropic"/>
+                                    <ComboBoxItem Content="💳 DeepSeek (your API key)" Tag="cloud:deepseek"/>
+                                    <ComboBoxItem Content="💳 Custom — any OpenAI-compatible (your API key)" Tag="cloud:custom"/>
                                     <ComboBoxItem Content="⚡ Local — fastest (1.5b)"        Tag="qwen2.5-coder:1.5b"/>
                                     <ComboBoxItem Content="✨ Local+ — smarter, still light (3b)" Tag="qwen2.5-coder:3b"/>
                                     <ComboBoxItem Content="⚖ Local — balanced (7b)"         Tag="qwen2.5-coder:7b"/>

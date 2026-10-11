@@ -1989,10 +1989,11 @@ namespace EasyEngine
             foreach (var prov in CloudClient.Providers)
             {
                 var p = prov; // capture
-                var header = new Grid { Margin = new Thickness(0, 5, 0, 2) };
+                var header = new Grid { Margin = new Thickness(0, 7, 0, 2) };
                 header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                header.Children.Add(new TextBlock { Text = $"{p.Name}  ·  {p.KeyUrl}", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
+                var tag = p.Free ? "free" : "your account, billed per use";
+                header.Children.Add(new TextBlock { Text = $"{p.Name}  ({tag})  ·  {p.KeyUrl}", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
                 var show = new CheckBox { Content = "Show", FontSize = 11, Foreground = (SolidColorBrush)FindResource("TextDim"), VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(show, 1); header.Children.Add(show);
                 CloudKeysHost.Children.Add(header);
@@ -2007,6 +2008,18 @@ namespace EasyEngine
                 show.Unchecked += (s, e) => { syncing = true; pw.Password = AiSettings.Key(p.Id); pw.Visibility = Visibility.Visible; tb.Visibility = Visibility.Collapsed; syncing = false; };
                 CloudKeysHost.Children.Add(pw);
                 CloudKeysHost.Children.Add(tb);
+
+                // the Custom provider also needs an endpoint URL + model name
+                if (p.Id == "custom")
+                {
+                    var urlBox = new TextBox { Text = AiSettings.CustomUrl, Margin = new Thickness(0, 3, 0, 0) };
+                    urlBox.TextChanged += (s, e) => { AiSettings.CustomUrl = urlBox.Text.Trim(); AiSettings.Save(); };
+                    var modelBox = new TextBox { Text = AiSettings.CustomModel, Margin = new Thickness(0, 3, 0, 0) };
+                    modelBox.TextChanged += (s, e) => { AiSettings.CustomModel = modelBox.Text.Trim(); AiSettings.Save(); };
+                    CloudKeysHost.Children.Add(new TextBlock { Text = "Base URL (…/v1) and model name:", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 10, Margin = new Thickness(0, 3, 0, 0) });
+                    CloudKeysHost.Children.Add(urlBox);
+                    CloudKeysHost.Children.Add(modelBox);
+                }
             }
         }
 
@@ -2083,16 +2096,24 @@ namespace EasyEngine
         {
             if (!_useCloud) return await _ollama.GenerateAsync(_model, prompt, system, json, temperature, ct);
 
-            var order = new List<CloudProvider>();
-            if (_cloudProvider != "auto")
+            List<CloudProvider> order;
+            if (_cloudProvider == "auto")
             {
-                var sel = CloudClient.Provider(_cloudProvider);
-                if (sel != null) order.Add(string.IsNullOrEmpty(_cloudModelOverride) ? sel : sel with { Model = _cloudModelOverride });
+                // only rotate FREE providers with a key — never spend a paid account automatically
+                order = CloudClient.Providers.Where(p => p.Free && !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id))).ToList();
             }
-            foreach (var p in CloudClient.Providers) if (!order.Any(o => o.Id == p.Id)) order.Add(p);
-            order = order.Where(p => !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id))).ToList();
+            else
+            {
+                // a specific provider (incl. paid) is used alone — the user controls exactly what gets billed
+                var sel = CloudClient.Provider(_cloudProvider);
+                order = sel != null && !string.IsNullOrWhiteSpace(AiSettings.Key(sel.Id))
+                    ? new List<CloudProvider> { string.IsNullOrEmpty(_cloudModelOverride) ? sel : sel with { Model = _cloudModelOverride } }
+                    : new List<CloudProvider>();
+            }
 
-            if (order.Count == 0) throw new CloudException("No cloud API key set. Add a free key in the AI settings (⚙).");
+            if (order.Count == 0) throw new CloudException(_cloudProvider == "auto"
+                ? "No free cloud key set. Add one in the AI settings (⚙)."
+                : "Add the API key for this provider in the AI settings (⚙).");
 
             CloudException? last = null;
             for (int i = 0; i < order.Count; i++)
