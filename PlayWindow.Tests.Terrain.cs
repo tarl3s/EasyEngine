@@ -11,7 +11,7 @@ namespace EasyEngine
         public int TTerrainSeed => _terrain?.Seed ?? 0;
         public int TTerrainChunks => _terrain?.Chunks.Count ?? 0;
         public int TTerrainBuilt => _terrain?.Built ?? 0;
-        public int TTerrainVisuals => _terrain == null ? 0 : TerrainBlockCount(_terrain);
+        public int TTerrainVisuals => _terrain == null ? 0 : TerrainVisualCount(_terrain);
         public bool TTerrainChunkLoaded(int cx, int cy) => _terrain?.Chunks.ContainsKey((cx, cy)) ?? false;
         public int TTerrainRows => _terrain?.Rows ?? 0;
         public double TTerrainTs => _terrain?.Ts ?? 0;

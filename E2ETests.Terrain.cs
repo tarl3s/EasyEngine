@@ -18,8 +18,11 @@ public partial class App
         var tmp = Path.Combine(Path.GetTempPath(), "EE_FullE2E_" + Guid.NewGuid().ToString("N").Substring(0, 6));
         Directory.CreateDirectory(tmp);
         var project = ProjectIO.Load(InfiniteWorld.Build(tmp));
-        // the saved project makes a new world every game; the test walks the same hills every run
-        project.Scenes[0].Layers.SelectMany(l => l.Objects).First(o => o.Name == "Land").Behaviors.First(b => b.Kind == BehaviorKind.Terrain).Nums["seed"] = 4242;
+        // the saved project makes a new world every game; the test walks the same hills every run, with a tougher player
+        // (the night slimes must not send it back to the start in the middle of a step)
+        var objects = project.Scenes[0].Layers.SelectMany(l => l.Objects).ToList();
+        objects.First(o => o.Name == "Land").Behaviors.First(b => b.Kind == BehaviorKind.Terrain).Nums["seed"] = 4242;
+        objects.First(o => o.Name == "Player").Behaviors.First(b => b.Kind == BehaviorKind.Health).Nums["max"] = 100;
         var pw = new PlayWindow(project, "World");
         try
         {

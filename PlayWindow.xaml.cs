@@ -2526,10 +2526,10 @@ namespace EasyEngine
             var drop = cell.Drop ?? bh.Text("drop", "");
             double dropAmount = Math.Max(1, bh.Num("dropAmount", 1));
             Info("Tile", map.Data.Name, $"Broke tile ({cell.C},{cell.R})" + (drop.Length > 0 ? $" → +{dropAmount:0} {drop}" : ""));
-            if (cell.Visual?.Parent is Panel host) host.Children.Remove(cell.Visual);
+            if (map.Terrain != null) TerrainCellDug(map.Terrain, cell); // stays dug when its chunk comes back; shows the back wall
+            else if (cell.Visual?.Parent is Panel host) host.Children.Remove(cell.Visual);
             if (cell.Collider != null) { cell.Collider.Dead = true; _solids.Remove(cell.Collider); }
             if (map.TileGrid != null) { int idx = cell.R * map.TileCols + cell.C; if (idx >= 0 && idx < map.TileGrid.Length) map.TileGrid[idx] = null; }
-            map.Terrain?.Dug.Add((cell.C, cell.R)); // stays dug when its chunk is unloaded and comes back
             if (!string.IsNullOrWhiteSpace(drop)) _vars["item:" + drop] = Var("item:" + drop) + dropAmount;
             if (bh.Num("breakParticles", 1) >= 0.5)
                 EmitParticles(cell.X + cell.W / 2, cell.Y + cell.H / 2, 10, 160, 360, 0, 0.5, Math.Max(3, cell.W / 6), 500, cell.Color);

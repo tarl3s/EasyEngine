@@ -59,6 +59,7 @@ namespace EasyEngine
             public readonly string[] Colors = new string[6];
             public readonly Brush[] Fills = new Brush[12];  // two shades per material (frozen, shared by every block)
             public readonly string?[] Drops = new string?[6];
+            public Brush WallDirt = null!, WallStone = null!; // the dark back wall of caves and dug-out blocks
             public readonly Dictionary<(int cx, int cy), Chunk> Chunks = new();
             public int Built;                             // chunks built so far (loads, including reloads)
             public HashSet<(int c, int r)> Dug = null!;
@@ -136,6 +137,7 @@ namespace EasyEngine
             }
 
             public int ShadeOf(int c, int r) => (int)(Hash(c, r, Seed + 71) & 1);
+            public Brush WallFill(int below) => below <= DirtDepth ? WallDirt : WallStone;
         }
 
         // ---------------------------------------------------------------- noise (integers + a good hash → same world every run)
@@ -210,12 +212,19 @@ namespace EasyEngine
                 TreeName = bh.Text("tree", "Tree"), Dug = mem.dug, Felled = mem.felled
             };
             string[] colors = { "", bh.Text("grass", "#5FB548"), bh.Text("dirt", "#8A5A32"), bh.Text("stone", "#767680"), bh.Text("ore", "#E2B23C"), "#2B2B33" };
+            static SolidColorBrush Frozen(Color c, double f)
+            {
+                var b = new SolidColorBrush(Color.FromRgb((byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f)));
+                b.Freeze();
+                return b;
+            }
             for (int b = 1; b < colors.Length; b++)
             {
                 var col = ParseColor(colors[b], Color.FromRgb(0x9A, 0x9A, 0xA0));
                 t.Colors[b] = colors[b];
-                t.Fills[b * 2] = Frozen(col);
-                t.Fills[b * 2 + 1] = Frozen(Color.FromRgb((byte)(col.R * 0.9), (byte)(col.G * 0.9), (byte)(col.B * 0.9)));
+                t.Fills[b * 2] = Frozen(col, 1); t.Fills[b * 2 + 1] = Frozen(col, 0.9);
+                if (b == (int)Block.Dirt) t.WallDirt = Frozen(col, 0.4);
+                if (b == (int)Block.Stone) t.WallStone = Frozen(col, 0.4);
             }
             t.Drops[(int)Block.Grass] = t.Drops[(int)Block.Dirt] = bh.Text("dirtDrop", "dirt");
             t.Drops[(int)Block.Stone] = bh.Text("stoneDrop", "stone");
@@ -230,8 +239,6 @@ namespace EasyEngine
             _terrainSurfaceAt = x => t.InWorld(t.Column(x)) ? t.SurfaceRow(t.Column(x)) * t.Ts : null;
             _terrainBottom = t.Rows * ts;
         }
-
-        private static SolidColorBrush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
         // seed 0 = a new world every game, chosen once and kept in a variable (like the Generator's "once" maps)
         private int TerrainSeed(Entity en, BehaviorData bh)
@@ -330,11 +337,11 @@ namespace EasyEngine
                 if (!Kept(k.cx, k.cy) && !under.Contains(k)) { UnloadChunk(t, k); unloaded++; }
 
             if (loaded + unloaded > 0)
-                LogThrottled("terrain-stream", 2.0, LogLevel.Info, "Terrain", t.Host.Data.Name, $"Streaming: {t.Chunks.Count} chunks in memory ({TerrainBlockCount(t)} blocks drawn)",
+                LogThrottled("terrain-stream", 2.0, LogLevel.Info, "Terrain", t.Host.Data.Name, $"Streaming: {t.Chunks.Count} chunks in memory ({TerrainVisualCount(t)} rectangles drawn)",
                              $"this tick +{loaded} / −{unloaded} chunks · view chunks x {vx0}..{vx1}, y {vy0}..{vy1}");
         }
 
-        private static int TerrainBlockCount(TerrainState t) => t.Chunks.Values.Sum(ch => ch.Canvas.Children.Count);
+        private static int TerrainVisualCount(TerrainState t) => t.Chunks.Values.Sum(ch => ch.Canvas.Children.Count);
 
         private static bool IsMover(Entity e) => e.Terrain == null &&
             (e.Data.Physics.Mode == PhysicsMode.Dynamic || e.Has(BehaviorKind.Platformer) || e.Has(BehaviorKind.TopDown) || e.Has(BehaviorKind.AdvancedPatrol));
@@ -370,14 +377,23 @@ namespace EasyEngine
                 int c = k.cx * ChunkSize + lc;
                 if (!t.InWorld(c)) continue;
                 int surf = t.SurfaceRow(c);
-                for (int lr = 0; lr < ChunkSize; lr++)
+                double x = t.X0 + c * ts;
+                // underground air (caves, dug-out blocks) shows a dark back wall, one rectangle per run of rows
+                int wallFrom = 0; Brush? wallFill = null;
+                for (int lr = 0; lr <= ChunkSize; lr++) // one row past the chunk closes the last run
                 {
                     int r = r0 + lr;
-                    var b = t.BlockAt(c, r, surf);
-                    if (b == Block.Air || t.Dug.Contains((c, r))) continue;
-                    double x = t.X0 + c * ts, y = r * ts;
-                    var rect = new System.Windows.Shapes.Rectangle { Width = ts + 0.5, Height = ts + 0.5, Fill = t.Fills[(int)b * 2 + t.ShadeOf(c, r)] };
-                    Canvas.SetLeft(rect, x); Canvas.SetTop(rect, y);
+                    var b = lr < ChunkSize ? t.BlockAt(c, r, surf) : Block.Air;
+                    if (t.Dug.Contains((c, r))) b = Block.Air;
+                    var wall = lr < ChunkSize && b == Block.Air && r > surf && r < t.Rows ? t.WallFill(r - surf) : null;
+                    if (wall != wallFill)
+                    {
+                        if (wallFill != null) ch.Canvas.Children.Add(BlockRect(x, wallFrom * ts, ts, (r - wallFrom) * ts, wallFill));
+                        wallFill = wall; wallFrom = r;
+                    }
+                    if (b == Block.Air) continue;
+                    double y = r * ts;
+                    var rect = BlockRect(x, y, ts, ts, t.Fills[(int)b * 2 + t.ShadeOf(c, r)]);
                     ch.Canvas.Children.Add(rect);
                     ch.Cells[lr * ChunkSize + lc] = new TileCell
                     {
@@ -389,6 +405,22 @@ namespace EasyEngine
             }
             t.Chunks[k] = ch; t.Built++;
             _terrainLayer?.Children.Add(ch.Canvas);
+        }
+
+        private static System.Windows.Shapes.Rectangle BlockRect(double x, double y, double w, double h, Brush fill)
+        {
+            var rect = new System.Windows.Shapes.Rectangle { Width = w + 0.5, Height = h + 0.5, Fill = fill }; // +0.5: no hairline seams
+            Canvas.SetLeft(rect, x); Canvas.SetTop(rect, y);
+            return rect;
+        }
+
+        // A block was dug out (DamageCell): remembered, and below the grass its rectangle becomes the dark back wall.
+        private static void TerrainCellDug(TerrainState t, TileCell cell)
+        {
+            t.Dug.Add((cell.C, cell.R));
+            int below = cell.R - t.SurfaceRow(cell.C);
+            if (below > 0 && cell.Visual != null) cell.Visual.Fill = t.WallFill(below);
+            else if (cell.Visual?.Parent is Panel host) host.Children.Remove(cell.Visual);
         }
 
         private void PlantTree(TerrainState t, Chunk ch, int c, int surf)
