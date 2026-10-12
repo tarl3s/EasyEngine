@@ -42,7 +42,7 @@ namespace EasyEngine
         public async Task<string> GenerateAsync(CloudProvider p, string prompt, string system, string apiKey, bool json, double temperature, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(apiKey))
-                throw new CloudException($"No API key for {p.Name}. Paste your key in the AI settings (get one at {p.KeyUrl}).");
+                throw new CloudException(L.F("No API key for {0}. Paste your key in the AI settings (get one at {1}).", p.Name, p.KeyUrl));
 
             // the custom provider takes its endpoint + model from settings
             string baseUrl = p.BaseUrl, model = p.Model;
@@ -50,7 +50,7 @@ namespace EasyEngine
             {
                 baseUrl = AiSettings.CustomUrl; model = AiSettings.CustomModel;
                 if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(model))
-                    throw new CloudException("Set the Custom endpoint URL and model name in the AI settings.");
+                    throw new CloudException(L.T("Set the Custom endpoint URL and model name in the AI settings."));
             }
 
             if (p.Anthropic) return await AnthropicGenerate(baseUrl, model, prompt, system, apiKey, p, ct);
@@ -77,8 +77,8 @@ namespace EasyEngine
 
             HttpResponseMessage resp;
             try { resp = await Http.SendAsync(req, ct); }
-            catch (HttpRequestException) { throw new CloudException($"Couldn't reach {p.Name}. Check your internet connection."); }
-            catch (TaskCanceledException) { throw new CloudException($"{p.Name} took too long and was cancelled."); }
+            catch (HttpRequestException) { throw new CloudException(L.F("Couldn't reach {0}. Check your internet connection.", p.Name)); }
+            catch (TaskCanceledException) { throw new CloudException(L.F("{0} took too long and was cancelled.", p.Name)); }
 
             var text = await resp.Content.ReadAsStringAsync(ct);
 
@@ -86,12 +86,12 @@ namespace EasyEngine
             {
                 var detail = TryGetErrorMessage(text);
                 if (resp.StatusCode == HttpStatusCode.Unauthorized)
-                    throw new CloudException($"{p.Name} API key is invalid. Check it in the AI settings ({p.KeyUrl}).");
+                    throw new CloudException(L.F("{0} API key is invalid. Check it in the AI settings ({1}).", p.Name, p.KeyUrl));
                 if (resp.StatusCode == (HttpStatusCode)429)
-                    throw new CloudException($"{p.Name} limit reached for now." + (detail != null ? $" ({detail})" : "")) { RateLimited = true };
+                    throw new CloudException(L.F("{0} limit reached for now.", p.Name) + (detail != null ? $" ({detail})" : "")) { RateLimited = true };
                 if (resp.StatusCode == HttpStatusCode.NotFound || (detail?.Contains("model", StringComparison.OrdinalIgnoreCase) ?? false))
-                    throw new CloudException($"Model \"{model}\" isn't available on {p.Name}." + (detail != null ? $"\n({detail})" : ""));
-                throw new CloudException($"{p.Name} error ({(int)resp.StatusCode}): {detail ?? text}");
+                    throw new CloudException(L.F("Model \"{0}\" isn't available on {1}.", model, p.Name) + (detail != null ? $"\n({detail})" : ""));
+                throw new CloudException(L.F("{0} error ({1}): {2}", p.Name, (int)resp.StatusCode, detail ?? text));
             }
 
             try
@@ -121,18 +121,18 @@ namespace EasyEngine
 
             HttpResponseMessage resp;
             try { resp = await Http.SendAsync(req, ct); }
-            catch (HttpRequestException) { throw new CloudException($"Couldn't reach {p.Name}. Check your internet connection."); }
-            catch (TaskCanceledException) { throw new CloudException($"{p.Name} took too long and was cancelled."); }
+            catch (HttpRequestException) { throw new CloudException(L.F("Couldn't reach {0}. Check your internet connection.", p.Name)); }
+            catch (TaskCanceledException) { throw new CloudException(L.F("{0} took too long and was cancelled.", p.Name)); }
 
             var text = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode)
             {
                 var detail = TryGetErrorMessage(text);
-                if (resp.StatusCode == HttpStatusCode.Unauthorized) throw new CloudException($"{p.Name} API key is invalid ({p.KeyUrl}).");
-                if (resp.StatusCode == (HttpStatusCode)429) throw new CloudException($"{p.Name} rate limit reached." + (detail != null ? $" ({detail})" : "")) { RateLimited = true };
+                if (resp.StatusCode == HttpStatusCode.Unauthorized) throw new CloudException(L.F("{0} API key is invalid ({1}).", p.Name, p.KeyUrl));
+                if (resp.StatusCode == (HttpStatusCode)429) throw new CloudException(L.F("{0} rate limit reached.", p.Name) + (detail != null ? $" ({detail})" : "")) { RateLimited = true };
                 if (resp.StatusCode == HttpStatusCode.NotFound || (detail?.Contains("model", StringComparison.OrdinalIgnoreCase) ?? false))
-                    throw new CloudException($"Model \"{model}\" isn't available on {p.Name}." + (detail != null ? $"\n({detail})" : ""));
-                throw new CloudException($"{p.Name} error ({(int)resp.StatusCode}): {detail ?? text}");
+                    throw new CloudException(L.F("Model \"{0}\" isn't available on {1}.", model, p.Name) + (detail != null ? $"\n({detail})" : ""));
+                throw new CloudException(L.F("{0} error ({1}): {2}", p.Name, (int)resp.StatusCode, detail ?? text));
             }
 
             try

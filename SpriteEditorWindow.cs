@@ -55,11 +55,12 @@ namespace EasyEngine
 
         /// <summary>Set when the user saves; the project-relative path of the written PNG.</summary>
         public string? SavedRelativePath { get; private set; }
+        internal string TestShape => _shape; // tests: the Shape tool's shape (picked by its translated label)
 
         public SpriteEditorWindow(Project project, int size = 32, string? loadAbsolutePath = null)
         {
             _project = project;
-            Title = "Sprite editor";
+            Title = L.T("Sprite editor");
             Width = 560; Height = 560;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = Theme.Brush("Bg0", "#15151A");
@@ -85,15 +86,15 @@ namespace EasyEngine
                 _toolBtns[t] = b;
                 return b;
             }
-            bar.Children.Add(ToolBtn("✏ Pencil", Tool.Pencil));
-            bar.Children.Add(ToolBtn("⌫ Eraser", Tool.Eraser));
-            bar.Children.Add(ToolBtn("／ Line", Tool.Line));
-            bar.Children.Add(ToolBtn("◆ Shape", Tool.Shape));
-            bar.Children.Add(ToolBtn("⬡ Polygon", Tool.Polygon));
-            bar.Children.Add(ToolBtn("🪣 Fill", Tool.Fill));
-            bar.Children.Add(ToolBtn("🌫 Blur", Tool.Blur));
-            bar.Children.Add(ToolBtn("🌀 Jumble", Tool.Jumble));
-            bar.Children.Add(ToolBtn("⬚ Select", Tool.Select));
+            bar.Children.Add(ToolBtn(L.T("✏ Pencil"), Tool.Pencil));
+            bar.Children.Add(ToolBtn(L.T("⌫ Eraser"), Tool.Eraser));
+            bar.Children.Add(ToolBtn(L.T("／ Line"), Tool.Line));
+            bar.Children.Add(ToolBtn(L.T("◆ Shape"), Tool.Shape));
+            bar.Children.Add(ToolBtn(L.T("⬡ Polygon"), Tool.Polygon));
+            bar.Children.Add(ToolBtn(L.T("🪣 Fill"), Tool.Fill));
+            bar.Children.Add(ToolBtn(L.T("🌫 Blur"), Tool.Blur));
+            bar.Children.Add(ToolBtn(L.T("🌀 Jumble"), Tool.Jumble));
+            bar.Children.Add(ToolBtn(L.T("⬚ Select"), Tool.Select));
             // turn / mirror the selection (or the whole drawing when nothing is selected)
             Button SelBtn(string label, string tip, Action act)
             {
@@ -101,29 +102,29 @@ namespace EasyEngine
                 b.Click += (s, e) => act();
                 return b;
             }
-            bar.Children.Add(SelBtn("⟲", "Turn the selection left (R with Shift). Nothing selected = the whole drawing", () => RotateSelection(-_rotateStep)));
-            bar.Children.Add(SelBtn("⟳", "Turn the selection right (R). Nothing selected = the whole drawing", () => RotateSelection(_rotateStep)));
-            var stepCombo = new ComboBox { Height = 30, Width = 62, Margin = new Thickness(0, 0, 4, 0), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "How much one turn rotates" };
+            bar.Children.Add(SelBtn("⟲", L.T("Turn the selection left (R with Shift). Nothing selected = the whole drawing"), () => RotateSelection(-_rotateStep)));
+            bar.Children.Add(SelBtn("⟳", L.T("Turn the selection right (R). Nothing selected = the whole drawing"), () => RotateSelection(_rotateStep)));
+            var stepCombo = new ComboBox { Height = 30, Width = 62, Margin = new Thickness(0, 0, 4, 0), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = L.T("How much one turn rotates") };
             foreach (var st in new[] { 90, 45, 15 }) stepCombo.Items.Add($"{st}°");
             stepCombo.SelectedIndex = 0;
             stepCombo.SelectionChanged += (s, e) => _rotateStep = new[] { 90, 45, 15 }[Math.Max(0, stepCombo.SelectedIndex)];
             bar.Children.Add(stepCombo);
-            bar.Children.Add(SelBtn("⇋", "Mirror the selection left ↔ right", () => FlipSelection(true)));
-            bar.Children.Add(SelBtn("⇵", "Mirror the selection up ↕ down", () => FlipSelection(false)));
-            bar.Children.Add(ToolBtn("💉 Pick", Tool.Eyedropper));
+            bar.Children.Add(SelBtn("⇋", L.T("Mirror the selection left ↔ right"), () => FlipSelection(true)));
+            bar.Children.Add(SelBtn("⇵", L.T("Mirror the selection up ↕ down"), () => FlipSelection(false)));
+            bar.Children.Add(ToolBtn(L.T("💉 Pick"), Tool.Eyedropper));
 
             // shape picker + fill (used by Shape and Polygon tools)
-            var shapeCombo = new ComboBox { Width = 92, Height = 30, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "Shape" };
-            foreach (var sh in new[] { "Rectangle", "Ellipse", "Triangle", "Diamond", "Pentagon", "Hexagon", "Star", "Heart" }) shapeCombo.Items.Add(sh);
+            var shapeCombo = new ComboBox { Width = 92, Height = 30, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = L.T("Shape") };
+            foreach (var (sh, label) in Shapes()) shapeCombo.Items.Add(new ComboBoxItem { Content = label, Tag = sh }); // the shape is read back by its Tag
             shapeCombo.SelectedIndex = 0;
-            shapeCombo.SelectionChanged += (s, e) => { _shape = (string)(shapeCombo.SelectedItem ?? "Rectangle"); SelectTool(Tool.Shape); };
+            shapeCombo.SelectionChanged += (s, e) => { _shape = (shapeCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "Rectangle"; SelectTool(Tool.Shape); };
             bar.Children.Add(shapeCombo);
-            var fillChk = new CheckBox { Content = "Fill", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), Foreground = Theme.Brush("Text", "#EEE"), ToolTip = "Fill shapes / polygon" };
+            var fillChk = new CheckBox { Content = L.T("Fill"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), Foreground = Theme.Brush("Text", "#EEE"), ToolTip = L.T("Fill shapes / polygon") };
             fillChk.Checked += (s, e) => _fillShapes = true;
             fillChk.Unchecked += (s, e) => _fillShapes = false;
             bar.Children.Add(fillChk);
 
-            _swatch = new Rectangle { Width = 30, Height = 30, Margin = new Thickness(10, 0, 6, 0), RadiusX = 4, RadiusY = 4, Stroke = Theme.Brush("Border", "#555"), StrokeThickness = 1, Cursor = Cursors.Hand, ToolTip = "Pick a color", Fill = new SolidColorBrush(Color.FromArgb(_ca, _cr, _cg, _cb)) };
+            _swatch = new Rectangle { Width = 30, Height = 30, Margin = new Thickness(10, 0, 6, 0), RadiusX = 4, RadiusY = 4, Stroke = Theme.Brush("Border", "#555"), StrokeThickness = 1, Cursor = Cursors.Hand, ToolTip = L.T("Pick a color"), Fill = new SolidColorBrush(Color.FromArgb(_ca, _cr, _cg, _cb)) };
             _swatch.MouseLeftButtonUp += (s, e) =>
                 ColorPickerPopup.Open(_swatch, ColorPickerPopup.ColorToHex(Color.FromRgb(_cr, _cg, _cb)), hex =>
                 {
@@ -132,7 +133,7 @@ namespace EasyEngine
             bar.Children.Add(_swatch);
 
             // brush size
-            bar.Children.Add(new TextBlock { Text = "Brush", VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 12, Margin = new Thickness(6, 0, 4, 0) });
+            bar.Children.Add(new TextBlock { Text = L.T("Brush"), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 12, Margin = new Thickness(6, 0, 4, 0) });
             var brushVal = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("Text", "#EEE"), FontSize = 12, MinWidth = 16, TextAlignment = TextAlignment.Center };
             var brushSlider = new Slider { Minimum = 1, Maximum = 10, Value = _brush, Width = 90, VerticalAlignment = VerticalAlignment.Center, IsSnapToTickEnabled = true, TickFrequency = 1, IsMoveToPointEnabled = true };
             brushVal.Text = _brush.ToString();
@@ -146,15 +147,15 @@ namespace EasyEngine
 
             foreach (var sz in new[] { 16, 32, 64 })
             {
-                var b = new Button { Content = $"{sz}²", Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = $"New {sz}×{sz} canvas" };
-                int s2 = sz; b.Click += (s, e) => { if (Confirm("Start a new blank canvas? Current drawing will be lost.")) NewCanvas(s2, s2); };
+                var b = new Button { Content = $"{sz}²", Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = L.F("New {0}×{1} canvas", sz, sz) };
+                int s2 = sz; b.Click += (s, e) => { if (Confirm(L.T("Start a new blank canvas? Current drawing will be lost."))) NewCanvas(s2, s2); };
                 bar.Children.Add(b);
             }
-            var custom = new Button { Content = "Custom…", Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = "New canvas of any size, e.g. 32×128" };
+            var custom = new Button { Content = L.T("Custom…"), Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = L.T("New canvas of any size, e.g. 32×128") };
             custom.Click += (s, e) => CustomCanvas();
             bar.Children.Add(custom);
-            var clear = new Button { Content = "Clear", Height = 30, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton") };
-            clear.Click += (s, e) => { if (Confirm("Clear the canvas?")) { DropSelection(); Array.Clear(_data, 0, _data.Length); Flush(); } };
+            var clear = new Button { Content = L.T("Clear"), Height = 30, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton") };
+            clear.Click += (s, e) => { if (Confirm(L.T("Clear the canvas?"))) { DropSelection(); Array.Clear(_data, 0, _data.Length); Flush(); } };
             bar.Children.Add(clear);
 
             root.Children.Add(bar);
@@ -162,9 +163,9 @@ namespace EasyEngine
             // --- bottom buttons ---
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
             DockPanel.SetDock(bottom, Dock.Bottom);
-            var cancel = new Button { Content = "Cancel", Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
+            var cancel = new Button { Content = L.T("Cancel"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
             cancel.Click += (s, e) => { DialogResult = false; Close(); };
-            var save = new Button { Content = "Save sprite", Height = 32, Padding = new Thickness(16, 0, 16, 0), Style = Theme.Style("AccentButton") };
+            var save = new Button { Content = L.T("Save sprite"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Style = Theme.Style("AccentButton") };
             save.Click += (s, e) => SaveAndClose();
             bottom.Children.Add(cancel); bottom.Children.Add(save);
             root.Children.Add(bottom);
@@ -193,7 +194,14 @@ namespace EasyEngine
             SelectTool(Tool.Pencil);
         }
 
-        private bool Confirm(string msg) => MessageBox.Show(this, msg, "Sprite editor", MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
+        private bool Confirm(string msg) => MessageBox.Show(this, msg, L.T("Sprite editor"), MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
+
+        // the Shape tool's shapes: (id the drawing code uses, what the dropdown shows)
+        private static (string id, string label)[] Shapes() => new[]
+        {
+            ("Rectangle", L.T("Rectangle")), ("Ellipse", L.T("Ellipse")), ("Triangle", L.T("Triangle")), ("Diamond", L.T("Diamond")),
+            ("Pentagon", L.T("Pentagon")), ("Hexagon", L.T("Hexagon")), ("Star", L.T("Star")), ("Heart", L.T("Heart")),
+        };
 
         private static DrawingBrush Checker()
         {
@@ -647,10 +655,10 @@ namespace EasyEngine
         // ---- custom canvas size ----
         private void CustomCanvas()
         {
-            var text = InputDialog.Prompt(this, "Canvas size", "Width × height in pixels (4 to 256 each), for example 32x128:", $"{_w}x{_h}");
+            var text = InputDialog.Prompt(this, L.T("Canvas size"), L.T("Width × height in pixels (4 to 256 each), for example 32x128:"), $"{_w}x{_h}");
             if (text == null) return;
-            if (ParseSize(text) is not { } size) { MessageBox.Show(this, "Write the size as width x height, for example 32x128 (each from 4 to 256).", "Sprite editor"); return; }
-            if (Confirm($"Start a new blank {size.w}×{size.h} canvas? Current drawing will be lost.")) NewCanvas(size.w, size.h);
+            if (ParseSize(text) is not { } size) { MessageBox.Show(this, L.T("Write the size as width x height, for example 32x128 (each from 4 to 256)."), L.T("Sprite editor")); return; }
+            if (Confirm(L.F("Start a new blank {0}×{1} canvas? Current drawing will be lost.", size.w, size.h))) NewCanvas(size.w, size.h);
         }
 
         /// <summary>"32x128", "32 × 128", "32*128", "32,128" → (32, 128); null if it isn't two sizes from 4 to 256.</summary>
@@ -759,10 +767,10 @@ namespace EasyEngine
         {
             bool anyPixel = false;
             for (int i = 3; i < _data.Length; i += 4) if (_data[i] != 0) { anyPixel = true; break; }
-            if (!anyPixel) { MessageBox.Show(this, "The canvas is empty — draw something first.", "Sprite editor"); return; }
-            if (string.IsNullOrEmpty(_project.FolderPath)) { MessageBox.Show(this, "Save the project first so sprites have a folder."); return; }
+            if (!anyPixel) { MessageBox.Show(this, L.T("The canvas is empty — draw something first."), L.T("Sprite editor")); return; }
+            if (string.IsNullOrEmpty(_project.FolderPath)) { MessageBox.Show(this, L.T("Save the project first so sprites have a folder.")); return; }
 
-            var name = InputDialog.Prompt(this, "Save sprite", "Sprite name:", "sprite");
+            var name = InputDialog.Prompt(this, L.T("Save sprite"), L.T("Sprite name:"), "sprite");
             if (name == null) return;
             try
             {
@@ -770,7 +778,7 @@ namespace EasyEngine
                 DialogResult = true;
                 Close();
             }
-            catch (Exception ex) { MessageBox.Show(this, "Error saving: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show(this, L.T("Error saving:") + " " + ex.Message); }
         }
     }
 }

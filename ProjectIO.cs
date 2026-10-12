@@ -32,7 +32,7 @@ namespace EasyEngine
         public static void Save(Project p)
         {
             if (string.IsNullOrEmpty(p.FilePath))
-                throw new InvalidOperationException("Project has no file path.");
+                throw new InvalidOperationException(L.T("Project has no file path."));
             var json = JsonSerializer.Serialize(p, JsonOpts);
             File.WriteAllText(p.FilePath, json);
             AddRecent(p);
@@ -41,7 +41,7 @@ namespace EasyEngine
         public static Project Load(string path)
         {
             var json = File.ReadAllText(path);
-            var p = JsonSerializer.Deserialize<Project>(json) ?? throw new InvalidDataException("Invalid project file.");
+            var p = JsonSerializer.Deserialize<Project>(json) ?? throw new InvalidDataException(L.T("Invalid project file."));
             p.FilePath = path;
             p.FolderPath = Path.GetDirectoryName(path);
 
@@ -156,7 +156,7 @@ namespace EasyEngine
         public static string ImportAsset(Project p, string sourceFile, string kind /* "sprites" | "sounds" */)
         {
             if (string.IsNullOrEmpty(p.FolderPath))
-                throw new InvalidOperationException("Project has no folder.");
+                throw new InvalidOperationException(L.T("Project has no folder."));
             var destDir = Path.Combine(p.FolderPath, "Assets", kind);
             Directory.CreateDirectory(destDir);
             var fileName = Path.GetFileName(sourceFile);
@@ -179,7 +179,7 @@ namespace EasyEngine
         public static string SaveSprite(Project p, System.Windows.Media.Imaging.BitmapSource bmp, string baseName)
         {
             if (string.IsNullOrEmpty(p.FolderPath))
-                throw new InvalidOperationException("Project has no folder.");
+                throw new InvalidOperationException(L.T("Project has no folder."));
             var destDir = Path.Combine(p.FolderPath, "Assets", "sprites");
             Directory.CreateDirectory(destDir);
             var stem = Sanitize(string.IsNullOrWhiteSpace(baseName) ? "sprite" : baseName);
@@ -196,7 +196,7 @@ namespace EasyEngine
         public static string SaveSound(Project p, byte[] wav, string baseName)
         {
             if (string.IsNullOrEmpty(p.FolderPath))
-                throw new InvalidOperationException("Project has no folder.");
+                throw new InvalidOperationException(L.T("Project has no folder."));
             var destDir = Path.Combine(p.FolderPath, "Assets", "sounds");
             Directory.CreateDirectory(destDir);
             var stem = Sanitize(string.IsNullOrWhiteSpace(baseName) ? "sound" : baseName);
@@ -230,8 +230,8 @@ namespace EasyEngine
         public static string RenameProject(string filePath, string newName)
         {
             newName = (newName ?? "").Trim();
-            if (newName.Length == 0) throw new ArgumentException("The name is empty.");
-            var p = JsonSerializer.Deserialize<Project>(File.ReadAllText(filePath)) ?? throw new InvalidDataException("Invalid project file."); // not Load: that moves it to the top of Recent
+            if (newName.Length == 0) throw new ArgumentException(L.T("The name is empty."));
+            var p = JsonSerializer.Deserialize<Project>(File.ReadAllText(filePath)) ?? throw new InvalidDataException(L.T("Invalid project file.")); // not Load: that moves it to the top of Recent
             string oldName = p.Name;
             p.Name = newName;
             File.WriteAllText(filePath, JsonSerializer.Serialize(p, JsonOpts));

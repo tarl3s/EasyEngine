@@ -77,7 +77,7 @@ namespace EasyEngine
         public static List<(string value, string label)> ObjectOrPrefabOptions(Scene s, Project p)
         {
             var objects = Objects(s);
-            return objects.Select(o => (o, o)).Concat(PrefabsNotIn(p, objects).Select(pf => (pf, pf + "  (prefab)"))).ToList();
+            return objects.Select(o => (o, o)).Concat(PrefabsNotIn(p, objects).Select(pf => (pf, pf + "  " + L.T("(prefab)")))).ToList();
         }
 
         /// <summary>The project's sound files (Assetssounds), as the relative paths the game plays.</summary>
@@ -97,6 +97,18 @@ namespace EasyEngine
             .Concat(new[] { ("Space", "Space"), ("Enter", "Enter"), ("LeftShift", "Shift"), ("LeftCtrl", "Ctrl"), ("Tab", "Tab"),
                             ("Up", "↑ Up arrow"), ("Down", "↓ Down arrow"), ("Left", "← Left arrow"), ("Right", "→ Right arrow") })
             .ToArray();
+
+        /// <summary><see cref="Keys"/> with the labels in the editor's language (<see cref="Keys"/> stays English: the game
+        /// shows those labels too).</summary>
+        public static List<(string value, string label)> KeyOptions() => Keys.Select(k => (k.value, KeyLabel(k.label))).ToList();
+
+        private static string KeyLabel(string label) => label switch
+        {
+            "Space" => L.T("Space"), "Enter" => L.T("Enter"), "Shift" => L.T("Shift"), "Ctrl" => L.T("Ctrl"), "Tab" => L.T("Tab"),
+            "↑ Up arrow" => L.T("↑ Up arrow"), "↓ Down arrow" => L.T("↓ Down arrow"),
+            "← Left arrow" => L.T("← Left arrow"), "→ Right arrow" => L.T("→ Right arrow"),
+            _ => label,
+        };
 
         /// <summary>Parses "value|Label" options.</summary>
         public static (string value, string label) Option(string o)

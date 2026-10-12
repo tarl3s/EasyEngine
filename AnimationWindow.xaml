@@ -39,7 +39,7 @@
                 <!-- header -->
                 <Grid DockPanel.Dock="Top">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock x:Name="AnimTitle" Text="idle" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Text}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="AnimTitle" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Text}" VerticalAlignment="Center"/>
                         <Button Content="rename" Style="{StaticResource GhostButton}" Height="26" Margin="8,0,0,0" FontSize="11" Foreground="{StaticResource TextDim}" Click="Rename_Click"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

@@ -112,8 +112,8 @@ namespace EasyEngine
         /// <summary>Friendly name of a built-in look, for pickers.</summary>
         public static string LookTitle(string look) => look switch
         {
-            "pickaxe" => "Pickaxe", "axe" => "Axe", "sword" => "Sword", "shovel" => "Shovel",
-            "hammer" => "Hammer", "hoe" => "Hoe", "tile" => "Square with a letter", _ => look
+            "pickaxe" => L.T("Pickaxe"), "axe" => L.T("Axe"), "sword" => L.T("Sword"), "shovel" => L.T("Shovel"),
+            "hammer" => L.T("Hammer"), "hoe" => L.T("Hoe"), "tile" => L.T("Square with a letter"), _ => look
         };
 
         /// <summary>"pickaxe" → "Pickaxe" (for labels and console lines).</summary>
