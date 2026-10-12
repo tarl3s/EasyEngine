@@ -147,23 +147,60 @@ namespace EasyEngine
 param([int]$WaitPid, [string]$NewDir, [string]$InstallDir, [string]$Start = '1')
 $log = Join-Path $env:TEMP 'easyengine_update.log'
 ""$(Get-Date) updating $InstallDir from $NewDir"" | Out-File $log
-try { Wait-Process -Id $WaitPid -Timeout 60 -ErrorAction SilentlyContinue } catch {}
+
+# a small window with a progress bar, so the swap (it can take a while) doesn't look like nothing is happening
+$form = $null; $bar = $null; $label = $null
+try {
+    Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'EasyEngine'; $form.Width = 380; $form.Height = 130; $form.StartPosition = 'CenterScreen'
+    $form.FormBorderStyle = 'FixedDialog'; $form.ControlBox = $false; $form.TopMost = $true
+    $form.BackColor = [System.Drawing.Color]::FromArgb(30, 30, 36)
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = 'Updating EasyEngine...'; $label.AutoSize = $false; $label.Dock = 'Fill'
+    $label.TextAlign = 'MiddleCenter'; $label.ForeColor = [System.Drawing.Color]::FromArgb(230, 236, 245)
+    $label.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+    $bar = New-Object System.Windows.Forms.ProgressBar
+    $bar.Dock = 'Bottom'; $bar.Height = 14; $bar.Style = 'Marquee'
+    $form.Controls.Add($label); $form.Controls.Add($bar); $form.Show(); [System.Windows.Forms.Application]::DoEvents()
+} catch { $form = $null }
+function Show-Step([string]$text, [int]$done = -1, [int]$total = 0) {
+    if (-not $form) { return }
+    if ($text) { $label.Text = $text }
+    if ($done -ge 0 -and $total -gt 0) { $bar.Style = 'Continuous'; $bar.Maximum = $total; $bar.Value = [Math]::Min($done, $total) }
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
+Show-Step 'Waiting for EasyEngine to close...'
+$deadline = (Get-Date).AddSeconds(60)
+while ($WaitPid -gt 0 -and (Get-Process -Id $WaitPid -ErrorAction SilentlyContinue) -and (Get-Date) -lt $deadline) { Show-Step ''; Start-Sleep -Milliseconds 100 }
 Start-Sleep -Milliseconds 500
 $manifest = Join-Path $InstallDir 'easyengine-files.txt'
 if (Test-Path $manifest) {
     # remove exactly the old version's files (never anything else the person put in the folder)
-    foreach ($rel in Get-Content $manifest) {
-        if (-not $rel -or $rel.Contains('..')) { continue }
+    $old = @(Get-Content $manifest | Where-Object { $_ -and -not $_.Contains('..') }); $i = 0
+    foreach ($rel in $old) {
         $f = Join-Path $InstallDir $rel
         if (Test-Path -LiteralPath $f -PathType Leaf) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
+        if ((++$i % 10) -eq 0) { Show-Step 'Removing the old version...' $i $old.Count }
     }
     # folders the old version left empty
     Get-ChildItem -LiteralPath $InstallDir -Directory -Recurse | Sort-Object { $_.FullName.Length } -Descending |
         Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force) } | Remove-Item -Force -ErrorAction SilentlyContinue
 }
-Copy-Item -Path (Join-Path $NewDir '*') -Destination $InstallDir -Recurse -Force
+# copy the new version file by file, so the window stays alive and shows how far it got
+$src = (Resolve-Path -LiteralPath $NewDir).Path.TrimEnd('\')
+$new = @(Get-ChildItem -LiteralPath $src -Recurse -File); $i = 0
+foreach ($file in $new) {
+    $dest = Join-Path $InstallDir $file.FullName.Substring($src.Length + 1)
+    $dir = Split-Path -Parent $dest
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+    Copy-Item -LiteralPath $file.FullName -Destination $dest -Force
+    if ((++$i % 5) -eq 0 -or $i -eq $new.Count) { Show-Step ""Installing the new version... $i / $($new.Count)"" $i $new.Count }
+}
 ""$(Get-Date) copied"" | Out-File $log -Append
-if ($Start -eq '1') { Start-Process (Join-Path $InstallDir 'EasyEngine.exe') -WorkingDirectory $InstallDir -ArgumentList '--updated' }
+if ($Start -eq '1') { Show-Step 'Opening EasyEngine...'; Start-Process (Join-Path $InstallDir 'EasyEngine.exe') -WorkingDirectory $InstallDir -ArgumentList '--updated' }
+if ($form) { $form.Close() }
 ";
     }
 }

@@ -58,7 +58,7 @@ public partial class App
         t.Test("updater: versions compare by number (v0.10.10 > v0.10.9 > 0.9) and 'v' is optional", () =>
             Updater.ParseVersion("v0.10.10") > Updater.ParseVersion("0.10.9") && Updater.ParseVersion("0.10.9") > Updater.ParseVersion("v0.9")
             && Updater.ParseVersion("v1.2") == new Version(1, 2, 0) && Updater.ParseVersion("latest") == null);
-        t.Test("updater: the swap removes only the old version's files, copies the new ones and keeps the person's files", () =>
+        t.Test("updater: the swap removes only the old version's files, copies the new ones (subfolders too) and keeps the person's files", () =>
         {
             var install = TempDir("Install"); var fresh = TempDir("New");
             Directory.CreateDirectory(Path.Combine(install, "runtimes", "old"));
@@ -70,11 +70,14 @@ public partial class App
             Directory.CreateDirectory(fresh);
             File.WriteAllText(Path.Combine(fresh, "EasyEngine.exe"), "new");
             File.WriteAllText(Path.Combine(fresh, "New.dll"), "new");
+            Directory.CreateDirectory(Path.Combine(fresh, "runtimes", "new"));
+            File.WriteAllText(Path.Combine(fresh, "runtimes", "new", "y.dll"), "new");               // nested folders are copied too
             File.WriteAllText(Path.Combine(fresh, Updater.ManifestName), "EasyEngine.exe\nNew.dll\n" + Updater.ManifestName);
             var p = Updater.StartSwap(fresh, install, -1, start: false);
             bool exited = p.WaitForExit(30000);
             bool ok = exited && File.ReadAllText(Path.Combine(install, "EasyEngine.exe")) == "new" && File.Exists(Path.Combine(install, "New.dll"))
-                      && !File.Exists(Path.Combine(install, "Old.dll")) && !Directory.Exists(Path.Combine(install, "runtimes"))
+                      && !File.Exists(Path.Combine(install, "Old.dll")) && !Directory.Exists(Path.Combine(install, "runtimes", "old"))
+                      && File.ReadAllText(Path.Combine(install, "runtimes", "new", "y.dll")) == "new"
                       && File.ReadAllText(Path.Combine(install, "my notes.txt")) == "mine";
             TestScenarios.TryDeleteDir(install); TestScenarios.TryDeleteDir(fresh);
             return ok;
