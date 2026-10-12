@@ -103,6 +103,20 @@ public partial class App
             var colours = Enumerable.Range(0, w * h).Where(i => r[i * 4 + 3] != 0).Select(i => r[i * 4]).ToHashSet();
             return w == 12 && h == 12 && colours.Count > 30 && colours.All(c => c >= 1 && c <= 64);
         });
+        t.Test("sprite editor: a polygon closes by clicking its first point again (after 3 corners), drawing the closing side", () =>
+        {
+            var w = new SpriteEditorWindow(ProjectIO.CreateNew("SpritePoly", TempDir("Sprite")), 16);
+            w.TestSelectTool("Polygon");
+            w.PolygonDown(2, 2, false); w.PolygonDown(12, 2, false); w.PolygonDown(12, 12, false);
+            bool open = w.TestPolygonPoints == 3 && w.TestPixelAlpha(7, 7) == 0;
+            w.PolygonDown(2, 2, false);                       // the first point again → closed (right side + the diagonal back)
+            bool closed = w.TestPolygonPoints == 0 && w.TestPixelAlpha(12, 7) == 255 && w.TestPixelAlpha(7, 7) == 255;
+            w.PolygonDown(3, 13, false); w.PolygonDown(9, 13, false);
+            w.PolygonDown(3, 13, false);                      // only 2 corners: that's one more corner, not "close"
+            bool notYet = w.TestPolygonPoints == 3;
+            w.Close();
+            return open && closed && notYet;
+        });
         t.Test("sprite editor: turning and mirroring a selection (or the whole drawing) works in the window", () =>
         {
             var w = new SpriteEditorWindow(ProjectIO.CreateNew("SpriteRot", TempDir("Sprite")), 16);

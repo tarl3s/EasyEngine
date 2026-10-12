@@ -194,7 +194,12 @@ Cinema bars	step bars
 Cinema bars (0/1)	behavior Cutscene
 Clear	MainWindow.xaml.cs, SpriteEditorWindow.cs
 Clear the canvas?	SpriteEditorWindow.cs
+Click a pixel to take its colour.	SpriteEditorWindow.cs
+Click an area to fill it with the colour.	SpriteEditorWindow.cs
+Click each corner, then click the first point again to close it (or double-click / Enter). Esc cancels.	SpriteEditorWindow.cs
 Click it	behavior Switch
+Click or drag to draw.	SpriteEditorWindow.cs
+Click or drag to erase.	SpriteEditorWindow.cs
 Click to add to the selected layer	MainWindow.xaml
 Click to pick a color	MainWindow.xaml.cs
 Click to pick a colour	SequenceEditorWindow.cs
@@ -205,7 +210,7 @@ Cloud · {0}	MainWindow.xaml.cs
 Collectible	behavior Collectible
 Collide with walls (0/1)	behavior AdvancedPatrol, behavior Platformer, behavior TopDown
 Collision	MainWindow.TerrainBlocks.cs
-Color	behavior Label, behavior LightSource, behavior Particles, BlockEditorWindow.cs, MainWindow.xaml.cs
+Color	behavior Label, behavior LightSource, behavior Particles, BlockEditorWindow.cs, MainWindow.xaml.cs, SpriteEditorWindow.cs
 Colour	step emit, step fadeout, step telegraph
 Colour (of the metal part)	NewItemDialog.cs
 Colour of its dot on the map	MainWindow.Minimap.cs
@@ -240,6 +245,7 @@ Custom (AI script)	behavior Custom
 Custom…	SpriteEditorWindow.cs
 Cut	Styles.xaml
 Cutscene	behavior Cutscene
+DRAW	SpriteEditorWindow.cs
 Damage	behavior Damager
 Damage per item	behavior ToolUse
 Damage this item does to anything with Health	MainWindow.Params.cs
@@ -306,6 +312,11 @@ Done	BlockEditorWindow.cs
 Double jump	behavior AbilityPickup
 Double jump (0/1)	behavior Platformer
 Downloading EasyEngine v{0}…	UpdatePrompt.cs
+Drag from one end of the line to the other.	SpriteEditorWindow.cs
+Drag to draw the shape you picked beside the tool.	SpriteEditorWindow.cs
+Drag to scatter the pixels.	SpriteEditorWindow.cs
+Drag to select, then drag the selection to move it. R turns it, Esc lets it go.	SpriteEditorWindow.cs
+Drag to soften the pixels.	SpriteEditorWindow.cs
 Draw mode: click points on the scene, then click Finish.	MainWindow.xaml.cs
 Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done.	MainWindow.xaml.cs
 Draws a small map in a corner showing the whole scene (in an endless world: the area around the player, with the ground), with a dot for the player and optional dots for other things, each in its own colour. Put it on a UI layer. 'markers' = comma-separated 'Name:#RRGGBB' entries; a name matches an object (and every copy of a prefab) or a whole group (empty = just the player). With 'canMax' on, a key opens a big map in the middle of the screen (press it again to close).	behavior Minimap
@@ -314,6 +325,7 @@ Duplicate	MainWindow.xaml.cs
 Duplicated {0}	MainWindow.xaml.cs
 Dusk	step settime
 Dynamic	MainWindow.xaml.cs
+EFFECTS	SpriteEditorWindow.cs
 Each block runs:  WHEN something happens  →  DO something.  Add as many as you like.	BlockEditorWindow.cs
 Earlier	SequenceEditorWindow.cs
 Ease	BlockEditorWindow.cs
@@ -364,9 +376,9 @@ Fan (forward)	step shoot
 Fan angle (°)	step shoot
 Felled sound	behavior Harvestable
 Fights	behavior BossAI
-Fill	SpriteEditorWindow.cs
 Fill color	behavior Bar
 Fill shapes / polygon	SpriteEditorWindow.cs
+Fill the shape	SpriteEditorWindow.cs
 Fire key	behavior Shooter
 Fires once per press. Cooldown stops it repeating too fast while held.	BlockEditorWindow.cs
 Fires projectiles when a key is pressed. 'directions' = how many bullets spread around (8 = all directions, 1 = forward).	behavior Shooter
@@ -758,6 +770,7 @@ Rows	MainWindow.xaml.cs
 Rules (JSON)	behavior Custom
 SCENE	MainWindow.xaml, MainWindow.xaml.cs
 SCENE LAYERS	MainWindow.xaml
+SELECTION	SpriteEditorWindow.cs
 Sand	MainWindow.TerrainBlocks.cs
 Save	App.xaml.cs, MainWindow.xaml
 Save as Prefab	MainWindow.xaml.cs
@@ -798,7 +811,6 @@ Settings	SettingsWindow.cs
 Settings (language, theme, size, temporary files)	MainWindow.xaml
 Shake the screen	step shake
 Shake when hit (0/1)	behavior Harvestable
-Shape	SpriteEditorWindow.cs
 Shared across the whole game (score, lives…). Persists between scenes.	VariablesWindow.xaml.cs
 Shift	ParamSources.cs
 Shifts its position a little each second, ignoring physics.	BlockEditorWindow.cs
@@ -1025,6 +1037,7 @@ Where it grows	MainWindow.TerrainBlocks.cs
 Where to save the project	LauncherWindow.xaml.cs
 Which	BlockEditorWindow.cs
 Which AI to use	MainWindow.xaml
+Which shape the Shape tool draws	SpriteEditorWindow.cs
 While a condition is true	BlockEditorWindow.cs
 While a key is held	BlockEditorWindow.cs
 While a variable is…	BlockEditorWindow.cs

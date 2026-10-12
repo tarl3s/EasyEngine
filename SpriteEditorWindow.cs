@@ -49,6 +49,9 @@ namespace EasyEngine
         private Image _view = null!;
         private Border _canvasHost = null!;
         private Rectangle _swatch = null!;
+        private CheckBox _fillChk = null!;
+        private TextBlock _hint = null!;      // what the chosen tool does, above the drawing
+        private Rectangle _polyStart = null!; // marks the polygon's first point (click it again to close)
         private TextBlock _sizeLabel = null!;
         private readonly System.Collections.Generic.Dictionary<Tool, Button> _toolBtns = new();
         private int _lastPx = -1, _lastPy = -1;
@@ -61,7 +64,7 @@ namespace EasyEngine
         {
             _project = project;
             Title = L.T("Sprite editor");
-            Width = 560; Height = 560;
+            Width = 760; Height = 640;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = Theme.Brush("Bg0", "#15151A");
 
@@ -74,103 +77,129 @@ namespace EasyEngine
         private void BuildUi()
         {
             var root = new DockPanel { Margin = new Thickness(10) };
+            Brush dim = Theme.Brush("TextDim", "#AAA"), text = Theme.Brush("Text", "#EEE");
 
-            // --- top toolbar ---
-            var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            DockPanel.SetDock(bar, Dock.Top);
+            // --- bottom: the canvas (size, new, clear) on the left, Cancel / Save on the right ---
+            var bottom = new DockPanel { Margin = new Thickness(0, 10, 0, 0), LastChildFill = false };
+            DockPanel.SetDock(bottom, Dock.Bottom);
+            Button Ghost(string label, string? tip = null) => new() { Content = label, Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = tip };
+            var canvasBar = new StackPanel { Orientation = Orientation.Horizontal };
+            _sizeLabel = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = dim, FontSize = 12, Margin = new Thickness(0, 0, 8, 0) };
+            canvasBar.Children.Add(_sizeLabel);
+            foreach (var sz in new[] { 16, 32, 64 })
+            {
+                var b = Ghost($"{sz}²", L.F("New {0}×{1} canvas", sz, sz));
+                int s2 = sz; b.Click += (s, e) => { if (Confirm(L.T("Start a new blank canvas? Current drawing will be lost."))) NewCanvas(s2, s2); };
+                canvasBar.Children.Add(b);
+            }
+            var custom = Ghost(L.T("Custom…"), L.T("New canvas of any size, e.g. 32×128"));
+            custom.Click += (s, e) => CustomCanvas();
+            canvasBar.Children.Add(custom);
+            var clear = Ghost(L.T("Clear"));
+            clear.Foreground = Theme.Brush("Danger", "#E5484B");
+            clear.Click += (s, e) => { if (Confirm(L.T("Clear the canvas?"))) { DropSelection(); Array.Clear(_data, 0, _data.Length); Flush(); } };
+            canvasBar.Children.Add(clear);
+            DockPanel.SetDock(canvasBar, Dock.Left);
+            bottom.Children.Add(canvasBar);
+            var save = new Button { Content = L.T("Save sprite"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Style = Theme.Style("AccentButton") };
+            save.Click += (s, e) => SaveAndClose();
+            var cancel = new Button { Content = L.T("Cancel"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
+            cancel.Click += (s, e) => { DialogResult = false; Close(); };
+            DockPanel.SetDock(save, Dock.Right); DockPanel.SetDock(cancel, Dock.Right);
+            bottom.Children.Add(save); bottom.Children.Add(cancel);
+            root.Children.Add(bottom);
 
+            // --- left: every tool on its own row, in groups; Shape has its shape picker right beside it ---
+            var tools = new StackPanel { Width = 184, Margin = new Thickness(0, 0, 10, 0) };
+            DockPanel.SetDock(tools, Dock.Left);
+            TextBlock Group(string label) => new() { Text = label, FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = dim, Margin = new Thickness(2, 6, 0, 4) };
             Button ToolBtn(string label, Tool t)
             {
-                var b = new Button { Content = label, Height = 30, MinWidth = 40, Margin = new Thickness(0, 0, 6, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("CardButton") };
+                var b = new Button { Content = label, Height = 30, Margin = new Thickness(0, 0, 0, 4), Padding = new Thickness(10, 0, 8, 0), HorizontalContentAlignment = HorizontalAlignment.Left, Style = Theme.Style("CardButton") };
                 b.Click += (s, e) => SelectTool(t);
                 _toolBtns[t] = b;
                 return b;
             }
-            bar.Children.Add(ToolBtn(L.T("✏ Pencil"), Tool.Pencil));
-            bar.Children.Add(ToolBtn(L.T("⌫ Eraser"), Tool.Eraser));
-            bar.Children.Add(ToolBtn(L.T("／ Line"), Tool.Line));
-            bar.Children.Add(ToolBtn(L.T("◆ Shape"), Tool.Shape));
-            bar.Children.Add(ToolBtn(L.T("⬡ Polygon"), Tool.Polygon));
-            bar.Children.Add(ToolBtn(L.T("🪣 Fill"), Tool.Fill));
-            bar.Children.Add(ToolBtn(L.T("🌫 Blur"), Tool.Blur));
-            bar.Children.Add(ToolBtn(L.T("🌀 Jumble"), Tool.Jumble));
-            bar.Children.Add(ToolBtn(L.T("⬚ Select"), Tool.Select));
-            // turn / mirror the selection (or the whole drawing when nothing is selected)
-            Button SelBtn(string label, string tip, Action act)
+            Button SmallBtn(string label, string tip, Action act)
             {
-                var b = new Button { Content = label, Height = 30, MinWidth = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(6, 0, 6, 0), Style = Theme.Style("CardButton"), ToolTip = tip };
+                var b = new Button { Content = label, Height = 30, MinWidth = 34, Margin = new Thickness(0, 0, 4, 4), Padding = new Thickness(6, 0, 6, 0), Style = Theme.Style("CardButton"), ToolTip = tip };
                 b.Click += (s, e) => act();
                 return b;
             }
-            bar.Children.Add(SelBtn("⟲", L.T("Turn the selection left (R with Shift). Nothing selected = the whole drawing"), () => RotateSelection(-_rotateStep)));
-            bar.Children.Add(SelBtn("⟳", L.T("Turn the selection right (R). Nothing selected = the whole drawing"), () => RotateSelection(_rotateStep)));
-            var stepCombo = new ComboBox { Height = 30, Width = 62, Margin = new Thickness(0, 0, 4, 0), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = L.T("How much one turn rotates") };
-            foreach (var st in new[] { 90, 45, 15 }) stepCombo.Items.Add($"{st}°");
-            stepCombo.SelectedIndex = 0;
-            stepCombo.SelectionChanged += (s, e) => _rotateStep = new[] { 90, 45, 15 }[Math.Max(0, stepCombo.SelectedIndex)];
-            bar.Children.Add(stepCombo);
-            bar.Children.Add(SelBtn("⇋", L.T("Mirror the selection left ↔ right"), () => FlipSelection(true)));
-            bar.Children.Add(SelBtn("⇵", L.T("Mirror the selection up ↕ down"), () => FlipSelection(false)));
-            bar.Children.Add(ToolBtn(L.T("💉 Pick"), Tool.Eyedropper));
-
-            // shape picker + fill (used by Shape and Polygon tools)
-            var shapeCombo = new ComboBox { Width = 92, Height = 30, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = L.T("Shape") };
+            tools.Children.Add(Group(L.T("DRAW")));
+            tools.Children.Add(ToolBtn(L.T("✏ Pencil"), Tool.Pencil));
+            tools.Children.Add(ToolBtn(L.T("⌫ Eraser"), Tool.Eraser));
+            tools.Children.Add(ToolBtn(L.T("／ Line"), Tool.Line));
+            var shapeRow = new Grid();
+            shapeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            shapeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
+            var shapeBtn = ToolBtn(L.T("◆ Shape"), Tool.Shape);
+            var shapeCombo = new ComboBox { Height = 30, Margin = new Thickness(4, 0, 0, 4), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = L.T("Which shape the Shape tool draws") };
             foreach (var (sh, label) in Shapes()) shapeCombo.Items.Add(new ComboBoxItem { Content = label, Tag = sh }); // the shape is read back by its Tag
             shapeCombo.SelectedIndex = 0;
             shapeCombo.SelectionChanged += (s, e) => { _shape = (shapeCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "Rectangle"; SelectTool(Tool.Shape); };
-            bar.Children.Add(shapeCombo);
-            var fillChk = new CheckBox { Content = L.T("Fill"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), Foreground = Theme.Brush("Text", "#EEE"), ToolTip = L.T("Fill shapes / polygon") };
-            fillChk.Checked += (s, e) => _fillShapes = true;
-            fillChk.Unchecked += (s, e) => _fillShapes = false;
-            bar.Children.Add(fillChk);
+            Grid.SetColumn(shapeCombo, 1);
+            shapeRow.Children.Add(shapeBtn); shapeRow.Children.Add(shapeCombo);
+            tools.Children.Add(shapeRow);
+            tools.Children.Add(ToolBtn(L.T("⬡ Polygon"), Tool.Polygon));
+            tools.Children.Add(ToolBtn(L.T("🪣 Fill"), Tool.Fill));
+            tools.Children.Add(ToolBtn(L.T("💉 Pick"), Tool.Eyedropper));
+            tools.Children.Add(Group(L.T("EFFECTS")));
+            tools.Children.Add(ToolBtn(L.T("🌫 Blur"), Tool.Blur));
+            tools.Children.Add(ToolBtn(L.T("🌀 Jumble"), Tool.Jumble));
+            tools.Children.Add(Group(L.T("SELECTION")));
+            tools.Children.Add(ToolBtn(L.T("⬚ Select"), Tool.Select));
+            // turn / mirror the selection (or the whole drawing when nothing is selected)
+            var turn = new StackPanel { Orientation = Orientation.Horizontal };   // ⟲ ⟳ and how much one turn rotates
+            turn.Children.Add(SmallBtn("⟲", L.T("Turn the selection left (R with Shift). Nothing selected = the whole drawing"), () => RotateSelection(-_rotateStep)));
+            turn.Children.Add(SmallBtn("⟳", L.T("Turn the selection right (R). Nothing selected = the whole drawing"), () => RotateSelection(_rotateStep)));
+            var stepCombo = new ComboBox { Height = 30, Width = 64, Margin = new Thickness(0, 0, 4, 4), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = L.T("How much one turn rotates") };
+            foreach (var st in new[] { 90, 45, 15 }) stepCombo.Items.Add($"{st}°");
+            stepCombo.SelectedIndex = 0;
+            stepCombo.SelectionChanged += (s, e) => _rotateStep = new[] { 90, 45, 15 }[Math.Max(0, stepCombo.SelectedIndex)];
+            turn.Children.Add(stepCombo);
+            tools.Children.Add(turn);
+            var mirror = new StackPanel { Orientation = Orientation.Horizontal }; // ⇋ ⇵
+            mirror.Children.Add(SmallBtn("⇋", L.T("Mirror the selection left ↔ right"), () => FlipSelection(true)));
+            mirror.Children.Add(SmallBtn("⇵", L.T("Mirror the selection up ↕ down"), () => FlipSelection(false)));
+            tools.Children.Add(mirror);
+            root.Children.Add(tools);
 
-            _swatch = new Rectangle { Width = 30, Height = 30, Margin = new Thickness(10, 0, 6, 0), RadiusX = 4, RadiusY = 4, Stroke = Theme.Brush("Border", "#555"), StrokeThickness = 1, Cursor = Cursors.Hand, ToolTip = L.T("Pick a color"), Fill = new SolidColorBrush(Color.FromArgb(_ca, _cr, _cg, _cb)) };
+            // --- top of the drawing area: colour, brush, Fill (shapes) and what the chosen tool does ---
+            var right = new DockPanel();
+            var options = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+            DockPanel.SetDock(options, Dock.Top);
+            var optRow = new WrapPanel();
+            _swatch = new Rectangle { Width = 30, Height = 30, Margin = new Thickness(0, 0, 6, 0), RadiusX = 4, RadiusY = 4, Stroke = Theme.Brush("Border", "#555"), StrokeThickness = 1, Cursor = Cursors.Hand, ToolTip = L.T("Pick a color"), Fill = new SolidColorBrush(Color.FromArgb(_ca, _cr, _cg, _cb)) };
             _swatch.MouseLeftButtonUp += (s, e) =>
                 ColorPickerPopup.Open(_swatch, ColorPickerPopup.ColorToHex(Color.FromRgb(_cr, _cg, _cb)), hex =>
                 {
-                    try { var c = (Color)ColorConverter.ConvertFromString(hex); _cr = c.R; _cg = c.G; _cb = c.B; _ca = 255; _swatch.Fill = new SolidColorBrush(Color.FromArgb(255, _cr, _cg, _cb)); SelectTool(Tool.Pencil); } catch { }
+                    try
+                    {
+                        var c = (Color)ColorConverter.ConvertFromString(hex); _cr = c.R; _cg = c.G; _cb = c.B; _ca = 255; _swatch.Fill = new SolidColorBrush(Color.FromArgb(255, _cr, _cg, _cb));
+                        if (_tool is Tool.Eraser or Tool.Eyedropper or Tool.Select) SelectTool(Tool.Pencil); // a new colour is for painting
+                    }
+                    catch { }
                 });
-            bar.Children.Add(_swatch);
+            optRow.Children.Add(_swatch);
+            optRow.Children.Add(new TextBlock { Text = L.T("Color"), VerticalAlignment = VerticalAlignment.Center, Foreground = dim, FontSize = 12, Margin = new Thickness(0, 0, 16, 0) });
+            optRow.Children.Add(new TextBlock { Text = L.T("Brush"), VerticalAlignment = VerticalAlignment.Center, Foreground = dim, FontSize = 12, Margin = new Thickness(0, 0, 6, 0) });
+            var brushVal = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = text, FontSize = 12, MinWidth = 34 };
+            var brushSlider = new Slider { Minimum = 1, Maximum = 10, Value = _brush, Width = 110, VerticalAlignment = VerticalAlignment.Center, IsSnapToTickEnabled = true, TickFrequency = 1, IsMoveToPointEnabled = true };
+            brushVal.Text = $" {_brush} px";
+            brushSlider.ValueChanged += (s, e) => { _brush = Math.Max(1, (int)Math.Round(brushSlider.Value)); brushVal.Text = $" {_brush} px"; };
+            optRow.Children.Add(brushSlider);
+            optRow.Children.Add(brushVal);
+            _fillChk = new CheckBox { Content = L.T("Fill the shape"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0), Foreground = text, ToolTip = L.T("Fill shapes / polygon") };
+            _fillChk.Checked += (s, e) => _fillShapes = true;
+            _fillChk.Unchecked += (s, e) => _fillShapes = false;
+            optRow.Children.Add(_fillChk);
+            options.Children.Add(optRow);
+            _hint = new TextBlock { Foreground = dim, FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
+            options.Children.Add(_hint);
+            right.Children.Add(options);
 
-            // brush size
-            bar.Children.Add(new TextBlock { Text = L.T("Brush"), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 12, Margin = new Thickness(6, 0, 4, 0) });
-            var brushVal = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("Text", "#EEE"), FontSize = 12, MinWidth = 16, TextAlignment = TextAlignment.Center };
-            var brushSlider = new Slider { Minimum = 1, Maximum = 10, Value = _brush, Width = 90, VerticalAlignment = VerticalAlignment.Center, IsSnapToTickEnabled = true, TickFrequency = 1, IsMoveToPointEnabled = true };
-            brushVal.Text = _brush.ToString();
-            brushSlider.ValueChanged += (s, e) => { _brush = Math.Max(1, (int)Math.Round(brushSlider.Value)); brushVal.Text = _brush.ToString(); };
-            bar.Children.Add(brushSlider);
-            bar.Children.Add(new TextBlock { Text = "px", VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 11, Margin = new Thickness(4, 0, 2, 0) });
-            bar.Children.Add(brushVal);
-
-            _sizeLabel = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 12, Margin = new Thickness(12, 0, 10, 0) };
-            bar.Children.Add(_sizeLabel);
-
-            foreach (var sz in new[] { 16, 32, 64 })
-            {
-                var b = new Button { Content = $"{sz}²", Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = L.F("New {0}×{1} canvas", sz, sz) };
-                int s2 = sz; b.Click += (s, e) => { if (Confirm(L.T("Start a new blank canvas? Current drawing will be lost."))) NewCanvas(s2, s2); };
-                bar.Children.Add(b);
-            }
-            var custom = new Button { Content = L.T("Custom…"), Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = L.T("New canvas of any size, e.g. 32×128") };
-            custom.Click += (s, e) => CustomCanvas();
-            bar.Children.Add(custom);
-            var clear = new Button { Content = L.T("Clear"), Height = 30, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton") };
-            clear.Click += (s, e) => { if (Confirm(L.T("Clear the canvas?"))) { DropSelection(); Array.Clear(_data, 0, _data.Length); Flush(); } };
-            bar.Children.Add(clear);
-
-            root.Children.Add(bar);
-
-            // --- bottom buttons ---
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-            DockPanel.SetDock(bottom, Dock.Bottom);
-            var cancel = new Button { Content = L.T("Cancel"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
-            cancel.Click += (s, e) => { DialogResult = false; Close(); };
-            var save = new Button { Content = L.T("Save sprite"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Style = Theme.Style("AccentButton") };
-            save.Click += (s, e) => SaveAndClose();
-            bottom.Children.Add(cancel); bottom.Children.Add(save);
-            root.Children.Add(bottom);
-
-            // --- center drawing area ---
+            // --- the drawing ---
             _view = new Image { Stretch = Stretch.Fill, SnapsToDevicePixels = true };
             RenderOptions.SetBitmapScalingMode(_view, BitmapScalingMode.NearestNeighbor);
             RenderOptions.SetEdgeMode(_view, EdgeMode.Aliased);
@@ -181,6 +210,9 @@ namespace EasyEngine
             _overlay = new Canvas { IsHitTestVisible = false };
             _marquee = new Rectangle { Stroke = Theme.Pick("#FFFFFF", "#1B1E24"), StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 2 }, Fill = new SolidColorBrush(Color.FromArgb(48, 90, 160, 255)), Visibility = Visibility.Collapsed, IsHitTestVisible = false };
             _overlay.Children.Add(_marquee);
+            // the polygon's first point: clicking it again closes the polygon
+            _polyStart = new Rectangle { Stroke = Theme.Brush("Accent", "#18B98A"), StrokeThickness = 2, Fill = new SolidColorBrush(Color.FromArgb(60, 24, 185, 138)), Visibility = Visibility.Collapsed, IsHitTestVisible = false };
+            _overlay.Children.Add(_polyStart);
             var stage = new Grid();
             stage.Children.Add(_view);
             stage.Children.Add(_overlay);
@@ -188,7 +220,8 @@ namespace EasyEngine
             _canvasHost = new Border { Background = Checker(), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, BorderBrush = Theme.Brush("Border", "#555"), BorderThickness = new Thickness(1), Child = stage };
             var center = new Grid();
             center.Children.Add(_canvasHost);
-            root.Children.Add(center);
+            right.Children.Add(center);
+            root.Children.Add(right);
 
             Content = root;
             SelectTool(Tool.Pencil);
@@ -210,7 +243,7 @@ namespace EasyEngine
             var lightB = new GeometryDrawing(new SolidColorBrush(Color.FromRgb(0x4a, 0x4a, 0x52)), null, new RectangleGeometry(new Rect(1, 1, 1, 1)));
             var grp = new DrawingGroup();
             grp.Children.Add(g); grp.Children.Add(lightA); grp.Children.Add(lightB);
-            return new DrawingBrush(grp) { TileMode = TileMode.Tile, Viewport = new Rect(0, 0, 16, 16), ViewportUnits = BrushMappingMode.Absolute, Stretch = Stretch.None };
+            return new DrawingBrush(grp) { TileMode = TileMode.Tile, Viewport = new Rect(0, 0, 16, 16), ViewportUnits = BrushMappingMode.Absolute, Stretch = Stretch.Fill }; // the 2×2 pattern fills each 16 px tile: an 8 px checkerboard
         }
 
         private void SelectTool(Tool t)
@@ -223,12 +256,27 @@ namespace EasyEngine
                 kv.Value.Background = kv.Key == t ? Theme.Brush("Accent", "#2bb673") : Theme.Brush("Bg2", "#2a2a30");
                 kv.Value.Foreground = kv.Key == t ? Theme.Brush("AccentText", "#062018") : Theme.Brush("Text", "#EEE");
             }
+            _fillChk.Visibility = t is Tool.Shape or Tool.Polygon ? Visibility.Visible : Visibility.Collapsed;
+            _hint.Text = t switch
+            {
+                Tool.Pencil => L.T("Click or drag to draw."),
+                Tool.Eraser => L.T("Click or drag to erase."),
+                Tool.Line => L.T("Drag from one end of the line to the other."),
+                Tool.Shape => L.T("Drag to draw the shape you picked beside the tool."),
+                Tool.Polygon => L.T("Click each corner, then click the first point again to close it (or double-click / Enter). Esc cancels."),
+                Tool.Fill => L.T("Click an area to fill it with the colour."),
+                Tool.Blur => L.T("Drag to soften the pixels."),
+                Tool.Jumble => L.T("Drag to scatter the pixels."),
+                Tool.Select => L.T("Drag to select, then drag the selection to move it. R turns it, Esc lets it go."),
+                Tool.Eyedropper => L.T("Click a pixel to take its colour."),
+                _ => "",
+            };
         }
 
         private void NewCanvas(int w, int h)
         {
             DropSelection();
-            _poly.Clear(); _polySnap = null;
+            _poly.Clear(); _polySnap = null; ShowPolyStart();
             _w = Math.Clamp(w, 4, 256); _h = Math.Clamp(h, 4, 256);
             _data = new byte[_w * _h * 4];
             _bmp = new WriteableBitmap(_w, _h, 96, 96, PixelFormats.Bgra32, null);
@@ -239,7 +287,7 @@ namespace EasyEngine
 
         private void RecomputeScale()
         {
-            double target = 384;
+            double target = 448;
             _scale = Math.Max(1, Math.Floor(target / Math.Max(_w, _h)));
             _view.Source = _bmp;
             _view.Width = _w * _scale;
@@ -511,37 +559,62 @@ namespace EasyEngine
             _bmp.WritePixels(new Int32Rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1), _data, _w * 4, off);
         }
 
-        private void PolygonDown(int x, int y, bool doubleClick)
+        internal void PolygonDown(int x, int y, bool doubleClick)
         {
             if (doubleClick) { FinishPolygon(); return; }
+            if (NearPolyStart(x, y)) { FinishPolygon(); return; } // back on the first point: close it
             if (_poly.Count == 0) _polySnap = (byte[])_data.Clone();
             _poly.Add((x, y));
+            ShowPolyStart();
             PolygonPreview(x, y);
+        }
+
+        // the cursor is on the polygon's first point (a few screen pixels of slack when zoomed out), once it has 3 corners
+        private bool NearPolyStart(int x, int y)
+        {
+            if (_poly.Count < 3) return false;
+            int slack = Math.Max(0, (int)Math.Ceiling(5 / Math.Max(1, _scale)));
+            return Math.Abs(x - _poly[0].x) <= slack && Math.Abs(y - _poly[0].y) <= slack;
         }
 
         private void PolygonPreview(int cursorX, int cursorY)
         {
             if (_poly.Count == 0 || _polySnap == null) return;
+            if (NearPolyStart(cursorX, cursorY)) (cursorX, cursorY) = _poly[0]; // snaps shut: the closing line shows
             Array.Copy(_polySnap, _data, _data.Length);
             for (int i = 0; i < _poly.Count - 1; i++) DrawLineData(_poly[i].x, _poly[i].y, _poly[i + 1].x, _poly[i + 1].y);
             DrawLineData(_poly[^1].x, _poly[^1].y, cursorX, cursorY);
             Flush();
         }
 
-        private void FinishPolygon()
+        private void ShowPolyStart()
+        {
+            if (_poly.Count == 0) { _polyStart.Visibility = Visibility.Collapsed; return; }
+            double size = Math.Max(10, _scale);
+            _polyStart.Width = _polyStart.Height = size;
+            Canvas.SetLeft(_polyStart, (_poly[0].x + 0.5) * _scale - size / 2);
+            Canvas.SetTop(_polyStart, (_poly[0].y + 0.5) * _scale - size / 2);
+            _polyStart.Visibility = Visibility.Visible;
+        }
+
+        internal void FinishPolygon()
         {
             if (_poly.Count < 2 || _polySnap == null) { CancelPolygon(); return; }
             Array.Copy(_polySnap, _data, _data.Length);
             DrawPolygonData(_poly.Select(p => ((double)p.x, (double)p.y)).ToList(), _fillShapes, true);
             Flush();
-            _poly.Clear(); _polySnap = null;
+            _poly.Clear(); _polySnap = null; ShowPolyStart();
         }
 
         private void CancelPolygon()
         {
             if (_polySnap != null) { Array.Copy(_polySnap, _data, _data.Length); Flush(); }
-            _poly.Clear(); _polySnap = null;
+            _poly.Clear(); _polySnap = null; ShowPolyStart();
         }
+
+        internal int TestPolygonPoints => _poly.Count;   // tests: corners of the polygon being drawn (0 = none / closed)
+        internal void TestSelectTool(string tool) => SelectTool(Enum.Parse<Tool>(tool));
+        internal int TestPixelAlpha(int x, int y) => _data[(y * _w + x) * 4 + 3];
 
         // ---- selection / move ----
         private static bool PointIn((int x, int y, int w, int h) s, int x, int y) => x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h;
