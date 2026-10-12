@@ -13,7 +13,7 @@ namespace EasyEngine
     // per block, drawn with square pixels — laid over the world in place of the smooth darkness + glow.
     public partial class PlayWindow
     {
-        private bool _gridOn, _gridBlocked = true, _gridTint = true, _gridAdd = true;
+        private bool _gridOn;
         private int _gridCell = 16;
         private Canvas? _gridHost;
         private Image? _gridImage;
@@ -21,6 +21,7 @@ namespace EasyEngine
         private double _gridOffX;                  // world x of cell column 0 (aligned to the terrain's blocks)
         private int _gx0, _gy0, _gCols, _gRows;    // the grid's first cell and size
         private float[] _gR = Array.Empty<float>(), _gG = Array.Empty<float>(), _gB = Array.Empty<float>(), _gDist = Array.Empty<float>();
+        private float[] _gTint = Array.Empty<float>(); // how much of each cell's light comes from lights that colour what they touch
         private bool[] _gSolid = Array.Empty<bool>(), _gSkyLit = Array.Empty<bool>();
         private byte[] _gPixels = Array.Empty<byte>();
         private readonly PriorityQueue<int, float> _gQueue = new();
@@ -32,9 +33,6 @@ namespace EasyEngine
         {
             _gridOn = bh.Num("lightStyle", 0) >= 0.5;
             _gridCell = bh.Num("lightCell", 16) >= 24 ? 32 : 16;
-            _gridBlocked = bh.Num("lightBlocked", 1) >= 0.5;
-            _gridTint = bh.Num("lightTint", 1) >= 0.5;
-            _gridAdd = bh.Num("lightsAdd", 1) >= 0.5;
         }
 
         private void ResetLightGrid() => _gridOn = false; // a new scene starts Smooth until its Day/Night says otherwise
@@ -76,13 +74,13 @@ namespace EasyEngine
             int n = _gCols * _gRows;
             if (_gR.Length < n)
             {
-                _gR = new float[n]; _gG = new float[n]; _gB = new float[n]; _gDist = new float[n];
+                _gR = new float[n]; _gG = new float[n]; _gB = new float[n]; _gDist = new float[n]; _gTint = new float[n];
                 _gSolid = new bool[n]; _gSkyLit = new bool[n]; _gPixels = new byte[n * 4];
                 Array.Fill(_gDist, float.PositiveInfinity);
             }
-            Array.Clear(_gR, 0, n); Array.Clear(_gG, 0, n); Array.Clear(_gB, 0, n); Array.Clear(_gSkyLit, 0, n);
+            Array.Clear(_gR, 0, n); Array.Clear(_gG, 0, n); Array.Clear(_gB, 0, n); Array.Clear(_gTint, 0, n); Array.Clear(_gSkyLit, 0, n);
 
-            if (_gridBlocked) MarkGridSolids(n);
+            MarkGridSolids(n);
 
             foreach (var en in _entities)
                 if (IsGridLight(en)) SpreadLight(en);
@@ -139,11 +137,15 @@ namespace EasyEngine
             int si = (int)Math.Floor((wx - _gridOffX) / cs) - _gx0, sj = (int)Math.Floor(wy / cs) - _gy0;
             if (si < 0 || sj < 0 || si >= _gCols || sj >= _gRows) return;
 
+            // each Light's own options: solid blocks stop it, it colours what it touches, it adds up with other lights
+            var lb = en.Beh(BehaviorKind.LightSource);
+            bool blocked = lb?.Num("stopByBlocks", 1) >= 0.5, tint = lb?.Num("tint", 1) >= 0.5, add = lb?.Num("addUp", 1) >= 0.5;
+
             float R = (float)(radius / cs);
             float cr = 1, cg = 1, cb = 1;
-            if (_gridTint)
+            if (tint)
             {
-                var c = ParseColor(en.Beh(BehaviorKind.LightSource)?.Text("color", "#FFA040") ?? "#FFA040", Colors.White);
+                var c = ParseColor(lb?.Text("color", "#FFA040") ?? "#FFA040", Colors.White);
                 float m = Math.Max(1f, Math.Max(c.R, Math.Max(c.G, c.B)));
                 cr = c.R / m; cg = c.G / m; cb = c.B / m; // the light's hue at full strength
             }
@@ -160,7 +162,7 @@ namespace EasyEngine
                     int ni = i + dx, nj = j + dy;
                     if (ni < 0 || nj < 0 || ni >= _gCols || nj >= _gRows) continue;
                     int nIdx = nj * _gCols + ni;
-                    float nd = d + (_gridBlocked && _gSolid[nIdx] ? step * SolidCost : step);
+                    float nd = d + (blocked && _gSolid[nIdx] ? step * SolidCost : step);
                     if (nd >= R || nd >= _gDist[nIdx]) continue;
                     if (float.IsPositiveInfinity(_gDist[nIdx])) _gTouched.Add(nIdx);
                     _gDist[nIdx] = nd;
@@ -172,7 +174,8 @@ namespace EasyEngine
             {
                 float b = (float)intensity * Math.Clamp((R - _gDist[idx]) / (R * (1 - FullUntil)), 0, 1);
                 _gDist[idx] = float.PositiveInfinity; // ready for the next light
-                if (_gridAdd) { _gR[idx] += b * cr; _gG[idx] += b * cg; _gB[idx] += b * cb; }
+                if (tint) _gTint[idx] = add ? _gTint[idx] + b : Math.Max(_gTint[idx], b);
+                if (add) { _gR[idx] += b * cr; _gG[idx] += b * cg; _gB[idx] += b * cb; }
                 else { _gR[idx] = Math.Max(_gR[idx], b * cr); _gG[idx] = Math.Max(_gG[idx], b * cg); _gB[idx] = Math.Max(_gB[idx], b * cb); }
             }
         }
@@ -190,9 +193,10 @@ namespace EasyEngine
                 float lit = Math.Min(1, amb + acc);
                 float ad = _gSkyLit[k] ? 0 : 1 - lit; // darkness left
                 float s = 0, kr = 0, kg = 0, kb = 0;
-                if (_gridTint && acc > 0.001f && !_gSkyLit[k])
+                if (_gTint[k] > 0.001f && !_gSkyLit[k])
                 {
-                    s = 0.45f * Math.Clamp((lit - amb) / Math.Max(lit, 0.001f), 0, 1); // only as much as the lights (not daylight) do
+                    // only as much as the colouring lights (not daylight, not white lights) light this block
+                    s = 0.45f * Math.Clamp(Math.Min(_gTint[k], lit - amb) / Math.Max(lit, 0.001f), 0, 1);
                     kr = 0.62f * 255 * ar / acc; kg = 0.62f * 255 * ag / acc; kb = 0.62f * 255 * ab / acc;
                 }
                 float keep = 1 - ad, alpha = 1 - (1 - s) * keep; // tint, then the darkness over it

@@ -260,8 +260,15 @@ namespace EasyEngine
             en.Facing = _mouseWorld.X >= en.CX ? 1 : -1;
             en.ImpactPending = true; en.ImpactIn = swingTime * 0.5; en.ImpactTool = tool; en.ImpactAt = _mouseWorld;
             _vars["stat:swings"] = Var("stat:swings") + 1;
-            PlaySoundFile(bh.Text("swingSound", ""), 0.7, "sfx", false, en.Data.Name);
+            PlaySoundFile(ItemSound(bh, "itemSwingSounds", "swingSound", tool), 0.7, "sfx", false, en.Data.Name);
             Info("Tool", en.Data.Name, $"{ToolArt.Title(tool)} swing", $"aimed at ({_mouseWorld.X:0}, {_mouseWorld.Y:0}) · facing {(en.Facing > 0 ? "right" : "left")}");
+        }
+
+        // The item's own sound ("Sounds per item"), else the default one.
+        private static string ItemSound(BehaviorData bh, string perItemKey, string defaultKey, string item)
+        {
+            var own = ParamSources.ItemFile(bh.Text(perItemKey, ""), item);
+            return own.Length > 0 ? own : bh.Text(defaultKey, "");
         }
 
         // How much damage the held item does to things with Health: "itemDamage" (e.g. "sword=2,axe=1"), else "damage".
@@ -339,7 +346,7 @@ namespace EasyEngine
             DamageEntity(t, dmg, bh.Num("knockback", 260), user.CX);
             _vars["stat:enemyHits"] = Var("stat:enemyHits") + 1;
             EmitParticles(t.CX, t.CY, 8, 170, 360, 0, 0.35, 4, 300, "#FFFFFF");
-            PlaySoundFile(bh.Text("hitSound", ""), 0.85, "sfx", false, user.Data.Name);
+            PlaySoundFile(ItemSound(bh, "itemHitSounds", "hitSound", tool), 0.85, "sfx", false, user.Data.Name);
             if (invincible) Info("Combat", t.Data.Name, $"Hit by the {tool}, but still invincible from the last hit — no damage");
             else Info("Combat", t.Data.Name, $"Hit by the {tool}: health {before:0.#} → {t.CurHealth:0.#}", $"damage {dmg:0.#}");
         }

@@ -484,6 +484,28 @@ public partial class App
                 p.TMouseAt(300, 220); p.TMouseDown(true); p.TSteps(50); p.TMouseDown(false); p.TSteps(30);
                 return p.TVar("stat:swings") == 3 && p.TVar("stat:enemyHits") >= 2;
             });
+            Test("use item: each item can have its own swing and hit sound (others use the default)", () =>
+            {
+                Action<Project, Scene> Sounds(string item) => (pr, sc) =>
+                {
+                    SwordVsEnemy(290)(pr, sc);
+                    var tu = sc.Layers.SelectMany(l => l.Objects).First(o => o.Name == "A").Behaviors.First(b => b.Kind == BehaviorKind.ToolUse);
+                    tu.Texts["tool"] = item; tu.Texts["swingSound"] = "Assets/sounds/default_swing.wav"; tu.Texts["hitSound"] = "Assets/sounds/default_hit.wav";
+                    tu.Texts["itemSwingSounds"] = "sword=Assets/sounds/sword_swing.wav"; tu.Texts["itemHitSounds"] = "sword=Assets/sounds/sword_hit.wav";
+                };
+                var sword = Sim("[]", extra: Sounds("sword")); sword.TClick(300, 220); sword.TSteps(20);
+                var axe = Sim("[]", extra: Sounds("axe")); axe.TClick(300, 220); axe.TSteps(20);
+                return sword.TLogHas("sword_swing.wav") && sword.TLogHas("sword_hit.wav") && !sword.TLogHas("default_swing.wav")
+                       && axe.TLogHas("default_swing.wav") && axe.TLogHas("default_hit.wav") && !axe.TLogHas("sword_swing.wav");
+            });
+            Test("use item: per-item sounds are stored as item=file pairs; an empty file removes the item", () =>
+            {
+                var s = ParamSources.SetItemFile("", "sword", @"Assets\sounds\a,b.wav");
+                s = ParamSources.SetItemFile(s, "axe", @"Assets\sounds\chop.wav");
+                bool both = ParamSources.ItemFile(s, "SWORD") == @"Assets\sounds\a,b.wav" && ParamSources.ItemFile(s, "axe") == @"Assets\sounds\chop.wav";
+                s = ParamSources.SetItemFile(s, "sword", "");
+                return both && ParamSources.ItemFile(s, "sword") == "" && ParamSources.ParseItemFiles(s).Count == 1;
+            });
             Test("use item: with 'hold to keep using' off, holding swings only once", () =>
             {
                 var p = Sim("[]", extra: SwordVsEnemy(600, holdToUse: 0));
@@ -1049,6 +1071,7 @@ public partial class App
             FeatureTestsTerrain(kit);
             FeatureTestsFixes(kit);
             FeatureTestsLightGrid(kit);
+            FeatureTestsSamples(kit);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
@@ -1084,6 +1107,7 @@ public partial class App
     partial void FeatureTestsTerrain(FullTestKit t);
     partial void FeatureTestsFixes(FullTestKit t);
     partial void FeatureTestsLightGrid(FullTestKit t);
+    partial void FeatureTestsSamples(FullTestKit t);
 
     // Re-run a script and its block-editor round-trip; the measured outcome must match.
     private static bool SameOutcome(string script, int steps, Func<PlayWindow, double> read, Func<string, string> rt)

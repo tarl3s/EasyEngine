@@ -46,9 +46,14 @@ Modos de linha de comando:
 - `dotnet run -- --review` — tour visual: joga os demos numa janela real e salva imagens dos momentos-chave em `%TEMP%\easyengine_snap_review_*.png`
 - `dotnet run -- --exprtest` / `--behtest` / `--aijsontest` / `--blocktest` — baterias específicas
 
+## Projetos de exemplo
+
+Na primeira vez que a engine abre, ela já cria três projetos prontos pra jogar e estudar, em `Documentos\EasyEngine Samples`,
+e coloca na lista de projetos recentes: **Top-Down Demo**, **Boss Demo** e **Infinite World**.
+
 ## Testar mecânicas isoladas
 
-No menu inicial, **🧪 Test scenarios** recria e abre o projeto *EasyEngine Tests*. Cada cena testa uma mecânica sozinha,
+`dotnet run -- --scenarios` recria o projeto *EasyEngine Tests*. Cada cena testa uma mecânica sozinha,
 com um **checklist na tela** que marca ✓ sozinho a cada etapa. Primeiro cenário: **Axe Test**: escolher o machado,
 golpear em qualquer lugar, derrubar uma árvore com 4 golpes e ver a pedra recusar o machado.
 

@@ -167,6 +167,9 @@ namespace EasyEngine
                 case PickKind.ItemDamage:
                     ItemDamageEditor(obj, bh, panel);
                     break;
+                case PickKind.ItemSounds:
+                    ItemSoundsEditor(obj, bh, panel); // both lists (swing + hit) in one table
+                    break;
                 case PickKind.MapMarkers:
                     MapMarkersEditor(obj, bh, panel);
                     break;
@@ -314,25 +317,33 @@ namespace EasyEngine
         }
 
         // ---------------------------------------------------------------- Use Item: damage per item, one row each
-        private void ItemDamageEditor(GameObjectData obj, BehaviorData bh, Panel panel)
+        // The items a Use Item swings (the hotbar's, or its fixed item) plus any in `extra`, each with its drawing.
+        private List<(string name, FrameworkElement icon)> UseItemRows(BehaviorData bh, IEnumerable<string> extra)
         {
-            panel.Children.Add(new TextBlock { Text = "Damage to enemies, per item", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, Margin = new Thickness(0, 4, 0, 4) });
             var hb = _scene.Layers.SelectMany(l => l.Objects).SelectMany(o => o.Behaviors).FirstOrDefault(b => b.Kind == BehaviorKind.Hotbar);
             var slots = hb != null ? PlayWindow.ParseHotbarItems(hb.Text("items", "")) : new List<(string name, string color, string look)>();
             var names = slots.Select(s => s.name).ToList();
             if (hb == null) names.Add(bh.Text("tool", "sword"));
-            foreach (var (item, _) in ParamSources.ParseDamage(bh.Text("itemDamage", "")))
+            foreach (var item in extra)
                 if (!names.Any(n => n.Equals(item, StringComparison.OrdinalIgnoreCase))) names.Add(item);
-
-            foreach (var name in names.Distinct(StringComparer.OrdinalIgnoreCase))
+            return names.Distinct(StringComparer.OrdinalIgnoreCase).Select(name =>
             {
                 var slot = slots.FirstOrDefault(s => s.name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                var icon = LookPicker.Icon(_project, name, slot.name != null ? slot.color : bh.Text("toolColor", "#DDEBFF"), slot.name != null ? slot.look : bh.Text("toolLook", ""), 22);
+                icon.VerticalAlignment = VerticalAlignment.Center;
+                return (name, (FrameworkElement)icon);
+            }).ToList();
+        }
+
+        private void ItemDamageEditor(GameObjectData obj, BehaviorData bh, Panel panel)
+        {
+            panel.Children.Add(new TextBlock { Text = "Damage to enemies, per item", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, Margin = new Thickness(0, 4, 0, 4) });
+            foreach (var (name, icon) in UseItemRows(bh, ParamSources.ParseDamage(bh.Text("itemDamage", "")).Select(d => d.item)))
+            {
                 var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
-                var icon = LookPicker.Icon(_project, name, slot.name != null ? slot.color : bh.Text("toolColor", "#DDEBFF"), slot.name != null ? slot.look : bh.Text("toolLook", ""), 22);
-                icon.VerticalAlignment = VerticalAlignment.Center;
                 var lbl = new TextBlock { Text = ToolArt.Title(name), VerticalAlignment = VerticalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(4, 0, 0, 0) };
                 var entry = ParamSources.ParseDamage(bh.Text("itemDamage", "")).FirstOrDefault(d => d.item.Equals(name, StringComparison.OrdinalIgnoreCase));
                 double dmg = entry.item != null ? entry.dmg : bh.Num("damage", 1);
@@ -347,6 +358,62 @@ namespace EasyEngine
                 box.KeyDown += (s, e) => { if (e.Key == Key.Enter) Commit(); };
                 Grid.SetColumn(icon, 0); Grid.SetColumn(lbl, 1); Grid.SetColumn(box, 2);
                 row.Children.Add(icon); row.Children.Add(lbl); row.Children.Add(box);
+                panel.Children.Add(row);
+            }
+        }
+
+        // ---------------------------------------------------------------- Use Item: a swing and a hit sound per item
+        private const string ImportSound = "\u0001import"; // the "＋ Import a sound…" entry of the per-item lists
+
+        private void ItemSoundsEditor(GameObjectData obj, BehaviorData bh, Panel panel)
+        {
+            panel.Children.Add(new TextBlock { Text = "Sounds per item (default = the sound above)", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, Margin = new Thickness(0, 4, 0, 2), TextWrapping = TextWrapping.Wrap });
+            Grid Row(double bottom)
+            {
+                var g = new Grid { Margin = new Thickness(0, 0, 0, bottom) };
+                foreach (var w in new[] { 30.0, -1, 92, 92 })
+                    g.ColumnDefinitions.Add(new ColumnDefinition { Width = w < 0 ? new GridLength(1, GridUnitType.Star) : new GridLength(w) });
+                return g;
+            }
+            var head = Row(2);
+            foreach (var (text, col) in new[] { ("Swing", 2), ("Hit an enemy", 3) })
+            {
+                var h = new TextBlock { Text = text, Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(4, 0, 0, 0) };
+                Grid.SetColumn(h, col); head.Children.Add(h);
+            }
+            panel.Children.Add(head);
+
+            var sounds = ParamSources.Sounds(_project);
+            var listed = ParamSources.ParseItemFiles(bh.Text("itemSwingSounds", "")).Concat(ParamSources.ParseItemFiles(bh.Text("itemHitSounds", ""))).Select(x => x.item);
+            foreach (var (name, icon) in UseItemRows(bh, listed))
+            {
+                var row = Row(4);
+                var lbl = new TextBlock { Text = ToolArt.Title(name), VerticalAlignment = VerticalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(4, 0, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = name };
+                Grid.SetColumn(icon, 0); Grid.SetColumn(lbl, 1);
+                row.Children.Add(icon); row.Children.Add(lbl);
+                int col = 2;
+                foreach (var key in new[] { "itemSwingSounds", "itemHitSounds" })
+                {
+                    string k = key, item = name, current = ParamSources.ItemFile(bh.Text(key, ""), name);
+                    var options = new List<(string value, string label)> { ("", "(default)") };
+                    options.AddRange(sounds.Select(s => (s, System.IO.Path.GetFileName(s))));
+                    options.Add((ImportSound, "＋ Import a sound…"));
+                    var cb = Dropdown.Make(options, current, v =>
+                    {
+                        if (v == ImportSound)
+                        {
+                            var dlg = new Microsoft.Win32.OpenFileDialog { Title = $"Sound for the {ToolArt.Title(item)}", Filter = "Audio|*.wav;*.mp3" };
+                            if (dlg.ShowDialog() != true) { RefreshAfterChoiceAlways(obj); return; }
+                            try { v = ProjectIO.ImportAsset(_project, dlg.FileName, "sounds"); }
+                            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); RefreshAfterChoiceAlways(obj); return; }
+                        }
+                        PushUndo(); bh.Texts[k] = ParamSources.SetItemFile(bh.Text(k, ""), item, v); Dirty();
+                        if (v.Length > 0 && !sounds.Contains(v)) RefreshAfterChoiceAlways(obj); // a new file: list it everywhere
+                    }, null, this);
+                    cb.Height = 28; cb.Margin = new Thickness(4, 0, 0, 0);
+                    cb.ToolTip = $"Plays when the {ToolArt.Title(item)} " + (k == "itemSwingSounds" ? "is swung" : "hits an enemy");
+                    Grid.SetColumn(cb, col++); row.Children.Add(cb);
+                }
                 panel.Children.Add(row);
             }
         }

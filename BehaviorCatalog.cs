@@ -14,7 +14,7 @@ namespace EasyEngine
         Choice,                // fixed options ("value|Label")
         Object, ObjectOrPrefab, Objects, Prefabs, Scene,
         Key, Color, Sound,
-        Item, Items, ItemDamage, HotbarItems, Look,
+        Item, Items, ItemDamage, ItemSounds, HotbarItems, Look,
         Variable, Currency, Requirement,
         MapMarkers,            // minimap: which things show, each with its colour
         Special                // drawn by its own editor (script, tilemap, path, boss/cutscene steps)
@@ -73,6 +73,7 @@ namespace EasyEngine
             c => !c.Scene.Layers.SelectMany(l => l.Objects).Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Hotbar));
         private static readonly Func<ParamCtx, bool> CoverOn = c => IfOff("mode")(c) && IfOn("coverDark")(c); // Day/Night underground darkness
         private static readonly Func<ParamCtx, bool> LightBlocks = IfOn("lightStyle"); // Day/Night "Blocks" lighting
+        private static readonly Func<ParamCtx, bool> Never = _ => false; // stored and edited by another field's editor
 
         private static TextParam T(string k, string l, string d, PickKind p = PickKind.Text, params string[] o) => new(k, l, d, p, o);
         private static TextParam TNone(string k, string l, string d, PickKind p) => new(k, l, d, p) { AllowNone = true };
@@ -165,8 +166,9 @@ namespace EasyEngine
                 Texts = { T("asset","Sound file","", PickKind.Sound), T("channel","Channel","sfx", PickKind.Choice, "sfx|Sound effects", "music|Music") } },
 
             new BehaviorInfo { Kind = BehaviorKind.LightSource, Name = "Light", Icon = "💡",
-                Desc = "Lights up the darkness around it (things near it show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle).",
-                Nums = { new("radius","Radius",200), new("intensity","Intensity (0-1)",0.9) },
+                Desc = "Lights up the darkness around it (things near it show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).",
+                Nums = { new("radius","Radius",200), new("intensity","Intensity (0-1)",0.9),
+                         new("stopByBlocks","Solid blocks stop this light (0/1)",1), new("tint","Colours what it touches (0/1)",1), new("addUp","Adds up with other lights (0/1)",1) },
                 Texts = { T("color","Color","#FFA040", PickKind.Color) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Parallax, Name = "Parallax", Icon = "🏔",
@@ -238,7 +240,7 @@ namespace EasyEngine
                           TNone("drop","Drops","", PickKind.Item) } },
 
             new BehaviorInfo { Kind = BehaviorKind.DayNight, Name = "Day / Night cycle", Icon = "🌗",
-                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). In Platformer mode, adding it creates a 'Sky' layer under all the others with a Sun and a Moon already linked (Top-down has no sky — just the light changes) — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Platformer: turn on 'coverDark' and it also gets darker the more solid blocks are above the player (caves, underground) — torches still light it up; it sets the variables cover (0 to 1) and underground (0 or 1). 'True black darkness' makes the dark pure black (no night tint) and fully dark underground. Lighting style: Smooth = soft circles of light; Blocks = light computed block by block, with options: solid blocks stop the light, lights colour what they touch, overlapping lights add up. Works for Top-down and Platformer.",
+                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). In Platformer mode, adding it creates a 'Sky' layer under all the others with a Sun and a Moon already linked (Top-down has no sky — just the light changes) — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Platformer: turn on 'coverDark' and it also gets darker the more solid blocks are above the player (caves, underground) — torches still light it up; it sets the variables cover (0 to 1) and underground (0 or 1). 'True black darkness' makes the dark pure black (no night tint) and fully dark underground. Lighting style: Smooth = soft circles of light; Blocks = light computed block by block (each Light then chooses whether solid blocks stop it, whether it colours what it touches and whether it adds up with other lights). Works for Top-down and Platformer.",
                 Nums = { new("mode","Game view",0, "0|Platformer (side view, sun + moon)", "1|Top-down (seen from above)"),
                          new("dayLength","Day length (seconds)",60),
                          new("nightLength","Night length (seconds)",60),
@@ -252,10 +254,7 @@ namespace EasyEngine
                          NIf(new("coverMax","How dark underground (0-1)",0.9), CoverOn),
                          new("trueBlack","True black darkness (0/1)",0),
                          new("lightStyle","Lighting style",0, "0|Smooth (soft circles of light)", "1|Blocks (light per block)"),
-                         NIf(new("lightCell","Light block size",16, "16|Small (16 px)", "32|Big (32 px)"), LightBlocks),
-                         NIf(new("lightBlocked","Solid blocks stop the light (0/1)",1), LightBlocks),
-                         NIf(new("lightTint","Light colours what it touches (0/1)",1), LightBlocks),
-                         NIf(new("lightsAdd","Every light adds up (0/1)",1), LightBlocks) },
+                         NIf(new("lightCell","Light block size",16, "16|Small (16 px)", "32|Big (32 px)"), LightBlocks) },
                 Texts = { TIf(TNone("sun","Sun","", PickKind.Object), IfOff("mode")), TIf(TNone("moon","Moon","", PickKind.Object), IfOff("mode")),
                           T("nightColor","Night tint","#0A1030", PickKind.Color),
                           TIf(T("coverWho","Whose light (usually the player)","Player", PickKind.Object), CoverOn) } },
@@ -302,7 +301,9 @@ namespace EasyEngine
                           TIf(T("toolLook","How it looks","", PickKind.Look), NoHotbar),
                           T("itemDamage","Damage per item","sword=2", PickKind.ItemDamage),
                           T("tools","Items that swing","", PickKind.Items),
-                          T("swingSound","Swing sound","", PickKind.Sound), T("hitSound","Hit-an-enemy sound","", PickKind.Sound), T("deniedSound","Refused sound","", PickKind.Sound) } },
+                          T("swingSound","Swing sound (default)","", PickKind.Sound), T("hitSound","Hit-an-enemy sound (default)","", PickKind.Sound),
+                          T("itemSwingSounds","Sounds per item","", PickKind.ItemSounds), TIf(T("itemHitSounds","Hit sounds per item","", PickKind.ItemSounds), Never),
+                          T("deniedSound","Refused sound","", PickKind.Sound) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Harvestable, Name = "Harvestable (tree / rock)", Icon = "🌳",
                 Desc = "Something you chop or mine with a tool. It takes 'hits' hits from the right tool (e.g. axe), shaking each time; on the last hit it falls and gives 'amount' of 'drop' (e.g. 5 wood). Needs a player with Tool Use.",

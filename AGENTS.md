@@ -13,7 +13,7 @@ programming**. The owner's yardstick game is a mid-size **RPG + metroidvania + p
 that game needs come first (rotational physics/ragdolls/vehicles come last). Long-term goal: publish it free.
 
 - Repo: `github.com/tarl3s/EasyEngine` — **private**, branch `main`. Keep it private unless the owner says otherwise.
-- Version: `0.10.3` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
+- Version: `0.10.4` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
 - The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
   this file are in **English** (the editor UI is 100% English by request; only `README.md` is Portuguese).
 
@@ -37,14 +37,14 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 
 | Flag | What | Log |
 |---|---|---|
-| `--fulltest` | the big battery (≈438 checks: every script action/event, behaviors, Scratch round-trip, editor, E2E) | `%TEMP%\easyengine_fulltest.log` |
+| `--fulltest` | the big battery (≈443 checks: every script action/event, behaviors, Scratch round-trip, editor, E2E) | `%TEMP%\easyengine_fulltest.log` |
 | `--e2e` | plays the test scenarios step by step (Axe, Lighting, Boss, Infinite World; ≈41 steps) | `easyengine_e2e.log` |
 | `--behtest` (49) / `--exprtest` (26) / `--blocktest` (7) / `--aijsontest` (20) | behaviors / expression evaluator / block-editor round-trip / AI-JSON parsing robustness | `easyengine_<name>.log` |
 | `--selftest` | opens real windows (editor, play, dialogs), measures text contrast, renders PNG snapshots | `easyengine_selftest.log`, `easyengine_snap_*.png` |
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
 | `--aitest [--model m]` | ~32 prompts through the real AI pipeline (needs a running AI) | `easyengine_aitest.log` |
 
-Last known green: fulltest 438/438, e2e 41/41, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS.
+Last known green: fulltest 443/443, e2e 41/41, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS.
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 
@@ -136,8 +136,12 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 ## Testing the way the owner wants
 
 - Every new or complained-about mechanic becomes **a scene in the "EasyEngine Tests" project** (`TestScenarios.cs`,
-  launcher button "🧪 Test scenarios"): on-screen `Checklist` that ticks itself, console open on start, instructions,
-  **R** restarts — plus a headless E2E in `E2ETests*.cs`. One project for all scenarios.
+  built with `--scenarios`; the owner removed its launcher button): on-screen `Checklist` that ticks itself, console
+  open on start, instructions, **R** restarts — plus a headless E2E in `E2ETests*.cs`. One project for all scenarios.
+- **Sample projects that ship with the engine** are listed in `SampleProjects.All` (now Top-Down Demo, Boss Demo,
+  Infinite World). The launcher builds any missing one once per computer into `Documents\EasyEngine Samples` and adds
+  it to Recent (tracked in settings `samplesInstalled`, so a removed sample doesn't come back). **Only the owner decides
+  what goes in that list** — add a project there only when they say so.
 - The F1 debug console logs everything; when a game closes it writes `%TEMP%\easyengine_play.log`. **Read that file**
   when the owner reports a problem from a manual test.
 - Visual review: use `--selftest`/`--review` PNGs (the engine renders its own windows). **Never capture the owner's

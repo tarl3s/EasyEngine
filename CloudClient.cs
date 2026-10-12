@@ -202,6 +202,7 @@ namespace EasyEngine
         public static string CustomModel { get; set; } = ""; // Custom provider: model name
         public static string? AiChoice { get; set; }         // last "Which AI to use" pick (the combo item's Tag); null = never chosen
         public static string LocalModel { get; set; } = "";  // name typed for "Custom local model…"
+        public static List<string> SamplesInstalled { get; set; } = new(); // sample projects already put on this computer (SampleProjects)
 
         public static string Key(string providerId) => CloudKeys.TryGetValue(providerId, out var v) ? v : "";
         public static void SetKey(string providerId, string value) { CloudKeys[providerId] = value?.Trim() ?? ""; }
@@ -224,6 +225,7 @@ namespace EasyEngine
                     CustomModel = data.CustomModel ?? "";
                     AiChoice = data.AiChoice;
                     LocalModel = data.LocalModel ?? "";
+                    SamplesInstalled = data.SamplesInstalled ?? new();
                 }
             }
             catch { }
@@ -231,7 +233,7 @@ namespace EasyEngine
 
         public static void Save()
         {
-            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel })); }
+            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel, SamplesInstalled = SamplesInstalled })); }
             catch { }
         }
 
@@ -244,6 +246,7 @@ namespace EasyEngine
             [JsonPropertyName("customModel")] public string? CustomModel { get; set; }
             [JsonPropertyName("aiChoice")]   public string? AiChoice { get; set; }
             [JsonPropertyName("localModel")] public string? LocalModel { get; set; }
+            [JsonPropertyName("samplesInstalled")] public List<string>? SamplesInstalled { get; set; }
         }
     }
 }

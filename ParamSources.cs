@@ -124,5 +124,29 @@ namespace EasyEngine
             list.Add((item, dmg));
             return string.Join(",", list.Select(x => $"{x.item}={x.dmg.ToString(System.Globalization.CultureInfo.InvariantCulture)}"));
         }
+
+        /// <summary>A file per item, e.g. Use Item's sounds: "sword=Assets\sounds\slash.wav|axe=Assets\sounds\chop.wav"
+        /// ('|' between entries, since a path may hold a comma).</summary>
+        public static List<(string item, string file)> ParseItemFiles(string spec)
+        {
+            var list = new List<(string, string)>();
+            foreach (var part in (spec ?? "").Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var kv = part.Split('=', 2);
+                if (kv.Length == 2 && kv[0].Trim().Length > 0 && kv[1].Trim().Length > 0) list.Add((kv[0].Trim(), kv[1].Trim()));
+            }
+            return list;
+        }
+
+        public static string ItemFile(string spec, string item) =>
+            ParseItemFiles(spec).FirstOrDefault(x => x.item.Equals(item, StringComparison.OrdinalIgnoreCase)).file ?? "";
+
+        /// <summary>Sets (or, with an empty file, removes) the item's file.</summary>
+        public static string SetItemFile(string spec, string item, string file)
+        {
+            var list = ParseItemFiles(spec).Where(x => !x.item.Equals(item, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (!string.IsNullOrWhiteSpace(file)) list.Add((item, file.Trim()));
+            return string.Join("|", list.Select(x => $"{x.item}={x.file}"));
+        }
     }
 }

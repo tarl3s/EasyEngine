@@ -12,6 +12,7 @@ namespace EasyEngine
             InitializeComponent();
             var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             if (v != null) VersionText.Text = $"v{v.Major}.{v.Minor}.{v.Build}";
+            SampleProjects.EnsureInstalled(); // the projects that come with the engine, the first time (SampleProjects.cs)
             LoadRecent();
             NewLocation.Text = DefaultParentFolder();
             _ = CheckOllamaAsync();
@@ -118,13 +119,6 @@ namespace EasyEngine
                 LoadRecent();
             }
             catch (Exception ex) { MessageBox.Show("Delete failed: " + ex.Message); }
-        }
-
-        // Rebuilds the "EasyEngine Tests" project (isolated scenarios) and opens it in the editor — press Test to play.
-        private void TestScenarios_Click(object sender, RoutedEventArgs e)
-        {
-            try { OpenEditor(ProjectIO.Load(TestScenarios.Build(DefaultParentFolder()))); }
-            catch (Exception ex) { MessageBox.Show("Couldn't build the test scenarios:\n" + ex.Message, "EasyEngine"); }
         }
 
         private void OpenEditor(Project project)
