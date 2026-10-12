@@ -11,6 +11,10 @@ namespace EasyEngine
     // so we can assert what every behavior and every Custom-script rule actually does.
     public partial class PlayWindow
     {
+        /// <summary>Seeds the game's random numbers (scattered layouts, "once" seeds, boss attacks…) — call before TLoad
+        /// so a test plays the same way every run.</summary>
+        public void TSeed(int seed) => _rng = new System.Random(seed);
+
         public void TLoad()
         {
             _headless = true; // tests never play audio; sounds are only recorded + logged
@@ -127,6 +131,7 @@ namespace EasyEngine
             layer.Objects.Add(o);
             extra?.Invoke(project, scene);
             var pw = new PlayWindow(project, scene.Name);
+            pw.TSeed(1);
             pw.TLoad();
             return pw;
         }

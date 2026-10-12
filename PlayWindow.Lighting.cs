@@ -124,8 +124,7 @@ namespace EasyEngine
             if (en.CoverSampleIn <= 0)
             {
                 en.CoverSampleIn = 0.1;
-                string whoName = bh.Text("coverWho", "Player");
-                var who = _entities.FirstOrDefault(z => !z.Dead && z != en && z.Data.Name.Equals(whoName, StringComparison.OrdinalIgnoreCase));
+                var who = FindNamed(bh.Text("coverWho", "Player"), en);
                 en.CoverTarget = who == null ? 0 : Math.Clamp(BlocksAbove(who) / Math.Max(0.5, bh.Num("coverDepth", 6)), 0, 1);
                 if (!en.CoverStarted) { en.CoverStarted = true; en.Cover = en.CoverTarget; } // starting in a cave starts dark
             }
@@ -135,19 +134,25 @@ namespace EasyEngine
             return en.Cover;
         }
 
+        private static readonly double[] CoverProbes = { 0.25, 0.5, 0.75 };
+
         // Solid blocks (in 32 px rows) straight above the object, averaged over its left quarter, centre and right quarter.
+        // Terrain blocks are read straight from its grid (a tall column of them needs no collider entities).
         private double BlocksAbove(Entity who)
         {
             double top = who.Y - 4000, sum = 0;
-            foreach (double f in new[] { 0.25, 0.5, 0.75 })
+            var t = _terrain;
+            foreach (double f in CoverProbes)
             {
                 double x = who.X + who.W * f;
-                foreach (var s in SolidsNear(x, top, 1, who.Y - top))
-                {
-                    if (s == who || s.Dead || s.SolidDisabled || s.OneWay) continue;
-                    if (s.X <= x && x < s.X + s.W && s.Y + s.H <= who.Y + 2 && s.Y + s.H > top)
-                        sum += Math.Min(s.Y + s.H, who.Y) - Math.Max(s.Y, top);
-                }
+                double Above(double sx, double sy, double sw, double sh)
+                    => sx <= x && x < sx + sw && sy + sh <= who.Y + 2 && sy + sh > top ? Math.Min(sy + sh, who.Y) - Math.Max(sy, top) : 0;
+                foreach (var s in _solids)
+                    if (s != who && !s.Dead && !s.SolidDisabled && !s.OneWay) sum += Above(s.X, s.Y, s.W, s.H);
+                if (t == null) continue;
+                int c = t.Column(x);
+                for (int r = Math.Max(0, (int)Math.Floor(top / t.Ts)), r1 = Math.Min(t.Rows - 1, (int)Math.Floor(who.Y / t.Ts)); r <= r1; r++)
+                    if (t.Cell(c, r) is { Broken: false } cell) sum += Above(cell.X, cell.Y, cell.W, cell.H);
             }
             return sum / 3 / 32;
         }

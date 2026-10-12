@@ -201,7 +201,7 @@ namespace EasyEngine
                           T("align","Alignment","center", PickKind.Choice, "left|Left", "center|Center", "right|Right") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Health, Name = "Health", Icon = "❤",
-                Desc = "Gives hit points. When they reach 0: respawn=1 → respawn at last checkpoint/start (for the player); respawn=0 → the object is destroyed (for enemies). Writes the value to a variable for a Label.",
+                Desc = "Gives hit points. When they reach 0: respawn=1 → respawn at last checkpoint/start (for the player); respawn=0 → the object is destroyed (for enemies). Writes the value to a variable for a Label or a Bar — 'health' is the player's: an enemy only shows its health in a variable of its own (e.g. bossHP).",
                 Nums = { new("max","Max health",3), new("invincible","I-frames (s)",1), new("respawn","When it dies",1, "1|Respawn (for the player)", "0|Disappear (for enemies)") },
                 Texts = { T("var","Show the health in variable","health", PickKind.Variable) } },
 
@@ -267,6 +267,8 @@ namespace EasyEngine
                          new("endless","Endless to the left and right (0/1)",1),
                          NIf(new("width","World width (blocks)",80), IfOff("endless")),
                          new("mineable","Blocks can be mined (0/1)",1),
+                         NIf(new("byBullet","Bullets break blocks (0/1)",1), IfOn("mineable")),
+                         NIf(new("byDamage","Enemies/hazards break blocks (0/1)",0), IfOn("mineable")),
                          new("trees","Trees (0/1)",1),
                          NIf(new("treeDensity","Tree density (0-1)",0.25), IfOn("trees")) },
                 Texts = { T("grass","Grass color","#5FB548", PickKind.Color), T("dirt","Dirt color","#8A5A32", PickKind.Color),

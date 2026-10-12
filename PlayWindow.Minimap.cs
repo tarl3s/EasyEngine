@@ -18,16 +18,16 @@ namespace EasyEngine
             public Border? MiniBox;                    // the frame (holds the title + MiniCanvas)
             public TextBlock? MiniTitle;               // "MAP — M to close" (big map only)
             public Polygon? MiniGround;                // endless worlds: the ground under the surface line
+            public (Func<double, double?>? surface, double x0, double y0, double w, double h) MiniGroundAt; // what it was drawn for
             public List<Ellipse>? MiniDots;            // reused every frame (only the ones in use are visible)
             public bool MiniMax, MiniKeyWas;           // big map open + key edge memory
-            public string MiniMarkersSrc = "\u0001";   // the "markers" text the parsed list below came from
-            public List<(string name, string color)> MiniMarkers = new();
+            public string? MiniMarkersSrc;             // the "markers" text the parsed list below came from
+            public List<(string name, string color)>? MiniMarkers;
         }
 
         private const double EndlessMapWidth = 3000;   // world px shown across the minimap in an endless world
         private const double EndlessMapRatio = 0.6;    // its height / width
         private const string BigMapUi = "the map";     // _uiRects key while the big map is open
-        private static readonly Dictionary<string, SolidColorBrush> MiniBrushes = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>"Slime:#9B59F0, Coin" → (Slime, #9B59F0), (Coin, "") — no colour = the default gray dot.</summary>
         public static List<(string name, string color)> ParseMapMarkers(string s)
@@ -42,30 +42,20 @@ namespace EasyEngine
             return list;
         }
 
-        // one frozen brush per colour, shared by every minimap
-        private static SolidColorBrush MiniBrush(string hex, Color fallback)
-        {
-            string key = string.IsNullOrWhiteSpace(hex) ? fallback.ToString() : hex;
-            if (MiniBrushes.TryGetValue(key, out var b)) return b;
-            b = new SolidColorBrush(ParseColor(key, fallback));
-            b.Freeze();
-            return MiniBrushes[key] = b;
-        }
-
         // Builds the minimap overlay (added to the HUD canvas, independent of the object's box).
         private void BuildMinimap(Entity en, BehaviorData bh)
         {
             double size = Math.Max(60, bh.Num("size", 180));
             var inner = new Canvas { Width = size, Height = size * MiniRatio(), ClipToBounds = true };
-            en.MiniGround = new Polygon { Fill = MiniBrush("#AA7D5A37", Colors.Sienna), Visibility = Visibility.Collapsed };
+            en.MiniGround = new Polygon { Fill = FrozenBrush("#AA7D5A37", Colors.Sienna), Visibility = Visibility.Collapsed };
             inner.Children.Add(en.MiniGround);
             en.MiniTitle = new TextBlock { Foreground = Brushes.White, FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(2, 0, 0, 6), Visibility = Visibility.Collapsed };
             var stack = new StackPanel();
             stack.Children.Add(en.MiniTitle); stack.Children.Add(inner);
             en.MiniBox = new Border
             {
-                Background = MiniBrush("#9614141C", Colors.Black),
-                BorderBrush = MiniBrush("#C878788C", Colors.Gray),
+                Background = FrozenBrush("#9614141C", Colors.Black),
+                BorderBrush = FrozenBrush("#C878788C", Colors.Gray),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Child = stack
@@ -116,7 +106,7 @@ namespace EasyEngine
 
             // frame + where it sits
             box.Opacity = big ? 1 : Math.Clamp(bh.Num("opacity", 0.8), 0.1, 1);
-            box.Background = big ? MiniBrush("#E00E0E14", Colors.Black) : MiniBrush("#9614141C", Colors.Black);
+            box.Background = big ? FrozenBrush("#E00E0E14", Colors.Black) : FrozenBrush("#9614141C", Colors.Black);
             double pad = big ? 10 : 0;
             if (box.Padding.Left != pad) box.Padding = new Thickness(pad);
             en.MiniTitle!.Visibility = big ? Visibility.Visible : Visibility.Collapsed;
@@ -136,7 +126,7 @@ namespace EasyEngine
             if (big) _uiRects[BigMapUi] = new Rect(left, top, bw, bhh); else _uiRects.Remove(BigMapUi);
 
             // which part of the world the map shows
-            var player = FindByName(bh.Text("player", "Player"));
+            var player = FindNamed(bh.Text("player", "Player"));
             double x0 = 0, y0 = 0, ww = Math.Max(1, _scene.Width), wh = Math.Max(1, _scene.Height);
             if (_endlessX)
             {
@@ -146,31 +136,39 @@ namespace EasyEngine
             }
             double sx = mw / ww, sy = mh / wh;
 
-            // the ground (endless worlds): the surface line sampled across the window, filled down to the bottom
+            // the ground (endless worlds): the surface line sampled across the window, filled down to the bottom — redrawn
+            // only once the window has moved a map pixel (or the map changed size)
             var ground = en.MiniGround!;
             if (_endlessX && _terrainSurfaceAt != null)
             {
-                var pts = ground.Points;
-                pts.Clear();
-                pts.Add(new Point(0, mh));
-                const int n = 64;
-                for (int i = 0; i <= n; i++)
+                var at = en.MiniGroundAt;
+                if (at.surface != _terrainSurfaceAt || at.w != mw || at.h != mh || Math.Abs(at.x0 - x0) * sx >= 1 || Math.Abs(at.y0 - y0) * sy >= 1)
                 {
-                    double wx = x0 + ww * i / n;
-                    double y = _terrainSurfaceAt(wx) is double gy ? (gy - y0) * sy : mh;
-                    pts.Add(new Point(mw * i / n, Math.Clamp(y, 0, mh)));
+                    const int n = 64;
+                    var pts = new PointCollection(n + 3) { new Point(0, mh) };
+                    for (int i = 0; i <= n; i++)
+                    {
+                        double wx = x0 + ww * i / n;
+                        double y = _terrainSurfaceAt(wx) is double gy ? (gy - y0) * sy : mh;
+                        pts.Add(new Point(mw * i / n, Math.Clamp(y, 0, mh)));
+                    }
+                    pts.Add(new Point(mw, mh));
+                    pts.Freeze();
+                    ground.Points = pts;
+                    en.MiniGroundAt = (_terrainSurfaceAt, x0, y0, mw, mh);
                 }
-                pts.Add(new Point(mw, mh));
                 ground.Visibility = Visibility.Visible;
             }
             else ground.Visibility = Visibility.Collapsed;
 
             // the dots: marked things first, the player last (on top)
-            if (en.MiniMarkersSrc != bh.Text("markers", ""))
+            var markersSrc = bh.Text("markers", "");
+            if (en.MiniMarkers == null || en.MiniMarkersSrc != markersSrc)
             {
-                en.MiniMarkersSrc = bh.Text("markers", "");
-                en.MiniMarkers = ParseMapMarkers(en.MiniMarkersSrc);
+                en.MiniMarkersSrc = markersSrc;
+                en.MiniMarkers = ParseMapMarkers(markersSrc);
             }
+            var markers = en.MiniMarkers;
             int used = 0;
             void Dot(Entity e, SolidColorBrush b, double r)
             {
@@ -184,18 +182,18 @@ namespace EasyEngine
                 d.Visibility = Visibility.Visible;
                 Canvas.SetLeft(d, Math.Clamp(px - r, 0, mw)); Canvas.SetTop(d, Math.Clamp(py - r, 0, mh));
             }
-            if (en.MiniMarkers.Count > 0)
+            if (markers.Count > 0)
                 foreach (var e in _entities)
                 {
                     if (e.Dead || e == en || e == player) continue;
-                    foreach (var (name, color) in en.MiniMarkers)
+                    foreach (var (name, color) in markers)
                         if (e.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || string.Equals(e.Data.Group, name, StringComparison.OrdinalIgnoreCase))
                         {
-                            Dot(e, MiniBrush(color, Color.FromRgb(180, 180, 190)), 2);
+                            Dot(e, FrozenBrush(color, Color.FromRgb(180, 180, 190)), 2);
                             break;
                         }
                 }
-            if (player != null) Dot(player, MiniBrush(bh.Text("playerColor", "#00E5FF"), Color.FromRgb(0, 229, 255)), 3);
+            if (player != null) Dot(player, FrozenBrush(bh.Text("playerColor", "#00E5FF"), Color.FromRgb(0, 229, 255)), 3);
             for (int i = used; i < en.MiniDots.Count; i++) en.MiniDots[i].Visibility = Visibility.Collapsed;
         }
 
@@ -205,12 +203,6 @@ namespace EasyEngine
             if (en.MiniBox == null) return;
             Hud.Children.Remove(en.MiniBox);
             if (en.MiniMax) _uiRects.Remove(BigMapUi);
-        }
-
-        private Entity? FindByName(string name)
-        {
-            foreach (var e in _entities) if (!e.Dead && e.Data.Name == name) return e;
-            return null;
         }
 
         // "D1" → "1", "LeftShift" → "Shift" (as the key pickers show them)

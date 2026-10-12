@@ -67,6 +67,8 @@ namespace EasyEngine
             public int Built;                             // chunks built so far (loads, including reloads)
             public HashSet<(int c, int r)> Dug = null!;
             public HashSet<int> Felled = null!;
+            public readonly List<(int cx, int cy)> Want = new(), Drop = new(); // StreamTerrain's scratch lists, reused every tick
+            public readonly HashSet<(int cx, int cy)> Under = new();
 
             // hill shapes: (wavelength in blocks, height in blocks) per octave, for Flat / Gentle / Normal / Rough
             private static readonly (double wl, double amp)[][] HillOctaves =
@@ -198,6 +200,10 @@ namespace EasyEngine
                 Warn("Terrain", en.Data.Name, "Only one Terrain Generator per scene — this one is ignored", $"'{_terrain.Host.Data.Name}' already builds the world.");
                 return;
             }
+            // what this terrain was saved without (an option added later) reads its catalog default, like a new one
+            var info = BehaviorCatalog.Info(BehaviorKind.Terrain);
+            foreach (var p in info.Nums) bh.Nums.TryAdd(p.Key, p.Default);
+            foreach (var p in info.Texts) bh.Texts.TryAdd(p.Key, p.Default);
             double ts = Math.Clamp(bh.Num("tileSize", 32), 8, 128);
             int baseRow = Math.Max(2, (int)Math.Round(bh.Num("surface", 600) / ts));
             string memKey = _sceneName + "/" + en.Data.Name;
@@ -215,12 +221,7 @@ namespace EasyEngine
                 TreeName = bh.Text("tree", "Tree"), Dug = mem.dug, Felled = mem.felled
             };
             string[] colors = { "", bh.Text("grass", "#5FB548"), bh.Text("dirt", "#8A5A32"), bh.Text("stone", "#767680"), bh.Text("ore", "#E2B23C"), "#2B2B33" };
-            static SolidColorBrush Frozen(Color c, double f)
-            {
-                var b = new SolidColorBrush(Color.FromRgb((byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f)));
-                b.Freeze();
-                return b;
-            }
+            static SolidColorBrush Frozen(Color c, double f) => FrozenBrush(Color.FromRgb((byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f)));
             for (int b = 1; b < colors.Length; b++)
             {
                 var col = ParseColor(colors[b], Color.FromRgb(0x9A, 0x9A, 0xA0));
@@ -248,12 +249,7 @@ namespace EasyEngine
         private int TerrainSeed(Entity en, BehaviorData bh)
         {
             int seed = (int)Math.Clamp(Math.Round(bh.Num("seed", 0)), int.MinValue, int.MaxValue);
-            if (seed != 0) return seed;
-            string key = "seed:terrain:" + en.Data.Name;
-            if (Var(key) >= 1) return (int)Var(key);
-            seed = _rng.Next(1, int.MaxValue);
-            _vars[key] = seed;
-            return seed;
+            return seed != 0 ? seed : PersistedSeed("seed:terrain:" + en.Data.Name);
         }
 
         partial void TerrainSceneLoaded()
@@ -261,7 +257,7 @@ namespace EasyEngine
             var t = _terrain;
             if (t == null) return;
             var who = t.Bh.Text("startOn", "Player");
-            t.Focus = who.Length == 0 ? null : _entities.FirstOrDefault(e => !e.Dead && e != t.Host && e.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
+            t.Focus = who.Length == 0 ? null : FindNamed(who, t.Host);
             if (t.Focus != null && TerrainTopUnder(t.Focus.X, t.Focus.W) is double top)
             {
                 var f = t.Focus;
@@ -311,7 +307,7 @@ namespace EasyEngine
             int vy0 = FloorDiv((int)Math.Floor(view.Top / t.Ts), ChunkSize), vy1 = FloorDiv((int)Math.Floor(view.Bottom / t.Ts), ChunkSize);
             int loaded = 0, unloaded = 0;
 
-            var want = new List<(int cx, int cy)>();
+            var want = t.Want; want.Clear();
             for (int cy = vy0 - 1; cy <= vy1 + 1; cy++)
                 for (int cx = vx0 - 1; cx <= vx1 + 1; cx++)
                     if (t.ChunkExists(cx, cy) && !t.Chunks.ContainsKey((cx, cy))) want.Add((cx, cy));
@@ -324,7 +320,7 @@ namespace EasyEngine
             // the chunks under things that move near the view (and under the player wherever it is) load right away;
             // movers further out wait in place until the view comes back (TerrainFrozen)
             bool Kept(int cx, int cy) => cx >= vx0 - 2 && cx <= vx1 + 2 && cy >= vy0 - 2 && cy <= vy1 + 2;
-            var under = new HashSet<(int cx, int cy)>();
+            var under = t.Under; under.Clear();
             foreach (var e in _entities)
             {
                 if (e.Dead || e.ScreenSpace || !IsMover(e)) continue;
@@ -337,8 +333,10 @@ namespace EasyEngine
             foreach (var k in under)
                 if (!t.Chunks.ContainsKey(k)) { LoadChunk(t, k); loaded++; }
 
-            foreach (var k in t.Chunks.Keys.ToList())
-                if (!Kept(k.cx, k.cy) && !under.Contains(k)) { UnloadChunk(t, k); unloaded++; }
+            var drop = t.Drop; drop.Clear();
+            foreach (var k in t.Chunks.Keys)
+                if (!Kept(k.cx, k.cy) && !under.Contains(k)) drop.Add(k);
+            foreach (var k in drop) { UnloadChunk(t, k); unloaded++; }
 
             if (loaded + unloaded > 0)
                 LogThrottled("terrain-stream", 2.0, LogLevel.Info, "Terrain", t.Host.Data.Name, $"Streaming: {t.Chunks.Count} chunks in memory ({TerrainVisualCount(t)} rectangles drawn)",
@@ -347,8 +345,9 @@ namespace EasyEngine
 
         private static int TerrainVisualCount(TerrainState t) => t.Chunks.Values.Sum(ch => ch.Canvas.Children.Count);
 
-        private static bool IsMover(Entity e) => e.Terrain == null &&
-            (e.Data.Physics.Mode == PhysicsMode.Dynamic || e.Has(BehaviorKind.Platformer) || e.Has(BehaviorKind.TopDown) || e.Has(BehaviorKind.AdvancedPatrol));
+        // Something that falls or walks into walls, by the physics' own per-frame classification (UpdatePhysics). A new object
+        // is classified in its first tick, and TerrainFrozen holds it there until the ground under it has loaded.
+        private static bool IsMover(Entity e) => e.Terrain == null && (e.FrameDynamic || e.FrameTopDown);
 
         // Chunk range under an entity's box grown by `margin` + one hitchy frame (0.05 s) of its travel.
         private static (int c0, int c1, int r0, int r1) ChunksUnder(TerrainState t, Entity e, double margin)
@@ -459,22 +458,9 @@ namespace EasyEngine
             t.Chunks.Remove(k);
         }
 
-        /// <summary>Terrain cells (as collider entities) overlapping the box, top row first — so a fast fall that went into
-        /// two blocks lands on the upper one. Colliders are made on first use and cached in the cell.</summary>
-        private IEnumerable<Entity> TerrainSolidsNear(double x, double y, double w, double h)
-        {
-            var t = _terrain;
-            if (t == null) yield break;
-            int c0 = t.Column(x), c1 = t.Column(x + w);
-            int r0 = Math.Max(0, (int)Math.Floor(y / t.Ts)), r1 = Math.Min(t.Rows - 1, (int)Math.Floor((y + h) / t.Ts));
-            for (int r = r0; r <= r1; r++)
-                for (int c = c0; c <= c1; c++)
-                {
-                    var cell = t.Cell(c, r);
-                    if (cell == null || cell.Broken) continue;
-                    yield return cell.Collider ??= new Entity { Data = t.Host.Data, X = cell.X, Y = cell.Y, W = cell.W, H = cell.H };
-                }
-        }
+        // A terrain cell as a collider entity (SolidsNear): made on first use and cached in the cell.
+        private static Entity TerrainCollider(TerrainState t, TileCell cell)
+            => cell.Collider ??= new Entity { Data = t.Host.Data, X = cell.X, Y = cell.Y, W = cell.W, H = cell.H };
 
         // World Y of the highest generated ground top under the span [x, x + w] (null = no terrain there).
         private double? TerrainTopUnder(double x, double w)
@@ -491,8 +477,7 @@ namespace EasyEngine
         // (at the spawner's feet level when there is no terrain).
         private void SpawnNear(Entity spawner, string name)
         {
-            var template = FindTemplate(name)
-                ?? _project.Prefabs.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Template;
+            var template = FindTemplateOrPrefab(name);
             if (template == null) return;
             double side = _rng.Next(2) == 0 ? -1 : 1, d = 300 + _rng.NextDouble() * 200;
             double x = spawner.CX + side * d - template.Width / 2;

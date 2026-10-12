@@ -34,7 +34,7 @@ namespace EasyEngine
         private sealed class CamPan { public SeqRunner? Owner; public Entity? Target; public double PX, PY, FromX, FromY, Start, Dur; public bool Returning; }
 
         // per-object state of the Cutscene behavior
-        private sealed class CutState { public bool Was; public SeqRunner? Runner; public bool Warned; }
+        private sealed class CutState { public string? Trigger; public bool Was; public SeqRunner? Runner; public bool Warned; }
         private partial class Entity { public CutState? Cut; }
 
         private readonly List<SeqRunner> _runners = new();
@@ -48,15 +48,17 @@ namespace EasyEngine
         private double _fadeFrom, _fadeTo, _fadeStart, _fadeDur;
         private bool _barsOn; private double _barsT;      // cinema bars: wanted + how far in (0..1)
         private string _titleText = ""; private double _titleStart, _titleDur;
+        private bool _overlaysIdle;                       // the overlays last drawn were all off (SequencesRender)
 
         // ================================================================== hooks
         partial void SequencesBeforeLogic(double dt)
         {
-            if (_heldKeys != null) { _keys = _heldKeys; _heldKeys = null; } // a tick that threw never handed them back
+            RestoreKeys(); // a tick that threw never handed them back
 
-            // skip keys read the real keyboard (a locked cutscene can still be skipped)
-            foreach (var r in _runners.ToList())
+            // skip keys read the real keyboard (a locked cutscene can still be skipped); by index, no copy: this runs every tick
+            for (int i = 0, n = _runners.Count; i < n; i++)
             {
+                var r = _runners[i];
                 if (r.Finished || r.SkipKey is not Key k) continue;
                 bool down = _keys.Contains(k);
                 if (down && !r.SkipWas) SkipCutscene(r);
@@ -66,8 +68,11 @@ namespace EasyEngine
             _barsT = Math.Clamp(_barsT + (_barsOn ? dt : -dt) / 0.4, 0, 1);
             if (_camPan is { Returning: true } && PanProgress() >= 1) _camPan = null;
 
-            foreach (var r in _runners.ToList()) TickRunner(r);
-            _runners.RemoveAll(r => r.Finished);
+            if (_runners.Count > 0)
+            {
+                for (int i = 0, n = _runners.Count; i < n; i++) TickRunner(_runners[i]); // the ones started meanwhile wait for the next tick
+                _runners.RemoveAll(r => r.Finished);
+            }
 
             if (_inputLocks.Count > 0) // locked: this tick sees no keys, clicks or wheel (Enter still advances dialogue)
             {
@@ -78,7 +83,7 @@ namespace EasyEngine
 
         partial void SequencesAfterLogic(double dt)
         {
-            if (_heldKeys != null) { _keys = _heldKeys; _heldKeys = null; }
+            RestoreKeys();
             // objects being moved by a step: placed after physics, so gravity/collision can't drag them off the line
             foreach (var m in _moves)
             {
@@ -95,7 +100,7 @@ namespace EasyEngine
         {
             foreach (var r in _runners) r.Finished = true;
             _runners.Clear(); _moves.Clear(); _inputLocks.Clear();
-            if (_heldKeys != null) { _keys = _heldKeys; _heldKeys = null; }
+            RestoreKeys();
             _camPan = null; _shakeUntil = 0; _titleText = ""; _barsOn = false; _barsT = 0;
             // a fade-out that led here clears on its own in the new scene (its cutscene may fade in itself)
             double fade = FadeOpacity();
@@ -103,10 +108,13 @@ namespace EasyEngine
             BossSceneReset();
         }
 
+        private void RestoreKeys() { if (_heldKeys != null) { _keys = _heldKeys; _heldKeys = null; } }
+
         partial void SequencesEntityRemoved(Entity en)
         {
-            foreach (var r in _runners.Where(r => r.Owner == en && r.Mode == SeqMode.Boss).ToList()) AbortRunner(r);
-            _moves.RemoveAll(m => m.E == en);
+            foreach (var r in _runners) if (r.Owner == en && r.Mode == SeqMode.Boss) AbortRunner(r);
+            if (_moves.Count > 0) _moves.RemoveAll(m => m.E == en);
+            if (en.Boss != null) DismissMinions(en.Boss); // a boss removed any other way than by its health takes its minions too
         }
 
         partial void CameraTargetOverride(ref double tx, ref double ty, ref double smooth)
@@ -134,12 +142,19 @@ namespace EasyEngine
 
         partial void SequencesRender(double dt)
         {
-            FadeRect.Fill = Brush(_fadeColor);
-            FadeRect.Opacity = FadeOpacity();
-            double bar = Math.Max(0, Root.ActualHeight) * 0.11 * EaseT("inout", _barsT);
-            BarTop.Height = bar; BarBottom.Height = bar;
-            BigTitle.Text = _titleText;
-            BigTitle.Opacity = TitleAlpha();
+            double fade = FadeOpacity(), title = TitleAlpha();
+            bool idle = fade <= 0 && _barsT <= 0 && title <= 0;
+            if (!(idle && _overlaysIdle)) // nothing to redraw while no fade, bars or title shows (most of the game)
+            {
+                var fill = FrozenBrush(_fadeColor, Color.FromRgb(0x9A, 0x9A, 0xA0));
+                if (FadeRect.Fill != fill) FadeRect.Fill = fill;
+                FadeRect.Opacity = fade;
+                double bar = Math.Max(0, Root.ActualHeight) * 0.11 * EaseT("inout", _barsT);
+                BarTop.Height = bar; BarBottom.Height = bar;
+                BigTitle.Opacity = title;
+            }
+            _overlaysIdle = idle;
+            if (BigTitle.Text != _titleText) BigTitle.Text = _titleText;
             RenderBosses();
         }
 
@@ -147,31 +162,14 @@ namespace EasyEngine
         partial void UpdateCutscene(Entity en, BehaviorData bh, double dt)
         {
             var st = en.Cut ??= new CutState();
-            bool fire;
-            switch (bh.Text("trigger", "start").ToLowerInvariant())
+            bool on = (st.Trigger ??= bh.Text("trigger", "start").ToLowerInvariant()) switch
             {
-                case "enter":
-                {
-                    var who = FindNamed(bh.Text("who", "Player"));
-                    bool inside = who != null && who != en && Overlap(en, who);
-                    fire = inside && !st.Was; st.Was = inside;
-                    break;
-                }
-                case "var":
-                {
-                    var v = bh.Text("var", "");
-                    bool on = v.Length > 0 && Var(v) >= 0.5;
-                    fire = on && !st.Was; st.Was = on;
-                    break;
-                }
-                case "key":
-                {
-                    bool down = _keys.Contains(ParseKey(bh.Text("key", "E")));
-                    fire = down && !st.Was; st.Was = down;
-                    break;
-                }
-                default: fire = !st.Was; st.Was = true; break; // the scene starts
-            }
+                "enter" => FindNamed(bh.Text("who", "Player")) is Entity who && who != en && Overlap(en, who),
+                "var" => bh.Text("var", "") is { Length: > 0 } v && Var(v) >= 0.5,
+                "key" => _keys.Contains(ParseKey(bh.Text("key", "E"))),
+                _ => true // the scene starts
+            };
+            bool fire = on && !st.Was; st.Was = on;
             if (!fire || st.Runner is { Finished: false }) return;
 
             string memory = "cut:" + en.Data.Name;
@@ -296,7 +294,7 @@ namespace EasyEngine
             var self = r.Owner;
             switch (s.Do)
             {
-                case "wait": r.WaitUntil = _gameTime + Math.Max(0, s.Num("time", 1)); break;
+                case "wait": WaitStepTime(r, s); break;
                 case "say":
                     ShowDialog(s.Str("text"), s.Str("speaker"));
                     r.Until = () => !_dialogOpen && _dialog.Count == 0;
@@ -306,12 +304,10 @@ namespace EasyEngine
                     if (s.On("wait", true)) r.WaitUntil = _gameTime + _titleDur;
                     break;
                 case "fadeout":
-                    StartFade(s.Str("color", "#000000"), 1, s.Num("time", 1));
-                    r.WaitUntil = _gameTime + Math.Max(0, s.Num("time", 1));
+                    StartFade(s.Str("color", "#000000"), 1, WaitStepTime(r, s));
                     break;
                 case "fadein":
-                    StartFade(_fadeColor, 0, s.Num("time", 1));
-                    r.WaitUntil = _gameTime + Math.Max(0, s.Num("time", 1));
+                    StartFade(_fadeColor, 0, WaitStepTime(r, s));
                     break;
                 case "bars":
                     _barsOn = s.On("on", true);
@@ -320,14 +316,12 @@ namespace EasyEngine
                 case "camera":
                 {
                     var t = SeqFind(r, s.Str("object"));
-                    StartPan(r, t, s.Num("x"), s.Num("y"), s.Num("time", 1), returning: false);
-                    r.WaitUntil = _gameTime + Math.Max(0, s.Num("time", 1));
+                    StartPan(r, t, s.Num("x"), s.Num("y"), WaitStepTime(r, s), returning: false);
                     break;
                 }
                 case "cameraback":
                     if (_camPan == null) break;
-                    StartPan(null, null, 0, 0, s.Num("time", 1), returning: true);
-                    r.WaitUntil = _gameTime + Math.Max(0, s.Num("time", 1));
+                    StartPan(null, null, 0, 0, WaitStepTime(r, s), returning: true);
                     break;
                 case "shake": Shake(s.Num("strength", 8), s.Num("time", 0.5)); break;
                 case "move":
@@ -394,6 +388,14 @@ namespace EasyEngine
             }
         }
 
+        // The step waits its "time" (seconds, default 1); returns it.
+        private double WaitStepTime(SeqRunner r, SeqStep s)
+        {
+            double time = Math.Max(0, s.Num("time", 1));
+            r.WaitUntil = _gameTime + time;
+            return time;
+        }
+
         private void StepWarn(SeqRunner r, SeqStep s, string why)
             => LogThrottled($"seq-warn:{r.Owner.Data.Name}:{s.Do}:{why}", 5, LogLevel.Warn, r.Mode == SeqMode.Boss ? "Boss" : "Cutscene", r.Owner.Data.Name, $"Step '{s.Do}' skipped — {why}");
 
@@ -421,10 +423,6 @@ namespace EasyEngine
                 return (r.Mode == SeqMode.Boss ? BossTarget(r.Owner) : null) ?? FindPlayer();
             return FindNamed(name);
         }
-
-        private Entity? FindNamed(string name)
-            => _entities.FirstOrDefault(e => !e.Dead && e.Data.Name == name)
-            ?? _entities.FirstOrDefault(e => !e.Dead && e.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
         private Entity? FindPlayer()
             => FindNamed("Player")

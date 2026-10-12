@@ -120,7 +120,7 @@ public partial class App
             p.TSteps(3); double x0 = p.TX("Boss"); p.TSteps(20);
             return p.TX("Boss") < x0 - 40;
         });
-        t.Test("boss: a Platformer/Chase on it is ignored (its dash still moves it); Health 'health' becomes bossHP and never respawns", () =>
+        t.Test("boss: a Platformer/Chase on it is ignored (its dash still moves it); it never respawns, and its Health on 'health' leaves the player's alone", () =>
         {
             var p = Boss(OneAttack("{'do':'dash','speed':500,'time':0.4}"), more: (pr, sc, l) =>
             {
@@ -128,11 +128,31 @@ public partial class App
                 b.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Platformer).CreateData());
                 b.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Chase).CreateData());
                 var h = b.Behaviors.First(x => x.Kind == BehaviorKind.Health); h.Texts["var"] = "health"; h.Nums["respawn"] = 1;
+                l.Objects.First(o => o.Name == "Player").Behaviors.First(x => x.Kind == BehaviorKind.Health).Texts["var"] = "health";
             });
             p.TSteps(3); double x0 = p.TX("Boss"); p.TSteps(15);
             bool moved = p.TX("Boss") < x0 - 80;
             p.TSetHp("Boss", 0); p.TSteps(2);
-            return moved && p.TLogHas("movement behavior(s) ignored") && p.TDead("Boss") && p.TVar("health") == 0 && p.TLogHas("variable bossHP");
+            return moved && p.TLogHas("movement behavior(s) ignored") && p.TDead("Boss") && p.TVar("health") == 50;
+        });
+        t.Test("health: an enemy on the default 'health' variable doesn't overwrite the player's; its own variable shows its health", () =>
+        {
+            var p = t.Sim("[]", PhysicsMode.None, (pr, sc) =>
+            {
+                var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
+                var player = new GameObjectData { Id = 11, Name = "Player", X = 300, Y = 300, Width = 32, Height = 48 };
+                player.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.TopDown).CreateData());
+                var php = BehaviorCatalog.Info(BehaviorKind.Health).CreateData(); php.Nums["max"] = 5; player.Behaviors.Add(php);
+                l.Objects.Add(player);
+                foreach (var (id, name, v) in new[] { (12, "Slime", "health"), (13, "Golem", "golemHp") })
+                {
+                    var e = new GameObjectData { Id = id, Name = name, X = 900, Y = 300 + id * 60, Width = 32, Height = 32 };
+                    var hp = BehaviorCatalog.Info(BehaviorKind.Health).CreateData(); hp.Nums["max"] = 2; hp.Texts["var"] = v; e.Behaviors.Add(hp);
+                    l.Objects.Add(e);
+                }
+            });
+            p.TSteps(2);
+            return p.TVar("health") == 5 && p.TVar("golemHp") == 2;
         });
         t.Test("boss jump: leaves the ground, lands, and the shockwave sends 2 waves + shakes the screen", () =>
         {

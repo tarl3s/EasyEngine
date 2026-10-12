@@ -605,6 +605,7 @@ public partial class App
                 Directory.CreateDirectory(tmp);
                 var proj = ProjectIO.Load(TopDownGame.Build(tmp));
                 var pw = new PlayWindow(proj, proj.StartScene ?? proj.Scenes[0].Name); sims.Add(pw);
+                pw.TSeed(2); // the same scattered trees, rocks and coins every run
                 pw.TLoad(); pw.TSteps(5);
                 return pw;
             }
