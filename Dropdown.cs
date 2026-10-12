@@ -22,8 +22,8 @@ namespace EasyEngine
             ComboBoxItem? Find(string v) => cb.Items.Cast<ComboBoxItem>().FirstOrDefault(i => ((string)i.Tag!).Equals(v, StringComparison.OrdinalIgnoreCase));
             foreach (var (v, l) in options)
                 if (Find(v) == null) cb.Items.Add(new ComboBoxItem { Content = l, Tag = v });
-            if (Find(current) == null) cb.Items.Add(new ComboBoxItem { Content = current.Length > 0 ? current : "(none)", Tag = current });
-            if (newPrompt != null) cb.Items.Add(new ComboBoxItem { Content = "＋ New…", Tag = NewTag, FontStyle = FontStyles.Italic });
+            if (Find(current) == null) cb.Items.Add(new ComboBoxItem { Content = current.Length > 0 ? current : L.T("(none)"), Tag = current });
+            if (newPrompt != null) cb.Items.Add(new ComboBoxItem { Content = L.T("＋ New…"), Tag = NewTag, FontStyle = FontStyles.Italic });
 
             cb.SelectedItem = Find(current);
             object? last = cb.SelectedItem;
@@ -33,7 +33,7 @@ namespace EasyEngine
                 var v = (string)ci.Tag!;
                 if (v == NewTag)
                 {
-                    var name = owner != null ? InputDialog.Prompt(owner, "New", newPrompt!, "")?.Trim() : null;
+                    var name = owner != null ? InputDialog.Prompt(owner, L.T("New"), newPrompt!, "")?.Trim() : null;
                     if (name == null) { cb.SelectedItem = last; return; }
                     ci = new ComboBoxItem { Content = name, Tag = name };
                     cb.Items.Insert(cb.Items.Count - 1, ci);

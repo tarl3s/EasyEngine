@@ -27,13 +27,13 @@ namespace EasyEngine
             bool inCards = false;
             void Walk(object node)
             {
-                if (node is ComboBox cb) { combos++; if (cb.ToolTip as string == "How the item looks (in the hand and on the hotbar)") looks++; }
+                if (node is ComboBox cb) { combos++; if (cb.ToolTip as string == L.T("How the item looks (in the hand and on the hotbar)")) looks++; }
                 if (node is TextBox tb) texts.Add(tb.Text);
                 if (node is DependencyObject d) foreach (var c in LogicalTreeHelper.GetChildren(d)) Walk(c);
             }
             foreach (var child in InspectorRoot.Children)
             {
-                if (child is TextBlock t && t.Text == "BEHAVIORS") inCards = true;
+                if (child is TextBlock t && t.Text == L.T("BEHAVIORS")) inCards = true; // the same lookup, so any language matches
                 if (inCards) Walk(child);
             }
             return (combos, looks, texts);
@@ -66,30 +66,30 @@ namespace EasyEngine
                 if (items.Count > 0)
                 {
                     var opts = items.Select((it, i) => (i.ToString(CultureInfo.InvariantCulture), ToolArt.Title(it.name))).ToList();
-                    PickRow("Starts with", panel, opts, Math.Clamp((int)Math.Round(cur), 0, items.Count - 1).ToString(CultureInfo.InvariantCulture), false, null,
-                        v => { bh.Nums["slot"] = double.Parse(v, CultureInfo.InvariantCulture); Dirty(); });
+                    PickRow(L.T("Starts with"), panel, opts, Math.Clamp((int)Math.Round(cur), 0, items.Count - 1).ToString(CultureInfo.InvariantCulture), false, null,
+                        v => { bh.Nums["slot"] = double.Parse(v, CultureInfo.InvariantCulture); Dirty(); }, names: true);
                     return;
                 }
             }
             if (np.Options != null)
             {
-                var opts = np.Options.Select(ParamSources.Option).ToList();
+                var opts = CatalogOptions(np.Options);
                 string curS = opts.Select(o => o.value).FirstOrDefault(v => Math.Abs(double.Parse(v, CultureInfo.InvariantCulture) - cur) < 1e-6)
                               ?? cur.ToString(CultureInfo.InvariantCulture);
-                PickRow(np.Label, panel, opts, curS, false, null, v => { bh.Nums[np.Key] = double.Parse(v, CultureInfo.InvariantCulture); Dirty(); RefreshAfterChoice(obj, info); });
+                PickRow(L.T(np.Label), panel, opts, curS, false, null, v => { bh.Nums[np.Key] = double.Parse(v, CultureInfo.InvariantCulture); Dirty(); RefreshAfterChoice(obj, info); });
                 return;
             }
             if (np.Label.Contains("(0/1)"))
             {
-                CheckRow(np.Label.Replace("(0/1)", "").Trim(), cur >= 0.5, v => { bh.Nums[np.Key] = v ? 1 : 0; Dirty(); RefreshAfterChoice(obj, info); }, panel);
+                CheckRow(L.T(np.Label).Replace("(0/1)", "").Trim(), cur >= 0.5, v => { bh.Nums[np.Key] = v ? 1 : 0; Dirty(); RefreshAfterChoice(obj, info); }, panel);
                 return;
             }
             if (np.Label.Contains("(0-1)"))
             {
-                SliderRow(np.Label.Replace("(0-1)", "").Trim(), cur, 0, 1, v => { bh.Nums[np.Key] = Math.Round(v, 2); Dirty(); }, panel, percent: true);
+                SliderRow(L.T(np.Label).Replace("(0-1)", "").Trim(), cur, 0, 1, v => { bh.Nums[np.Key] = Math.Round(v, 2); Dirty(); }, panel, percent: true);
                 return;
             }
-            NumRow(np.Label, cur, v => { bh.Nums[np.Key] = v; Dirty(); }, panel);
+            NumRow(L.T(np.Label), cur, v => { bh.Nums[np.Key] = v; Dirty(); }, panel);
         }
 
         // ---------------------------------------------------------------- texts
@@ -99,64 +99,65 @@ namespace EasyEngine
             string cur = bh.Text(tp.Key, tp.Default);
             void Set(string v) { bh.Texts[tp.Key] = v; Dirty(); }
             void SetAndRefresh(string v) { Set(v); RefreshAfterChoice(obj, info); }
+            var label = L.T(tp.Label); // catalog texts stay English (the AI reads them); they are translated where they're shown
 
             switch (tp.Pick)
             {
                 case PickKind.Choice:
-                    PickRow(tp.Label, panel, (tp.Options ?? Array.Empty<string>()).Select(ParamSources.Option).ToList(), cur, tp.AllowNone, null, SetAndRefresh);
+                    PickRow(label, panel, CatalogOptions(tp.Options), cur, tp.AllowNone, null, SetAndRefresh);
                     break;
                 case PickKind.Object:
-                    PickRow(tp.Label, panel, ParamSources.Objects(_scene).Select(n => (n, n)).ToList(), cur, tp.AllowNone, null, Set);
+                    PickRow(label, panel, ParamSources.Objects(_scene).Select(n => (n, n)).ToList(), cur, tp.AllowNone, null, Set, names: true);
                     break;
                 case PickKind.ObjectOrPrefab:
-                    PickRow(tp.Label, panel, ParamSources.ObjectOrPrefabOptions(_scene, _project), cur, tp.AllowNone, null, Set);
+                    PickRow(label, panel, ParamSources.ObjectOrPrefabOptions(_scene, _project), cur, tp.AllowNone, null, Set, names: true);
                     break;
                 case PickKind.Scene:
-                    PickRow(tp.Label, panel, _project.Scenes.Select(s => (s.Name, s.Name)).ToList(), cur, true, null, Set);
+                    PickRow(label, panel, _project.Scenes.Select(s => (s.Name, s.Name)).ToList(), cur, true, null, Set, names: true);
                     break;
                 case PickKind.Key:
-                    PickRow(tp.Label, panel, ParamSources.Keys.ToList(), cur, tp.AllowNone, null, Set);
+                    PickRow(label, panel, ParamSources.Keys.ToList(), cur, tp.AllowNone, null, Set);
                     break;
                 case PickKind.Item:
-                    PickRow(tp.Label, panel, ParamSources.Items(_project).Select(i => (i, ToolArt.Title(i))).ToList(), cur, tp.AllowNone, "New item name (e.g. wood, key, shovel):", Set);
+                    PickRow(label, panel, ParamSources.Items(_project).Select(i => (i, ToolArt.Title(i))).ToList(), cur, tp.AllowNone, L.T("New item name (e.g. wood, key, shovel):"), Set, names: true);
                     break;
                 case PickKind.Variable:
-                    PickRow(tp.Label, panel, ParamSources.Variables(_project).Select(v => (v, v)).ToList(), cur, tp.AllowNone, "New variable name:", Set);
+                    PickRow(label, panel, ParamSources.Variables(_project).Select(v => (v, v)).ToList(), cur, tp.AllowNone, L.T("New variable name:"), Set, names: true);
                     break;
                 case PickKind.Currency:
                 {
                     var opts = ParamSources.Variables(_project).Where(v => !ParamSources.EngineVariables.Contains(v)).Select(v => (v, v))
-                        .Concat(ParamSources.Items(_project).Select(i => ("item:" + i, ToolArt.Title(i) + "  (item)"))).ToList();
+                        .Concat(ParamSources.Items(_project).Select(i => ("item:" + i, L.F("{0}  (item)", ToolArt.Title(i))))).ToList();
                     if (!opts.Any(o => o.Item1 == "coins")) opts.Insert(0, ("coins", "coins"));
-                    PickRow(tp.Label, panel, opts, cur, false, "New currency (a variable name, e.g. gems):", Set);
+                    PickRow(label, panel, opts, cur, false, L.T("New currency (a variable name, e.g. gems):"), Set, names: true);
                     break;
                 }
                 case PickKind.Requirement:
                 {
                     var opts = new List<(string, string)>();
-                    foreach (var i in ParamSources.Items(_project)) { opts.Add(("holding:" + i, $"Holding the {i}")); opts.Add(("item:" + i, $"Owns {A(i)}")); }
-                    foreach (var v in ParamSources.Variables(_project)) opts.Add((v, $"Variable {v} is on"));
-                    PickRow(tp.Label, panel, opts, cur, true, null, Set, noneLabel: "Always");
+                    foreach (var i in ParamSources.Items(_project)) { opts.Add(("holding:" + i, L.F("Holding the {0}", i))); opts.Add(("item:" + i, L.IsEnglish ? $"Owns {A(i)}" : L.F("Owns {0}", i))); }
+                    foreach (var v in ParamSources.Variables(_project)) opts.Add((v, L.F("Variable {0} is on", v)));
+                    PickRow(label, panel, opts, cur, true, null, Set, noneLabel: L.T("Always"), names: true);
                     break;
                 }
                 case PickKind.Objects:
-                    MultiPickRow(tp.Label, panel, ParamSources.Objects(_scene).Select(n => (n, n)).ToList(), cur, "Nothing else", Set);
+                    MultiPickRow(label, panel, ParamSources.Objects(_scene).Select(n => (n, n)).ToList(), cur, L.T("Nothing else"), Set);
                     break;
                 case PickKind.Prefabs:
-                    MultiPickRow(tp.Label, panel, ParamSources.Prefabs(_project).Concat(ParamSources.Objects(_scene)).Distinct().Select(n => (n, n)).ToList(), cur, "Nothing", Set);
+                    MultiPickRow(label, panel, ParamSources.Prefabs(_project).Concat(ParamSources.Objects(_scene)).Distinct().Select(n => (n, n)).ToList(), cur, L.T("Nothing"), Set);
                     break;
                 case PickKind.Items:
-                    MultiPickRow(tp.Label, panel, ItemsForTool(obj).Select(i => (i, ToolArt.Title(i))).ToList(), cur, "All items", Set);
+                    MultiPickRow(label, panel, ItemsForTool(obj).Select(i => (i, ToolArt.Title(i))).ToList(), cur, L.T("All items"), Set);
                     break;
                 case PickKind.Color:
-                    ColorRow(tp.Label, cur, Set, panel);
+                    ColorRow(label, cur, Set, panel);
                     break;
                 case PickKind.Sound:
-                    SoundRow(obj, bh, panel, tp.Key, tp.Label);
+                    SoundRow(obj, bh, panel, tp.Key, label);
                     break;
                 case PickKind.Look:
                 {
-                    var g = RowGrid(tp.Label, panel);
+                    var g = RowGrid(label, panel);
                     var picker = LookPicker.Make(_project, bh.Text("tool", "sword"), bh.Text("toolColor", "#DDEBFF"), cur, v => { PushUndo(); Set(v); }, this);
                     Grid.SetColumn(picker, 1); g.Children.Add(picker);
                     break;
@@ -179,10 +180,10 @@ namespace EasyEngine
                     else if (bh.Kind is BehaviorKind.BossAI or BehaviorKind.Cutscene) SequenceCard(obj, bh, panel);
                     break;
                 case PickKind.LongText:
-                    LongTextRow(tp.Label, cur, Set, panel);
+                    LongTextRow(label, cur, Set, panel);
                     break;
                 default:
-                    TextRow(tp.Label, cur, Set, panel);
+                    TextRow(label, cur, Set, panel);
                     break;
             }
         }
@@ -191,6 +192,10 @@ namespace EasyEngine
         // Boss AI / Cutscene card = Advanced Scratch + JSON + "Ask the AI" (MainWindow.Sequences.cs)
         partial void MapMarkersEditor(GameObjectData obj, BehaviorData bh, Panel panel);
         partial void SequenceCard(GameObjectData obj, BehaviorData bh, Panel panel);
+
+        /// <summary>A catalog's "value|Label" options, with the labels in the current language (the values stay as they are).</summary>
+        private static List<(string value, string label)> CatalogOptions(IEnumerable<string>? options) =>
+            (options ?? Array.Empty<string>()).Select(ParamSources.Option).Select(o => (o.value, L.T(o.label))).ToList();
 
         private static string A(string w) => (w.Length > 0 && "aeiouAEIOU".IndexOf(w[0]) >= 0 ? "an " : "a ") + w;
 
@@ -204,13 +209,15 @@ namespace EasyEngine
 
         // ---------------------------------------------------------------- generic pickers
         /// <summary>A dropdown (never typed). The current value is always shown, even if it isn't in the list.
-        /// With <paramref name="newPrompt"/>, the last entry is "＋ New…" which asks for a new name.</summary>
+        /// With <paramref name="newPrompt"/>, the last entry is "＋ New…" which asks for a new name. <paramref name="names"/>: the
+        /// options are the person's own names (objects, items, variables…) — never translated.</summary>
         private void PickRow(string label, Panel panel, List<(string value, string label)> options, string current, bool allowNone, string? newPrompt,
-                             Action<string> set, string noneLabel = "(none)")
+                             Action<string> set, string? noneLabel = null, bool names = false)
         {
             var g = RowGrid(label, panel);
-            var opts = allowNone ? options.Prepend(("", noneLabel)) : options;
+            var opts = allowNone ? options.Prepend(("", noneLabel ?? L.T("(none)"))) : options;
             var cb = Dropdown.Make(opts, current, v => { PushUndo(); set(v); }, newPrompt, this);
+            if (names) L.SetSkip(cb, true);
             cb.Height = 30; cb.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetColumn(cb, 1); g.Children.Add(cb);
         }
@@ -221,10 +228,11 @@ namespace EasyEngine
             var g = RowGrid(label, panel);
             var chosen = (current ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
             foreach (var c in chosen) if (!options.Any(o => o.value.Equals(c, StringComparison.OrdinalIgnoreCase))) options.Add((c, c));
-            var btn = new Button { Height = 30, Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 0, 8, 0) };
+            // the options are the person's names (objects, prefabs, items): never translated
+            var btn = L.Keep(new Button { Height = 30, Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 0, 8, 0) });
             void Summary() => btn.Content = (chosen.Count == 0 ? noneLabel : string.Join(", ", chosen.Select(c => options.First(o => o.value.Equals(c, StringComparison.OrdinalIgnoreCase)).label))) + "   ▾";
             Summary();
-            var menu = new ContextMenu { PlacementTarget = btn, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+            var menu = L.Keep(new ContextMenu { PlacementTarget = btn, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom });
             foreach (var (v, l) in options)
             {
                 var mi = new MenuItem { Header = l, IsCheckable = true, StaysOpenOnClick = true, IsChecked = chosen.Any(c => c.Equals(v, StringComparison.OrdinalIgnoreCase)) };
@@ -238,7 +246,7 @@ namespace EasyEngine
                 };
                 menu.Items.Add(mi);
             }
-            if (options.Count == 0) menu.Items.Add(new MenuItem { Header = "(nothing to choose yet)", IsEnabled = false });
+            if (options.Count == 0) menu.Items.Add(new MenuItem { Header = L.T("(nothing to choose yet)"), IsEnabled = false });
             btn.Click += (s, e) => menu.IsOpen = true;
             Grid.SetColumn(btn, 1); g.Children.Add(btn);
         }
@@ -254,7 +262,7 @@ namespace EasyEngine
         // ---------------------------------------------------------------- Hotbar items: one row per item, with its drawing
         private void HotbarItemsEditor(GameObjectData obj, BehaviorData bh, Panel panel)
         {
-            panel.Children.Add(new TextBlock { Text = "Items", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, Margin = new Thickness(0, 2, 0, 4) });
+            panel.Children.Add(new TextBlock { Text = L.T("Items"), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, Margin = new Thickness(0, 2, 0, 4) });
             var items = PlayWindow.ParseHotbarItems(bh.Text("items", ""));
             void Save() { bh.Texts["items"] = string.Join(",", items.Select(i => i.look.Length > 0 ? $"{i.name}:{i.color}:{i.look}" : $"{i.name}:{i.color}")); Dirty(); }
 
@@ -268,20 +276,20 @@ namespace EasyEngine
                 void Redraw() => iconHost.Child = LookPicker.Icon(_project, items[i].name, items[i].color, items[i].look, 24);
                 Redraw();
 
-                var name = new TextBlock { Text = ToolArt.Title(items[i].name), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 4, 0), Foreground = (SolidColorBrush)FindResource("Text"), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = items[i].name };
+                var name = L.Keep(new TextBlock { Text = ToolArt.Title(items[i].name), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 4, 0), Foreground = (SolidColorBrush)FindResource("Text"), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = items[i].name });
 
-                var swatch = SwatchButton(items[i].color, "#CCCCCC", 4, "Colour of the metal part", hex => { items[i] = (items[i].name, hex, items[i].look); Redraw(); Save(); });
+                var swatch = SwatchButton(items[i].color, "#CCCCCC", 4, L.T("Colour of the metal part"), hex => { items[i] = (items[i].name, hex, items[i].look); Redraw(); Save(); });
 
                 var look = LookPicker.Make(_project, items[i].name, items[i].color, items[i].look, v => { PushUndo(); items[i] = (items[i].name, items[i].color, v); Redraw(); Save(); }, this);
                 look.Margin = new Thickness(4, 0, 4, 0);
 
-                var del = DeleteButton(obj, "Remove this item from the hotbar", () => { items.RemoveAt(i); Save(); });
+                var del = DeleteButton(obj, L.T("Remove this item from the hotbar"), () => { items.RemoveAt(i); Save(); });
 
                 Grid.SetColumn(iconHost, 0); Grid.SetColumn(name, 1); Grid.SetColumn(swatch, 2); Grid.SetColumn(look, 3); Grid.SetColumn(del, 4);
                 row.Children.Add(iconHost); row.Children.Add(name); row.Children.Add(swatch); row.Children.Add(look); row.Children.Add(del);
                 panel.Children.Add(row);
             }
-            if (items.Count == 0) EmptyHint(panel, "No items yet — add one below.");
+            if (items.Count == 0) EmptyHint(panel, L.T("No items yet — add one below."));
             NewItemButton(obj, bh, panel);
         }
 
@@ -337,17 +345,17 @@ namespace EasyEngine
 
         private void ItemDamageEditor(GameObjectData obj, BehaviorData bh, Panel panel)
         {
-            panel.Children.Add(new TextBlock { Text = "Damage to enemies, per item", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, Margin = new Thickness(0, 4, 0, 4) });
+            panel.Children.Add(new TextBlock { Text = L.T("Damage to enemies, per item"), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, Margin = new Thickness(0, 4, 0, 4) });
             foreach (var (name, icon) in UseItemRows(bh, ParamSources.ParseDamage(bh.Text("itemDamage", "")).Select(d => d.item)))
             {
                 var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
-                var lbl = new TextBlock { Text = ToolArt.Title(name), VerticalAlignment = VerticalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(4, 0, 0, 0) };
+                var lbl = L.Keep(new TextBlock { Text = ToolArt.Title(name), VerticalAlignment = VerticalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(4, 0, 0, 0) });
                 var entry = ParamSources.ParseDamage(bh.Text("itemDamage", "")).FirstOrDefault(d => d.item.Equals(name, StringComparison.OrdinalIgnoreCase));
                 double dmg = entry.item != null ? entry.dmg : bh.Num("damage", 1);
-                var box = new TextBox { Text = dmg.ToString("0.##", CultureInfo.InvariantCulture), Height = 28, ToolTip = "Damage this item does to anything with Health" };
+                var box = new TextBox { Text = dmg.ToString("0.##", CultureInfo.InvariantCulture), Height = 28, ToolTip = L.T("Damage this item does to anything with Health") };
                 string n = name;
                 void Commit()
                 {
@@ -367,7 +375,7 @@ namespace EasyEngine
 
         private void ItemSoundsEditor(GameObjectData obj, BehaviorData bh, Panel panel)
         {
-            panel.Children.Add(new TextBlock { Text = "Sounds per item (default = the sound above)", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, Margin = new Thickness(0, 4, 0, 2), TextWrapping = TextWrapping.Wrap });
+            panel.Children.Add(new TextBlock { Text = L.T("Sounds per item (default = the sound above)"), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 12, Margin = new Thickness(0, 4, 0, 2), TextWrapping = TextWrapping.Wrap });
             Grid Row(double bottom)
             {
                 var g = new Grid { Margin = new Thickness(0, 0, 0, bottom) };
@@ -376,7 +384,7 @@ namespace EasyEngine
                 return g;
             }
             var head = Row(2);
-            foreach (var (text, col) in new[] { ("Swing", 2), ("Hit an enemy", 3) })
+            foreach (var (text, col) in new[] { (L.T("Swing"), 2), (L.T("Hit an enemy"), 3) })
             {
                 var h = new TextBlock { Text = text, Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(4, 0, 0, 0) };
                 Grid.SetColumn(h, col); head.Children.Add(h);
@@ -388,30 +396,31 @@ namespace EasyEngine
             foreach (var (name, icon) in UseItemRows(bh, listed))
             {
                 var row = Row(4);
-                var lbl = new TextBlock { Text = ToolArt.Title(name), VerticalAlignment = VerticalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(4, 0, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = name };
+                var lbl = L.Keep(new TextBlock { Text = ToolArt.Title(name), VerticalAlignment = VerticalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(4, 0, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = name });
                 Grid.SetColumn(icon, 0); Grid.SetColumn(lbl, 1);
                 row.Children.Add(icon); row.Children.Add(lbl);
                 int col = 2;
                 foreach (var key in new[] { "itemSwingSounds", "itemHitSounds" })
                 {
                     string k = key, item = name, current = ParamSources.ItemFile(bh.Text(key, ""), name);
-                    var options = new List<(string value, string label)> { ("", "(default)") };
+                    var options = new List<(string value, string label)> { ("", L.T("(default)")) };
                     options.AddRange(sounds.Select(s => (s, System.IO.Path.GetFileName(s))));
-                    options.Add((ImportSound, "＋ Import a sound…"));
+                    options.Add((ImportSound, L.T("＋ Import a sound…")));
                     var cb = Dropdown.Make(options, current, v =>
                     {
                         if (v == ImportSound)
                         {
-                            var dlg = new Microsoft.Win32.OpenFileDialog { Title = $"Sound for the {ToolArt.Title(item)}", Filter = "Audio|*.wav;*.mp3" };
+                            var dlg = new Microsoft.Win32.OpenFileDialog { Title = L.F("Sound for the {0}", ToolArt.Title(item)), Filter = L.T("Audio") + "|*.wav;*.mp3" };
                             if (dlg.ShowDialog() != true) { RefreshAfterChoiceAlways(obj); return; }
                             try { v = ProjectIO.ImportAsset(_project, dlg.FileName, "sounds"); }
-                            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); RefreshAfterChoiceAlways(obj); return; }
+                            catch (Exception ex) { MessageBox.Show(L.F("Error: {0}", ex.Message)); RefreshAfterChoiceAlways(obj); return; }
                         }
                         PushUndo(); bh.Texts[k] = ParamSources.SetItemFile(bh.Text(k, ""), item, v); Dirty();
                         if (v.Length > 0 && !sounds.Contains(v)) RefreshAfterChoiceAlways(obj); // a new file: list it everywhere
                     }, null, this);
                     cb.Height = 28; cb.Margin = new Thickness(4, 0, 0, 0);
-                    cb.ToolTip = $"Plays when the {ToolArt.Title(item)} " + (k == "itemSwingSounds" ? "is swung" : "hits an enemy");
+                    L.SetSkip(cb, true); // sound file names (its UI entries are translated above)
+                    cb.ToolTip = k == "itemSwingSounds" ? L.F("Plays when the {0} is swung", ToolArt.Title(item)) : L.F("Plays when the {0} hits an enemy", ToolArt.Title(item));
                     Grid.SetColumn(cb, col++); row.Children.Add(cb);
                 }
                 panel.Children.Add(row);

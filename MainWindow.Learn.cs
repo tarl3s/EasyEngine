@@ -163,7 +163,7 @@ namespace EasyEngine
             return ans;
         }
 
-        private static string BuildHelpQuestion(BehaviorInfo info) => $"How do I use {info.Icon} {info.Name}? Explain step by step for a beginner.";
+        private static string BuildHelpQuestion(BehaviorInfo info) => L.F("How do I use {0} {1}? Explain step by step for a beginner.", info.Icon, L.T(info.Name));
 
         // the "?" on a behavior card: open the AI tab in Learn mode and ask about it
         private void AskHowTo(BehaviorInfo info, bool send = true)
