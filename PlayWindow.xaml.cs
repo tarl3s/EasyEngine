@@ -86,6 +86,9 @@ namespace EasyEngine
             public bool InteractFired, AreaFired;        // 'once' latches
             // health / combat
             public double CurHealth, MaxHealth, InvTimer, RespawnX, RespawnY;
+            public bool Harmless;                      // its Damager doesn't hurt (e.g. a boss playing its death)
+            public bool NoKnockback;                   // hits don't push it (e.g. a heavy boss)
+            public Func<Entity, bool>? OnZeroHealth;   // asked at 0 HP before respawn/destroy: true = handled
             // per-entity variables (counters for custom scripts — each copy has its own)
             public Dictionary<string, double> Locals = new(StringComparer.OrdinalIgnoreCase);
             public double SpeedScale = 1; // movement speed multiplier (changed by boost/setspeed)
@@ -98,8 +101,13 @@ namespace EasyEngine
 
             public double CX => X + W / 2;
             public double CY => Y + H / 2;
-            public bool Has(BehaviorKind k) => Data.Behaviors.Any(b => b.Kind == k);
-            public BehaviorData? Beh(BehaviorKind k) => Data.Behaviors.FirstOrDefault(b => b.Kind == k);
+            // plain loops: called thousands of times a frame, so no LINQ (no closure allocation per call)
+            public bool Has(BehaviorKind k) => Beh(k) != null;
+            public BehaviorData? Beh(BehaviorKind k)
+            {
+                foreach (var b in Data.Behaviors) if (b.Kind == k) return b;
+                return null;
+            }
         }
 
         // One tile of a breakable tilemap: its own visual + collider so it can be removed on break.
@@ -631,6 +639,7 @@ namespace EasyEngine
             _solids.Clear();
             _particles.Clear();
             _tweens.Clear();
+            _damageTargets.Clear();
             _cameraTarget = null;
             _camX = _camY = 0;
             _hotbarOwner = _hotbarPlayer = null; _heldItem = _heldSlotName = ""; _heldOwned = false; _heldSlot = 0;
@@ -671,7 +680,6 @@ namespace EasyEngine
             _cameraTarget = _entities.FirstOrDefault(en => en.Has(BehaviorKind.FollowCamera));
             _uiRects.Clear();
             TerrainSceneLoaded();
-            SequencesSceneLoaded();
 
             Info("Scene", "", $"Loaded '{_scene.Name}' — {_entities.Count} objects",
                  $"{_entities.Count(e => e.Custom != null && e.Custom.Count > 0)} with scripts · {_solids.Count} colliders · camera follows {(_cameraTarget?.Data.Name ?? "nothing")}");
@@ -687,8 +695,7 @@ namespace EasyEngine
         // Spawn a prefab/scene-object at an exact position.
         private Entity? SpawnAt(string name, double x, double y)
         {
-            var template = FindTemplate(name)
-                ?? _project.Prefabs.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Template;
+            var template = FindTemplateOrPrefab(name);
             if (template == null) return null;
             var clone = JsonClone(template);
             clone.X = x; clone.Y = y;
@@ -711,14 +718,7 @@ namespace EasyEngine
             if (rw < 2 || rh < 2) { rx = 0; ry = 0; rw = _scene.Width; rh = _scene.Height; }
 
             // seed: 'regen' re-rolls each visit; 'once' is stable (persisted per id, survives save/load)
-            int seed;
-            if (mode == "regen") seed = _rng.Next(1, int.MaxValue);
-            else
-            {
-                string key = "seed:" + (string.IsNullOrEmpty(id) ? gen.Data.Name : id);
-                if (Var(key) >= 1) seed = (int)Var(key);
-                else { seed = _rng.Next(1, int.MaxValue); _vars[key] = seed; }
-            }
+            int seed = mode == "regen" ? _rng.Next(1, int.MaxValue) : PersistedSeed("seed:" + (string.IsNullOrEmpty(id) ? gen.Data.Name : id));
             var rng = new Random(seed);
 
             double minGap = bh.Num("minGap", 0);
@@ -729,8 +729,7 @@ namespace EasyEngine
             for (int i = 0; i < count; i++)
             {
                 var name = names[rng.Next(names.Length)];
-                var template = FindTemplate(name)
-                    ?? _project.Prefabs.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Template;
+                var template = FindTemplateOrPrefab(name);
                 if (template == null) continue;
                 double w = template.Width, h = template.Height, x = 0, y = 0;
                 int tries = 0;
@@ -849,7 +848,7 @@ namespace EasyEngine
             if (!en.Has(BehaviorKind.Tilemap) &&
                 (obj.Physics.Mode == PhysicsMode.Static || en.Has(BehaviorKind.Solid) || en.Has(BehaviorKind.Gate) || en.Has(BehaviorKind.Pushable) || en.Has(BehaviorKind.Spring)))
                 _solids.Add(en);
-            SequencesEntityAdded(en);
+            BossEntityAdded(en);
             TerrainEntityAdded(en);
             return en;
         }
@@ -1010,9 +1009,8 @@ namespace EasyEngine
         partial void UpdateCutscene(Entity en, BehaviorData bh, double dt);
         partial void SequencesSceneReset();          // LoadScene, before the scene's objects are created
         partial void TerrainSceneReset();
-        partial void SequencesSceneLoaded();         // LoadScene, after every object (and generator) exists
-        partial void TerrainSceneLoaded();
-        partial void SequencesEntityAdded(Entity en);
+        partial void TerrainSceneLoaded();           // LoadScene, after every object (and generator) exists
+        partial void BossEntityAdded(Entity en);
         partial void TerrainEntityAdded(Entity en);
         partial void SequencesEntityRemoved(Entity en); // Cleanup, for a dead entity
         partial void TerrainEntityRemoved(Entity en);
@@ -1050,10 +1048,11 @@ namespace EasyEngine
                         case BehaviorKind.Health:
                         {
                             if (en.InvTimer > 0) en.InvTimer -= dt;
-                            _vars[bh.Text("var", "health")] = en.CurHealth;
+                            var hpVar = bh.Text("var", "health");
+                            if (PublishesHealth(en, hpVar)) _vars[hpVar] = en.CurHealth;
                             if (en.CurHealth <= 0)
                             {
-                                if (BossDying(en)) break; // a boss with a death sequence plays it first (PlayWindow.Boss.cs)
+                                if (en.OnZeroHealth?.Invoke(en) == true) break; // e.g. a boss plays its death sequence first (PlayWindow.Boss.cs)
                                 if (bh.Num("respawn", 1) >= 0.5)
                                 {
                                     en.CurHealth = en.MaxHealth;
@@ -1067,8 +1066,8 @@ namespace EasyEngine
                         }
                         case BehaviorKind.Damager:
                         {
-                            if (BossIsDying(en)) break; // a dying boss no longer hurts
-                            var t = _entities.FirstOrDefault(x => !x.Dead && x != en && x.Has(BehaviorKind.Health) && x.Data.Name == bh.Text("target", "Player"));
+                            if (en.Harmless) break; // e.g. a boss playing its death
+                            var t = DamageTarget(en, bh.Text("target", "Player"));
                             if (t != null && Overlap(en, t))
                             {
                                 bool hits = t.InvTimer <= 0;
@@ -1647,11 +1646,23 @@ namespace EasyEngine
 
             // blocked grid (a cell is blocked if a solid overlaps it)
             var blocked = new bool[cols, rows];
-            foreach (var s in SolidsNear(0, 0, cols * cell, rows * cell))
+            void Block(double x, double y, double w, double h)
             {
-                if (s == en || s.Dead || s.SolidDisabled) continue;
-                int c0 = Cx(s.X), c1 = Cx(s.X + s.W), r0 = Cy(s.Y), r1 = Cy(s.Y + s.H);
+                int c0 = Cx(x), c1 = Cx(x + w), r0 = Cy(y), r1 = Cy(y + h);
                 for (int c = c0; c <= c1; c++) for (int r = r0; r <= r1; r++) blocked[c, r] = true;
+            }
+            foreach (var s in _solids)
+                if (s != en && !s.Dead && !s.SolidDisabled) Block(s.X, s.Y, s.W, s.H);
+            // terrain blocks: only around the walker and its goal (a whole world is thousands of them), straight from the cells
+            if (_terrain is TerrainState t)
+            {
+                const double around = 600;
+                double x0 = Math.Max(0, Math.Min(en.CX, targetX) - around), x1 = Math.Min(cols * cell, Math.Max(en.CX, targetX) + around);
+                double y0 = Math.Max(0, Math.Min(en.CY, targetY) - around), y1 = Math.Min(rows * cell, Math.Max(en.CY, targetY) + around);
+                if (x0 <= x1 && y0 <= y1)
+                    for (int r = Math.Max(0, (int)Math.Floor(y0 / t.Ts)), r1 = Math.Min(t.Rows - 1, (int)Math.Floor(y1 / t.Ts)); r <= r1; r++)
+                        for (int c = t.Column(x0), c1 = t.Column(x1); c <= c1; c++)
+                            if (t.Cell(c, r) is { Broken: false } tc) Block(tc.X, tc.Y, tc.W, tc.H);
             }
             int sc = Cx(en.CX), sr = Cy(en.CY), gc = Cx(targetX), gr = Cy(targetY);
             blocked[sc, sr] = false; blocked[gc, gr] = false;
@@ -2270,11 +2281,48 @@ namespace EasyEngine
 
         // Everything solid that could touch the box (x, y, w, h): the scene's colliders plus the terrain cells in that
         // area (PlayWindow.Terrain.cs). Collision always asks through here, so a big terrain answers from its grid
-        // instead of being thousands of entries in one list.
-        private IEnumerable<Entity> SolidsNear(double x, double y, double w, double h)
+        // instead of being thousands of entries in one list. Asked several times per mover per frame, so it allocates
+        // nothing: a struct walked by foreach (each call has its own position, so the loops may nest).
+        private NearSolids SolidsNear(double x, double y, double w, double h) => new(_solids, _terrain, x, y, w, h);
+
+        private readonly struct NearSolids
         {
-            foreach (var s in _solids) yield return s;
-            foreach (var s in TerrainSolidsNear(x, y, w, h)) yield return s;
+            private readonly List<Entity> _list; private readonly TerrainState? _t;
+            private readonly double _x, _y, _w, _h;
+            public NearSolids(List<Entity> list, TerrainState? t, double x, double y, double w, double h) { _list = list; _t = t; _x = x; _y = y; _w = w; _h = h; }
+            public Enumerator GetEnumerator() => new(_list, _t, _x, _y, _w, _h);
+
+            // the list by index, then the terrain cells overlapping the box, top row first (so a fast fall that went into
+            // two blocks lands on the upper one)
+            public struct Enumerator
+            {
+                private readonly List<Entity> _list; private readonly TerrainState? _t;
+                private readonly int _c0, _c1, _r1;
+                private int _i, _c, _r;
+                public Entity Current { get; private set; }
+
+                public Enumerator(List<Entity> list, TerrainState? t, double x, double y, double w, double h)
+                {
+                    _list = list; _t = t; _i = 0; Current = null!;
+                    _c0 = _c1 = _r1 = _c = _r = 0;
+                    if (t == null) return;
+                    _c0 = _c = t.Column(x); _c1 = t.Column(x + w);
+                    _r = Math.Max(0, (int)Math.Floor(y / t.Ts)); _r1 = Math.Min(t.Rows - 1, (int)Math.Floor((y + h) / t.Ts));
+                }
+
+                public bool MoveNext()
+                {
+                    if (_i < _list.Count) { Current = _list[_i++]; return true; }
+                    if (_t == null) return false;
+                    for (; _r <= _r1; _r++, _c = _c0)
+                        while (_c <= _c1)
+                        {
+                            var cell = _t.Cell(_c++, _r);
+                            if (cell != null && !cell.Broken) { Current = TerrainCollider(_t, cell); return true; }
+                        }
+                    return false;
+                }
+            }
         }
 
         private void ResolveX(Entity en)
@@ -2583,7 +2631,7 @@ namespace EasyEngine
                 if (map.Dead) continue;
                 var bh = BreakableBeh(map); if (bh == null) continue;
                 bool byBullet = bh.Num("byBullet", 1) >= 0.5;
-                bool byDamage = bh.Num("byDamage", map.Terrain == null ? 1 : 0) >= 0.5; // a terrain isn't chewed up by every enemy that touches it
+                bool byDamage = bh.Num("byDamage", 1) >= 0.5;
                 bool byTouch = bh.Num("byTouch", 0) >= 0.5;
                 bool byStomp = bh.Num("byStomp", 0) >= 0.5;
                 if (!(byBullet || byDamage || byTouch || byStomp)) continue;
@@ -2601,6 +2649,7 @@ namespace EasyEngine
                         BreakOverlap(map, bh, a.X, a.Y, a.W, a.H, (int)Math.Max(1, a.Beh(BehaviorKind.Damager)!.Num("damage", 1)));
                         continue;
                     }
+                    if (!(byStomp || byTouch)) continue;
                     bool character = a.Has(BehaviorKind.Platformer) || a.Has(BehaviorKind.TopDown) || a.Data.Physics.Mode == PhysicsMode.Dynamic;
                     if (!character) continue;
                     // stomp: only a real downward impact breaks it (not merely standing/walking on top).
@@ -2670,7 +2719,7 @@ namespace EasyEngine
             void Place(string name, bool active, double phase)
             {
                 if (string.IsNullOrWhiteSpace(name)) return;
-                var e = _entities.FirstOrDefault(z => !z.Dead && z != en && z.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                var e = FindNamed(name, en);
                 if (e == null) return;
                 MoveToSky(e); // the sun and moon ARE the sky: always behind every layer
                 var vis = active && !covered ? Visibility.Visible : Visibility.Collapsed;
@@ -2693,21 +2742,49 @@ namespace EasyEngine
             if (t.InvTimer > 0) return;
             t.CurHealth -= amount;
             t.InvTimer = Math.Max(0.3, t.Beh(BehaviorKind.Health)?.Num("invincible", 1) ?? 0.5);
-            if (BossIsHeavy(t)) return; // a heavy boss isn't pushed around
+            if (t.NoKnockback) return;
             double dir = t.CX < fromCX ? -1 : 1;
             t.VX = dir * kb; t.VY = -kb * 0.6;
         }
 
+        // The default "health" variable is the player's: anything else only shows its health in a variable of its own
+        // (bossHP, hp…), so an ordinary enemy never overwrites the player's.
+        private bool PublishesHealth(Entity en, string varName)
+        {
+            if (!varName.Equals("health", StringComparison.OrdinalIgnoreCase)) return true;
+            if (en == _cameraTarget || string.Equals(en.Data.Type, "Player", StringComparison.OrdinalIgnoreCase)) return true;
+            var ctl = en.Beh(BehaviorKind.Platformer) ?? en.Beh(BehaviorKind.TopDown);
+            return ctl != null && ctl.Num("controls", 1) >= 0.5;
+        }
 
-        private readonly Random _rng = new();
+        // What a Damager hurts: the live object with Health of that (exact) name. Every boss bullet asks every tick, so the
+        // answer is kept per name for the tick (LoadScene clears it).
+        private readonly Dictionary<string, Entity?> _damageTargets = new();
+        private long _damageTargetsFrame = -1;
+
+        private Entity? DamageTarget(Entity damager, string name)
+        {
+            static bool Hurtable(Entity x, string name) => !x.Dead && x.Data.Name == name && x.Has(BehaviorKind.Health);
+            if (_damageTargetsFrame != _frameNo) { _damageTargets.Clear(); _damageTargetsFrame = _frameNo; }
+            if (!_damageTargets.TryGetValue(name, out var t) || (t != null && !Hurtable(t, name)))
+            {
+                t = null;
+                foreach (var x in _entities) if (Hurtable(x, name)) { t = x; break; }
+                _damageTargets[name] = t;
+            }
+            if (t != damager) return t;
+            foreach (var x in _entities) if (x != damager && Hurtable(x, name)) return x; // it's named like its own target
+            return null;
+        }
+
+        private Random _rng = new(); // tests seed it (TSeed) so random layouts and boss attacks repeat
 
         private void SpawnFrom(Entity spawner, string targetName, bool atTop = false)
         {
             // find the thing to spawn: an object in the scene, OR a prefab from the library
-            var template = FindTemplate(targetName)
-                ?? _project.Prefabs.FirstOrDefault(p => p.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase))?.Template;
+            var template = FindTemplateOrPrefab(targetName);
             if (template == null) return;
-            var clone = System.Text.Json.JsonSerializer.Deserialize<GameObjectData>(System.Text.Json.JsonSerializer.Serialize(template))!;
+            var clone = JsonClone(template);
             if (atTop)
             {
                 clone.X = _rng.NextDouble() * Math.Max(1, _scene.Width - clone.Width); // random x
@@ -2761,6 +2838,32 @@ namespace EasyEngine
                 if (o != null) return o;
             }
             return null;
+        }
+
+        // What a spawn makes: an object in this scene, else a prefab of that name.
+        private GameObjectData? FindTemplateOrPrefab(string name)
+            => FindTemplate(name) ?? _project.Prefabs.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Template;
+
+        /// <summary>The live object with this name: an exact match first, else one that only differs in case (null = none).</summary>
+        private Entity? FindNamed(string name, Entity? except = null)
+        {
+            Entity? loose = null;
+            foreach (var e in _entities)
+            {
+                if (e.Dead || e == except) continue;
+                if (e.Data.Name == name) return e;
+                if (loose == null && e.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) loose = e;
+            }
+            return loose;
+        }
+
+        // A seed picked at random once and kept in a variable (so it survives scene reloads and save/load).
+        private int PersistedSeed(string key)
+        {
+            if (Var(key) >= 1) return (int)Var(key);
+            int seed = _rng.Next(1, int.MaxValue);
+            _vars[key] = seed;
+            return seed;
         }
 
         private void UpdateCamera(double dt)
@@ -2967,6 +3070,18 @@ namespace EasyEngine
         }
 
         private SolidColorBrush Brush(string hex) => new(ParseColor(hex, Color.FromRgb(0x9A, 0x9A, 0xA0)));
+
+        // One frozen brush per colour, shared by everything that draws it every frame (never mutate it — use Brush for that).
+        private static readonly Dictionary<string, SolidColorBrush> FrozenBrushes = new(StringComparer.OrdinalIgnoreCase);
+        private static SolidColorBrush FrozenBrush(string hex, Color fallback)
+        {
+            string key = string.IsNullOrWhiteSpace(hex) ? fallback.ToString() : hex;
+            if (FrozenBrushes.TryGetValue(key, out var b)) return b;
+            b = new SolidColorBrush(ParseColor(key, fallback));
+            b.Freeze();
+            return FrozenBrushes[key] = b;
+        }
+        private static SolidColorBrush FrozenBrush(Color c) => FrozenBrush(c.ToString(), c);
         private static Color ParseColor(string hex, Color fallback) { try { return (Color)ColorConverter.ConvertFromString(hex); } catch { return fallback; } }
     }
 }

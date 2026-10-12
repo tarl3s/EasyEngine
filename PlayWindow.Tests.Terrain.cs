@@ -26,7 +26,13 @@ namespace EasyEngine
         public int TTerrainDug => _terrain?.Dug.Count ?? 0;
         public List<(int c, int r)> TTerrainDugCells => _terrain?.Dug.ToList() ?? new();
         public int TTerrainFelledCount => _terrain?.Felled.Count ?? 0;
-        public int TTerrainCollidersNear(double x, double y, double w, double h) => TerrainSolidsNear(x, y, w, h).Count();
+        /// <summary>Terrain blocks SolidsNear answers for the box.</summary>
+        public int TTerrainCollidersNear(double x, double y, double w, double h)
+        {
+            int n = 0;
+            foreach (var s in SolidsNear(x, y, w, h)) if (_terrain != null && s.Data == _terrain.Host.Data) n++;
+            return n;
+        }
         public bool TEndlessX => _endlessX;
         public double? TSurfaceAt(double x) => _terrainSurfaceAt?.Invoke(x);
         public double TTerrainMs => _terrainMs;

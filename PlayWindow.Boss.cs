@@ -28,26 +28,22 @@ namespace EasyEngine
             public double TelegraphUntil; public string TelegraphColor = "#FF4040";
             public double FlickerUntil; public bool Flickering;
             public readonly List<Entity> Minions = new();   // what it summoned: they go when it falls
+            public readonly ScaleTransform Flip = new();    // its drawing: facing + the telegraph pulse (RenderBosses)
+            public DropShadowEffect? Glow; public string GlowColor = "";
         }
 
         private partial class Entity { public BossState? Boss; }
 
         // The Boss AI moves its boss itself: other movement behaviors on it would fight it (a Platformer zeroes its speed
-        // every frame), so the running copy drops them. A boss never respawns, and it needs its own health variable.
-        partial void SequencesEntityAdded(Entity en)
+        // every frame), so the running copy drops them. A boss never respawns.
+        partial void BossEntityAdded(Entity en)
         {
             if (!en.Has(BehaviorKind.BossAI)) return;
             int dropped = en.Data.Behaviors.RemoveAll(b => b.Kind is BehaviorKind.Platformer or BehaviorKind.TopDown or BehaviorKind.Patrol
                                                        or BehaviorKind.Chase or BehaviorKind.PathChase or BehaviorKind.AdvancedPatrol);
             if (dropped > 0) Info("Boss", en.Data.Name, $"{dropped} movement behavior(s) ignored — the Boss AI moves it");
             var hp = en.Beh(BehaviorKind.Health);
-            if (hp == null) return;
-            hp.Nums["respawn"] = 0;
-            if (hp.Text("var", "health").Equals("health", StringComparison.OrdinalIgnoreCase))
-            {
-                hp.Texts["var"] = "bossHP";
-                Info("Boss", en.Data.Name, "Its health is shown in the variable bossHP", "'health' is the player's — pick another variable in its Health behavior to change this.");
-            }
+            if (hp != null) hp.Nums["respawn"] = 0;
         }
 
         partial void UpdateBoss(Entity en, BehaviorData bh, double dt)
@@ -99,6 +95,8 @@ namespace EasyEngine
             // it moves itself: physics on (walls stop it); a flyer has no gravity
             en.Data.Physics.Mode = PhysicsMode.Dynamic;
             if (b.Fly) en.Data.Physics.GravityScale = 0;
+            en.NoKnockback = b.Heavy;   // a heavy boss isn't pushed around
+            en.OnZeroHealth = BossDying; // at 0 HP: its death sequence first
             return b;
         }
 
@@ -146,7 +144,7 @@ namespace EasyEngine
             b.Runner = StartRunner(en, SeqMode.Boss, $"attack '{name}'", b.Script.Attack(name)!.Steps, _ => { b.Runner = null; b.Attack = ""; b.RestUntil = _gameTime + phase.Pause; });
         }
 
-        // Called by Health at 0 HP: a boss with death steps plays them first (true = handled, don't destroy it yet).
+        // Its OnZeroHealth: a boss with death steps plays them first, harmless (true = handled, don't destroy it yet).
         private bool BossDying(Entity en)
         {
             var b = en.Boss;
@@ -154,7 +152,7 @@ namespace EasyEngine
             if (!b.Dying) DismissMinions(b); // when the boss falls, what it summoned goes too
             if (b.Script.Death.Count == 0) return false;
             if (b.Dying) return true;
-            b.Dying = true;
+            b.Dying = true; en.Harmless = true;
             if (b.Runner != null) AbortRunner(b.Runner);
             en.InvTimer = double.MaxValue; en.VX = 0;
             Info("Boss", en.Data.Name, "Defeated — playing its death sequence", $"{b.Script.Death.Count} steps");
@@ -175,9 +173,6 @@ namespace EasyEngine
                 if (!m.Dead) { EmitParticles(m.CX, m.CY, 12, 150, 360, 0, 0.5, 6, 200, "#C9A6FF"); m.Dead = true; }
             b.Minions.Clear();
         }
-
-        private static bool BossIsDying(Entity en) => en.Boss?.Dying == true;
-        private static bool BossIsHeavy(Entity en) => en.Boss?.Heavy == true;
 
         private void BossSceneReset() { BossBar.Visibility = Visibility.Collapsed; }
 
@@ -377,53 +372,45 @@ namespace EasyEngine
         // ================================================================== drawing (live only)
         private void RenderBosses()
         {
-            Entity? barBoss = null;
             foreach (var en in _entities)
             {
                 var b = en.Boss;
                 if (b == null || en.Dead) continue;
-                if (b.Bar && b.Started && barBoss == null) barBoss = en;
 
                 double scale = 1;
                 bool telegraph = _gameTime < b.TelegraphUntil;
                 if (telegraph || b.Dying)
                 {
-                    var color = ParseColor(b.Dying ? "#FF3030" : b.TelegraphColor, Colors.Red);
-                    en.Visual.Effect = new DropShadowEffect { Color = color, ShadowDepth = 0, BlurRadius = 36, Opacity = 0.6 + 0.4 * Math.Abs(Math.Sin(_gameTime * 18)) };
+                    var hex = b.Dying ? "#FF3030" : b.TelegraphColor;
+                    var glow = b.Glow ??= new DropShadowEffect { ShadowDepth = 0, BlurRadius = 36 };
+                    if (b.GlowColor != hex) { glow.Color = ParseColor(hex, Colors.Red); b.GlowColor = hex; }
+                    glow.Opacity = 0.6 + 0.4 * Math.Abs(Math.Sin(_gameTime * 18));
+                    if (en.Visual.Effect != glow) en.Visual.Effect = glow;
                     scale = 1 + 0.05 * Math.Sin(_gameTime * 40);
                 }
                 else if (en.Visual.Effect is DropShadowEffect) en.Visual.Effect = null;
-                en.Visual.RenderTransformOrigin = new Point(0.5, 0.5);
-                en.Visual.RenderTransform = new ScaleTransform(en.Facing * scale, scale);
+                if (en.Visual.RenderTransform != b.Flip) { en.Visual.RenderTransformOrigin = new Point(0.5, 0.5); en.Visual.RenderTransform = b.Flip; }
+                b.Flip.ScaleX = en.Facing * scale; b.Flip.ScaleY = scale;
 
                 bool flicker = _gameTime < b.FlickerUntil || b.Dying;
                 if (flicker) { en.Visual.Opacity = ((int)(_gameTime * (b.Dying ? 24 : 14)) % 2 == 0) ? 0.35 : 1; b.Flickering = true; }
                 else if (b.Flickering) { en.Visual.Opacity = Math.Clamp(en.Data.Opacity, 0, 1); b.Flickering = false; }
             }
 
+            var barBoss = BarBoss();
             BossBar.Visibility = barBoss != null ? Visibility.Visible : Visibility.Collapsed;
             if (barBoss == null) return;
             BossBarName.Text = barBoss.Boss!.Title;
             BossBarFill.Width = Math.Max(0, (BossBar.Width - 6) * BossBarFraction(barBoss));
         }
 
+        // The boss whose health bar shows: the first awake one that has a bar.
+        private Entity? BarBoss()
+        {
+            foreach (var e in _entities) if (!e.Dead && e.Boss is { Bar: true, Started: true }) return e;
+            return null;
+        }
+
         private static double BossBarFraction(Entity en) => en.MaxHealth > 0 ? Math.Clamp(en.CurHealth / en.MaxHealth, 0, 1) : 1;
-
-        private Entity? TBoss(string name) => _entities.FirstOrDefault(e => e.Data.Name == name && e.Boss != null);
-
-        // ================================================================== test hooks
-        public string TBossPhase(string name) { var b = TBoss(name)?.Boss; return b != null && b.Phase >= 0 && b.Phase < b.Script.Phases.Count ? b.Script.Phases[b.Phase].Name : ""; }
-        public string TBossAttack(string name) => TBoss(name)?.Boss?.Attack ?? "";
-        public bool TBossDying(string name) => TBoss(name)?.Boss?.Dying == true;
-        public bool TBossStarted(string name) => TBoss(name)?.Boss?.Started == true;
-        public bool TBossTelegraph(string name) { var b = TBoss(name)?.Boss; return b != null && _gameTime < b.TelegraphUntil; }
-        public bool TBossBarShown => _entities.Any(e => !e.Dead && e.Boss is { Bar: true, Started: true });
-        public double TBossBarFill { get { var e = _entities.FirstOrDefault(x => !x.Dead && x.Boss is { Bar: true, Started: true }); return e == null ? 0 : BossBarFraction(e); } }
-        public string TBossBarTitle => _entities.FirstOrDefault(x => !x.Dead && x.Boss is { Bar: true, Started: true })?.Boss?.Title ?? "";
-        public void TSetHp(string name, double hp) { var e = TE(name); if (e != null) e.CurHealth = hp; }
-        public void THurt(string name, double amount, double fromX) { var e = TE(name); if (e != null) DamageEntity(e, amount, 300, fromX); }
-        public double TInv(string name) => TE(name)?.InvTimer ?? 0;
-        public int TFacing(string name) => TE(name)?.Facing ?? 0;
-        public List<(double vx, double vy)> TVels(string name) => _entities.Where(e => !e.Dead && e.Data.Name == name).Select(e => (e.VX, e.VY)).ToList();
     }
 }
