@@ -3500,7 +3500,7 @@ namespace EasyEngine
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
-            if (IsDirty)
+            if (IsDirty && IsVisible) // an editor that was never shown (tests, headless runs) has no one to ask
             {
                 var result = MessageBox.Show(
                     "You have unsaved changes. Do you want to save before closing?",
