@@ -52,7 +52,7 @@ itself; read the log, don't trust the exit code alone.
 
 Demo/project builders (write into `Desktop\Jogos\<name>`, replacing the old copy): `--makegame` (Platformer Demo),
 `--mining`, `--topdown`, `--bossdemo`, `--infinite`, `--spritetest`, `--scenarios` (the *EasyEngine Tests* project,
-one scene per mechanic). `--restore-recent` re-adds projects under `Desktop\Jogos` to the Recent list.
+one scene per mechanic). `--restore-recent` re-adds projects under `Desktop\Jogos` to the Recent list. `--strings` rewrites `Lang/en.json` (every English editor text) and `Lang/_context.tsv`.
 
 ## Architecture map
 
@@ -70,8 +70,8 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 | Scratch-style editors | `BlockEditorWindow.cs` (Custom rules), `SequenceEditorWindow.cs` ("Advanced Scratch" for Boss AI / Cutscene) |
 | Boss/Cutscene step palette, script model, tolerant JSON (shared by runtime, editor and AI) | `SequenceModel.cs` (`StepCatalog`, `SeqStep`, `BossScript`, `SequenceJson`), `SequenceAi.cs` |
 | AI clients | `OllamaClient.cs` + `OllamaManager.cs` (local, `localhost:11434`), `CloudClient.cs` (OpenAI-compatible free tiers Groq/Gemini/OpenRouter with auto-fallback on 429, BYO paid keys incl. native Anthropic; `AiSettings`) |
-| Shared helpers | `LooseJson.cs` (lenient JSON + number parsing), `Theme.cs`, `Dropdown.cs`, `ParamSources.cs` (lists for pickers), `Contrast.cs`, `DemoKit.cs`, `ToolArt.cs`, `LookPicker.cs`, `ColorPickerPopup.cs`, `SoundSynth.cs` (generated WAVs) |
-| Other windows | `LauncherWindow`, `AnimationWindow`, `SpriteEditorWindow.cs` (pixel art), `VariablesWindow`, `NewItemDialog.cs` (`ItemMaker`), `InputDialog`, `DebugConsoleView.cs` + `DebugLog.cs` (F1 console) |
+| Shared helpers | `LooseJson.cs` (lenient JSON + number parsing), `Theme.cs` (dark/light palettes, `Init`), `Loc.cs` (`L.T` languages, `Lang/*.json`), `CacheCleaner.cs` (clear temporary files), `Dropdown.cs`, `ParamSources.cs` (lists for pickers), `Contrast.cs`, `DemoKit.cs`, `ToolArt.cs`, `LookPicker.cs`, `ColorPickerPopup.cs`, `SoundSynth.cs` (generated WAVs) |
+| Other windows | `LauncherWindow`, `SettingsWindow.cs` (language, theme, size, updates, temp files), `AnimationWindow`, `SpriteEditorWindow.cs` (pixel art), `VariablesWindow`, `NewItemDialog.cs` (`ItemMaker`), `InputDialog`, `DebugConsoleView.cs` + `DebugLog.cs` (F1 console) |
 | Demos / scenarios | `DemoGame.cs`, `MiningGame.cs`, `TopDownGame.cs`, `BossDemo.cs`, `InfiniteWorld.cs`, `SpriteTestGame.cs`, `TestScenarios.cs` (+ `GameAssets`) |
 | Tests | `FullTest*.cs`, `E2ETests*.cs`, `App.SelfTest.*.cs`, `SelfTestContext.cs`, `App.Review.cs` (all `partial class App`) |
 
@@ -140,7 +140,20 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
   once: `ðŸ§ª`, `â€”`). Use a proper edit tool or `sed`/`perl` (handle `\r?\n`). After bulk edits, grep for mojibake:
   `â€|Ã©|ðŸ|ï¼`.
 - **UI contrast**: text colour comes from the window (no app-wide TextBlock foreground). Popups, menus, tooltips and
-  buttons use the dark styles in `App.xaml`; green accent buttons use dark text. Contrast ≥ 4.5:1 is tested.
+  buttons use the styles in `Styles.xaml`; text on the green accent uses `AccentText`. Contrast ≥ 4.5:1 is tested.
+- **Themes (dark / light)**: colours come from the palette brushes (`Bg0..Bg3`, `Hover`, `Border`, `Text`, `TextDim`,
+  `Accent`, `AccentHover`, `Danger`, `AccentText`, `Viewport`, `ViewportCard`) — never hard-code a colour that assumes a
+  dark background; use `Theme.Brush(key, …)` or `Theme.Pick(dark, light)`. The theme is set once at startup
+  (`Theme.Init`, before `Styles.xaml` loads — WPF freezes app resources), so changing it needs a restart. Check both
+  with `--selftest` and `--selftest --theme light` (snapshots). Games (`PlayWindow`) keep their own look.
+- **Languages (9)**: every text the person can see goes through `L.T("English")` / `L.F("… {0} …", x)` (`Loc.cs`);
+  elements also translate themselves when they load. Mark the person's own content (object/layer/scene/project names,
+  chat, pickers of their names) with `L.SetSkip`/`L.Keep`. Never translate values that are saved or compared (keep
+  value and label apart — `Dropdown` items carry the value in `Tag`). Catalog texts stay English in the catalog (the AI
+  reads them) and are translated where they are shown. After adding or changing texts: run `--strings` (rewrites
+  `Lang/en.json`), then add the new entries to every `Lang/<code>.json` — the fulltest fails if a language falls below
+  97% or breaks a `{0}`. `--lang <code>` forces a language in any mode (e.g. selftest snapshots). AI prompts stay in
+  English; the chat and Learn mode are told to answer in the chosen language (`L.AiReplyRule`).
 - Game-loop code must not allocate per frame (cached brushes are frozen, lists reused, no LINQ in hot paths).
 - Prefer shared helpers (`LooseJson`, `Theme`, `Dropdown.Make`, `ParamSources`, `DemoKit`) over new copies.
 - Commit messages: imperative summary + a body explaining *what changed for the user* and the test totals.
