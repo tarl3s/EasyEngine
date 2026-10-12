@@ -27,11 +27,13 @@ namespace EasyEngine
             public Action<SeqRunner>? OnFinish;
             public bool Finished;
             public Key? SkipKey; public bool SkipWas; // cutscenes: the key that skips to the end
-            public bool BarsUsed, WentToScene;
+            public bool BarsUsed, FadeUsed, WentToScene;
+            public bool OutlivesOwner;               // a boss's death steps: they play to the end even once it is destroyed
         }
 
         private sealed class Mover { public SeqRunner? Owner; public Entity E = null!; public double FromX, FromY, ToX, ToY, Start, Dur; public bool Done; }
-        private sealed class CamPan { public SeqRunner? Owner; public Entity? Target; public double PX, PY, FromX, FromY, Start, Dur; public bool Returning; }
+        // PX, PY = the point looked at (a target's last known centre); HomeX, HomeY = the view before the cutscene took it
+        private sealed class CamPan { public SeqRunner? Owner; public Entity? Target; public double PX, PY, FromX, FromY, HomeX, HomeY, Start, Dur; public bool Returning; }
 
         // per-object state of the Cutscene behavior
         private sealed class CutState { public string? Trigger; public bool Was; public SeqRunner? Runner; public bool Warned; }
@@ -41,7 +43,10 @@ namespace EasyEngine
         private readonly List<Mover> _moves = new();
         private readonly HashSet<SeqRunner> _inputLocks = new();
         private HashSet<Key>? _heldKeys;                 // the real keys while a locked tick runs with an empty set
+        private (bool left, bool right)? _heldButtons;   // the real mouse buttons while a locked tick runs with them up
         private readonly HashSet<Key> _noKeys = new();
+        private bool _dialogWasOpen;                     // a dialogue was open at the last skip-key poll
+        private bool _escHeldAfterSkip; private double _escGuardUntil = -1; // Esc that just skipped a cutscene doesn't close the game
         private CamPan? _camPan;
         private double _shakeStrength, _shakeDur, _shakeUntil;
         private string _fadeColor = "#000000";
@@ -55,18 +60,25 @@ namespace EasyEngine
         {
             RestoreKeys(); // a tick that threw never handed them back
 
-            // skip keys read the real keyboard (a locked cutscene can still be skipped); by index, no copy: this runs every tick
+            // skip keys read the real keyboard (a locked cutscene can still be skipped); by index, no copy: this runs every tick.
+            // Enter also advances the dialogue: a press while one is open (or that just closed it) isn't a skip.
+            bool dialog = _dialogOpen || _dialogWasOpen;
             for (int i = 0, n = _runners.Count; i < n; i++)
             {
                 var r = _runners[i];
                 if (r.Finished || r.SkipKey is not Key k) continue;
                 bool down = _keys.Contains(k);
-                if (down && !r.SkipWas) SkipCutscene(r);
+                if (down && !r.SkipWas && !(k == Key.Enter && dialog)) SkipCutscene(r);
                 r.SkipWas = down;
             }
+            _dialogWasOpen = _dialogOpen;
 
             _barsT = Math.Clamp(_barsT + (_barsOn ? dt : -dt) / 0.4, 0, 1);
-            if (_camPan is { Returning: true } && PanProgress() >= 1) _camPan = null;
+            if (_camPan is { Returning: true } && PanProgress() >= 1)
+            {
+                if (_cameraTarget == null) { _camX = _camPan.HomeX; _camY = _camPan.HomeY; } // home exactly: no follow camera finishes the ease
+                _camPan = null;
+            }
 
             if (_runners.Count > 0)
             {
@@ -74,9 +86,10 @@ namespace EasyEngine
                 _runners.RemoveAll(r => r.Finished);
             }
 
-            if (_inputLocks.Count > 0) // locked: this tick sees no keys, clicks or wheel (Enter still advances dialogue)
+            if (_inputLocks.Count > 0) // locked: this tick sees no keys, mouse buttons or wheel (Enter still advances dialogue)
             {
                 _heldKeys = _keys; _noKeys.Clear(); _keys = _noKeys;
+                _heldButtons = (_mouseDown, _rmbDown); _mouseDown = _rmbDown = false;
                 _mouseClicked = _rmbClicked = false; _wheelDelta = 0;
             }
         }
@@ -108,24 +121,29 @@ namespace EasyEngine
             BossSceneReset();
         }
 
-        private void RestoreKeys() { if (_heldKeys != null) { _keys = _heldKeys; _heldKeys = null; } }
+        private void RestoreKeys()
+        {
+            if (_heldKeys != null) { _keys = _heldKeys; _heldKeys = null; }
+            if (_heldButtons is var (left, right)) { _mouseDown = left; _rmbDown = right; _heldButtons = null; }
+        }
 
         partial void SequencesEntityRemoved(Entity en)
         {
-            foreach (var r in _runners) if (r.Owner == en && r.Mode == SeqMode.Boss) AbortRunner(r);
-            if (_moves.Count > 0) _moves.RemoveAll(m => m.E == en);
+            foreach (var r in _runners) if (r.Owner == en && r.Mode == SeqMode.Boss && !r.OutlivesOwner) AbortRunner(r);
+            if (_moves.Count > 0) StopMoves(en);
             if (en.Boss != null) DismissMinions(en.Boss); // a boss removed any other way than by its health takes its minions too
         }
 
         partial void CameraTargetOverride(ref double tx, ref double ty, ref double smooth)
         {
             if (_camPan == null) return;
-            double goalX = tx, goalY = ty; // returning: back to where the follow camera wants to be
+            // returning: back to where the follow camera wants to be (no follow camera: where the view was before)
+            double goalX = _cameraTarget != null ? tx : _camPan.HomeX, goalY = _cameraTarget != null ? ty : _camPan.HomeY;
             if (!_camPan.Returning)
             {
                 var t = _camPan.Target;
-                double cx = t != null && !t.Dead ? t.CX : _camPan.PX, cy = t != null && !t.Dead ? t.CY : _camPan.PY;
-                goalX = -(cx - Root.ActualWidth / 2); goalY = -(cy - Root.ActualHeight / 2);
+                if (t != null && !t.Dead) { _camPan.PX = t.CX; _camPan.PY = t.CY; } // a target that dies: stay where it was last
+                goalX = -(_camPan.PX - Root.ActualWidth / 2); goalY = -(_camPan.PY - Root.ActualHeight / 2);
             }
             double k = EaseT("inout", PanProgress());
             tx = _camPan.FromX + (goalX - _camPan.FromX) * k;
@@ -199,6 +217,16 @@ namespace EasyEngine
         /// <summary>Esc closes the game window — unless a cutscene that Esc skips is playing.</summary>
         private bool CutsceneTakesEscape => _runners.Any(r => !r.Finished && r.SkipKey == Key.Escape);
 
+        /// <summary>An Esc press closes the game — not its auto-repeat, nor while the Esc that skipped a cutscene is still
+        /// held or tapped again right after.</summary>
+        private bool EscapeCloses(bool repeat) => !repeat && !CutsceneTakesEscape && !_escHeldAfterSkip && _gameTime >= _escGuardUntil;
+
+        private void ReleaseKey(Key k)
+        {
+            _keys.Remove(k);
+            if (k == Key.Escape) _escHeldAfterSkip = false;
+        }
+
         // ================================================================== the runner
         private SeqRunner StartRunner(Entity owner, SeqMode mode, string label, List<SeqStep> steps, Action<SeqRunner>? onFinish)
         {
@@ -209,7 +237,7 @@ namespace EasyEngine
 
         private void TickRunner(SeqRunner r)
         {
-            if (r.Mode == SeqMode.Boss && r.Owner.Dead) { AbortRunner(r); return; } // its boss is gone
+            if (r.Mode == SeqMode.Boss && r.Owner.Dead && !r.OutlivesOwner) { AbortRunner(r); return; } // its boss is gone
             for (int guard = 0; guard < 200 && !r.Finished; guard++) // instant steps run back to back until one waits
             {
                 if (r.Until != null) { if (!r.Until()) return; EndWait(r); }
@@ -230,7 +258,6 @@ namespace EasyEngine
             EndWait(r);
             r.Finished = true;
             ReleaseRunner(r);
-            if (r.Mode == SeqMode.Cutscene && !r.WentToScene && FadeOpacity() > 0 && _fadeTo > 0) StartFade(_fadeColor, 0, 0.5);
             r.OnFinish?.Invoke(r);
         }
 
@@ -248,6 +275,7 @@ namespace EasyEngine
         {
             _inputLocks.Remove(r);
             if (r.BarsUsed) _barsOn = false;
+            if (r.FadeUsed && !r.WentToScene && FadeOpacity() > 0 && _fadeTo > 0) StartFade(_fadeColor, 0, 0.5);
             if (_camPan != null && _camPan.Owner == r && !_camPan.Returning) StartPan(null, null, 0, 0, 0.6, returning: true);
         }
 
@@ -270,7 +298,9 @@ namespace EasyEngine
                 }
             }
             _dialog.Clear(); if (_dialogOpen) CloseDialog();
+            if (_camPan != null && _cameraTarget == null) { _camX = _camPan.HomeX; _camY = _camPan.HomeY; } // no follow camera to ease back
             _titleText = ""; _camPan = null;
+            if (r.SkipKey == Key.Escape) { _escHeldAfterSkip = _keys.Contains(Key.Escape); _escGuardUntil = _gameTime + 0.5; }
             if (!r.WentToScene) { _fadeFrom = _fadeTo = 0; _fadeDur = 0; }
             Info("Cutscene", r.Label, "Skipped", "the rest of its changes were applied");
             FinishRunner(r);
@@ -305,17 +335,20 @@ namespace EasyEngine
                     break;
                 case "fadeout":
                     StartFade(s.Str("color", "#000000"), 1, WaitStepTime(r, s));
+                    r.FadeUsed = true;
                     break;
                 case "fadein":
                     StartFade(_fadeColor, 0, WaitStepTime(r, s));
                     break;
                 case "bars":
                     _barsOn = s.On("on", true);
-                    if (_barsOn && r.Mode == SeqMode.Cutscene) r.BarsUsed = true;
+                    if (_barsOn) r.BarsUsed = true;
                     break;
                 case "camera":
                 {
-                    var t = SeqFind(r, s.Str("object"));
+                    var name = s.Str("object");
+                    var t = SeqFind(r, name);
+                    if (t == null && name.Trim().Length > 0) { StepWarn(r, s, $"no object '{name}'"); break; } // the camera stays put
                     StartPan(r, t, s.Num("x"), s.Num("y"), WaitStepTime(r, s), returning: false);
                     break;
                 }
@@ -399,14 +432,15 @@ namespace EasyEngine
         private void StepWarn(SeqRunner r, SeqStep s, string why)
             => LogThrottled($"seq-warn:{r.Owner.Data.Name}:{s.Do}:{why}", 5, LogLevel.Warn, r.Mode == SeqMode.Boss ? "Boss" : "Cutscene", r.Owner.Data.Name, $"Step '{s.Do}' skipped — {why}");
 
-        // A Custom rule made from a step, so DoCustom runs it (numbers → N, words → T; a non-number value → an expression).
+        // A Custom rule made from a step, so DoCustom runs it (numbers → N and T, since a name can look like a number too —
+        // a scene called "2"; words → T; a non-number value → an expression).
         private static CustomRule SeqRule(SeqStep s, string action, params string[] keys)
         {
             var r = new CustomRule { Do = action };
             foreach (var k in keys)
             {
                 var v = s.Str(k);
-                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d)) r.N[k] = d;
+                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d)) { r.N[k] = d; r.T[k] = v; }
                 else if (k is "to" or "amount") { if (v.Length > 0) r.T["expr"] = v; }
                 else r.T[k] = v;
             }
@@ -438,14 +472,26 @@ namespace EasyEngine
 
         private Mover MoveTo(SeqRunner? owner, Entity e, (double x, double y) goal, double time)
         {
-            _moves.RemoveAll(m => m.E == e); // a new move replaces the old one
+            StopMoves(e); // a new move replaces the old one
             var m = new Mover { Owner = owner, E = e, FromX = e.X, FromY = e.Y, ToX = goal.x, ToY = goal.y, Start = _gameTime, Dur = Math.Max(0, time) };
             _moves.Add(m);
             return m;
         }
 
+        // Its moves end where they are (Done: a step waiting for one goes on).
+        private void StopMoves(Entity e)
+        {
+            foreach (var m in _moves) if (m.E == e) m.Done = true;
+            _moves.RemoveAll(m => m.Done);
+        }
+
+        // A pan chained onto another (or onto its return) keeps the view from before the first one as its home.
         private void StartPan(SeqRunner? owner, Entity? target, double x, double y, double time, bool returning)
-            => _camPan = new CamPan { Owner = owner, Target = target, PX = x, PY = y, FromX = _camX, FromY = _camY, Start = _gameTime, Dur = Math.Max(0, time), Returning = returning };
+            => _camPan = new CamPan
+            {
+                Owner = owner, Target = target, PX = target?.CX ?? x, PY = target?.CY ?? y, FromX = _camX, FromY = _camY,
+                HomeX = _camPan?.HomeX ?? _camX, HomeY = _camPan?.HomeY ?? _camY, Start = _gameTime, Dur = Math.Max(0, time), Returning = returning
+            };
 
         private double PanProgress() => _camPan == null ? 1 : _camPan.Dur <= 0 ? 1 : Math.Clamp((_gameTime - _camPan.Start) / _camPan.Dur, 0, 1);
 
@@ -487,6 +533,7 @@ namespace EasyEngine
         public bool TCutsceneRunning(string name) => _runners.Any(r => !r.Finished && r.Mode == SeqMode.Cutscene && r.Owner.Data.Name == name);
         public int TRunners => _runners.Count(r => !r.Finished);
         public bool TCutsceneTakesEscape => CutsceneTakesEscape;
+        public bool TEscapeCloses(bool repeat = false) => EscapeCloses(repeat);
         /// <summary>The overlay visuals as drawn: "fade 0.00 · bars 59 · title 'X' 0.80 · boss bar Visible".</summary>
         public string TOverlays => $"fade {FadeRect.Opacity:0.00} · bars {BarTop.ActualHeight:0}/{BarBottom.ActualHeight:0} · title '{BigTitle.Text}' {BigTitle.Opacity:0.00} · boss bar {BossBar.Visibility}";
         public bool TBarsDrawn => BarTop.ActualHeight > 1 && BarBottom.ActualHeight > 1;

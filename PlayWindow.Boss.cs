@@ -104,14 +104,21 @@ namespace EasyEngine
 
         private static double HealthPercent(Entity en) => en.Has(BehaviorKind.Health) && en.MaxHealth > 0 ? en.CurHealth / en.MaxHealth * 100 : 100;
 
-        // The last phase whose condition holds ("at the start" always does).
+        // The phase of the lowest health threshold reached ("at or below N %"), whatever their order in the list; before
+        // any is reached, the (last) "at the start" phase — else the first one.
         private static int PhaseFor(Entity en, BossState b)
         {
+            var phases = b.Script.Phases;
+            if (phases.Count == 0) return -1;
             double pct = HealthPercent(en);
-            int idx = b.Script.Phases.Count > 0 ? 0 : -1;
-            for (int i = 0; i < b.Script.Phases.Count; i++)
-                if (b.Script.Phases[i].When != "health" || pct <= b.Script.Phases[i].Value + 1e-9) idx = i;
-            return idx;
+            int reached = -1, start = 0;
+            for (int i = 0; i < phases.Count; i++)
+            {
+                var p = phases[i];
+                if (p.When != "health") start = i;
+                else if (pct <= p.Value + 1e-9 && (reached < 0 || p.Value < phases[reached].Value)) reached = i;
+            }
+            return reached >= 0 ? reached : start;
         }
 
         private void EnterPhase(Entity en, BossState b, int idx)
@@ -163,6 +170,7 @@ namespace EasyEngine
                 RunDeathRules(en, 0);
                 en.Dead = true;
             });
+            b.Runner.OutlivesOwner = true; // a 'destroy self' among them doesn't cut the rest (nor its 'death' rules) short
             return true;
         }
 
@@ -248,14 +256,14 @@ namespace EasyEngine
                     var name = s.Str("object");
                     int count = Math.Clamp((int)Math.Round(s.Num("count", 2)), 1, 30);
                     double radius = s.Num("radius", 120);
+                    var tpl = name.Length > 0 ? FindTemplateOrPrefab(name) : null;
+                    if (tpl == null) { StepWarn(r, s, $"nothing named '{name}' to summon (an object in this scene or a prefab)"); return true; }
                     for (int i = 0; i < count; i++)
                     {
                         double ox = count == 1 ? radius * en.Facing : -radius + 2 * radius * i / (count - 1);
-                        var m = name.Length > 0 ? SpawnAt(name, 0, 0) : null;
-                        if (m == null) { StepWarn(r, s, $"nothing named '{name}' to summon (an object in this scene or a prefab)"); break; }
+                        // created right there, so it patrols and respawns from where it appeared
+                        var m = SpawnAt(name, en.CX + ox - tpl.Width / 2, b.Fly ? en.CY - tpl.Height / 2 : en.Y + en.H - tpl.Height)!;
                         b.Minions.Add(m);
-                        m.X = en.CX + ox - m.W / 2;
-                        m.Y = b.Fly ? en.CY - m.H / 2 : en.Y + en.H - m.H;
                         EmitParticles(m.CX, m.CY, 14, 160, 360, 0, 0.5, 6, 200, "#C9A6FF");
                     }
                     return true;
@@ -320,10 +328,11 @@ namespace EasyEngine
         {
             EmitParticles(en.CX, en.Y + en.H, 34, 280, 150, -90, 0.7, 7, 600, "#CDB48C");
             Shake(12, 0.45);
+            var t = BossTarget(en);
             foreach (int dir in new[] { -1, 1 })
             {
                 var wave = new GameObjectData { Type = "Bullet", Color = "#FFB347", Width = 30, Height = 18, CornerRadius = 9, BorderColor = "#FFF0C0", BorderWidth = 2 };
-                wave.Behaviors.Add(HurtsTarget(b));
+                wave.Behaviors.Add(HurtsTarget(b, t));
                 var w = SpawnBullet(en, dir > 0 ? 0 : 180, 380, 1.4, waveName, wave);
                 w.X = dir > 0 ? en.X + en.W : en.X - w.W;
                 w.Y = en.Y + en.H - w.H;
@@ -356,16 +365,17 @@ namespace EasyEngine
             foreach (var a in angles)
             {
                 var ball = new GameObjectData { Type = "Bullet", Color = "#FF6B4A", Width = 16, Height = 16, BorderColor = "#FFE0A0", BorderWidth = 2 };
-                ball.Behaviors.Add(HurtsTarget(b));
+                ball.Behaviors.Add(HurtsTarget(b, t));
                 SpawnBullet(en, a, speed, life, s.Str("bullet"), ball);
             }
         }
 
-        // The default boss bullet/wave hurts the boss's target and vanishes when it hits.
-        private static BehaviorData HurtsTarget(BossState b)
+        // The default boss bullet/wave hurts the boss's target and vanishes when it hits. A Damager matches the exact name,
+        // so it is given the name of the target found (which may differ in case from the one typed).
+        private static BehaviorData HurtsTarget(BossState b, Entity? target)
         {
             var d = BehaviorCatalog.Info(BehaviorKind.Damager).CreateData();
-            d.Texts["target"] = b.Target; d.Nums["damage"] = 1; d.Nums["knockback"] = 240; d.Nums["vanish"] = 1;
+            d.Texts["target"] = target?.Data.Name ?? b.Target; d.Nums["damage"] = 1; d.Nums["knockback"] = 240; d.Nums["vanish"] = 1;
             return d;
         }
 

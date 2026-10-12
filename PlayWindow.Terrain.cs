@@ -238,8 +238,10 @@ namespace EasyEngine
             en.TileTS = ts; en.TileX0 = t.X0; en.TileY0 = 0; // so the breakable-tile code (CellAt / BreakOverlap) addresses its cells
             en.Visual.Opacity = 0; _solids.Remove(en);      // the marker object itself is invisible and never collides
             _terrainLayer = new Canvas { IsHitTestVisible = false };
-            // right after the Background layer's pictures (sky, parallax hills): behind the player and every other object
-            World.Children.Insert(Math.Min(_worldBackgroundEnd, World.Children.Count), _terrainLayer);
+            // right after the Background layer's pictures (sky, parallax hills): behind the player and every other object.
+            // A terrain placed in the Background layer itself goes right after its own marker (the layer is still loading).
+            bool inBackground = _scene.Layers.Any(l => l.Kind == LayerKind.Background && l.Objects.Contains(en.Data));
+            World.Children.Insert(inBackground ? World.Children.IndexOf(en.Visual) + 1 : Math.Min(_worldBackgroundEnd, World.Children.Count), _terrainLayer);
             _endlessX = t.Cols == 0;
             _terrainSurfaceAt = x => t.InWorld(t.Column(x)) ? t.SurfaceRow(t.Column(x)) * t.Ts : null;
             _terrainBottom = t.Rows * ts;
@@ -263,7 +265,8 @@ namespace EasyEngine
                 var f = t.Focus;
                 f.Y = top - f.H; f.VY = 0; f.RespawnX = f.X; f.RespawnY = f.Y; // feet on the top block (and respawn there)
             }
-            StreamTerrain(t, TerrainView(t, false), int.MaxValue); // everything around the player right now: nothing falls on frame 1
+            var view = TerrainView(t, false);
+            StreamTerrain(t, view, int.MaxValue, view); // everything around the player right now: nothing falls on frame 1
             Info("Terrain", t.Host.Data.Name, $"World seed {t.Seed} · {(t.Cols == 0 ? "endless" : t.Cols + " blocks wide")} · {t.Chunks.Count} chunks loaded",
                  $"blocks {t.Ts:0}px · ground at row {t.BaseRow} · {t.Rows} rows deep" + (t.Focus != null ? $" · {t.Focus.Data.Name} placed on the ground at ({t.Focus.X:0}, {t.Focus.Y:0})" : ""));
         }
@@ -273,9 +276,15 @@ namespace EasyEngine
             if (en.TerrainTreeCol is int col) _terrain?.Felled.Add(col); // a planted tree that died (felled) doesn't grow back
         }
 
-        partial void CameraClampOverride(ref bool clampX, ref bool clampY)
+        // The camera stays inside the world, and the terrain is part of it even where it goes past the scene (the default
+        // ground lies below a 540 px scene): down to its bottom, and to its right edge — an endless one has no left/right edge.
+        partial void CameraClampOverride(ref bool clampX, ref double worldW, ref double worldH)
         {
-            if (_endlessX) clampX = false; // no left/right edge to stop at; Y stays inside the scene
+            var t = _terrain;
+            if (t == null) return;
+            worldH = Math.Max(worldH, _terrainBottom);
+            if (t.Cols == 0) clampX = false;
+            else worldW = Math.Max(worldW, t.X0 + t.Cols * t.Ts);
         }
 
         partial void TerrainBeforeLogic(double dt)
@@ -283,7 +292,7 @@ namespace EasyEngine
             var t = _terrain;
             if (t == null) return;
             long t0 = Stopwatch.GetTimestamp();
-            StreamTerrain(t, TerrainView(t, true), 2);
+            StreamTerrain(t, TerrainView(t, true), 2, TerrainView(t, false));
             double ms = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
             _terrainMs = _terrainMs * 0.95 + ms * 0.05; _terrainMsMax = Math.Max(_terrainMsMax, ms);
         }
@@ -300,11 +309,12 @@ namespace EasyEngine
 
         // Load the chunks covering the view + 1 chunk around it (at most `budget` per call, nearest first), load the chunks
         // under anything that moves at once (so nothing ever falls into an unloaded chunk) and drop the chunks more than
-        // 2 chunks outside the view.
-        private void StreamTerrain(TerrainState t, Rect view, int budget)
+        // 2 chunks outside the view — but never the ones around `focus`, the followed object's view: the camera is easing
+        // there (the chunks loaded at scene start, before the camera has moved, stay).
+        private void StreamTerrain(TerrainState t, Rect view, int budget, Rect focus)
         {
-            int vx0 = FloorDiv(t.Column(view.Left), ChunkSize), vx1 = FloorDiv(t.Column(view.Right), ChunkSize);
-            int vy0 = FloorDiv((int)Math.Floor(view.Top / t.Ts), ChunkSize), vy1 = FloorDiv((int)Math.Floor(view.Bottom / t.Ts), ChunkSize);
+            var (vx0, vx1, vy0, vy1) = ChunkRange(t, view);
+            var (fx0, fx1, fy0, fy1) = ChunkRange(t, focus);
             int loaded = 0, unloaded = 0;
 
             var want = t.Want; want.Clear();
@@ -319,7 +329,8 @@ namespace EasyEngine
 
             // the chunks under things that move near the view (and under the player wherever it is) load right away;
             // movers further out wait in place until the view comes back (TerrainFrozen)
-            bool Kept(int cx, int cy) => cx >= vx0 - 2 && cx <= vx1 + 2 && cy >= vy0 - 2 && cy <= vy1 + 2;
+            bool Kept(int cx, int cy) => (cx >= vx0 - 2 && cx <= vx1 + 2 && cy >= vy0 - 2 && cy <= vy1 + 2)
+                                         || (cx >= fx0 - 1 && cx <= fx1 + 1 && cy >= fy0 - 1 && cy <= fy1 + 1);
             var under = t.Under; under.Clear();
             foreach (var e in _entities)
             {
@@ -342,6 +353,11 @@ namespace EasyEngine
                 LogThrottled("terrain-stream", 2.0, LogLevel.Info, "Terrain", t.Host.Data.Name, $"Streaming: {t.Chunks.Count} chunks in memory ({TerrainVisualCount(t)} rectangles drawn)",
                              $"this tick +{loaded} / −{unloaded} chunks · view chunks x {vx0}..{vx1}, y {vy0}..{vy1}");
         }
+
+        // The chunks a world rectangle covers (first/last column and row of chunks).
+        private static (int x0, int x1, int y0, int y1) ChunkRange(TerrainState t, Rect r)
+            => (FloorDiv(t.Column(r.Left), ChunkSize), FloorDiv(t.Column(r.Right), ChunkSize),
+                FloorDiv((int)Math.Floor(r.Top / t.Ts), ChunkSize), FloorDiv((int)Math.Floor(r.Bottom / t.Ts), ChunkSize));
 
         private static int TerrainVisualCount(TerrainState t) => t.Chunks.Values.Sum(ch => ch.Canvas.Children.Count);
 

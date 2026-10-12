@@ -120,6 +120,20 @@ public partial class App
             int bg = w.TWorldIndexOf("Hills"), layer = w.TTerrainLayerIndex, player = w.TWorldIndexOf("A");
             return bg >= 0 && bg < layer && layer < player;
         });
+        t.Test("terrain: a Terrain Generator placed in the Background layer is drawn after that layer's pictures, still behind the player", () =>
+        {
+            var w = World(more: (p, s) =>
+            {
+                var baseL = s.Layers.First(l => l.Kind == LayerKind.Base);
+                var land = baseL.Objects.First(o => o.Name == "Land");
+                baseL.Objects.Remove(land);
+                var bg = s.Layers.First(l => l.Kind == LayerKind.Background);
+                bg.Objects.Add(new GameObjectData { Id = 60, Name = "Hills", Width = 800, Height = 300, Color = "#557799" });
+                bg.Objects.Add(land);
+            });
+            int hills = w.TWorldIndexOf("Hills"), layer = w.TTerrainLayerIndex, player = w.TWorldIndexOf("A");
+            return w.THasTerrain && hills >= 0 && hills < layer && layer < player;
+        });
         t.Test("terrain: colliders are only made for the blocks in the asked box", () =>
         {
             var w = World(tb => tb.Nums["hills"] = 0);
@@ -171,6 +185,14 @@ public partial class App
             w.TStep(); int n2 = w.TTerrainBuilt;
             w.TSteps(30);
             return n1 - n0 is > 0 and <= 6 && n2 - n1 <= 2 && w.TGrounded("A") && Math.Abs(w.TY("A") + 46 - (w.TSurfaceAt(w.TX("A") + 14) ?? -1)) < 33;
+        });
+        t.Test("terrain: the chunks loaded around a player far from the corner stay while the live camera (still at 0, 0) eases there", () =>
+        {
+            var w = World(more: (p, s) => s.Layers.SelectMany(l => l.Objects).First(o => o.Name == "A").X = 6000);
+            int cx = Col(w) / 16, cy = w.TTerrainSurfaceRow(Col(w)) / 16, before = w.TTerrainChunks;
+            bool around = w.TTerrainChunkLoaded(cx - 1, cy) && w.TTerrainChunkLoaded(cx + 1, cy);
+            w.TTerrainStreamLive(new System.Windows.Rect(0, 0, 960, 540)); // the first live tick: the camera hasn't moved yet
+            return around && w.TTerrainChunks >= before && w.TTerrainChunkLoaded(cx - 1, cy) && w.TTerrainChunkLoaded(cx + 1, cy);
         });
         t.Test("terrain: a far-away walker over unloaded ground waits instead of falling through", () =>
         {
@@ -314,6 +336,15 @@ public partial class App
                          && w.TSurfaceAt(-5) == null && w.TSurfaceAt(40 * 32 + 5) == null && w.TSurfaceAt(100) != null;
             w.TPlace("A", -3000, 0); w.TUpdateCamera(200);
             return edges && !w.TEndlessX && w.TCamX <= 0 && !w.TTerrainChunkLoaded(-1, 1) && !w.TTerrainChunkLoaded(3, 1);
+        });
+
+        t.Test("terrain: the camera follows the player onto ground below a small scene, and out to a finite world's right edge", () =>
+        {
+            var w = World(tb => { tb.Nums["hills"] = 0; tb.Nums["endless"] = 0; tb.Nums["width"] = 80; }, more: (p, s) => { s.Width = 960; s.Height = 540; });
+            w.TUpdateCamera(200);
+            bool down = w.TY("A") + 46 > 540 && Math.Abs(w.TCamY + w.TY("A") + 23) < 1; // the default ground (600 px) is below the 540 px scene
+            Teleport(w, 2000); w.TUpdateCamera(200);
+            return down && Math.Abs(w.TCamX + w.TX("A") + 14) < 1;
         });
 
         // ---------------- performance ----------------
