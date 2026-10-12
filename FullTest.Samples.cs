@@ -133,6 +133,19 @@ public partial class App
             w.Close();
             return cut && pasted && part;
         });
+        t.Test("double-click on an object brings its inspector forward (the AI tab was showing)", () =>
+        {
+            var project = ProjectIO.CreateNew("DblClick", TempDir("Dbl"));
+            var obj = new GameObjectData { Name = "Crate" };
+            project.Scenes[0].Layers[0].Objects.Add(obj);
+            var editor = new MainWindow(project);
+            bool before = editor.TestInspectorShown; // a new editor shows the AI tab
+            editor.TestOpenInspector(obj);
+            bool ok = !before && editor.TestInspectorShown && editor.InspectorRoot.Children.OfType<System.Windows.Controls.Grid>()
+                          .SelectMany(g => g.Children.OfType<System.Windows.Controls.TextBox>()).Any(tb => tb.Text == "Crate");
+            TestScenarios.TryDeleteDir(Path.GetDirectoryName(project.FolderPath!)!);
+            return ok;
+        });
         t.Test("copy look: an object gets another's sprite, animations, colour and border (its own copy of the lists)", () =>
         {
             var a = new GameObjectData { Name = "A", SpritePath = "Assets/sprites/slime.png", Color = "#123456", Opacity = 0.5, BorderWidth = 2, DefaultAnimation = "walk" };

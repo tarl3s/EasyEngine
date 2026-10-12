@@ -748,6 +748,7 @@ namespace EasyEngine
 
             border.MouseLeftButtonDown += (s, e) =>
             {
+                if (e.ClickCount == 2) { _dragObj = null; SceneCanvas.ReleaseMouseCapture(); OpenInspector(obj); e.Handled = true; return; } // double-click: its inspector
                 if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) { ToggleSelect(obj); e.Handled = true; return; }
                 Select(obj);
                 PushUndo();
@@ -2092,6 +2093,23 @@ namespace EasyEngine
         // ============================================================
         //  TABS
         // ============================================================
+        // double-click an object (in the scene or the objects list): it is selected and its inspector comes forward
+        private void OpenInspector(GameObjectData obj)
+        {
+            Select(obj);
+            SetTab(true);
+            if (_panes.TryGetValue("ai", out var pane) && pane.FloatWin != null) pane.FloatWin.Activate();
+            InspectorScroll.ScrollToTop();
+        }
+
+        private void ObjectsList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (ObjectsList.SelectedItem is ListBoxItem { Tag: GameObjectData obj }) OpenInspector(obj);
+        }
+
+        internal void TestOpenInspector(GameObjectData obj) => OpenInspector(obj);
+        internal bool TestInspectorShown => InspectorScroll.Visibility == Visibility.Visible;
+
         private void TabInspector_Click(object sender, RoutedEventArgs e) => SetTab(true);
         private void TabAi_Click(object sender, RoutedEventArgs e) => SetTab(false);
 
