@@ -677,6 +677,7 @@ public partial class App
             Test("topdown: the shovel (a custom item, sold for 3 coins) digs a treasure mound → +3 coins", () =>
             {
                 var pw = TopDown();
+                pw.TDestroyAll("Coin"); // scattered coins could be picked up on the way and spoil the count
                 pw.TSetVar("coins", 3);
                 pw.TPlace("Player", 985, 350); pw.TSteps(2); Press(pw, "E");
                 bool bought = pw.TItem("shovel") == 1 && pw.TVar("coins") == 0;

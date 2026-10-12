@@ -1276,7 +1276,7 @@ namespace EasyEngine
             Grid.SetColumn(eye, 0); Grid.SetColumn(name, 1); Grid.SetColumn(kind, 2); Grid.SetColumn(fix, 3); Grid.SetColumn(del, 4);
             grid.Children.Add(eye); grid.Children.Add(name); grid.Children.Add(kind); grid.Children.Add(fix); grid.Children.Add(del);
 
-            return new ListBoxItem { Content = grid, Tag = layer, Padding = new Thickness(4, 4, 4, 4), Foreground = (SolidColorBrush)FindResource("Text") };
+            return new ListBoxItem { Content = grid, Tag = layer, Padding = new Thickness(4, 4, 4, 4), Foreground = (SolidColorBrush)FindResource("Text"), HorizontalContentAlignment = HorizontalAlignment.Stretch }; // stretch: the kind sits at the right, not glued to the name
         }
 
         private void DeleteLayer(Layer layer)

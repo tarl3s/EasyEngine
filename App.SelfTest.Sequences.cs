@@ -45,6 +45,9 @@ public partial class App
         c.LateChecks.Add(() =>
         {
             c.Write($"boss demo window: intro {(play.TCutsceneRunning("Intro") ? "playing" : "not playing")} · {play.TOverlays} · {play.TLog.Errors} errors");
+            c.Snapshot(play, "boss_intro");
+            c.Snapshot(bossEd, "advanced_scratch_boss");
+            c.Snapshot(bossEditor, "boss_inspector");
             var err = play.TLog.Entries.FirstOrDefault(e => e.Level == LogLevel.Error);
             if (err != null) return "the Boss Demo logged an error: " + err.FullText();
             if (!play.TOverlaysExist) return "the cutscene/boss overlays are missing from the play window";

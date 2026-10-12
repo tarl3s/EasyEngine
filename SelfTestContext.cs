@@ -22,6 +22,10 @@ internal sealed class SelfTestContext
         {
             if (w.Content is not FrameworkElement root || root.ActualWidth < 1 || root.ActualHeight < 1) return "";
             var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)root.ActualWidth, (int)root.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            // the window's own background first (it isn't part of its content), so translucent things look as on screen
+            var back = new System.Windows.Media.DrawingVisual();
+            using (var dc = back.RenderOpen()) dc.DrawRectangle(w.Background, null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+            bmp.Render(back);
             bmp.Render(root);
             var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
             enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
