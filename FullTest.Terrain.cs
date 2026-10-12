@@ -25,7 +25,8 @@ public partial class App
                 if (tool.Length > 0)
                 {
                     var tu = BehaviorCatalog.Info(BehaviorKind.ToolUse).CreateData();
-                    tu.Texts["tool"] = tool; tu.Nums["reach"] = reach; tu.Nums["blockedByWalls"] = reach > 100 ? 0 : 1;
+                    tu.Texts["tool"] = tool; tu.Nums["reach"] = reach;
+                    tu.Nums["blockedByWalls"] = reach > 100 ? 0 : 1; // a long test reach hits any block, even one behind others
                     a.Behaviors.Add(tu);
                 }
                 var tb = BehaviorCatalog.Info(BehaviorKind.Terrain).CreateData();
@@ -110,7 +111,7 @@ public partial class App
         {
             var w = World();
             return w.TTerrainChunks >= 9 && w.TTerrainChunkLoaded(0, 1) && w.TTerrainLayerIndex == 0
-                   && w.TWorldIndexOf("A") > 0 && (w.TWorldIndexOfTree() is int ti && (ti == -1 || (ti > 0 && ti < w.TWorldIndexOf("A"))));
+                   && w.TWorldIndexOf("A") > 0 && w.TWorldIndexOfTree() > 0 && w.TWorldIndexOfTree() < w.TWorldIndexOf("A");
         });
         t.Test("terrain: colliders are only made for the blocks in the asked box", () =>
         {
