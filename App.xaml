@@ -82,6 +82,14 @@
                                 <Setter TargetName="b" Property="Background" Value="{StaticResource Bg3}"/>
                                 <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Accent}"/>
                             </Trigger>
+                            <!-- the active tab / mode (green with dark text) stays green on hover, or its label would vanish -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="Background" Value="{StaticResource Accent}"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource AccentHover}"/>
+                            </MultiTrigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
                             </Trigger>

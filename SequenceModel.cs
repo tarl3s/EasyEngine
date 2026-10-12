@@ -160,8 +160,8 @@ namespace EasyEngine
 
         public string Str(string k, string d = "") => P.TryGetValue(k, out var v) ? v : d;
         public double Num(string k, double d = 0) =>
-            P.TryGetValue(k, out var v) && double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var n) ? n : d;
-        public bool On(string k, bool d = false) => P.TryGetValue(k, out var v) ? (double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var n) ? n >= 0.5 : d) : d;
+            P.TryGetValue(k, out var v) && LooseJson.TryParse(v, out var n) ? n : d;
+        public bool On(string k, bool d = false) => P.TryGetValue(k, out var v) ? (LooseJson.TryParse(v, out var n) ? n >= 0.5 : d) : d;
         public SeqStep Clone() => new() { Do = Do, P = new Dictionary<string, string>(P, StringComparer.OrdinalIgnoreCase) };
     }
 
@@ -280,22 +280,22 @@ namespace EasyEngine
             var phase = new BossPhase { Name = Text(Prop(p, "name", "title", "id")) ?? $"Phase {script.Phases.Count + 1}" };
             // "when": {"type":"start"} | {"type":"health","value":60} | "start" | 60 — or a "health" number on the phase itself
             var when = Prop(p, "when", "starts", "trigger", "condition");
-            double? health = Number(Prop(p, "health", "hp", "below", "at"));
+            double? health = Number(Prop(p, "health", "hp", "below", "at"), percent: true);
             if (when is JsonElement w)
             {
                 if (w.ValueKind == JsonValueKind.Object)
                 {
                     var type = (Text(Prop(w, "type", "kind", "when")) ?? "start").ToLowerInvariant();
-                    double? v = Number(Prop(w, "value", "health", "hp", "percent", "below", "at"));
+                    double? v = Number(Prop(w, "value", "health", "hp", "percent", "below", "at"), percent: true);
                     if (type.Contains("health") || type.Contains("hp") || (v != null && !type.Contains("start"))) health = v ?? 50;
                 }
                 else if (w.ValueKind == JsonValueKind.Number) health = w.GetDouble();
                 else if (w.ValueKind == JsonValueKind.String)
                 {
                     var s = w.GetString() ?? "";
-                    var digits = new string(s.Where(c => char.IsDigit(c) || c == '.').ToArray());
+                    var digits = new string(s.Where(c => char.IsDigit(c) || c is '.' or ',').ToArray());
                     if (s.ToLowerInvariant().Contains("health") || s.ToLowerInvariant().Contains("hp") || digits.Length > 0)
-                        health = double.TryParse(digits, NumberStyles.Any, CultureInfo.InvariantCulture, out var hv) ? hv : 50;
+                        health = LooseJson.TryParse(digits, out var hv) ? hv : 50;
                 }
             }
             if (health != null) { phase.When = "health"; phase.Value = Math.Clamp(health.Value, 0, 100); }
@@ -368,7 +368,7 @@ namespace EasyEngine
 
         private static string? Text(JsonElement? e) => e is JsonElement v ? v.ValueKind == JsonValueKind.String ? v.GetString() : v.ValueKind == JsonValueKind.Number ? v.GetRawText() : null : null;
 
-        private static double? Number(JsonElement? e) => e is JsonElement v && LooseJson.TryNumber(v, out var d) ? d : null;
+        private static double? Number(JsonElement? e, bool percent = false) => e is JsonElement v && LooseJson.TryNumber(v, out var d, percent) ? d : null;
 
         private static string ValueText(JsonElement v) => v.ValueKind switch
         {
@@ -426,7 +426,7 @@ namespace EasyEngine
             sb.Append('\n').Append(indent).Append(']');
         }
 
-        /// <summary>{"do":"id", fields in palette order, then any extra params sorted by name}. Empty texts are left out.</summary>
+        /// <summary>{"do":"id", fields in palette order, then any extra params sorted by name}. Empty texts are left out unless the field's default isn't empty ("" can mean "a point" there).</summary>
         public static string StepJson(SeqStep s, SeqMode mode)
         {
             var def = StepCatalog.Find(mode, s.Do);
@@ -436,9 +436,10 @@ namespace EasyEngine
             {
                 done.Add(f.Key);
                 var v = s.Str(f.Key, f.Default);
-                if (v.Length == 0 && f.Type is not ("num" or "bool")) continue;
-                bool numeric = f.Type is "num" or "bool" or "val";
-                parts.Add(Q(f.Key) + ":" + (numeric && IsNum(v, out var d) ? N(d) : Q(v)));
+                if (v.Length == 0 && f.Default.Length == 0 && f.Type is not ("num" or "bool")) continue;
+                double d = 0;
+                bool numeric = f.Type is "num" or "bool" ? LooseJson.TryParse(v, out d) : f.Type == "val" && IsNum(v, out d);
+                parts.Add(Q(f.Key) + ":" + (numeric ? N(d) : Q(v)));
             }
             foreach (var kv in s.P.Where(kv => !done.Contains(kv.Key) && kv.Value.Length > 0).OrderBy(kv => kv.Key, StringComparer.Ordinal))
                 parts.Add(Q(kv.Key.ToLowerInvariant()) + ":" + (IsNum(kv.Value, out var d) ? N(d) : Q(kv.Value)));
