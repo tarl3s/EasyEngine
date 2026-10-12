@@ -127,24 +127,24 @@ namespace EasyEngine
                 "5. Or ask the AI in Build mode to write the rules for you. Press ▶ Test.",
 
             [BehaviorKind.BossAI] =
-                "1. Select the boss → Inspector → ＋ Add behavior → 👑 Boss AI. Give it ❤ Health too.\n" +
-                "2. Phases switch by health % (e.g. below 50% it gets angrier).\n" +
-                "3. Each attack is a list of steps (move, jump, shoot, wait…); open the \"Advanced Scratch\" editor to build them with blocks.\n" +
-                "4. Or write it in the JSON box — or describe the boss you want in the \"Ask the AI\" box under it.\n" +
-                "5. A boss health bar shows during the fight. Press ▶ Test.",
+                "1. Select the boss → Inspector → ＋ Add behavior → 👑 Boss AI. Give it ❤ Health too (its own variable, e.g. bossHP).\n" +
+                "2. Pick Moves (on the ground or flying), Fights (usually Player), and \"Starts when\": the scene starts, the player comes close, or a variable turns on (e.g. set at the end of a 🎬 Cutscene).\n" +
+                "3. Click \"🧩 Advanced Scratch…\": in Attacks, build each attack from steps (Warn (flash), Dash at the target, Jump, Shoot — a ring, a spread or aimed —, Summon minions, Wait…); in Phases, choose which attacks each phase uses and when it starts (health at or below N %); in When it dies, its last moments.\n" +
+                "4. Or edit the JSON box — or describe the boss you want in \"✨ Ask the AI\" under it and press \"Make it\".\n" +
+                "5. \"Boss health bar\" shows its name and health at the top during the fight. Press ▶ Test.",
 
             [BehaviorKind.Cutscene] =
-                "1. Make an object (a controller is fine) → Inspector → ＋ Add behavior → 🎬 Cutscene.\n" +
-                "2. Add steps in order: say (dialogue), wait, camera to, fade, move, title.\n" +
-                "3. \"Plays when\": the scene starts, the player enters the area, a variable turns on, or a key is pressed.\n" +
-                "4. Lock the player so they can't move during it; cinema bars add black bars top and bottom.\n" +
-                "5. Press ▶ Test to watch it.",
+                "1. Make an object (an invisible controller is fine) → Inspector → ＋ Add behavior → 🎬 Cutscene.\n" +
+                "2. \"Plays when\": the scene starts, the player enters this object's area, a variable turns on, or a key is pressed. \"Only once\" plays it a single time.\n" +
+                "3. Click \"🧩 Advanced Scratch…\" and add steps in order: Say (waits for Enter), Wait, Move the camera, Camera back to the player, Big title, Fade to a colour / Fade back in, Move an object, Shake the screen, Set a variable…\n" +
+                "4. \"Lock the player\" stops them moving during it; \"Cinema bars\" adds black bars top and bottom; the \"Skip key\" jumps to the end.\n" +
+                "5. Or describe the scene in \"✨ Ask the AI\" and press \"Make it\". Press ▶ Test to watch it.",
 
             [BehaviorKind.Minimap] =
                 "1. Make an object on the UI layer (fixed on screen) → Inspector → ＋ Add behavior → 🗺 Minimap (HUD).\n" +
-                "2. Pick the Corner, Map width and Opacity; Player = who the map follows.\n" +
-                "3. \"Also show\": tick other things (enemies, coins, doors…) and give each its own colour.\n" +
-                "4. In game, press the big map key to open the full map. Press ▶ Test.",
+                "2. Pick the Corner, Map width and Opacity; Player = who the map follows (and its colour).\n" +
+                "3. \"Also show\": press ＋ Add for each kind of thing to show (an object, every copy of a prefab, or a whole group) and click its dot to pick a colour — e.g. slimes purple, coins yellow.\n" +
+                "4. \"Can be maximized\" + \"Key to open the big map\": in game that key opens a big map (press it again to close). Press ▶ Test.",
 
             [BehaviorKind.Particles] =
                 "1. Select the object → Inspector → ＋ Add behavior → ✨ Particle Emitter.\n" +
