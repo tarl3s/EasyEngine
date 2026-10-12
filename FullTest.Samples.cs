@@ -79,5 +79,61 @@ public partial class App
             TestScenarios.TryDeleteDir(install); TestScenarios.TryDeleteDir(fresh);
             return ok;
         });
+
+        // ---------------- sprite editor: turning a selection, custom canvas sizes ----------------
+        static byte[] Px(int w, int h) { var b = new byte[w * h * 4]; for (int i = 0; i < w * h; i++) { b[i * 4] = (byte)(i + 1); b[i * 4 + 3] = 255; } return b; }
+        static byte At(byte[] b, int w, int x, int y) => b[(y * w + x) * 4];
+        t.Test("sprite editor: a quarter turn right is exact (2×3 → 3×2, top-left goes top-right); four turns = the original", () =>
+        {
+            var src = Px(2, 3); // values 1..6, row by row
+            var (r, w, h) = SpriteEditorWindow.Rotate(src, 2, 3, 90);
+            var (back, w4, h4) = (src, 2, 3);
+            for (int i = 0; i < 4; i++) (back, w4, h4) = SpriteEditorWindow.Rotate(back, w4, h4, 90);
+            var (l, lw, lh) = SpriteEditorWindow.Rotate(src, 2, 3, -90);
+            return w == 3 && h == 2 && At(r, w, 2, 0) == 1 && At(r, w, 0, 0) == 5 && At(r, w, 2, 1) == 2
+                   && back.SequenceEqual(src) && lw == 3 && lh == 2 && At(l, lw, 0, 1) == 1;
+        });
+        t.Test("sprite editor: a free turn (45°) grows the box and keeps the pixels crisp (only original colours)", () =>
+        {
+            var src = Px(8, 8);
+            var (r, w, h) = SpriteEditorWindow.Rotate(src, 8, 8, 45);
+            var colours = Enumerable.Range(0, w * h).Where(i => r[i * 4 + 3] != 0).Select(i => r[i * 4]).ToHashSet();
+            return w == 12 && h == 12 && colours.Count > 30 && colours.All(c => c >= 1 && c <= 64);
+        });
+        t.Test("sprite editor: turning and mirroring a selection (or the whole drawing) works in the window", () =>
+        {
+            var w = new SpriteEditorWindow(ProjectIO.CreateNew("SpriteRot", TempDir("Sprite")), 16);
+            w.RotateSelection(90); w.RotateSelection(-15); w.FlipSelection(true); w.FlipSelection(false);
+            w.Close();
+            return true;
+        });
+        t.Test("sprite editor: custom sizes are read as width × height (4 to 256)", () =>
+            SpriteEditorWindow.ParseSize("32x128") == (32, 128) && SpriteEditorWindow.ParseSize(" 32 × 128 ") == (32, 128)
+            && SpriteEditorWindow.ParseSize("48*16") == (48, 16) && SpriteEditorWindow.ParseSize("64") == null
+            && SpriteEditorWindow.ParseSize("2x64") == null && SpriteEditorWindow.ParseSize("300x10") == null);
+
+        // ---------------- renaming a project ----------------
+        t.Test("rename: the project gets the new name inside, and its folder and file follow it; assets still load", () =>
+        {
+            var parent = TempDir("Rename"); Directory.CreateDirectory(parent);
+            var p = ProjectIO.CreateNew("Old Name", parent);
+            ProjectIO.Save(p);
+            var newPath = ProjectIO.RenameProject(p.FilePath!, "My Cool Game");
+            var back = ProjectIO.Load(newPath);
+            bool ok = back.Name == "My Cool Game" && newPath == Path.Combine(parent, "My Cool Game", "My Cool Game" + ProjectIO.Extension)
+                      && !Directory.Exists(Path.Combine(parent, "Old Name")) && back.Scenes.Count > 0;
+            TestScenarios.TryDeleteDir(parent);
+            return ok;
+        });
+        t.Test("rename: when the new name is taken by another folder, the project folder stays put (the name inside changes)", () =>
+        {
+            var parent = TempDir("Rename"); Directory.CreateDirectory(parent);
+            var p = ProjectIO.CreateNew("Alpha", parent); ProjectIO.Save(p);
+            Directory.CreateDirectory(Path.Combine(parent, "Beta")); // the new name is taken
+            var path = ProjectIO.RenameProject(p.FilePath!, "Beta");
+            bool ok = Path.GetDirectoryName(path) == Path.Combine(parent, "Alpha") && ProjectIO.Load(path).Name == "Beta" && !Directory.EnumerateFileSystemEntries(Path.Combine(parent, "Beta")).Any();
+            TestScenarios.TryDeleteDir(parent);
+            return ok;
+        });
     }
 }

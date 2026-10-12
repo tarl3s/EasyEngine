@@ -15,7 +15,7 @@ that game needs come first (rotational physics/ragdolls/vehicles come last). Lon
 - Repo: `github.com/tarl3s/EasyEngine` — **public** (MIT, since v0.11.0), branch `main`. Everything you push is public:
   no secrets, no personal paths in docs meant for players. `README.md` (English) and `README.pt-BR.md` are the public
   face — keep both in sync when features change.
-- Version: `0.11.0` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
+- Version: `0.11.1` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
 - The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
   this file are in **English** (the editor UI is 100% English by request; only `README.md` is Portuguese).
 
@@ -39,14 +39,14 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 
 | Flag | What | Log |
 |---|---|---|
-| `--fulltest` | the big battery (≈445 checks: every script action/event, behaviors, Scratch round-trip, editor, E2E) | `%TEMP%\easyengine_fulltest.log` |
+| `--fulltest` | the big battery (≈451 checks: every script action/event, behaviors, Scratch round-trip, editor, E2E) | `%TEMP%\easyengine_fulltest.log` |
 | `--e2e` | plays the test scenarios step by step (Axe, Lighting, Boss, Infinite World; ≈41 steps) | `easyengine_e2e.log` |
 | `--behtest` (49) / `--exprtest` (26) / `--blocktest` (7) / `--aijsontest` (20) | behaviors / expression evaluator / block-editor round-trip / AI-JSON parsing robustness | `easyengine_<name>.log` |
 | `--selftest` | opens real windows (editor, play, dialogs), measures text contrast, renders PNG snapshots | `easyengine_selftest.log`, `easyengine_snap_*.png` |
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
 | `--aitest [--model m]` | ~32 prompts through the real AI pipeline (needs a running AI) | `easyengine_aitest.log` |
 
-Last known green: fulltest 445/445, e2e 41/41, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS.
+Last known green: fulltest 451/451, e2e 41/41, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS.
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 

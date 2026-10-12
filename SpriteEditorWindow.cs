@@ -38,6 +38,11 @@ namespace EasyEngine
         private byte[]? _selBase;        // image with the selection removed (the "hole")
         private bool _movingSel;
         private int _grabDX, _grabDY;
+        // rotation: always redrawn from the pixels as first lifted (so several small turns don't smear them)
+        private byte[]? _selOrig;
+        private int _selOrigW, _selOrigH;
+        private double _selAngle;        // degrees, clockwise
+        private int _rotateStep = 90;    // what one ⟲ / ⟳ click turns
         private Rectangle _marquee = null!;
         private Canvas _overlay = null!;
 
@@ -89,6 +94,22 @@ namespace EasyEngine
             bar.Children.Add(ToolBtn("🌫 Blur", Tool.Blur));
             bar.Children.Add(ToolBtn("🌀 Jumble", Tool.Jumble));
             bar.Children.Add(ToolBtn("⬚ Select", Tool.Select));
+            // turn / mirror the selection (or the whole drawing when nothing is selected)
+            Button SelBtn(string label, string tip, Action act)
+            {
+                var b = new Button { Content = label, Height = 30, MinWidth = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(6, 0, 6, 0), Style = Theme.Style("CardButton"), ToolTip = tip };
+                b.Click += (s, e) => act();
+                return b;
+            }
+            bar.Children.Add(SelBtn("⟲", "Turn the selection left (R with Shift). Nothing selected = the whole drawing", () => RotateSelection(-_rotateStep)));
+            bar.Children.Add(SelBtn("⟳", "Turn the selection right (R). Nothing selected = the whole drawing", () => RotateSelection(_rotateStep)));
+            var stepCombo = new ComboBox { Height = 30, Width = 62, Margin = new Thickness(0, 0, 4, 0), VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "How much one turn rotates" };
+            foreach (var st in new[] { 90, 45, 15 }) stepCombo.Items.Add($"{st}°");
+            stepCombo.SelectedIndex = 0;
+            stepCombo.SelectionChanged += (s, e) => _rotateStep = new[] { 90, 45, 15 }[Math.Max(0, stepCombo.SelectedIndex)];
+            bar.Children.Add(stepCombo);
+            bar.Children.Add(SelBtn("⇋", "Mirror the selection left ↔ right", () => FlipSelection(true)));
+            bar.Children.Add(SelBtn("⇵", "Mirror the selection up ↕ down", () => FlipSelection(false)));
             bar.Children.Add(ToolBtn("💉 Pick", Tool.Eyedropper));
 
             // shape picker + fill (used by Shape and Polygon tools)
@@ -129,6 +150,9 @@ namespace EasyEngine
                 int s2 = sz; b.Click += (s, e) => { if (Confirm("Start a new blank canvas? Current drawing will be lost.")) NewCanvas(s2, s2); };
                 bar.Children.Add(b);
             }
+            var custom = new Button { Content = "Custom…", Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = "New canvas of any size, e.g. 32×128" };
+            custom.Click += (s, e) => CustomCanvas();
+            bar.Children.Add(custom);
             var clear = new Button { Content = "Clear", Height = 30, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton") };
             clear.Click += (s, e) => { if (Confirm("Clear the canvas?")) { DropSelection(); Array.Clear(_data, 0, _data.Length); Flush(); } };
             bar.Children.Add(clear);
@@ -305,6 +329,11 @@ namespace EasyEngine
                 else if (e.Key == Key.Escape) { CancelPolygon(); e.Handled = true; }
             }
             else if (_tool == Tool.Select && e.Key == Key.Escape) { DropSelection(); e.Handled = true; }
+            if (_tool == Tool.Select && e.Key == Key.R)
+            {
+                RotateSelection(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? -_rotateStep : _rotateStep);
+                e.Handled = true;
+            }
         }
 
         // ---- shape / blur helpers (write _data only; caller Flushes) ----
@@ -539,7 +568,98 @@ namespace EasyEngine
                     _data[src] = _data[src + 1] = _data[src + 2] = _data[src + 3] = 0; // clear original
                 }
             _selBase = (byte[])_data.Clone();
+            _selOrig = (byte[])_selBuf.Clone(); _selOrigW = s.w; _selOrigH = s.h; _selAngle = 0;
             Flush();
+        }
+
+        // ---- turn / mirror the selection ----
+        // Without a selection it works on the whole drawing (selected first, so it can still be moved afterwards).
+        private bool EnsureFloatingSelection()
+        {
+            if (_tool != Tool.Select) SelectTool(Tool.Select);
+            if (_sel == null) { _sel = (0, 0, _w, _h); UpdateMarquee(); }
+            if (_selBuf == null) LiftSelection();
+            return _selBuf != null && _selBase != null;
+        }
+
+        /// <summary>Turns the selection by <paramref name="degrees"/> (clockwise; negative = left) around its centre.</summary>
+        public void RotateSelection(double degrees)
+        {
+            if (!EnsureFloatingSelection()) return;
+            _selAngle = ((_selAngle + degrees) % 360 + 360) % 360;
+            var (buf, w, h) = Rotate(_selOrig!, _selOrigW, _selOrigH, _selAngle);
+            var s = _sel!.Value;
+            double cx = s.x + s.w / 2.0, cy = s.y + s.h / 2.0;
+            int nx = (int)Math.Round(cx - w / 2.0), ny = (int)Math.Round(cy - h / 2.0);
+            _selBuf = buf; _sel = (nx, ny, w, h);
+            Array.Copy(_selBase!, _data, _data.Length);
+            PasteSel(nx, ny);
+            Flush(); UpdateMarquee();
+        }
+
+        /// <summary>Mirrors the selection left↔right (<paramref name="horizontal"/>) or up↕down.</summary>
+        public void FlipSelection(bool horizontal)
+        {
+            if (!EnsureFloatingSelection()) return;
+            var s = _sel!.Value;
+            var flipped = new byte[_selBuf!.Length];
+            for (int j = 0; j < s.h; j++)
+                for (int i = 0; i < s.w; i++)
+                    Array.Copy(_selBuf, (j * s.w + i) * 4, flipped, (horizontal ? j * s.w + (s.w - 1 - i) : (s.h - 1 - j) * s.w + i) * 4, 4);
+            _selBuf = flipped; _selOrig = (byte[])flipped.Clone(); _selOrigW = s.w; _selOrigH = s.h; _selAngle = 0;
+            Array.Copy(_selBase!, _data, _data.Length);
+            PasteSel(s.x, s.y);
+            Flush();
+        }
+
+        /// <summary>The pixels turned by <paramref name="degrees"/> clockwise: exact for quarter turns, nearest pixel
+        /// otherwise (pixel art stays crisp). The result is the turned picture's bounding box.</summary>
+        public static (byte[] buf, int w, int h) Rotate(byte[] src, int w, int h, double degrees)
+        {
+            double d = ((degrees % 360) + 360) % 360;
+            if (Math.Abs(d % 90) < 1e-9 || Math.Abs(d % 90 - 90) < 1e-9)
+            {
+                int k = (int)Math.Round(d / 90) % 4;
+                int nw = k % 2 == 1 ? h : w, nh = k % 2 == 1 ? w : h;
+                var q = new byte[nw * nh * 4];
+                for (int y = 0; y < nh; y++)
+                    for (int x = 0; x < nw; x++)
+                    {
+                        var (sx, sy) = k switch { 1 => (y, h - 1 - x), 2 => (w - 1 - x, h - 1 - y), 3 => (w - 1 - y, x), _ => (x, y) };
+                        Array.Copy(src, (sy * w + sx) * 4, q, (y * nw + x) * 4, 4);
+                    }
+                return (q, nw, nh);
+            }
+            double rad = d * Math.PI / 180, cos = Math.Cos(rad), sin = Math.Sin(rad);
+            int ow = (int)Math.Ceiling(Math.Abs(w * cos) + Math.Abs(h * sin) - 1e-6), oh = (int)Math.Ceiling(Math.Abs(w * sin) + Math.Abs(h * cos) - 1e-6);
+            var o = new byte[ow * oh * 4];
+            for (int y = 0; y < oh; y++)
+                for (int x = 0; x < ow; x++)
+                {
+                    double dx = x + 0.5 - ow / 2.0, dy = y + 0.5 - oh / 2.0;
+                    int sx = (int)Math.Floor(dx * cos + dy * sin + w / 2.0), sy = (int)Math.Floor(-dx * sin + dy * cos + h / 2.0); // turn back into the source
+                    if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
+                    Array.Copy(src, (sy * w + sx) * 4, o, (y * ow + x) * 4, 4);
+                }
+            return (o, ow, oh);
+        }
+
+        // ---- custom canvas size ----
+        private void CustomCanvas()
+        {
+            var text = InputDialog.Prompt(this, "Canvas size", "Width × height in pixels (4 to 256 each), for example 32x128:", $"{_w}x{_h}");
+            if (text == null) return;
+            if (ParseSize(text) is not { } size) { MessageBox.Show(this, "Write the size as width x height, for example 32x128 (each from 4 to 256).", "Sprite editor"); return; }
+            if (Confirm($"Start a new blank {size.w}×{size.h} canvas? Current drawing will be lost.")) NewCanvas(size.w, size.h);
+        }
+
+        /// <summary>"32x128", "32 × 128", "32*128", "32,128" → (32, 128); null if it isn't two sizes from 4 to 256.</summary>
+        public static (int w, int h)? ParseSize(string text)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(text ?? "", @"^\s*(\d{1,4})\s*[xX×*,;/ ]\s*(\d{1,4})\s*$");
+            if (!m.Success) return null;
+            int w = int.Parse(m.Groups[1].Value), h = int.Parse(m.Groups[2].Value);
+            return w is >= 4 and <= 256 && h is >= 4 and <= 256 ? (w, h) : null;
         }
 
         private void PasteSel(int ox, int oy)
@@ -580,7 +700,7 @@ namespace EasyEngine
 
         private void DropSelection()
         {
-            _selBuf = null; _selBase = null; _sel = null; _movingSel = false;
+            _selBuf = null; _selBase = null; _sel = null; _movingSel = false; _selOrig = null; _selAngle = 0;
             if (_marquee != null) _marquee.Visibility = Visibility.Collapsed;
         }
 

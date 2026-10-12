@@ -223,6 +223,51 @@ namespace EasyEngine
             return AbsoluteAsset(p, o.SpritePath);
         }
 
+        // ---------------- rename ----------------
+        /// <summary>Gives a project a new name: inside the file, and — when they still carry the old name and the new one
+        /// is free — its folder and .eeproj file too (asset paths are relative, so nothing breaks). The Recent entry keeps
+        /// its place. Returns the project file's (possibly new) path.</summary>
+        public static string RenameProject(string filePath, string newName)
+        {
+            newName = (newName ?? "").Trim();
+            if (newName.Length == 0) throw new ArgumentException("The name is empty.");
+            var p = JsonSerializer.Deserialize<Project>(File.ReadAllText(filePath)) ?? throw new InvalidDataException("Invalid project file."); // not Load: that moves it to the top of Recent
+            string oldName = p.Name;
+            p.Name = newName;
+            File.WriteAllText(filePath, JsonSerializer.Serialize(p, JsonOpts));
+
+            string path = filePath;
+            try
+            {
+                var dir = Path.GetDirectoryName(filePath)!;
+                var parent = Path.GetDirectoryName(dir);
+                var newDir = parent == null ? dir : Path.Combine(parent, Sanitize(newName));
+                if (parent != null && Path.GetFileName(dir).Equals(Sanitize(oldName), StringComparison.OrdinalIgnoreCase)
+                    && !newDir.Equals(dir, StringComparison.OrdinalIgnoreCase) && !Directory.Exists(newDir))
+                {
+                    Directory.Move(dir, newDir);
+                    dir = newDir; path = Path.Combine(dir, Path.GetFileName(filePath));
+                }
+                var newFile = Path.Combine(dir, Sanitize(newName) + Extension);
+                if (Path.GetFileNameWithoutExtension(path).Equals(Sanitize(oldName), StringComparison.OrdinalIgnoreCase)
+                    && !newFile.Equals(path, StringComparison.OrdinalIgnoreCase) && !File.Exists(newFile))
+                {
+                    File.Move(path, newFile);
+                    path = newFile;
+                }
+            }
+            catch { } // a folder in use can't be moved: the new name is still saved inside the project
+
+            var list = GetRecent();
+            var entry = list.FirstOrDefault(r => string.Equals(r.Path, filePath, StringComparison.OrdinalIgnoreCase));
+            if (entry != null)
+            {
+                entry.Name = newName; entry.Path = path;
+                try { File.WriteAllText(RecentFile, JsonSerializer.Serialize(list, JsonOpts)); } catch { }
+            }
+            return path;
+        }
+
         // ---------------- delete ----------------
         /// <summary>Removes a project from the recent list (does NOT touch files).</summary>
         public static void RemoveRecent(string filePath)

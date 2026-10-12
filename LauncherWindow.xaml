@@ -17,7 +17,7 @@
                     <TextBlock Text="⬡" Foreground="{StaticResource Accent}" FontSize="46"/>
                     <TextBlock Text="EasyEngine" Foreground="{StaticResource Text}" FontSize="26" FontWeight="Bold" Margin="0,2,0,0"/>
                     <TextBlock Text="The easiest 2D game engine — you bring the art, the AI writes the code." Foreground="{StaticResource TextDim}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
-                    <TextBlock x:Name="VersionText" Text="v0.11.0" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="VersionText" Text="v0.11.1" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,6,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom" VerticalAlignment="Bottom">
                     <Button Content="＋  New Project" Style="{StaticResource AccentButton}" Height="44" FontSize="14" Click="NewProject_Click"/>
@@ -68,6 +68,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="🎮" FontSize="22" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -75,7 +76,9 @@
                                     <TextBlock Text="{Binding Path}" Foreground="{StaticResource TextDim}" FontSize="11" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Text="{Binding LastOpened}" Foreground="{StaticResource TextDim}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <Button Grid.Column="3" Content="🗑" Style="{StaticResource GhostButton}" Width="32" Height="30"
+                                <Button Grid.Column="3" Content="✏" Style="{StaticResource GhostButton}" Width="32" Height="30" Margin="0,0,2,0"
+                                        ToolTip="Rename" Tag="{Binding}" Click="RenameRecent_Click"/>
+                                <Button Grid.Column="4" Content="🗑" Style="{StaticResource GhostButton}" Width="32" Height="30"
                                         Foreground="{StaticResource Danger}" ToolTip="Delete / remove" Tag="{Binding}" Click="DeleteRecent_Click"/>
                             </Grid>
                         </DataTemplate>

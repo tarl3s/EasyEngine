@@ -141,6 +141,16 @@ namespace EasyEngine
             catch (Exception ex) { MessageBox.Show("Open failed: " + ex.Message); }
         }
 
+        // ---------------- rename ----------------
+        private void RenameRecent_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not FrameworkElement fe || fe.Tag is not RecentProject r) return;
+            var name = InputDialog.Prompt(this, "Rename project", "New name for the project:", r.Name);
+            if (name == null || name == r.Name) return;
+            try { ProjectIO.RenameProject(r.Path, name); LoadRecent(); }
+            catch (Exception ex) { MessageBox.Show("Rename failed: " + ex.Message); }
+        }
+
         // ---------------- delete ----------------
         private void DeleteRecent_Click(object sender, RoutedEventArgs e)
         {
