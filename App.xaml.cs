@@ -79,6 +79,8 @@ public partial class App : Application
 
         if (e.Args.Contains("--scenarios")) { RunScenarios(); return; }
 
+        if (e.Args.Contains("--review")) { ProjectIO.SuppressRecent = true; RunReview(); return; }
+
         // exported standalone game: a 'game' folder with a .eeproj sits next to the exe → play it directly
         if (!e.Args.Contains("--editor"))
         {

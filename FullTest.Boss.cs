@@ -162,6 +162,19 @@ public partial class App
             p.TSteps(3);
             return p.TAlive("Minion") == 3;
         });
+        t.Test("boss summon: its minions vanish when it falls (other copies of that prefab stay)", () =>
+        {
+            var p = Boss(OneAttack("{'do':'summon','object':'Minion','count':2,'radius':100}"),
+                         more: (pr, sc, l) =>
+                         {
+                             pr.Prefabs.Add(new PrefabDef { Name = "Minion", Template = new GameObjectData { Name = "Minion", Width = 30, Height = 30 } });
+                             l.Objects.Add(new GameObjectData { Id = 77, Name = "Minion", X = 100, Y = 100, Width = 30, Height = 30 }); // not summoned
+                         });
+            p.TSteps(3);
+            bool summoned = p.TAlive("Minion") == 3;
+            p.TSetHp("Boss", 0); p.TSteps(3);
+            return summoned && p.TAlive("Minion") == 1 && p.TDead("Boss");
+        });
         t.Test("boss invulnerable: no damage while it flickers", () =>
         {
             var p = Boss(OneAttack("{'do':'invulnerable','time':2},{'do':'wait','time':5}"));

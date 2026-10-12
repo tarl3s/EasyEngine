@@ -27,6 +27,7 @@ namespace EasyEngine
             public bool Moving;                       // a movement step drove it this tick
             public double TelegraphUntil; public string TelegraphColor = "#FF4040";
             public double FlickerUntil; public bool Flickering;
+            public readonly List<Entity> Minions = new();   // what it summoned: they go when it falls
         }
 
         private partial class Entity { public BossState? Boss; }
@@ -150,7 +151,9 @@ namespace EasyEngine
         private bool BossDying(Entity en)
         {
             var b = en.Boss;
-            if (b == null || b.Script.Death.Count == 0) return false;
+            if (b == null) return false;
+            if (!b.Dying) DismissMinions(b); // when the boss falls, what it summoned goes too
+            if (b.Script.Death.Count == 0) return false;
             if (b.Dying) return true;
             b.Dying = true;
             if (b.Runner != null) AbortRunner(b.Runner);
@@ -164,6 +167,14 @@ namespace EasyEngine
                 en.Dead = true;
             });
             return true;
+        }
+
+        // its minions vanish in a puff (a fight is over when the boss is)
+        private void DismissMinions(BossState b)
+        {
+            foreach (var m in b.Minions)
+                if (!m.Dead) { EmitParticles(m.CX, m.CY, 12, 150, 360, 0, 0.5, 6, 200, "#C9A6FF"); m.Dead = true; }
+            b.Minions.Clear();
         }
 
         private static bool BossIsDying(Entity en) => en.Boss?.Dying == true;
@@ -248,6 +259,7 @@ namespace EasyEngine
                         double ox = count == 1 ? radius * en.Facing : -radius + 2 * radius * i / (count - 1);
                         var m = name.Length > 0 ? SpawnAt(name, 0, 0) : null;
                         if (m == null) { StepWarn(r, s, $"nothing named '{name}' to summon (an object in this scene or a prefab)"); break; }
+                        b.Minions.Add(m);
                         m.X = en.CX + ox - m.W / 2;
                         m.Y = b.Fly ? en.CY - m.H / 2 : en.Y + en.H - m.H;
                         EmitParticles(m.CX, m.CY, 14, 160, 360, 0, 0.5, 6, 200, "#C9A6FF");
