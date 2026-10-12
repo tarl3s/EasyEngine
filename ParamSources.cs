@@ -56,7 +56,7 @@ namespace EasyEngine
                     if (b.Kind == BehaviorKind.Label) foreach (Match m in Regex.Matches(b.Text("text", ""), @"\{([^}]+)\}")) Add(m.Groups[1].Value);
                 }
             }
-            foreach (var builtin in new[] { "isDay", "isNight", "timeOfDay", "dayness" }) set.Add(builtin);
+            foreach (var builtin in new[] { "isDay", "isNight", "timeOfDay", "dayness", "cover", "underground" }) set.Add(builtin);
             return set.ToList();
         }
 

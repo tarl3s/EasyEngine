@@ -2613,6 +2613,15 @@ namespace EasyEngine
             else dayness = 1;
             dayness = Math.Clamp(dayness, 0, 1);
             double light = nightLight + (dayLight - nightLight) * dayness;
+            bool topdown = bh.Num("mode", 0) >= 0.5;
+            // underground: the more solid blocks above the player, the darker (PlayWindow.Lighting.cs)
+            bool covered = false;
+            if (!topdown && bh.Num("coverDark", 0) >= 0.5)
+            {
+                double cover = UpdateCover(en, bh, dt);
+                light *= 1 - Math.Clamp(bh.Num("coverMax", 0.9), 0, 1) * cover;
+                covered = cover > 0.35; // the sun/moon (and their crisp light holes) don't shine underground
+            }
 
             Darkness.Opacity = Math.Clamp(1 - light, 0, 1);
             _vars["isNight"] = night ? 1 : 0;
@@ -2621,7 +2630,6 @@ namespace EasyEngine
             _vars["dayness"] = dayness;
 
             // move the sun / moon across the sky
-            bool topdown = bh.Num("mode", 0) >= 0.5;
             double arcH = bh.Num("arcHeight", 120);
             double W = Root.ActualWidth > 10 ? Root.ActualWidth : 960;
             void Place(string name, bool active, double phase)
@@ -2630,7 +2638,7 @@ namespace EasyEngine
                 var e = _entities.FirstOrDefault(z => !z.Dead && z != en && z.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
                 if (e == null) return;
                 MoveToSky(e); // the sun and moon ARE the sky: always behind every layer
-                var vis = active ? Visibility.Visible : Visibility.Collapsed;
+                var vis = active && !covered ? Visibility.Visible : Visibility.Collapsed;
                 e.Visual.Visibility = vis;
                 if (e.LightVisual != null) e.LightVisual.Visibility = vis;
                 if (!active) return;
@@ -2734,54 +2742,6 @@ namespace EasyEngine
             double vw = Root.ActualWidth, vh = Root.ActualHeight;
             if (clampX) _camX = _scene.Width > vw ? Math.Clamp(_camX, -(_scene.Width - vw), 0) : 0;
             if (clampY) _camY = _scene.Height > vh ? Math.Clamp(_camY, -(_scene.Height - vh), 0) : 0;
-        }
-
-        // Builds the minimap overlay (added to the HUD canvas, independent of the object's box).
-        private void BuildMinimap(Entity en, BehaviorData bh)
-        {
-            double size = Math.Max(60, bh.Num("size", 180));
-            double ratio = _scene.Height / Math.Max(1, _scene.Width);
-            var inner = new Canvas { Width = size, Height = size * ratio, ClipToBounds = true };
-            var box = new Border
-            {
-                Width = size,
-                Height = size * ratio,
-                Background = new SolidColorBrush(Color.FromArgb(150, 20, 20, 28)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(200, 120, 120, 140)),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
-                Opacity = Math.Clamp(bh.Num("opacity", 0.8), 0.1, 1),
-                Child = inner
-            };
-            en.Visual.Opacity = 0; // hide the placeholder box; the overlay is the map
-            Hud.Children.Add(box);
-            en.MiniCanvas = inner;
-        }
-
-        private void UpdateMinimap(Entity en, BehaviorData bh)
-        {
-            var inner = en.MiniCanvas;
-            if (inner?.Parent is not Border box) return;
-            double size = inner.Width, mh = inner.Height, m = 10;
-            string corner = bh.Text("corner", "tr").ToLowerInvariant();
-            double vw = Root.ActualWidth > 0 ? Root.ActualWidth : 960, vh = Root.ActualHeight > 0 ? Root.ActualHeight : 540;
-            Canvas.SetLeft(box, corner.Contains("l") ? m : vw - size - m);
-            Canvas.SetTop(box, corner.Contains("b") ? vh - mh - m : m);
-
-            inner.Children.Clear();
-            double sx = size / Math.Max(1, _scene.Width), sy = mh / Math.Max(1, _scene.Height);
-            void Dot(Entity e, Brush b, double r)
-            {
-                var d = new Ellipse { Width = r * 2, Height = r * 2, Fill = b };
-                Canvas.SetLeft(d, Math.Clamp(e.CX * sx - r, 0, size)); Canvas.SetTop(d, Math.Clamp(e.CY * sy - r, 0, mh));
-                inner.Children.Add(d);
-            }
-            var gray = new SolidColorBrush(Color.FromRgb(180, 180, 190));
-            foreach (var nm in bh.Text("markers", "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                foreach (var e in _entities.Where(x => !x.Dead && x.Data.Name.Equals(nm, StringComparison.OrdinalIgnoreCase)))
-                    Dot(e, gray, 2);
-            var player = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("player", "Player"));
-            if (player != null) Dot(player, new SolidColorBrush(Color.FromRgb(0, 229, 255)), 3);
         }
 
         // Label text + optional text effect (typewriter / fade / blink / pulse).

@@ -71,6 +71,7 @@ namespace EasyEngine
         private static Func<ParamCtx, bool> IfOff(string key) => c => c.Bh.Num(key, 0) < 0.5;
         private static readonly Func<ParamCtx, bool> NoHotbar =
             c => !c.Scene.Layers.SelectMany(l => l.Objects).Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Hotbar));
+        private static readonly Func<ParamCtx, bool> CoverOn = c => IfOff("mode")(c) && IfOn("coverDark")(c); // Day/Night underground darkness
 
         private static TextParam T(string k, string l, string d, PickKind p = PickKind.Text, params string[] o) => new(k, l, d, p, o);
         private static TextParam TNone(string k, string l, string d, PickKind p) => new(k, l, d, p) { AllowNone = true };
@@ -231,7 +232,7 @@ namespace EasyEngine
                           TNone("drop","Drops","", PickKind.Item) } },
 
             new BehaviorInfo { Kind = BehaviorKind.DayNight, Name = "Day / Night cycle", Icon = "🌗",
-                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). In Platformer mode, adding it creates a 'Sky' layer under all the others with a Sun and a Moon already linked (Top-down has no sky — just the light changes) — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Works for Top-down and Platformer.",
+                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). In Platformer mode, adding it creates a 'Sky' layer under all the others with a Sun and a Moon already linked (Top-down has no sky — just the light changes) — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Platformer: turn on 'coverDark' and it also gets darker the more solid blocks are above the player (caves, underground) — torches still light it up; it sets the variables cover (0-1) and underground (0/1). Works for Top-down and Platformer.",
                 Nums = { new("mode","Game view",0, "0|Platformer (side view, sun + moon)", "1|Top-down (seen from above)"),
                          new("dayLength","Day length (seconds)",60),
                          new("nightLength","Night length (seconds)",60),
@@ -239,9 +240,13 @@ namespace EasyEngine
                          new("dayLight","Brightness by day (0-1)",1),
                          new("nightLight","Brightness at night (0-1)",0.25),
                          new("startAtNight","Start at night (0/1)",0),
-                         NIf(new("arcHeight","Sun/Moon arc height (px)",120), IfOff("mode")) },
+                         NIf(new("arcHeight","Sun/Moon arc height (px)",120), IfOff("mode")),
+                         NIf(new("coverDark","Darker under solid blocks (underground) (0/1)",0), IfOff("mode")),
+                         NIf(new("coverDepth","Blocks above you until it's darkest",6), CoverOn),
+                         NIf(new("coverMax","How dark underground (0-1)",0.9), CoverOn) },
                 Texts = { TIf(TNone("sun","Sun","", PickKind.Object), IfOff("mode")), TIf(TNone("moon","Moon","", PickKind.Object), IfOff("mode")),
-                          T("nightColor","Night tint","#0A1030", PickKind.Color) } },
+                          T("nightColor","Night tint","#0A1030", PickKind.Color),
+                          TIf(T("coverWho","Whose light (usually the player)","Player", PickKind.Object), CoverOn) } },
 
             // (M7) procedural terrain — filled in by the terrain work
             new BehaviorInfo { Kind = BehaviorKind.Terrain, Name = "Terrain Generator", Icon = "⛰", Hidden = true,
@@ -348,10 +353,12 @@ namespace EasyEngine
                 Texts = { T("dir","Launches","up", PickKind.Choice, "up|↑ Up", "down|↓ Down", "left|← Left", "right|→ Right") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Minimap, Name = "Minimap (HUD)", Icon = "🗺",
-                Desc = "Draws a small map in a corner showing the whole scene, with a dot for the player and optional dots for other objects. Put it on a UI layer. 'markers' = comma-separated object names to show (empty = just the player).",
-                Nums = { new("size","Map width (px)",180), new("opacity","Opacity (0-1)",0.8) },
+                Desc = "Draws a small map in a corner showing the whole scene (in an endless world: the area around the player, with the ground), with a dot for the player and optional dots for other things, each in its own colour. Put it on a UI layer. 'markers' = comma-separated 'Name:#RRGGBB' entries; a name matches an object (and every copy of a prefab) or a whole group (empty = just the player). With 'canMax' on, a key opens a big map in the middle of the screen (press it again to close).",
+                Nums = { new("size","Map width (px)",180), new("opacity","Opacity (0-1)",0.8), new("canMax","Can be maximized (0/1)",1) },
                 Texts = { T("corner","Corner","tr", PickKind.Choice, "tl|Top left", "tr|Top right", "bl|Bottom left", "br|Bottom right"),
-                          T("player","Player","Player", PickKind.Object), T("markers","Also show","", PickKind.Objects) } },
+                          T("player","Player","Player", PickKind.Object), T("playerColor","Player colour","#00E5FF", PickKind.Color),
+                          T("markers","Also show","", PickKind.MapMarkers),
+                          TIf(T("maxKey","Key to open the big map","M", PickKind.Key), IfOn("canMax")) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Particles, Name = "Particle Emitter", Icon = "✨",
                 Desc = "Emits particles (sparks, smoke, explosions, trails). on=start bursts once when the scene loads; on=always emits continuously at 'rate'; or trigger a burst from a script with the 'emit' action. spread is the cone angle (360 = all directions).",
