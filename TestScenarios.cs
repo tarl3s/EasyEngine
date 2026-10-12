@@ -174,9 +174,6 @@ namespace EasyEngine
                 "{\"when\":\"keypress\",\"key\":\"R\",\"do\":\"goscene\",\"scene\":\"Lighting Test\"}]" } });
             baseL.Objects.Add(Id(dn));
 
-            var sun = Box("Sun", -100, -100, 46, 46, "#FFD24D"); sun.CornerRadius = 23; ui.Objects.Add(Id(sun));
-            var moon = Box("Moon", -100, -100, 38, 38, "#D8E4FF"); moon.CornerRadius = 19; ui.Objects.Add(Id(moon));
-
             var panel = Box("HelpPanel", 12, 62, 600, 104, "#B0101018"); panel.CornerRadius = 8;
             ui.Objects.Add(Id(panel));
             ui.Objects.Add(Id(Label("Help1", 24, 68, "LIGHTING TEST   Day ~20 s, night ~15 s (or press N = night, M = morning)", "#FFFFFF", 14)));
@@ -198,6 +195,7 @@ namespace EasyEngine
 
             scene.Layers.Add(new Layer { Name = "Background", Kind = LayerKind.Background });
             scene.Layers.Add(baseL); scene.Layers.Add(ui);
+            SkySetup.Ensure(scene); // same as adding Day/Night in the editor: Sky layer at the bottom with the Sun and Moon
             return scene;
         }
 

@@ -182,7 +182,7 @@ namespace EasyEngine
                           new("drop","Resource dropped when broken (item name)","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.DayNight, Name = "Day / Night cycle", Icon = "🌗",
-                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). Optionally give it a Sun sprite (moves across the sky in both Top-down and Platformer) and a Moon sprite (shown at night — Platformer only). Works for Top-down and Platformer.",
+                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). Adding it creates a 'Sky' layer under all the others with a Sun and a Moon (Platformer only) already linked — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Works for Top-down and Platformer.",
                 Nums = { new("mode","0 = Platformer, 1 = Top-down",0),
                          new("dayLength","Day length (seconds)",60),
                          new("nightLength","Night length (seconds)",60),

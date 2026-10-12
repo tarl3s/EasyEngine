@@ -63,6 +63,7 @@ namespace EasyEngine
         /// <summary>
         /// Upgrades behaviors that no longer exist. Melee (press J to swing a hitbox) became Tool Use (click to use the
         /// item in hand): damage/range/knockback/cooldown carry over; with no Hotbar the item in hand is a sword.
+        /// Scenes with a Day/Night sun/moon get their Sky layer.
         /// </summary>
         public static int MigrateLegacy(Project p)
         {
@@ -86,6 +87,9 @@ namespace EasyEngine
                     o.Behaviors.Insert(i, tu);
                 }
             }
+            // Day/Night sun & moon placed on any other layer move into a Sky layer at the bottom (nothing new is created)
+            foreach (var s in p.Scenes)
+                if (SkySetup.Ensure(s, createMissing: false) != null) n++;
             return n;
         }
 

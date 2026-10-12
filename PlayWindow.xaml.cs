@@ -644,9 +644,13 @@ namespace EasyEngine
 
             foreach (var layer in _scene.Layers)
             {
-                bool screen = layer.ScreenSpace || layer.Kind == LayerKind.UI;
+                bool sky = layer.Kind == LayerKind.Sky;
+                bool screen = layer.ScreenSpace || layer.Kind == LayerKind.UI || sky;
                 foreach (var obj in layer.Objects)
-                    AddEntity(obj, screen);
+                {
+                    var en = AddEntity(obj, screen);
+                    if (sky) PutInSky(en); // the Sky layer is drawn behind every other layer
+                }
             }
 
             // procedural generation: build the map before the first frame

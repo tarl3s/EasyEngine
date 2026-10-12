@@ -1251,6 +1251,14 @@ namespace EasyEngine
                 LayersList.Items.Add(MakeLayerItem(layer));
         }
 
+        private void RefreshLayersKeepActive()
+        {
+            var active = _activeLayer;
+            RefreshLayers();
+            int i = active != null ? _scene.Layers.IndexOf(active) : -1;
+            LayersList.SelectedIndex = i >= 0 ? i : IndexOfBaseLayer();
+        }
+
         private ListBoxItem MakeLayerItem(Layer layer)
         {
             var eye = new Button
@@ -1588,8 +1596,11 @@ namespace EasyEngine
                         t.Behaviors.Add(BehaviorCatalog.Info(kind).CreateData());
                         added++;
                     }
+                    var sky = kind == BehaviorKind.DayNight ? SkySetup.Ensure(_scene) : null; // Day/Night → Sky layer + Sun + Moon
+                    if (sky != null) RefreshLayersKeepActive();
                     BuildInspector(obj); RenderScene(); Dirty();
-                    if (targets.Count > 1) Status($"Added {BehaviorCatalog.Info(kind).Name} to {added} of {targets.Count} selected object(s)");
+                    if (sky != null) Status(sky);
+                    else if (targets.Count > 1) Status($"Added {BehaviorCatalog.Info(kind).Name} to {added} of {targets.Count} selected object(s)");
                 }
             };
             InspectorRoot.Children.Add(combo);
@@ -3243,6 +3254,12 @@ namespace EasyEngine
                 if (root.TryGetProperty("layers", out var lyArr) && lyArr.ValueKind == JsonValueKind.Array)
                     ApplyLayerArray(lyArr, EnsureUndo, changes);
                 ApplyGlobalSceneVars(root, EnsureUndo, changes);
+
+                if (changes.Count > 0)
+                {
+                    var probe = JsonClone(_scene); // only touch (and undo-snapshot) the scene if the sky really changes
+                    if (SkySetup.Ensure(probe) != null) { EnsureUndo(); var sky = SkySetup.Ensure(_scene); if (sky != null) changes.Add(sky); }
+                }
 
                 if (changes.Count == 0) return false;
                 summary = string.Join("\n", changes);

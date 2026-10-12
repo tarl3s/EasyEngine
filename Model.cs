@@ -28,9 +28,68 @@ namespace EasyEngine
         }
     }
 
+    /// <summary>
+    /// A scene with a Day/Night cycle gets a "Sky" layer at the very bottom holding its Sun and Moon
+    /// (editor, AI and project load all go through here, so every game looks the same in the editor and in play).
+    /// </summary>
+    public static class SkySetup
+    {
+        /// <summary>Returns what it changed (null = nothing). createMissing=false only gathers the bodies that already exist.</summary>
+        public static string? Ensure(Scene scene, bool createMissing = true)
+        {
+            var all = scene.Layers.SelectMany(l => l.Objects).ToList();
+            var dnObj = all.FirstOrDefault(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.DayNight));
+            if (dnObj == null) return null;
+            var dn = dnObj.Behaviors.First(b => b.Kind == BehaviorKind.DayNight);
+            bool topdown = dn.Num("mode", 0) >= 0.5; // the moon only shows in Platformer mode
+
+            GameObjectData? Find(string key, string defName)
+            {
+                string name = dn.Text(key, "").Trim();
+                return all.FirstOrDefault(o => o != dnObj && o.Name.Equals(name.Length > 0 ? name : defName, StringComparison.OrdinalIgnoreCase));
+            }
+            var sun = Find("sun", "Sun");
+            var moon = topdown ? null : Find("moon", "Moon");
+            bool makeSun = sun == null && createMissing, makeMoon = moon == null && !topdown && createMissing;
+            if (sun == null && moon == null && !makeSun && !makeMoon) return null;
+
+            var notes = new List<string>();
+            var sky = scene.Layers.FirstOrDefault(l => l.Kind == LayerKind.Sky);
+            if (sky == null)
+            {
+                sky = new Layer { Name = "Sky", Kind = LayerKind.Sky, ScreenSpace = true };
+                scene.Layers.Insert(0, sky);
+                notes.Add("added a Sky layer under all the others");
+            }
+            else if (scene.Layers[0] != sky) { scene.Layers.Remove(sky); scene.Layers.Insert(0, sky); notes.Add("moved the Sky layer to the bottom"); }
+
+            int nextId = all.Count == 0 ? 1 : all.Max(o => o.Id) + 1;
+            void Place(GameObjectData? body, bool make, string key, string defName, double x, double size, string color)
+            {
+                if (body == null && make)
+                {
+                    string name = dn.Text(key, "").Trim();
+                    if (name.Length == 0) name = defName;
+                    body = new GameObjectData { Id = nextId++, Name = name, X = x, Y = 70, Width = size, Height = size, Color = color, CornerRadius = size / 2 };
+                    sky.Objects.Add(body);
+                    notes.Add($"created the {defName.ToLowerInvariant()} \"{name}\"");
+                }
+                if (body == null) return;
+                dn.Texts[key] = body.Name;
+                if (sky.Objects.Contains(body)) return;
+                scene.Layers.FirstOrDefault(l => l.Objects.Contains(body))?.Objects.Remove(body);
+                sky.Objects.Add(body);
+                notes.Add($"moved \"{body.Name}\" into the Sky layer");
+            }
+            Place(sun, makeSun, "sun", "Sun", 120, 46, "#FFD24D");
+            Place(moon, makeMoon, "moon", "Moon", 200, 38, "#D8E4FF");
+            return notes.Count == 0 ? null : "Day/Night: " + string.Join(", ", notes);
+        }
+    }
+
     // ======================= ENUMS =======================
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public enum LayerKind { Background, Base, UI, Custom }
+    public enum LayerKind { Background, Base, UI, Custom, Sky } // Sky = behind every layer, fixed to the screen (sun, moon, clouds)
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum PhysicsMode { None, Static, Dynamic }

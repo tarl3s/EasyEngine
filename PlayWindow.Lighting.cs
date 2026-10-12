@@ -32,17 +32,22 @@ namespace EasyEngine
             Darkness.Fill = Brush(hex);
         }
 
-        // Sun & moon: moved into the Sky canvas (screen-fixed, behind every layer). They are drawn under the
-        // night darkness, so each one also cuts a hole the size of its disc — the moon stays bright at night.
+        // The Sky canvas (screen-fixed, behind every layer) holds the scene's Sky layer and the Day/Night sun & moon
+        // (even if they were put on another layer). Sun & moon are drawn under the night darkness, so each one also
+        // cuts a hole the size of its disc — the moon stays bright at night. Other sky objects (clouds…) just darken.
         private readonly HashSet<Entity> _skyBodies = new();
 
-        private void MoveToSky(Entity e)
+        private void PutInSky(Entity e)
         {
-            if (_skyBodies.Contains(e)) return;
+            if (VisualTreeHelper.GetParent(e.Visual) == Sky) return;
             if (VisualTreeHelper.GetParent(e.Visual) is Panel parent) parent.Children.Remove(e.Visual);
             Sky.Children.Add(e.Visual);
             e.ScreenSpace = true; // positioned in screen pixels, no camera
-            _skyBodies.Add(e);
+        }
+
+        private void MoveToSky(Entity e)
+        {
+            if (_skyBodies.Add(e)) PutInSky(e);
         }
 
         private (double radius, double intensity) LightParams(Entity en)

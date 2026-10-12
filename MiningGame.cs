@@ -87,8 +87,6 @@ namespace EasyEngine
             dnB.Texts["sun"] = "Sun"; dnB.Texts["moon"] = "Moon";
             dn.Behaviors.Add(dnB);
             baseL.Objects.Add(Id(dn));
-            var sun = Box("Sun", -100, -100, 46, 46, "#FFD24D"); sun.CornerRadius = 23; ui.Objects.Add(Id(sun));
-            var moon = Box("Moon", -100, -100, 38, 38, "#D8E4FF"); moon.CornerRadius = 19; ui.Objects.Add(Id(moon));
 
             // ---- HUD (screen space) ----
             var hpBar = Box("HpBar", 16, 16, 220, 22, "#00000000");
@@ -99,6 +97,7 @@ namespace EasyEngine
             ui.Objects.Add(Id(Label("Hint", 16, 98, "A/D move · Space jump · Wheel/1-3 hotbar · Pickaxe: hold Left mouse on dirt · Axe: stand by a tree + click · Sword: click near a slime · E buy · C craft · F1 console", "#AEB6C6", 13)));
 
             scene.Layers.Add(bg); scene.Layers.Add(baseL); scene.Layers.Add(ui);
+            SkySetup.Ensure(scene); // Sky layer at the bottom with the Sun and Moon of the cycle
             project.Scenes.Add(scene);
 
             // ---- prefabs spawned at runtime ----

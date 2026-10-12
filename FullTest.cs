@@ -334,6 +334,57 @@ public partial class App
             });
             Test("editor: isnight/isday blocks round-trip", () => RT("[{\"when\":\"isnight\",\"do\":\"spawn\",\"object\":\"Zombie\"}]") == RT(RT("[{\"when\":\"isnight\",\"do\":\"spawn\",\"object\":\"Zombie\"}]")));
 
+            // Sky layer: adding Day/Night builds it (editor, AI and project load share SkySetup.Ensure)
+            Scene SkyScene(double mode = 0, bool sunOnUi = false)
+            {
+                var sc = new Scene();
+                var bg = new Layer { Name = "Background", Kind = LayerKind.Background };
+                var bl = new Layer { Name = "Base", Kind = LayerKind.Base };
+                var ui = new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true };
+                var dn = BehaviorCatalog.Info(BehaviorKind.DayNight).CreateData(); dn.Nums["mode"] = mode;
+                bl.Objects.Add(new GameObjectData { Id = 1, Name = "Cycle", Behaviors = { dn } });
+                if (sunOnUi) ui.Objects.Add(new GameObjectData { Id = 2, Name = "Sun", Width = 40, Height = 40 });
+                sc.Layers.Add(bg); sc.Layers.Add(bl); sc.Layers.Add(ui);
+                return sc;
+            }
+            BehaviorData DN(Scene sc) => sc.Layers.SelectMany(l => l.Objects).SelectMany(o => o.Behaviors).First(b => b.Kind == BehaviorKind.DayNight);
+            Test("sky: adding Day/Night creates a Sky layer UNDER all the others, with a linked Sun and Moon", () =>
+            {
+                var sc = SkyScene(); var msg = SkySetup.Ensure(sc);
+                var sky = sc.Layers[0];
+                return msg != null && sky.Kind == LayerKind.Sky && sky.ScreenSpace && sc.Layers.Count == 4
+                       && sky.Objects.Select(o => o.Name).SequenceEqual(new[] { "Sun", "Moon" })
+                       && DN(sc).Text("sun", "") == "Sun" && DN(sc).Text("moon", "") == "Moon"
+                       && sc.Layers.SelectMany(l => l.Objects).Select(o => o.Id).Distinct().Count() == 3;
+            });
+            Test("sky: running it again changes nothing", () => { var sc = SkyScene(); SkySetup.Ensure(sc); return SkySetup.Ensure(sc) == null && sc.Layers.Count == 4; });
+            Test("sky: a Sun already on another layer is moved into the Sky layer, not duplicated", () =>
+            {
+                var sc = SkyScene(sunOnUi: true); SkySetup.Ensure(sc);
+                return sc.Layers.SelectMany(l => l.Objects).Count(o => o.Name == "Sun") == 1 && sc.Layers[0].Objects.Any(o => o.Name == "Sun" && o.Width == 40)
+                       && !sc.Layers.First(l => l.Kind == LayerKind.UI).Objects.Any();
+            });
+            Test("sky: top-down mode gets a sun but no moon", () => { var sc = SkyScene(mode: 1); SkySetup.Ensure(sc); return sc.Layers[0].Objects.Count == 1 && DN(sc).Text("moon", "") == ""; });
+            Test("sky: loading an old project only moves the linked sun (creates nothing)", () =>
+            {
+                var sc = SkyScene(sunOnUi: true); DN(sc).Texts["sun"] = "Sun";
+                var p = new Project(); p.Scenes.Add(sc); ProjectIO.MigrateLegacy(p);
+                return sc.Layers[0].Kind == LayerKind.Sky && sc.Layers[0].Objects.Count == 1 && !sc.Layers.SelectMany(l => l.Objects).Any(o => o.Name == "Moon");
+            });
+            Test("sky: a scene without Day/Night gets no Sky layer", () => { var sc = new Scene(); sc.Layers.Add(new Layer()); return SkySetup.Ensure(sc) == null && sc.Layers.Count == 1; });
+            Test("sky: in play, Sky-layer objects are behind everything and only the sun/moon light the night", () =>
+            {
+                var p = Sim("[]", extra: (pr, sc) =>
+                {
+                    var dn = BehaviorCatalog.Info(BehaviorKind.DayNight).CreateData(); dn.Nums["startAtNight"] = 1;
+                    sc.Layers[0].Objects.Add(new GameObjectData { Id = 90, Name = "Cycle", Behaviors = { dn } });
+                    SkySetup.Ensure(sc);
+                    sc.Layers[0].Objects.Add(new GameObjectData { Id = 93, Name = "Cloud", X = 300, Y = 80, Width = 120, Height = 40 });
+                });
+                p.TSteps(3); p.TUpdateLighting();
+                return p.TInSky("Cloud") && p.TInSky("Moon") && p.TInSky("Sun") && p.TLightHoles == 1 && p.TVisible("Moon");
+            });
+
             // ========================= K) HOTBAR + MINING (Mining primitives) =========================
             Test("wheel: wheeldown event fires on scroll down", () => { var p = Sim("[{\"when\":\"wheeldown\",\"do\":\"addvar\",\"var\":\"n\",\"amount\":1}]"); p.TWheel(-1); p.TStep(); return p.TVar("n") >= 1; });
             Test("wheel: wheelup event fires on scroll up", () => { var p = Sim("[{\"when\":\"wheelup\",\"do\":\"addvar\",\"var\":\"n\",\"amount\":1}]"); p.TWheel(1); p.TStep(); return p.TVar("n") >= 1; });
