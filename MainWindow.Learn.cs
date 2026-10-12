@@ -146,6 +146,7 @@ namespace EasyEngine
             sb.AppendLine("- Use the exact names shown in the editor, e.g. \"Inspector → ＋ Add behavior → 🏔 Parallax\", and the field names exactly as labelled above.");
             sb.AppendLine("- No JSON and no code. You only explain — nothing is changed. To have it built for them, tell them to switch to 🔨 Build and what to ask.");
             sb.AppendLine("- Don't invent buttons, behaviors or fields. If something is impossible, say so and suggest the closest way.");
+            if (!L.IsEnglish) sb.AppendLine(L.AiReplyRule);
             return sb.ToString();
         }
 

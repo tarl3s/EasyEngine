@@ -57,7 +57,7 @@
                 </StackPanel>
 
                 <!-- preview -->
-                <Border DockPanel.Dock="Top" Height="220" Margin="0,16,0,0" Background="#111115" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="8">
+                <Border DockPanel.Dock="Top" Height="220" Margin="0,16,0,0" Background="{StaticResource Viewport}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="8">
                     <Grid>
                         <Image x:Name="PreviewImage" Stretch="Uniform" Margin="16" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                         <TextBlock Text="PREVIEW" Foreground="{StaticResource TextDim}" FontSize="10" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10"/>

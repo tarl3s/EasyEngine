@@ -11,4 +11,9 @@
     <ApplicationIcon>EasyEngine.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- editor translations (L.T): Lang\<code>.json, read as resource "Lang.<code>.json" -->
+    <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
+  </ItemGroup>
+
 </Project>

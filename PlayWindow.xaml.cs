@@ -208,6 +208,7 @@ namespace EasyEngine
             InitializeComponent();
             _project = project;
             _sceneName = startSceneName;
+            L.SetSkip(this, true); // a game shows its own texts: never translated by the editor's language
 
             World.RenderTransform = _camTransform;
             Lights.RenderTransform = _lightTransform;

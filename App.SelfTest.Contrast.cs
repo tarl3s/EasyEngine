@@ -53,7 +53,7 @@ public partial class App
                 ("tooltip", FirstText(tip, "A tooltip"), tip.Background),
             };
             var report = string.Join(" · ", probes.Select(p => $"{p.what} {Contrast.Ratio(p.text?.Foreground, p.behind):0.0}:1"));
-            c.Write("contrast (real window): " + report);
+            c.Write($"contrast (real window, {Theme.Current} theme, language {L.Code}): " + report);
             menu.IsOpen = false; tip.IsOpen = false;
             var bad = probes.FirstOrDefault(p => p.text == null || Contrast.Ratio(p.text.Foreground, p.behind) < 4.5);
             if (bad.what != null) return $"unreadable text: {bad.what} ({(bad.text == null ? "not found" : $"{Contrast.Ratio(bad.text.Foreground, bad.behind):0.0}:1")})";

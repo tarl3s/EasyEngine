@@ -3265,6 +3265,7 @@ namespace EasyEngine
             sys.AppendLine("You are only chatting here — do NOT output JSON or try to build anything. When an idea is ready to build, tell them to switch to Build mode and what to ask for.");
             var allObjs = _scene.Layers.SelectMany(l => l.Objects).Select(o => o.Name);
             sys.AppendLine($"Context: project \"{_project.Name}\", scene \"{_scene.Name}\" with objects: {(allObjs.Any() ? string.Join(", ", allObjs) : "(empty)")}.");
+            if (!L.IsEnglish) sys.AppendLine(L.AiReplyRule);
             return await AiGenerateAsync(userPrompt, sys.ToString(), json: false, temperature: 0.7);
         }
 
@@ -3345,6 +3346,8 @@ namespace EasyEngine
             var play = new PlayWindow(_project, _scene.Name) { Owner = this };
             play.ShowDialog();
         }
+
+        private void Settings_Click(object sender, RoutedEventArgs e) => SettingsWindow.Open(this);
 
         private async void Export_Click(object sender, RoutedEventArgs e)
         {

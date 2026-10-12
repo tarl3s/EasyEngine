@@ -23,7 +23,7 @@ namespace EasyEngine
         // ---------------- updates from GitHub (Updater.cs) ----------------
         private async System.Threading.Tasks.Task CheckForUpdateAsync()
         {
-            if (Updater.IsDevBuild || ProjectIO.SuppressRecent) return; // run from the code (or a test): the code is the update
+            if (Updater.IsDevBuild || ProjectIO.SuppressRecent || !AiSettings.CheckUpdates) return; // run from the code (or a test): the code is the update
             var r = await Updater.CheckAsync();
             if (r == null || !IsVisible) return;
             var notes = string.Join("\n", r.Notes.Replace("\r", "").Split('\n').Where(l => l.Trim().Length > 0).Take(10));
@@ -117,6 +117,8 @@ namespace EasyEngine
             try { OpenEditor(ProjectIO.CreateNew(name, parent)); }
             catch (Exception ex) { MessageBox.Show("Create failed: " + ex.Message); }
         }
+
+        private void Settings_Click(object sender, RoutedEventArgs e) => SettingsWindow.Open(this);
 
         // ---------------- open ----------------
         private void OpenProject_Click(object sender, RoutedEventArgs e)

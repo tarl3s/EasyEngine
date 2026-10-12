@@ -39,6 +39,7 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,12,0">
                     <TextBlock x:Name="OllamaDot" Text="●" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12"/>
+                    <Button Content="⚙" ToolTip="Settings (language, theme, size, temporary files)" Style="{StaticResource GhostButton}" Height="32" FontSize="15" Click="Settings_Click"/>
                     <Button Content="Export" Style="{StaticResource GhostButton}" Height="32" Click="Export_Click"/>
                     <Button x:Name="PlayButton" Content="▶  Test" Style="{StaticResource AccentButton}" Width="104" Margin="8,0,0,0" Click="Test_Click"/>
                 </StackPanel>
@@ -59,12 +60,12 @@
             <GridSplitter x:Name="LeftSplitter" Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}"/>
 
             <!-- CENTER: scene (always here) -->
-            <Border Grid.Column="2" Background="#111115">
+            <Border Grid.Column="2" Background="{StaticResource Viewport}">
                 <Grid>
                     <ScrollViewer x:Name="SceneScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                   Background="Transparent" PreviewMouseWheel="SceneScroll_PreviewMouseWheel">
                         <Border x:Name="SceneFrame" Width="960" Height="540"
-                                Background="#1A1A20" BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                Background="{StaticResource ViewportCard}" BorderBrush="{StaticResource Border}" BorderThickness="1"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Border.LayoutTransform>
                                 <ScaleTransform x:Name="SceneScale" ScaleX="1" ScaleY="1"/>
@@ -94,7 +95,7 @@
 
         <!-- ===== STATUS ===== -->
         <Border Grid.Row="4" Background="{StaticResource Accent}">
-            <TextBlock x:Name="StatusText" Text="Ready" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="12,0"/>
+            <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource AccentText}" FontSize="11" VerticalAlignment="Center" Margin="12,0"/>
         </Border>
 
         <!-- ===== CARD SHELF (holds dock cards; code moves them into regions) ===== -->

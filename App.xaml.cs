@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace EasyEngine;
@@ -21,6 +22,15 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // the theme comes first (the styles load with it). Tests, demo builders and --play always run dark.
+        AiSettings.Load();
+        // (--theme light / --lang pt-BR force them in any mode, e.g. to take --selftest pictures of the light theme)
+        bool personRun = !e.Args.Any(a => a.StartsWith("--") && a != "--editor");
+        string? ArgAfter(string flag) { int i = Array.IndexOf(e.Args, flag); return i >= 0 && i + 1 < e.Args.Length ? e.Args[i + 1] : null; }
+        Theme.Init(ArgAfter("--theme") ?? (personRun ? AiSettings.ThemeName : "dark"));
+        if (ArgAfter("--lang") is string forcedLang) L.SetLanguage(forcedLang);
+
+
         // Every window gets the theme's light text colour, and everything inside inherits it. (It used to be forced on
         // every TextBlock app-wide, which also hit the text WPF puts inside menus, tooltips and buttons → light on light.)
         // (A local value set on Loaded: an OverrideMetadata default would not do — WPF only passes non-default values down.)
@@ -28,7 +38,9 @@ public partial class App : Application
         {
             if (s is Window w && w.ReadLocalValue(System.Windows.Controls.Control.ForegroundProperty) == DependencyProperty.UnsetValue)
                 w.Foreground = Theme.Brush("Text", "#DCDCDC");
+            if (s is Window sw) ScaleWindow(sw);
         }));
+        L.Install(); // editor texts in the chosen language (English until ApplyUserPreferences)
 
         // exported game: EasyEngine.exe --play <project.eeproj>
         var playIdx = Array.IndexOf(e.Args, "--play");
@@ -89,10 +101,55 @@ public partial class App : Application
             catch { }
         }
 
-        // normal: show the launcher
+        // normal: show the launcher, in the person's language, theme and size
+        ApplyUserPreferences();
         var launcher = new LauncherWindow();
         MainWindow = launcher;
         launcher.Show();
+    }
+
+    /// <summary>Language, theme and interface size from settings.json (only for the editor — tests and exported games
+    /// always run in English, dark, 100%).</summary>
+    public static void ApplyUserPreferences()
+    {
+        AiSettings.Load();
+        L.SetLanguage(AiSettings.Language);
+        _uiScale = AiSettings.UiScale;
+        ApplyUiScale();
+    }
+
+    /// <summary>Closes every window (the editor asks to save first — Cancel stops the restart) and starts EasyEngine
+    /// again at the launcher, e.g. so a new theme applies.</summary>
+    public static void Restart()
+    {
+        var app = Current;
+        var before = app.ShutdownMode;
+        app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        foreach (var w in app.Windows.Cast<Window>().Reverse().ToList())
+        {
+            w.Close();
+            if (w.IsVisible) { app.ShutdownMode = before; return; } // the person cancelled (unsaved changes)
+        }
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!, "--editor") { UseShellExecute = false }); }
+        catch { }
+        app.Shutdown();
+    }
+
+    private static double _uiScale = 1.0;
+
+    /// <summary>Re-applies the interface size (settings) to every open window.</summary>
+    public static void ApplyUiScale()
+    {
+        _uiScale = AiSettings.UiScale is >= 0.8 and <= 1.5 ? AiSettings.UiScale : 1.0;
+        if (Current != null) foreach (Window w in Current.Windows) ScaleWindow(w);
+    }
+
+    // the whole content of an editor window is drawn bigger/smaller; games are never scaled
+    private static void ScaleWindow(Window w)
+    {
+        if (w is PlayWindow || w.Content is not FrameworkElement fe) return;
+        if (Math.Abs(_uiScale - 1.0) < 0.001) { if (fe.LayoutTransform is ScaleTransform) fe.LayoutTransform = Transform.Identity; }
+        else fe.LayoutTransform = new ScaleTransform(_uiScale, _uiScale);
     }
 
     protected override void OnExit(ExitEventArgs e)
