@@ -627,6 +627,16 @@ public partial class App
                 pw.TPlace("Player", 90, 600); pw.TKey("A", true); pw.TSteps(40); pw.TKey("A", false);
                 return moved && down && pw.TX("Player") >= 69.9;
             });
+            Test("topdown: A/D turn the player (and the hand holding the item) left/right, even against the water", () =>
+            {
+                var pw = TopDown();
+                pw.TKey("A", true); pw.TSteps(3); pw.TKey("A", false); pw.TStep(); bool left = pw.TFacing("Player") == -1;
+                pw.TKey("S", true); pw.TSteps(3); pw.TKey("S", false); pw.TStep(); bool kept = pw.TFacing("Player") == -1; // up/down keeps the side
+                pw.TKey("D", true); pw.TSteps(3); pw.TKey("D", false); pw.TStep(); bool right = pw.TFacing("Player") == 1;
+                pw.TPlace("Player", 90, 600); pw.TKey("A", true); pw.TSteps(40); bool blocked = pw.TFacing("Player") == -1; // pushing into the water
+                pw.TKey("A", false); pw.TKey("D", true); pw.TStep(); bool turned = pw.TFacing("Player") == 1;
+                return left && kept && right && blocked && turned;
+            });
             Test("topdown: the shops sell the pickaxe and the axe; the bench crafts the sword from wood", () =>
             {
                 var pw = TopDown();

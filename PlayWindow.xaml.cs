@@ -94,6 +94,7 @@ namespace EasyEngine
             public double SpeedScale = 1; // movement speed multiplier (changed by boost/setspeed)
             public Ellipse? LightVisual;
             public int Facing = 1;
+            public int InputFacing;       // -1/0/1: which way the player's controls push this tick (Platformer/TopDown)
 
             public SpriteAnimation? CurAnim;
             public int FrameIndex;
@@ -1025,13 +1026,15 @@ namespace EasyEngine
         partial void CameraClampOverride(ref bool clampX, ref double worldW, ref double worldH); // a terrain's world bounds
         partial void CameraShakeOffset(ref double ox, ref double oy);                       // screen shake
 
-        // Platformer characters face the way they move (decided after physics, so it is the same live and headless).
+        // Platformer and top-down characters face the key held (A/D, even against a wall), else the way they move —
+        // decided after physics, so it is the same live and headless. The held item's arm follows Facing.
         private void UpdateFacing()
         {
             foreach (var en in _entities)
             {
-                if (en.Dead || en.SwingT > 0 || !en.Has(BehaviorKind.Platformer)) continue; // a swing keeps facing its target
-                if (en.VX > 1) en.Facing = 1; else if (en.VX < -1) en.Facing = -1;
+                if (en.Dead || en.SwingT > 0 || !(en.Has(BehaviorKind.Platformer) || en.Has(BehaviorKind.TopDown))) continue; // a swing keeps facing its target
+                if (en.InputFacing != 0) en.Facing = en.InputFacing;
+                else if (en.VX > 1) en.Facing = 1; else if (en.VX < -1) en.Facing = -1;
             }
         }
 
@@ -1136,6 +1139,7 @@ namespace EasyEngine
                             if (KeyHeld(bh, "upKey")) hy -= 1;
                             double sp = bh.Num("speed", 220) * en.SpeedScale;
                             en.VX = Math.Clamp(hx, -1, 1) * sp; en.VY = Math.Clamp(hy, -1, 1) * sp;
+                            en.InputFacing = Math.Sign(hx);
                             break;
                         }
                         case BehaviorKind.Patrol:
@@ -2404,6 +2408,7 @@ namespace EasyEngine
             if (KeyHeld(bh, "rightKey")) h += 1;
             if (KeyHeld(bh, "leftKey")) h -= 1;
             h = Math.Clamp(h, -1, 1);
+            en.InputFacing = Math.Sign(h);
             speed *= en.SpeedScale;
             bool jumpDown = (ctrl && K(Key.Space, Key.Up, Key.W)) || KeyHeld(bh, "jumpKey");
 
