@@ -2527,6 +2527,10 @@ namespace EasyEngine
                 var texts = string.Join(",", info.Texts.Select(t => t.Key));
                 sb.AppendLine($"  {info.Kind}: {nums}" + (texts.Length > 0 ? $" ({texts})" : ""));
             }
+            // bosses and cutscenes keep their steps in texts.script (a JSON string); the card's "Ask the AI" writes them in detail
+            sb.AppendLine("BOSS = an object with BossAI + Health (respawn=0, texts.var its own variable e.g. bossHP) + Damager (target Player). BossAI texts: moves=ground|fly, starts=start|near|var (+var), target, title. Its texts.script may stay empty: a new BossAI already charges and shoots; the user designs the attacks/phases in its card (🧩 Advanced Scratch / ✨ Ask the AI).");
+            sb.AppendLine("CUTSCENE = an object with Cutscene: texts.trigger=start|enter|var|key (+var/key/who), nums once/lock/bars. Its texts.script is a JSON STRING {\"steps\":[{\"do\":\"say\",\"text\":\"...\",\"speaker\":\"...\"},...]} with step ids: " +
+                          string.Join(",", StepCatalog.Cutscene.Select(d => d.Id)) + ". Keep it short or leave it for the card's ✨ Ask the AI.");
             sb.AppendLine();
             if (compact)
             {

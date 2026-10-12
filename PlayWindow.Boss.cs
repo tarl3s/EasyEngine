@@ -395,5 +395,6 @@ namespace EasyEngine
         public void THurt(string name, double amount, double fromX) { var e = TE(name); if (e != null) DamageEntity(e, amount, 300, fromX); }
         public double TInv(string name) => TE(name)?.InvTimer ?? 0;
         public int TFacing(string name) => TE(name)?.Facing ?? 0;
+        public List<(double vx, double vy)> TVels(string name) => _entities.Where(e => !e.Dead && e.Data.Name == name).Select(e => (e.VX, e.VY)).ToList();
     }
 }

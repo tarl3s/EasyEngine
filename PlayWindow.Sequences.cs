@@ -490,7 +490,8 @@ namespace EasyEngine
         public bool TCutsceneTakesEscape => CutsceneTakesEscape;
         /// <summary>The overlay visuals as drawn: "fade 0.00 · bars 59 · title 'X' 0.80 · boss bar Visible".</summary>
         public string TOverlays => $"fade {FadeRect.Opacity:0.00} · bars {BarTop.ActualHeight:0}/{BarBottom.ActualHeight:0} · title '{BigTitle.Text}' {BigTitle.Opacity:0.00} · boss bar {BossBar.Visibility}";
-        public bool TOverlaysExist => FadeRect.Parent == Root && BarTop.Parent == Root && BarBottom.Parent == Root && BigTitle.Parent == Root && BossBar.Parent == Root
+        public bool TBarsDrawn => BarTop.ActualHeight > 1 && BarBottom.ActualHeight > 1;
+        public bool TOverlaysExist =>FadeRect.Parent == Root && BarTop.Parent == Root && BarBottom.Parent == Root && BigTitle.Parent == Root && BossBar.Parent == Root
                                       && Root.Children.IndexOf(FadeRect) > Root.Children.IndexOf(Hud) && Root.Children.IndexOf(BossBar) < Root.Children.IndexOf(DialogBox);
     }
 }

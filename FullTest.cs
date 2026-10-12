@@ -549,7 +549,7 @@ public partial class App
             });
 
             // ========================= U) PARAMETERS ARE PICKED, NOT TYPED =========================
-            var freeText = new HashSet<string> { "Label.text", "Checklist.title", "Checklist.items", "Interact.text", "Interact.speaker", "Area.text", "UIButton.text", "Generator.id" };
+            var freeText = new HashSet<string> { "Label.text", "Checklist.title", "Checklist.items", "Interact.text", "Interact.speaker", "Area.text", "UIButton.text", "Generator.id", "BossAI.title" };
             Test("params: every behavior parameter is a picker, except real free text (messages, titles)", () =>
             {
                 var typed = BehaviorCatalog.All.Where(i => !i.Hidden).SelectMany(i => i.Texts.Where(t => (t.Pick == PickKind.Text || t.Pick == PickKind.LongText) && !freeText.Contains($"{i.Kind}.{t.Key}")).Select(t => $"{i.Kind}.{t.Key}")).ToList();
