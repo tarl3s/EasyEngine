@@ -331,6 +331,18 @@ public partial class App : Application
             var cutJson = SequenceAi.Normalize(SeqMode.Cutscene, "{\"steps\":[{\"do\":\"Talk\",\"line\":\"Hi\",\"who\":\"Bob\"},{\"do\":\"teleport\"}]}", seqNotes, out var cutErr);
             Check("Cutscene reply: 'Talk' → say (text + speaker); unknown 'teleport' dropped with a note", cutErr == null && cutJson != null
                   && SequenceJson.ParseCutscene(cutJson, out _).Steps.Single().Str("speaker") == "Bob" && seqNotes.Any(n => n.Contains("teleport")));
+
+            // 8) decimal commas are decimals (not thousands), and "%" is only a percentage where one is meant
+            editor.TestApplySpec("{\"create\":[{\"name\":\"Sky\",\"behaviors\":[{\"kind\":\"daynight\",\"nums\":{\"dayLength\":\"1,5\",\"nightLight\":\"25%\"}}]}]}");
+            var sky = editor.TestFindObject("Sky")?.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.DayNight);
+            Check("Quoted \"1,5\" is 1.5 (was 15: ',' read as a thousands separator)", sky != null && Math.Abs(sky.Num("dayLength") - 1.5) < 0.001);
+            Check("\"25%\" for a 0-1 brightness is rejected (kept the default, was 25)", sky != null && Math.Abs(sky.Num("nightLight") - 0.25) < 0.001);
+            var pctJson = SequenceAi.Normalize(SeqMode.Boss, "{\"attacks\":{\"Glide\":[{\"do\":\"moveto\",\"to\":\"\",\"x\":600,\"y\":120,\"time\":\"0,5\"}]}," +
+                                               "\"phases\":[{\"name\":\"Rage\",\"when\":{\"type\":\"health\",\"value\":\"40%\"}}]}", new List<string>(), out var pctErr);
+            var pct = pctJson != null ? SequenceJson.ParseBoss(pctJson, out _) : null;
+            var glide = pct?.Attack("Glide")?.Steps.FirstOrDefault();
+            Check("Boss reply: a phase's \"40%\" health is 40; a step's \"0,5\" seconds is 0.5", pctErr == null && pct?.Phases.FirstOrDefault()?.Value == 40 && glide?.Num("time") == 0.5);
+            Check("Boss reply: \"to\":\"\" (glide to a point) survives Normalize → Serialize (was replaced by \"player\")", glide?.Str("to") == "" && glide.Num("x") == 600);
         }
         catch (Exception ex) { sb.AppendLine("FATAL: " + ex); fail++; }
         sb.Insert(0, "aijsontest " + DateTime.Now + "\n");

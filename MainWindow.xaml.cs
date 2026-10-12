@@ -89,6 +89,19 @@ namespace EasyEngine
         private Point _panStartMouse;
         private double _panStartH, _panStartV;
 
+        /// <summary>Projects saved before a behavior gained a setting lack its key: the inspector shows the catalog default
+        /// but the game read nothing (e.g. an old Minimap's "maxKey"). Fill each missing key with that default.</summary>
+        internal static void FillMissingBehaviorKeys(Project project)
+        {
+            var objects = project.Scenes.SelectMany(s => s.Layers).SelectMany(l => l.Objects).Concat(project.Prefabs.Select(p => p.Template));
+            foreach (var bh in objects.SelectMany(o => o.Behaviors))
+            {
+                if (BehaviorCatalog.Info(bh.Kind) is not BehaviorInfo info) continue; // a kind this version doesn't know
+                foreach (var n in info.Nums) bh.Nums.TryAdd(n.Key, n.Default);
+                foreach (var t in info.Texts) bh.Texts.TryAdd(t.Key, t.Default);
+            }
+        }
+
         public MainWindow(Project project)
         {
             InitializeComponent();
@@ -106,6 +119,7 @@ namespace EasyEngine
             SceneScroll.PreviewMouseUp += SceneScroll_MouseUp;
 
             if (_project.Prefabs.Count == 0) _project.Prefabs = PrefabFactory.Defaults();
+            FillMissingBehaviorKeys(_project);
             RefreshSceneCombo();
             SwitchScene(project.GetStartScene());
             RefreshPalette();
@@ -3264,6 +3278,7 @@ namespace EasyEngine
                 Text = text, TextWrapping = TextWrapping.Wrap, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(0),
                 Background = Brushes.Transparent, Foreground = fg, FontFamily = new FontFamily("Consolas"), VerticalContentAlignment = VerticalAlignment.Top
             };
+            body.PreviewMouseWheel += AiLogWheel; // the TextBox would swallow the wheel and the chat wouldn't scroll
             var bubble = new Border
             {
                 Background = fromAi ? (SolidColorBrush)FindResource("Bg2") : (SolidColorBrush)FindResource("Accent"),
@@ -3280,6 +3295,13 @@ namespace EasyEngine
             AiLog.Children.Add(bubble);
             (AiLog.Parent as ScrollViewer)?.ScrollToEnd(); // keep the newest message in view
             return bubble;
+        }
+
+        private void AiLogWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (AiLog.Parent is not ScrollViewer log) return;
+            log.ScrollToVerticalOffset(log.VerticalOffset - e.Delta / 3.0);
+            e.Handled = true;
         }
 
         // ============================================================
