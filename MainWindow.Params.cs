@@ -127,7 +127,7 @@ namespace EasyEngine
                     break;
                 case PickKind.Currency:
                 {
-                    var opts = ParamSources.Variables(_project).Where(v => !v.StartsWith("is") && v != "timeOfDay" && v != "dayness").Select(v => (v, v))
+                    var opts = ParamSources.Variables(_project).Where(v => !ParamSources.EngineVariables.Contains(v)).Select(v => (v, v))
                         .Concat(ParamSources.Items(_project).Select(i => ("item:" + i, ToolArt.Title(i) + "  (item)"))).ToList();
                     if (!opts.Any(o => o.Item1 == "coins")) opts.Insert(0, ("coins", "coins"));
                     PickRow(tp.Label, panel, opts, cur, false, "New currency (a variable name, e.g. gems):", Set);

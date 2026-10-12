@@ -40,6 +40,9 @@ namespace EasyEngine
             return list;
         }
 
+        /// <summary>Variables the engine itself writes (Day/Night): readable in conditions, but never something you pay with.</summary>
+        public static readonly string[] EngineVariables = { "isDay", "isNight", "timeOfDay", "dayness", "cover", "underground" };
+
         /// <summary>Variables a picker can offer (not the engine-managed item:/holding:/stat:/check: ones).</summary>
         public static List<string> Variables(Project p)
         {
@@ -56,7 +59,7 @@ namespace EasyEngine
                     if (b.Kind == BehaviorKind.Label) foreach (Match m in Regex.Matches(b.Text("text", ""), @"\{([^}]+)\}")) Add(m.Groups[1].Value);
                 }
             }
-            foreach (var builtin in new[] { "isDay", "isNight", "timeOfDay", "dayness", "cover", "underground" }) set.Add(builtin);
+            foreach (var builtin in EngineVariables) set.Add(builtin);
             return set.ToList();
         }
 

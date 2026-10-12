@@ -1011,6 +1011,7 @@ namespace EasyEngine
         partial void TerrainEntityAdded(Entity en);
         partial void SequencesEntityRemoved(Entity en); // Cleanup, for a dead entity
         partial void TerrainEntityRemoved(Entity en);
+        partial void MinimapEntityRemoved(Entity en);
         partial void SequencesRender(double dt);     // Render: overlays (fade, cinema bars, title, boss bar)
         partial void CameraTargetOverride(ref double tx, ref double ty, ref double smooth); // cutscene camera
         partial void CameraClampOverride(ref bool clampX, ref bool clampY);                 // endless terrain frees X
@@ -2907,6 +2908,7 @@ namespace EasyEngine
                 if (en.LightVisual != null) Lights.Children.Remove(en.LightVisual);
                 if (en.HotbarCanvas != null) Hud.Children.Remove(en.HotbarCanvas);
                 if (en.ChecklistPanel != null) Hud.Children.Remove(en.ChecklistPanel);
+                MinimapEntityRemoved(en);
                 if (en.HeldVisual != null) { Hud.Children.Remove(en.HeldVisual); World.Children.Remove(en.HeldVisual); }
                 if (en.HeldArm != null) { Hud.Children.Remove(en.HeldArm); World.Children.Remove(en.HeldArm); }
                 _solids.Remove(en);

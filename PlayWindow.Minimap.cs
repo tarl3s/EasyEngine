@@ -199,6 +199,14 @@ namespace EasyEngine
             for (int i = used; i < en.MiniDots.Count; i++) en.MiniDots[i].Visibility = Visibility.Collapsed;
         }
 
+        // a destroyed minimap object takes its frame (and the big map's click area) with it
+        partial void MinimapEntityRemoved(Entity en)
+        {
+            if (en.MiniBox == null) return;
+            Hud.Children.Remove(en.MiniBox);
+            if (en.MiniMax) _uiRects.Remove(BigMapUi);
+        }
+
         private Entity? FindByName(string name)
         {
             foreach (var e in _entities) if (!e.Dead && e.Data.Name == name) return e;
