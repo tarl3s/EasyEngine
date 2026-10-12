@@ -57,7 +57,7 @@ namespace EasyEngine
         private readonly TextBox _damage = new() { Text = "1", Height = 30, FontSize = 13 };
         private readonly CheckBox _owned = new() { Content = "The player starts with it", IsChecked = true, Margin = new Thickness(0, 10, 0, 0) };
         private readonly Border _preview = new() { Width = 84, Height = 84, CornerRadius = new CornerRadius(8) };
-        private readonly Border _colorShown = new() { Width = 30, Height = 24, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(2), BorderBrush = Brushes.White };
+        private readonly Border _colorShown = new() { Width = 30, Height = 24, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(2), BorderBrush = Theme.Pick("#FFFFFF", "#1B1E24") };
         private string _look = "shovel";   // a built-in look, or the project-relative path of the item's own picture
         private string _color = "#B0B0B0";
 
@@ -67,7 +67,7 @@ namespace EasyEngine
             Title = "New item"; Width = 460; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
             WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowStyle = WindowStyle.ToolWindow;
             Background = Res("Bg0") as Brush ?? Brushes.Black; FontFamily = new FontFamily("Segoe UI");
-            _preview.Background = new SolidColorBrush(Color.FromRgb(24, 24, 30));
+            _preview.Background = Theme.Pick("#18181E", "#2E333D"); // a dark slot like the hotbar's, so light metals show (a softer one in the light theme)
             RebuildLookPicker();
 
             var root = new StackPanel { Margin = new Thickness(20) };

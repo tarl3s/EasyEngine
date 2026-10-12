@@ -264,7 +264,7 @@ namespace EasyEngine
                 var row = new Grid { Margin = new Thickness(0, 0, 0, 5) };
                 foreach (var w in new[] { 34.0, -1, 30, 118, 28 }) row.ColumnDefinitions.Add(new ColumnDefinition { Width = w < 0 ? new GridLength(1, GridUnitType.Star) : new GridLength(w) });
 
-                var iconHost = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(5), Background = new SolidColorBrush(Color.FromRgb(24, 24, 30)), Padding = new Thickness(3) };
+                var iconHost = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(5), Background = Theme.Pick("#18181E", "#2E333D"), Padding = new Thickness(3) };
                 void Redraw() => iconHost.Child = LookPicker.Icon(_project, items[i].name, items[i].color, items[i].look, 24);
                 Redraw();
 

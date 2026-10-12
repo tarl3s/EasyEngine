@@ -42,7 +42,7 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--fulltest` | the big battery (≈451 checks: every script action/event, behaviors, Scratch round-trip, editor, E2E) | `%TEMP%\easyengine_fulltest.log` |
 | `--e2e` | plays the test scenarios step by step (Axe, Lighting, Boss, Infinite World; ≈41 steps) | `easyengine_e2e.log` |
 | `--behtest` (49) / `--exprtest` (26) / `--blocktest` (7) / `--aijsontest` (20) | behaviors / expression evaluator / block-editor round-trip / AI-JSON parsing robustness | `easyengine_<name>.log` |
-| `--selftest` | opens real windows (editor, play, dialogs), measures text contrast, renders PNG snapshots | `easyengine_selftest.log`, `easyengine_snap_*.png` |
+| `--selftest` | opens real windows (editor, play, every dialog), measures every visible text against what is drawn behind it (`ContrastAudit`, fails under 4.5:1), renders PNG snapshots; add `--theme light` for the light theme | `easyengine_selftest.log`, `easyengine_snap_*.png` (`*_light.png`) |
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
 | `--aitest [--model m]` | ~32 prompts through the real AI pipeline (needs a running AI) | `easyengine_aitest.log` |
 

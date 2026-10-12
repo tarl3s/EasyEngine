@@ -182,7 +182,7 @@ namespace EasyEngine
             panel.Children.Add(header);
 
             // WHEN row
-            panel.Children.Add(Pill("WHEN", "#F4A63B"));
+            panel.Children.Add(Pill("WHEN", Theme.IsLight ? "#A35A00" : "#F4A63B"));
             var whenCombo = DefCombo(Events, rule.When);
             whenCombo.SelectionChanged += (s, e) => { if (whenCombo.SelectedItem is ComboBoxItem it) { rule.When = (string)it.Tag; RenderRules(); } };
             panel.Children.Add(whenCombo);
@@ -190,7 +190,7 @@ namespace EasyEngine
             panel.Children.Add(FieldsPanel(DefOf(Events, rule.When), rule.WhenP));
 
             // DO row
-            panel.Children.Add(Pill("→ DO", "#2BB673"));
+            panel.Children.Add(Pill("→ DO", Theme.IsLight ? "#13784A" : "#2BB673"));
             var doCombo = DefCombo(Actions, rule.Do);
             doCombo.SelectionChanged += (s, e) => { if (doCombo.SelectedItem is ComboBoxItem it) { rule.Do = (string)it.Tag; RenderRules(); } };
             panel.Children.Add(doCombo);

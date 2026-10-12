@@ -11,11 +11,12 @@
         <SolidColorBrush x:Key="Hover"   Color="#34343F"/>
         <SolidColorBrush x:Key="Border"  Color="#35353F"/>
         <SolidColorBrush x:Key="Text"    Color="#E6E6EA"/>
-        <SolidColorBrush x:Key="TextDim" Color="#8C8C97"/>
+        <SolidColorBrush x:Key="TextDim" Color="#A0A0AA"/>
         <SolidColorBrush x:Key="Accent"  Color="#18B98A"/>
         <SolidColorBrush x:Key="AccentHover" Color="#1ED29B"/>
-        <SolidColorBrush x:Key="Danger"  Color="#E5484B"/>
+        <SolidColorBrush x:Key="Danger"  Color="#F87878"/>
         <SolidColorBrush x:Key="AccentText" Color="#062018"/> <!-- text ON the green accent (white on green was ~2.5:1) -->
+        <SolidColorBrush x:Key="Selection" Color="#1E332D"/> <!-- the selected row of a list -->
         <SolidColorBrush x:Key="Viewport" Color="#111115"/>     <!-- around the scene canvas -->
         <SolidColorBrush x:Key="ViewportCard" Color="#1A1A20"/> <!-- the scene frame inside it -->
         <!-- the styles live in Styles.xaml (merged by Theme.Init after these brushes get the theme's colours) -->

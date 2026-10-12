@@ -178,7 +178,7 @@ namespace EasyEngine
             _view.MouseLeftButtonUp += View_Up;
 
             _overlay = new Canvas { IsHitTestVisible = false };
-            _marquee = new Rectangle { Stroke = Brushes.White, StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 2 }, Fill = new SolidColorBrush(Color.FromArgb(48, 90, 160, 255)), Visibility = Visibility.Collapsed, IsHitTestVisible = false };
+            _marquee = new Rectangle { Stroke = Theme.Pick("#FFFFFF", "#1B1E24"), StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 2 }, Fill = new SolidColorBrush(Color.FromArgb(48, 90, 160, 255)), Visibility = Visibility.Collapsed, IsHitTestVisible = false };
             _overlay.Children.Add(_marquee);
             var stage = new Grid();
             stage.Children.Add(_view);

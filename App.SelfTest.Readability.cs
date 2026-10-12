@@ -1,0 +1,75 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Windows;
+
+namespace EasyEngine;
+
+// Every editor window in a real, rendered state — in whichever theme this run uses (--theme light): opens the ones no
+// other check opens (launcher, settings, Custom-rule blocks, sprite editor, new item, input dialog, an inspector full of
+// behavior cards), takes a picture of each, then measures every visible text of every editor window against the colour
+// really behind it (ContrastAudit). Faint text fails the selftest and is listed in the log. The game window (PlayWindow)
+// is the game's own look and the scene shows the game's colours, so both are left out.
+public partial class App
+{
+    partial void SelfTestReadability(SelfTestContext c)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "EE_SelfTest_read_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+        Directory.CreateDirectory(dir);
+        var project = ProjectIO.Load(TopDownGame.Build(dir));
+        var scene = project.GetStartScene();
+
+        T Open<T>(T w) where T : Window
+        {
+            w.ShowActivated = false;
+            w.Show(); w.UpdateLayout();
+            c.CloseLater.Add(w);
+            return w;
+        }
+
+        // an inspector with behavior cards (the Top-Down player: Hotbar, Use Item, Health…)
+        var editor = Open(new MainWindow(project));
+        editor.TestInspect(editor.TestFindObject("Player")!);
+        // the editors other checks opened inspect something too: show their Inspector tab (the first editor keeps the AI tab)
+        foreach (var w in Windows.OfType<MainWindow>().Where(w => w != c.Editor))
+            w.TabInspector.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        var launcher = Open(new LauncherWindow());
+        var settings = Open(new SettingsWindow { Owner = editor });
+        var blocks = Open(new BlockEditorWindow(project, scene,
+            "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1},{\"when\":\"keypress\",\"key\":\"B\",\"cond\":\"coins >= 15\",\"do\":\"say\",\"text\":\"Boost!\"}]") { Owner = editor });
+        var sprite = Open(new SpriteEditorWindow(project, 16) { Owner = editor });
+        var newItem = Open(new NewItemDialog(project) { Owner = editor });
+        var input = Open(new InputDialog("Rename project", "New name:", "My Game") { Owner = editor });
+
+        c.LateChecks.Add(() =>
+        {
+            var shots = new List<(Window w, string name)>
+            {
+                (c.Editor, "editor"), (editor, "editor_inspector"), (launcher, "launcher"), (settings, "settings"),
+                (blocks, "block_editor"), (sprite, "sprite_editor"), (newItem, "new_item"), (input, "input_dialog"),
+            };
+            foreach (var w in Windows.OfType<AnimationWindow>().Take(1)) shots.Add((w, "animation"));
+            foreach (var w in Windows.OfType<VariablesWindow>().Take(1)) shots.Add((w, "variables"));
+            foreach (var w in Windows.OfType<SequenceEditorWindow>().Take(1)) shots.Add((w, "advanced_scratch_cutscene"));
+            foreach (var (w, name) in shots) c.Snapshot(w, name);
+            // and the inspector scrolled down to its behavior cards
+            var cards = editor.InspectorRoot.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault(t => t.Text == "BEHAVIORS");
+            editor.InspectorScroll.ScrollToVerticalOffset(cards?.TransformToAncestor(editor.InspectorRoot).Transform(new Point()).Y ?? editor.InspectorScroll.ScrollableHeight / 2);
+            editor.UpdateLayout();
+            c.Snapshot(editor, "editor_behaviors");
+
+            // every editor window open right now (the game windows are the game's own look)
+            int texts = 0, faint = 0;
+            foreach (var w in Windows.OfType<Window>().Where(w => w.IsVisible && w is not PlayWindow))
+            {
+                var found = ContrastAudit.Audit(w, d => d is FrameworkElement { Name: "SceneCanvas" }, out int measured);
+                texts += measured; faint += found.Count;
+                c.Write($"readability ({Theme.Current}) \"{w.Title}\": {measured} texts" + (found.Count > 0 ? $", {found.Count} too faint:" : " OK"));
+                foreach (var f in found.Take(40)) c.Write("    " + f);
+            }
+            c.Write($"readability ({Theme.Current}): {texts} texts measured, {faint} too faint");
+            return faint > 0 ? $"{faint} text(s) too faint to read in the {Theme.Current} theme (listed above)" : null;
+        });
+    }
+}

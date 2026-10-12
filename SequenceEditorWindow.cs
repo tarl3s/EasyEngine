@@ -108,7 +108,7 @@ namespace EasyEngine
             }
             return new Border
             {
-                Background = Theme.Hex(color, alpha: 0x30), BorderBrush = Theme.Hex(color), BorderThickness = new Thickness(5, 1, 1, 1),
+                Background = Theme.Hex(color, alpha: Theme.IsLight ? (byte)0x24 : (byte)0x30), BorderBrush = Theme.Hex(color), BorderThickness = new Thickness(5, 1, 1, 1),
                 CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 6, 8, 6), Margin = new Thickness(0, 0, 0, 6), Child = body, Tag = "step"
             };
         }
