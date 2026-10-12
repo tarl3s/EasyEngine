@@ -196,7 +196,7 @@ namespace EasyEngine
             foreach (var kv in _toolBtns)
             {
                 kv.Value.Background = kv.Key == t ? TryBrush("Accent", "#2bb673") : TryBrush("Bg2", "#2a2a30");
-                kv.Value.Foreground = kv.Key == t ? Brushes.White : TryBrush("Text", "#EEE");
+                kv.Value.Foreground = kv.Key == t ? TryBrush("AccentText", "#062018") : TryBrush("Text", "#EEE");
             }
         }
 

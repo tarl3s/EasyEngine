@@ -16,7 +16,8 @@ namespace EasyEngine
         Key, Color, Sound,
         Item, Items, ItemDamage, HotbarItems, Look,
         Variable, Currency, Requirement,
-        Special                // drawn by its own editor (script, tilemap, path)
+        MapMarkers,            // minimap: which things show, each with its colour
+        Special                // drawn by its own editor (script, tilemap, path, boss/cutscene steps)
     }
 
     /// <summary>What a parameter's ShowIf can look at: the behavior, its object and the scene.</summary>
@@ -242,6 +243,10 @@ namespace EasyEngine
                 Texts = { TIf(TNone("sun","Sun","", PickKind.Object), IfOff("mode")), TIf(TNone("moon","Moon","", PickKind.Object), IfOff("mode")),
                           T("nightColor","Night tint","#0A1030", PickKind.Color) } },
 
+            // (M7) procedural terrain — filled in by the terrain work
+            new BehaviorInfo { Kind = BehaviorKind.Terrain, Name = "Terrain Generator", Icon = "⛰", Hidden = true,
+                Desc = "Procedural terrain (seeded), streamed in chunks; can be endless." },
+
             new BehaviorInfo { Kind = BehaviorKind.Hotbar, Name = "Hotbar / Inventory", Icon = "🎒",
                 Desc = "A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). ANY name is an item — make your own (shovel, hammer, magic wand…) with the '＋ New item' button, or add ':look' to a slot: a built-in drawing (pickaxe, axe, sword, shovel, hammer, hoe, tile) or a picture file (e.g. wand:#FFFFFF:Assets/sprites/wand.png). A Harvestable whose 'tool' is that name only accepts it. You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.",
                 Nums = { new("slot","Starting slot",0), new("size","Slot size (px)",46) },
@@ -269,6 +274,11 @@ namespace EasyEngine
                 Nums = { new("width","Panel width (px)",300) },
                 Texts = { T("title","Title","Test checklist"), T("items","Lines (Text => condition)","", PickKind.LongText),
                           T("corner","Corner","tr", PickKind.Choice, "tr|Top right", "tl|Top left") } },
+
+            // (M5) cutscene — filled in by the sequences work
+            new BehaviorInfo { Kind = BehaviorKind.Cutscene, Name = "Cutscene", Icon = "🎬", Hidden = true,
+                Desc = "A scripted scene: steps run one after another (camera, dialogue, moves, fades).",
+                Texts = { T("script","Steps","{\"steps\":[]}", PickKind.Special) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Shop, Name = "Shop / Crafting bench", Icon = "🛒",
                 Desc = "Stand near it and press the key to pay a cost and receive an item. Set 'currency' to 'coins' for a shop, or to an item like 'item:wood' for a crafting bench (e.g. craft a sword from wood). Buys once by default.",
@@ -361,6 +371,11 @@ namespace EasyEngine
                 Nums = { NIf(new("max","Full value",3), c => c.Bh.Text("maxVar", "").Length == 0) },
                 Texts = { T("var","Shows variable","health", PickKind.Variable), TNone("maxVar","Full value from a variable","", PickKind.Variable),
                           T("color","Fill color","#3BC97A", PickKind.Color), T("bg","Background color","#2A2A33", PickKind.Color) } },
+
+            // (M6) boss — filled in by the boss work
+            new BehaviorInfo { Kind = BehaviorKind.BossAI, Name = "Boss AI", Icon = "👑", Hidden = true,
+                Desc = "A boss: phases by health, attacks made of steps, a death sequence.",
+                Texts = { T("script","Boss","{\"attacks\":{},\"phases\":[],\"death\":[]}", PickKind.Special) } },
         };
 
         public static BehaviorInfo Info(BehaviorKind kind) => All.Find(b => b.Kind == kind)!;

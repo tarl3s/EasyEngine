@@ -18,7 +18,8 @@ namespace EasyEngine
     {
         private const double Gravity = 2000.0;
 
-        private class Entity
+        // partial: feature files (PlayWindow.Boss.cs, .Terrain.cs, .Sequences.cs…) add their own per-object state
+        private partial class Entity
         {
             public GameObjectData Data = null!;
             public double X, Y, VX, VY, W, H, Rot;
@@ -630,6 +631,8 @@ namespace EasyEngine
             _cameraTarget = null;
             _camX = _camY = 0;
             _hotbarOwner = _hotbarPlayer = null; _heldItem = _heldSlotName = ""; _heldOwned = false; _heldSlot = 0;
+            SequencesSceneReset();
+            TerrainSceneReset();
 
             var original = _project.FindScene(name) ?? _project.Scenes[0];
             _sceneName = original.Name;
@@ -662,6 +665,8 @@ namespace EasyEngine
 
             _cameraTarget = _entities.FirstOrDefault(en => en.Has(BehaviorKind.FollowCamera));
             _uiRects.Clear();
+            TerrainSceneLoaded();
+            SequencesSceneLoaded();
 
             Info("Scene", "", $"Loaded '{_scene.Name}' — {_entities.Count} objects",
                  $"{_entities.Count(e => e.Custom != null && e.Custom.Count > 0)} with scripts · {_solids.Count} colliders · camera follows {(_cameraTarget?.Data.Name ?? "nothing")}");
@@ -839,6 +844,8 @@ namespace EasyEngine
             if (!en.Has(BehaviorKind.Tilemap) &&
                 (obj.Physics.Mode == PhysicsMode.Static || en.Has(BehaviorKind.Solid) || en.Has(BehaviorKind.Gate) || en.Has(BehaviorKind.Pushable) || en.Has(BehaviorKind.Spring)))
                 _solids.Add(en);
+            SequencesEntityAdded(en);
+            TerrainEntityAdded(en);
             return en;
         }
 
@@ -977,13 +984,37 @@ namespace EasyEngine
             if (_mouseClicked) LogClick("Left");
             if (_rmbClicked) LogClick("Right");
 
+            SequencesBeforeLogic(dt);  // cutscene/boss step runners (may lock the player's input for this tick)
+            TerrainBeforeLogic(dt);    // stream terrain chunks in/out around the camera
+            MinimapLogic();            // minimap maximize key
             UpdateBehaviors(dt);
             UpdateBreakables(dt);
             UpdatePhysics(dt);
             UpdateTweens(dt);
             UpdateParticles(dt);
             UpdateFacing();
+            SequencesAfterLogic(dt);   // e.g. hand the keys back after a locked tick
         }
+
+        // ---- feature hooks: each is implemented (or not) in its own PlayWindow.<Feature>.cs file ----
+        partial void SequencesBeforeLogic(double dt);
+        partial void SequencesAfterLogic(double dt);
+        partial void TerrainBeforeLogic(double dt);
+        partial void MinimapLogic();
+        partial void UpdateBoss(Entity en, BehaviorData bh, double dt);
+        partial void UpdateCutscene(Entity en, BehaviorData bh, double dt);
+        partial void SequencesSceneReset();          // LoadScene, before the scene's objects are created
+        partial void TerrainSceneReset();
+        partial void SequencesSceneLoaded();         // LoadScene, after every object (and generator) exists
+        partial void TerrainSceneLoaded();
+        partial void SequencesEntityAdded(Entity en);
+        partial void TerrainEntityAdded(Entity en);
+        partial void SequencesEntityRemoved(Entity en); // Cleanup, for a dead entity
+        partial void TerrainEntityRemoved(Entity en);
+        partial void SequencesRender(double dt);     // Render: overlays (fade, cinema bars, title, boss bar)
+        partial void CameraTargetOverride(ref double tx, ref double ty, ref double smooth); // cutscene camera
+        partial void CameraClampOverride(ref bool clampX, ref bool clampY);                 // endless terrain frees X
+        partial void CameraShakeOffset(ref double ox, ref double oy);                       // screen shake
 
         // Platformer characters face the way they move (decided after physics, so it is the same live and headless).
         private void UpdateFacing()
@@ -1035,6 +1066,8 @@ namespace EasyEngine
                             break;
                         }
                         case BehaviorKind.DayNight: UpdateDayNight(en, bh, dt); break;
+                        case BehaviorKind.BossAI: UpdateBoss(en, bh, dt); break;
+                        case BehaviorKind.Cutscene: UpdateCutscene(en, bh, dt); break;
                         case BehaviorKind.Hotbar: UpdateHotbar(en, bh, dt); break;
                         case BehaviorKind.ToolUse: UpdateToolUse(en, bh, dt); break;
                         case BehaviorKind.Harvestable: UpdateHarvestable(en, bh, dt); break;
@@ -1602,7 +1635,7 @@ namespace EasyEngine
 
             // blocked grid (a cell is blocked if a solid overlaps it)
             var blocked = new bool[cols, rows];
-            foreach (var s in _solids)
+            foreach (var s in SolidsNear(0, 0, cols * cell, rows * cell))
             {
                 if (s == en || s.Dead || s.SolidDisabled) continue;
                 int c0 = Cx(s.X), c1 = Cx(s.X + s.W), r0 = Cy(s.Y), r1 = Cy(s.Y + s.H);
@@ -1712,7 +1745,7 @@ namespace EasyEngine
         private bool BlockedHoriz(Entity block, double dx)
         {
             double nx = block.X + dx;
-            foreach (var s in _solids)
+            foreach (var s in SolidsNear(Math.Min(nx, block.X), block.Y, block.W + Math.Abs(dx), block.H))
             {
                 if (s == block || s.Dead || s.SolidDisabled || s.OneWay) continue;
                 if (nx < s.X + s.W && nx + block.W > s.X && block.Y < s.Y + s.H && block.Y + block.H > s.Y)
@@ -2217,9 +2250,18 @@ namespace EasyEngine
             }
         }
 
+        // Everything solid that could touch the box (x, y, w, h): the scene's colliders plus the terrain cells in that
+        // area (PlayWindow.Terrain.cs). Collision always asks through here, so a big terrain answers from its grid
+        // instead of being thousands of entries in one list.
+        private IEnumerable<Entity> SolidsNear(double x, double y, double w, double h)
+        {
+            foreach (var s in _solids) yield return s;
+            foreach (var s in TerrainSolidsNear(x, y, w, h)) yield return s;
+        }
+
         private void ResolveX(Entity en)
         {
-            foreach (var s in _solids)
+            foreach (var s in SolidsNear(en.X, en.Y, en.W, en.H))
             {
                 if (s == en || s.Dead || s.SolidDisabled || s.OneWay || !Overlap(en, s)) continue;
                 if (en.VX > 0) en.X = s.X - en.W; else if (en.VX < 0) en.X = s.X + s.W;
@@ -2230,7 +2272,7 @@ namespace EasyEngine
 
         private void ResolveY(Entity en, double dt)
         {
-            foreach (var s in _solids)
+            foreach (var s in SolidsNear(en.X, en.Y, en.W, en.H))
             {
                 if (s == en || s.Dead || s.SolidDisabled || !Overlap(en, s)) continue;
                 if (s.OneWay)
@@ -2257,7 +2299,7 @@ namespace EasyEngine
         private Entity? SolidUnder(Entity en)
         {
             double x = en.X + 2, y = en.Y + en.H, w = en.W - 4, h = 4;
-            foreach (var s in _solids)
+            foreach (var s in SolidsNear(x, y, w, h))
             {
                 if (s == en || s.Dead || s.SolidDisabled) continue;
                 if (x < s.X + s.W && x + w > s.X && y < s.Y + s.H && y + h > s.Y) return s;
@@ -2268,7 +2310,7 @@ namespace EasyEngine
         private bool SolidBeside(Entity en, int dir)
         {
             double x = en.X + dir * 3, y = en.Y + 3, w = en.W, h = en.H - 6;
-            foreach (var s in _solids)
+            foreach (var s in SolidsNear(x, y, w, h))
             {
                 if (s == en || s.Dead || s.SolidDisabled || s.OneWay) continue;
                 if (x < s.X + s.W && x + w > s.X && y < s.Y + s.H && y + h > s.Y) return true;
@@ -2678,20 +2720,20 @@ namespace EasyEngine
 
         private void UpdateCamera(double dt)
         {
-            if (_cameraTarget == null) return;
-            var cam = _cameraTarget.Beh(BehaviorKind.FollowCamera);
+            var cam = _cameraTarget?.Beh(BehaviorKind.FollowCamera);
             double smooth = Math.Clamp(cam?.Num("smooth", 0.12) ?? 0.12, 0.01, 1);
-            double tx = -(_cameraTarget.CX - Root.ActualWidth / 2);
-            double ty = -(_cameraTarget.CY - Root.ActualHeight / 2);
+            double tx = _cameraTarget != null ? -(_cameraTarget.CX - Root.ActualWidth / 2) : _camX;
+            double ty = _cameraTarget != null ? -(_cameraTarget.CY - Root.ActualHeight / 2) : _camY;
+            CameraTargetOverride(ref tx, ref ty, ref smooth); // a cutscene can steer the camera
+            if (_cameraTarget == null && tx == _camX && ty == _camY) return;
             _camX += (tx - _camX) * smooth;
             _camY += (ty - _camY) * smooth;
 
-            if ((cam?.Num("clamp", 1) ?? 1) >= 0.5)
-            {
-                double vw = Root.ActualWidth, vh = Root.ActualHeight;
-                _camX = _scene.Width > vw ? Math.Clamp(_camX, -(_scene.Width - vw), 0) : 0;
-                _camY = _scene.Height > vh ? Math.Clamp(_camY, -(_scene.Height - vh), 0) : 0;
-            }
+            bool clampX = (cam?.Num("clamp", 1) ?? 1) >= 0.5, clampY = clampX;
+            CameraClampOverride(ref clampX, ref clampY); // an endless terrain frees the X axis
+            double vw = Root.ActualWidth, vh = Root.ActualHeight;
+            if (clampX) _camX = _scene.Width > vw ? Math.Clamp(_camX, -(_scene.Width - vw), 0) : 0;
+            if (clampY) _camY = _scene.Height > vh ? Math.Clamp(_camY, -(_scene.Height - vh), 0) : 0;
         }
 
         // Builds the minimap overlay (added to the HUD canvas, independent of the object's box).
@@ -2778,10 +2820,13 @@ namespace EasyEngine
 
         private void Render(double dt)
         {
-            _camTransform.X = _camX; _camTransform.Y = _camY;
-            _lightTransform.X = _camX; _lightTransform.Y = _camY;
+            double shakeX = 0, shakeY = 0;
+            CameraShakeOffset(ref shakeX, ref shakeY);
+            _camTransform.X = _camX + shakeX; _camTransform.Y = _camY + shakeY;
+            _lightTransform.X = _camX + shakeX; _lightTransform.Y = _camY + shakeY;
             UpdateLighting();
             UpdateDialogTypewriter(dt);
+            SequencesRender(dt);
 
             foreach (var en in _entities)
             {
@@ -2905,6 +2950,8 @@ namespace EasyEngine
                 if (en.HeldVisual != null) { Hud.Children.Remove(en.HeldVisual); World.Children.Remove(en.HeldVisual); }
                 if (en.HeldArm != null) { Hud.Children.Remove(en.HeldArm); World.Children.Remove(en.HeldArm); }
                 _solids.Remove(en);
+                SequencesEntityRemoved(en);
+                TerrainEntityRemoved(en);
                 _entities.RemoveAt(i);
             }
         }

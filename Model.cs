@@ -140,7 +140,10 @@ namespace EasyEngine
         Shop,             // buy/craft: press a key nearby to pay a cost (coins or an item) and receive an item
         ToolUse,          // click anywhere to swing the held tool; it hits a Harvestable within reach
         Harvestable,      // a tree/rock/ore: takes N hits from the right tool, then falls and drops a resource
-        Checklist         // on-screen test checklist: each line ticks itself when its condition becomes true
+        Checklist,        // on-screen test checklist: each line ticks itself when its condition becomes true
+        BossAI,           // a boss: phases by health, attack sequences (Advanced Scratch steps), death sequence
+        Cutscene,         // a scripted scene: camera, dialogue, moves, fades — steps run one after another
+        Terrain           // procedural terrain (seeded noise), streamed in chunks — can be endless
     }
 
     // ======================= DADOS =======================

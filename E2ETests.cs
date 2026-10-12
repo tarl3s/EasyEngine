@@ -20,7 +20,10 @@ public partial class App
         int pass = 0, fail = 0;
         try
         {
-            foreach (var (title, run) in new (string, Func<List<(string, bool, List<string>)>>)[] { ("Axe Test", RunAxeE2E), ("Lighting Test", RunLightingE2E) })
+            var scenarios = new List<(string, Func<List<(string, bool, List<string>)>>)> { ("Axe Test", RunAxeE2E), ("Lighting Test", RunLightingE2E) };
+            AddE2EScenariosBoss(scenarios);    // E2ETests.Boss.cs
+            AddE2EScenariosTerrain(scenarios); // E2ETests.Terrain.cs
+            foreach (var (title, run) in scenarios)
             {
                 sb.AppendLine($"===== {title} =====");
                 foreach (var (step, ok, lines) in run())
@@ -39,6 +42,9 @@ public partial class App
         try { File.WriteAllText(log, sb.ToString()); } catch { }
         Shutdown();
     }
+
+    partial void AddE2EScenariosBoss(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
+    partial void AddE2EScenariosTerrain(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
 
     /// <summary>Plays the "Lighting Test" scene headless: sky colour, daylight, N → night, M → morning, the cycle on its own.</summary>
     internal static List<(string step, bool ok, List<string> lines)> RunLightingE2E()

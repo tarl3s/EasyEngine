@@ -73,6 +73,7 @@ namespace EasyEngine
             var panel = new StackPanel();
             panel.Children.Add(top); panel.Children.Add(bottom);
             var rootBorder = new Border { Background = Res("Bg1") as Brush, BorderBrush = Res("Border") as Brush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(10), Child = panel };
+            System.Windows.Documents.TextElement.SetForeground(rootBorder, (Res("Text") as Brush) ?? Brushes.Gainsboro); // a popup isn't inside the window: give it the theme text colour
             var pop = new System.Windows.Controls.Primitives.Popup { PlacementTarget = anchor, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true, Child = rootBorder };
 
             bool syncing = false;

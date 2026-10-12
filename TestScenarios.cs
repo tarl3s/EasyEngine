@@ -214,7 +214,7 @@ namespace EasyEngine
         }
 
         // OneDrive can briefly lock files: retry, then fail with a clear message.
-        private static void TryDeleteDir(string dir)
+        internal static void TryDeleteDir(string dir)
         {
             for (int attempt = 0; attempt < 3; attempt++)
             {

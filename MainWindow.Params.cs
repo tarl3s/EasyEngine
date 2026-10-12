@@ -169,9 +169,13 @@ namespace EasyEngine
                 case PickKind.ItemDamage:
                     ItemDamageEditor(obj, bh, panel);
                     break;
+                case PickKind.MapMarkers:
+                    MapMarkersEditor(obj, bh, panel);
+                    break;
                 case PickKind.Special:
                     if (bh.Kind == BehaviorKind.Custom && tp.Key == "script") ScriptRow(bh, panel);
                     else if (bh.Kind == BehaviorKind.AdvancedPatrol && tp.Key == "path") AdvancedPatrolRow(obj, bh, panel);
+                    else if (bh.Kind is BehaviorKind.BossAI or BehaviorKind.Cutscene) SequenceCard(obj, bh, panel);
                     break;
                 case PickKind.LongText:
                     LongTextRow(tp.Label, cur, Set, panel);
@@ -181,6 +185,11 @@ namespace EasyEngine
                     break;
             }
         }
+
+        // feature editors, each in its own file: minimap markers (MainWindow.Minimap.cs),
+        // Boss AI / Cutscene card = Advanced Scratch + JSON + "Ask the AI" (MainWindow.Sequences.cs)
+        partial void MapMarkersEditor(GameObjectData obj, BehaviorData bh, Panel panel);
+        partial void SequenceCard(GameObjectData obj, BehaviorData bh, Panel panel);
 
         private static string A(string w) => (w.Length > 0 && "aeiouAEIOU".IndexOf(w[0]) >= 0 ? "an " : "a ") + w;
 

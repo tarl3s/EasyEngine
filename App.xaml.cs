@@ -9,9 +9,35 @@ namespace EasyEngine;
 
 public partial class App : Application
 {
+    // --selftest feature checks (App.SelfTest.<Feature>.cs). Each may open windows (add them to CloseLater) and
+    // queue LateChecks that run after the ~2.5 s live loop (return an error message to fail, null to pass).
+    partial void SelfTestContrast(SelfTestContext c);
+    partial void SelfTestMinimap(SelfTestContext c);
+    partial void SelfTestLearn(SelfTestContext c);
+    partial void SelfTestSequences(SelfTestContext c);
+    partial void SelfTestTerrain(SelfTestContext c);
+
+    /// <summary>The light text colour of the dark theme (App.xaml "Text").</summary>
+    internal static System.Windows.Media.Brush ThemeText
+    {
+        get
+        {
+            var b = Current?.TryFindResource("Text") as System.Windows.Media.Brush;
+            return b ?? System.Windows.Media.Brushes.Gainsboro;
+        }
+    }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Every window gets the theme's light text colour, and everything inside inherits it. (It used to be forced on
+        // every TextBlock app-wide, which also hit the text WPF puts inside menus, tooltips and buttons → light on light.)
+        EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((s, _) =>
+        {
+            if (s is Window w && w.ReadLocalValue(System.Windows.Controls.Control.ForegroundProperty) == DependencyProperty.UnsetValue)
+                w.Foreground = ThemeText;
+        }));
 
         // exported game: EasyEngine.exe --play <project.eeproj>
         var playIdx = Array.IndexOf(e.Args, "--play");
@@ -27,7 +53,7 @@ public partial class App : Application
 
         if (e.Args.Contains("--aitest")) { RunAiTest(e.Args); return; }
 
-        if (e.Args.Contains("--makegame")) { RunMakeGame(); return; }
+        if (e.Args.Contains("--makegame")) { RunDemoBuild("makegame", "Platformer Demo", DemoGame.Build); return; }
 
         if (e.Args.Contains("--spritetest")) { RunSpriteTest(); return; }
 
@@ -41,9 +67,13 @@ public partial class App : Application
 
         if (e.Args.Contains("--fulltest")) { RunFullTest(); return; }
 
-        if (e.Args.Contains("--mining")) { RunMining(); return; }
+        if (e.Args.Contains("--mining")) { RunDemoBuild("mining", "Mining Demo", MiningGame.Build); return; }
 
-        if (e.Args.Contains("--topdown")) { RunTopDown(); return; }
+        if (e.Args.Contains("--topdown")) { RunDemoBuild("topdown", TopDownGame.ProjectName, TopDownGame.Build); return; }
+
+        if (e.Args.Contains("--bossdemo")) { RunDemoBuild("bossdemo", BossDemo.ProjectName, BossDemo.Build); return; }
+
+        if (e.Args.Contains("--infinite")) { RunDemoBuild("infinite", InfiniteWorld.ProjectName, InfiniteWorld.Build); return; }
 
         if (e.Args.Contains("--e2e")) { RunE2E(); return; }
 
@@ -341,52 +371,20 @@ public partial class App : Application
         Shutdown();
     }
 
-    private void RunMining()
+    // Builds a demo project into DesktopJogos<folder> (replacing the old copy) and logs where it went.
+    // --mining, --topdown, --makegame, --bossdemo, --infinite all go through here.
+    private void RunDemoBuild(string mode, string folder, Func<string, string> build)
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        var log = Path.Combine(Path.GetTempPath(), "easyengine_mining.log");
+        var log = Path.Combine(Path.GetTempPath(), $"easyengine_{mode}.log");
         try
         {
             var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Jogos");
             Directory.CreateDirectory(parent);
-            var existing = Path.Combine(parent, "Mining Demo");
-            if (Directory.Exists(existing)) Directory.Delete(existing, true);
-            var file = MiningGame.Build(parent);
-            File.WriteAllText(log, "MINING BUILT: " + file + Environment.NewLine);
-        }
-        catch (Exception ex) { try { File.WriteAllText(log, "ERROR: " + ex + Environment.NewLine); } catch { } }
-        Shutdown();
-    }
-
-    private void RunTopDown()
-    {
-        ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        var log = Path.Combine(Path.GetTempPath(), "easyengine_topdown.log");
-        try
-        {
-            var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Jogos");
-            Directory.CreateDirectory(parent);
-            var existing = Path.Combine(parent, TopDownGame.ProjectName);
-            if (Directory.Exists(existing)) Directory.Delete(existing, true);
-            var file = TopDownGame.Build(parent);
-            File.WriteAllText(log, "TOPDOWN BUILT: " + file + Environment.NewLine);
-        }
-        catch (Exception ex) { try { File.WriteAllText(log, "ERROR: " + ex + Environment.NewLine); } catch { } }
-        Shutdown();
-    }
-
-    private void RunMakeGame()
-    {
-        ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        var log = Path.Combine(Path.GetTempPath(), "easyengine_makegame.log");
-        try
-        {
-            var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Jogos");
-            Directory.CreateDirectory(parent);
-            var existing = Path.Combine(parent, "Platformer Demo");
-            if (Directory.Exists(existing)) Directory.Delete(existing, true);
-            var file = DemoGame.Build(parent);
-            File.WriteAllText(log, "GAME BUILT: " + file + Environment.NewLine);
+            var existing = Path.Combine(parent, folder);
+            if (Directory.Exists(existing)) TestScenarios.TryDeleteDir(existing);
+            var file = build(parent);
+            File.WriteAllText(log, "BUILT: " + file + Environment.NewLine);
         }
         catch (Exception ex) { try { File.WriteAllText(log, "ERROR: " + ex + Environment.NewLine); } catch { } }
         Shutdown();
@@ -518,15 +516,30 @@ public partial class App : Application
             Write($"inspector (all {all.Behaviors.Count} behaviors): {inspAll.combos} dropdowns, {inspAll.textBoxes.Count} text boxes");
             tdEditor.Close();
 
+            // feature checks in real windows, each in its own App.SelfTest.<Feature>.cs
+            var ctx = new SelfTestContext { Editor = editor, Write = Write };
+            SelfTestContrast(ctx);
+            SelfTestMinimap(ctx);
+            SelfTestLearn(ctx);
+            SelfTestSequences(ctx);
+            SelfTestTerrain(ctx);
+
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
             timer.Tick += (s, ev) =>
             {
                 timer.Stop();
+                void CloseAll() { foreach (var w in ctx.CloseLater) try { w.Close(); } catch { } try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { } }
                 int errors = play.TLog.Errors + lightPlay.TLog.Errors;
                 string firstError = play.TLog.Entries.Concat(lightPlay.TLog.Entries).FirstOrDefault(x => x.Level == LogLevel.Error)?.FullText() ?? "";
                 Write($"lighting window: {lightPlay.TLightHoles} light holes, darkness {lightPlay.TDarkness:0.00}, sky {lightPlay.TSkyColor}");
-                if (lightPlay.TLightHoles != 3 || lightPlay.TDarkness < 0.5 || !lightPlay.TInSky("Moon")) { Write("SELFTEST FAIL: lighting did not render as expected"); try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { } Shutdown(); return; }
-                try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { }
+                if (lightPlay.TLightHoles != 3 || lightPlay.TDarkness < 0.5 || !lightPlay.TInSky("Moon")) { Write("SELFTEST FAIL: lighting did not render as expected"); CloseAll(); Shutdown(); return; }
+                foreach (var check in ctx.LateChecks)
+                {
+                    string? err;
+                    try { err = check(); } catch (Exception ex) { err = ex.ToString(); }
+                    if (err != null) { Write("SELFTEST FAIL: " + err); CloseAll(); Shutdown(); return; }
+                }
+                CloseAll();
                 Write("ran loop ~2.5s, closed OK");
                 if (errors > 0) { Write($"SELFTEST FAIL: {errors} error(s) in the play console:\n{firstError}"); Shutdown(); return; }
                 Write("SELFTEST PASS");

@@ -13,6 +13,14 @@ namespace EasyEngine;
 // block editor's round-trip fidelity (parse→serialize is stable AND preserves
 // behavior when re-run), plus a full sweep of all the built-in behaviors.
 // Run with:  EasyEngine.exe --fulltest   → writes easyengine_fulltest.log
+
+/// <summary>What a feature test battery needs from --fulltest: add a named check, a script sim (closed at the end),
+/// the Scratch round-trip, and the list of sims to close.</summary>
+public record FullTestKit(Action<string, Func<bool>> Test,
+                          Func<string, PhysicsMode, Action<Project, Scene>?, PlayWindow> Sim,
+                          Func<string, string> RT,
+                          List<PlayWindow> Sims);
+
 public partial class App
 {
     private void RunFullTest()
@@ -992,6 +1000,16 @@ public partial class App
             foreach (var (step, ok, lines) in RunLightingE2E())
                 Test("e2e lighting: " + step + (ok ? "" : "  ⟶ " + string.Join(" | ", lines.TakeLast(4))), () => ok);
 
+            // ========================= feature batteries (each in its own FullTest.<Feature>.cs) =========================
+            var kit = new FullTestKit(Test, (script, phys, extra) => Sim(script, phys, extra), RT, sims);
+            FeatureTestsContrast(kit);
+            FeatureTestsMinimap(kit);
+            FeatureTestsCover(kit);
+            FeatureTestsLearn(kit);
+            FeatureTestsSequences(kit);
+            FeatureTestsBoss(kit);
+            FeatureTestsTerrain(kit);
+
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
             var bplay = new PlayWindow(bp, bs); sims.Add(bplay);
@@ -1015,6 +1033,15 @@ public partial class App
         try { File.WriteAllText(log, sb.ToString()); } catch { }
         Shutdown();
     }
+
+    // Feature test batteries live in their own files (FullTest.Minimap.cs, FullTest.Boss.cs…); each gets this kit.
+    partial void FeatureTestsContrast(FullTestKit t);
+    partial void FeatureTestsMinimap(FullTestKit t);
+    partial void FeatureTestsCover(FullTestKit t);
+    partial void FeatureTestsLearn(FullTestKit t);
+    partial void FeatureTestsSequences(FullTestKit t);
+    partial void FeatureTestsBoss(FullTestKit t);
+    partial void FeatureTestsTerrain(FullTestKit t);
 
     // Re-run a script and its block-editor round-trip; the measured outcome must match.
     private static bool SameOutcome(string script, int steps, Func<PlayWindow, double> read, Func<string, string> rt)

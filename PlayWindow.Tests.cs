@@ -79,6 +79,14 @@ namespace EasyEngine
         public void TClick(double x, double y) { TMouseAt(x, y); TMouseTap(); }
         public bool TConsoleVisible => ConsoleVisible;
 
+        // camera + dialogue (live-only in play; these let headless tests drive them)
+        public void TUpdateCamera(int frames = 1) { for (int i = 0; i < frames; i++) UpdateCamera(0.016); }
+        public double TCamX => _camX;
+        public double TCamY => _camY;
+        public void TAdvanceDialog() => AdvanceDialog();        // = pressing Enter on the dialogue box
+        public string TDialogText => DialogText.Text;
+        public int TDialogQueued => _dialog.Count;
+
         public int TParticles => _particles.Count;
         public int TTweens => _tweens.Count;
         public bool TDialog => _dialogOpen;

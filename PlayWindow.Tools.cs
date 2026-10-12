@@ -373,7 +373,7 @@ namespace EasyEngine
         private Entity? SolidBetween(Entity user, Point to, Entity? target)
         {
             double x0 = user.CX, y0 = user.CY;
-            foreach (var s in _solids)
+            foreach (var s in SolidsNear(Math.Min(x0, to.X), Math.Min(y0, to.Y), Math.Abs(to.X - x0), Math.Abs(to.Y - y0)))
             {
                 if (s.Dead || s.SolidDisabled || s.OneWay || s == user || s == target) continue;
                 if (x0 > s.X && x0 < s.X + s.W && y0 > s.Y && y0 < s.Y + s.H) continue; // standing inside it: not "in front"

@@ -328,19 +328,8 @@ namespace EasyEngine
             menu.Items.Add(new Separator());
             if (pane.Region == DockRegion.Float) Add("Dock back", pane.LastDocked);
             else Add("Float (separate window)", DockRegion.Float);
-
-            StyleMenuDark(menu);
             menu.PlacementTarget = fe;
             menu.IsOpen = true;
-        }
-
-        private void StyleMenuDark(ContextMenu menu)
-        {
-            menu.Background = (Brush)FindResource("Bg1");
-            menu.BorderBrush = (Brush)FindResource("Border");
-            menu.Foreground = (Brush)FindResource("Text");
-            foreach (var obj in menu.Items)
-                if (obj is MenuItem mi) { mi.Background = Brushes.Transparent; mi.Foreground = (Brush)FindResource("Text"); }
         }
 
         // Toolbar "Panels ▾": re-show a panel that was closed/floated, or reset layout.
@@ -358,7 +347,6 @@ namespace EasyEngine
             var reset = new MenuItem { Header = "Reset layout to default" };
             reset.Click += (_, __) => ResetDockLayout();
             menu.Items.Add(reset);
-            StyleMenuDark(menu);
             menu.PlacementTarget = (UIElement)sender;
             menu.IsOpen = true;
         }
@@ -1992,8 +1980,8 @@ namespace EasyEngine
             AiPanel.Visibility = inspector ? Visibility.Collapsed : Visibility.Visible;
             TabInspector.Background = inspector ? (SolidColorBrush)FindResource("Accent") : (SolidColorBrush)FindResource("Bg2");
             TabAi.Background = inspector ? (SolidColorBrush)FindResource("Bg2") : (SolidColorBrush)FindResource("Accent");
-            TabInspector.Foreground = inspector ? Brushes.White : (SolidColorBrush)FindResource("Text");
-            TabAi.Foreground = inspector ? (SolidColorBrush)FindResource("Text") : Brushes.White;
+            TabInspector.Foreground = inspector ? (SolidColorBrush)FindResource("AccentText") : (SolidColorBrush)FindResource("Text");
+            TabAi.Foreground = inspector ? (SolidColorBrush)FindResource("Text") : (SolidColorBrush)FindResource("AccentText");
         }
 
         private void AiBuild_Click(object sender, RoutedEventArgs e) => SetAiMode(false);
@@ -3267,6 +3255,14 @@ namespace EasyEngine
 
         private Border AddAiMessage(string who, string text, bool fromAi)
         {
+            // AI bubbles: dark with light text. The user's: green with DARK text (white/grey on green was hard to read).
+            var fg = fromAi ? (SolidColorBrush)FindResource("Text") : (SolidColorBrush)FindResource("AccentText");
+            // the body is a read-only TextBox so an answer can be selected and copied
+            var body = new TextBox
+            {
+                Text = text, TextWrapping = TextWrapping.Wrap, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(0),
+                Background = Brushes.Transparent, Foreground = fg, FontFamily = new FontFamily("Consolas"), VerticalContentAlignment = VerticalAlignment.Top
+            };
             var bubble = new Border
             {
                 Background = fromAi ? (SolidColorBrush)FindResource("Bg2") : (SolidColorBrush)FindResource("Accent"),
@@ -3275,12 +3271,13 @@ namespace EasyEngine
                 {
                     Children =
                     {
-                        new TextBlock { Text = who, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = (SolidColorBrush)FindResource("TextDim"), Margin = new Thickness(0,0,0,3) },
-                        new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = fromAi ? (SolidColorBrush)FindResource("Text") : Brushes.White, FontFamily = new FontFamily("Consolas") }
+                        new TextBlock { Text = who, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = fg, Opacity = 0.75, Margin = new Thickness(0,0,0,3) },
+                        body
                     }
                 }
             };
             AiLog.Children.Add(bubble);
+            (AiLog.Parent as ScrollViewer)?.ScrollToEnd(); // keep the newest message in view
             return bubble;
         }
 
