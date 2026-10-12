@@ -17,7 +17,7 @@ namespace EasyEngine
         public static string Add(Project project, Scene scene, GameObjectData hotbarObj, BehaviorData hotbar, ItemSpec it)
         {
             string name = it.Name.Trim().Replace(",", "").Replace(":", "");
-            if (name.Length == 0) throw new ArgumentException("The item needs a name.");
+            if (name.Length == 0) throw new ArgumentException(L.T("The item needs a name."));
 
             // 1) the slot (replaces a slot with the same name)
             var slots = PlayWindow.ParseHotbarItems(hotbar.Text("items", "")).Where(s => !s.name.Equals(name, StringComparison.OrdinalIgnoreCase))
@@ -39,8 +39,13 @@ namespace EasyEngine
             // 3) owning it from the start
             if (it.StartOwned) project.Variables["item:" + name] = 1;
 
-            return $"Item \"{name}\" added to the hotbar" + (addedUse ? $" (and Use Item added to {player.Name})" : "") +
-                   (it.StartOwned ? " — the player starts with it" : $" — give it with item:{name} = 1 (shop, pickup…)");
+            return (addedUse, it.StartOwned) switch
+            {
+                (false, true) => L.F("Item \"{0}\" added to the hotbar — the player starts with it", name),
+                (false, false) => L.F("Item \"{0}\" added to the hotbar — give it with item:{0} = 1 (shop, pickup…)", name),
+                (true, true) => L.F("Item \"{0}\" added to the hotbar (and Use Item added to {1}) — the player starts with it", name, player.Name),
+                (true, false) => L.F("Item \"{0}\" added to the hotbar (and Use Item added to {1}) — give it with item:{0} = 1 (shop, pickup…)", name, player.Name),
+            };
         }
 
         private static string Slot(string name, string color, string look) => look.Length > 0 ? $"{name}:{color}:{look}" : $"{name}:{color}";
@@ -55,7 +60,7 @@ namespace EasyEngine
         private readonly TextBox _name = new() { Text = "shovel", Height = 30, FontSize = 14 };
         private readonly ContentControl _lookHost = new();
         private readonly TextBox _damage = new() { Text = "1", Height = 30, FontSize = 13 };
-        private readonly CheckBox _owned = new() { Content = "The player starts with it", IsChecked = true, Margin = new Thickness(0, 10, 0, 0) };
+        private readonly CheckBox _owned = new() { Content = L.T("The player starts with it"), IsChecked = true, Margin = new Thickness(0, 10, 0, 0) };
         private readonly Border _preview = new() { Width = 84, Height = 84, CornerRadius = new CornerRadius(8) };
         private readonly Border _colorShown = new() { Width = 30, Height = 24, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(2), BorderBrush = Brushes.White };
         private string _look = "shovel";   // a built-in look, or the project-relative path of the item's own picture
@@ -64,27 +69,27 @@ namespace EasyEngine
         public NewItemDialog(Project project)
         {
             _project = project;
-            Title = "New item"; Width = 460; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
+            Title = L.T("New item"); Width = 460; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
             WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowStyle = WindowStyle.ToolWindow;
             Background = Res("Bg0") as Brush ?? Brushes.Black; FontFamily = new FontFamily("Segoe UI");
             _preview.Background = new SolidColorBrush(Color.FromRgb(24, 24, 30));
             RebuildLookPicker();
 
             var root = new StackPanel { Margin = new Thickness(20) };
-            root.Children.Add(Text("Make your own tool or weapon. It goes into this hotbar, and clicking uses it like the axe or the sword.", 12, true));
+            root.Children.Add(Text(L.T("Make your own tool or weapon. It goes into this hotbar, and clicking uses it like the axe or the sword."), 12, true));
 
             var top = new Grid { Margin = new Thickness(0, 12, 0, 0) };
             top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var fields = new StackPanel();
-            fields.Children.Add(Text("Name (also what Harvestable 'tool' asks for)", 12)); fields.Children.Add(_name);
-            fields.Children.Add(Text("Design", 12, top: 8)); fields.Children.Add(_lookHost);
+            fields.Children.Add(Text(L.T("Name (also what Harvestable 'tool' asks for)"), 12)); fields.Children.Add(_name);
+            fields.Children.Add(Text(L.T("Design"), 12, top: 8)); fields.Children.Add(_lookHost);
             Grid.SetColumn(fields, 0); top.Children.Add(fields);
             _preview.Margin = new Thickness(14, 18, 0, 0); _preview.VerticalAlignment = VerticalAlignment.Top;
             Grid.SetColumn(_preview, 1); top.Children.Add(_preview);
             root.Children.Add(top);
 
-            root.Children.Add(Text("Colour (of the metal part)", 12, top: 8));
+            root.Children.Add(Text(L.T("Colour (of the metal part)"), 12, top: 8));
             var colorRow = new StackPanel { Orientation = Orientation.Horizontal };
             colorRow.Children.Add(_colorShown);
             foreach (var hex in new[] { "#B0B0B0", "#8B5A2B", "#DDEBFF", "#FFD24D", "#E05A5A", "#5BC77A", "#7A8CFF" })
@@ -93,20 +98,20 @@ namespace EasyEngine
                 sw.Click += (s, e) => SetColor(hex);
                 colorRow.Children.Add(sw);
             }
-            var more = new Button { Content = "More…", Height = 24, Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0), Style = Res("CardButton") as Style };
+            var more = new Button { Content = L.T("More…"), Height = 24, Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0), Style = Res("CardButton") as Style };
             more.Click += (s, e) => ColorPickerPopup.Open(more, _color, SetColor);
             colorRow.Children.Add(more);
             root.Children.Add(colorRow);
             SetColor(_color);
 
-            root.Children.Add(Text("Damage to enemies", 12, top: 8));
+            root.Children.Add(Text(L.T("Damage to enemies"), 12, top: 8));
             _damage.Width = 110; _damage.HorizontalAlignment = HorizontalAlignment.Left; root.Children.Add(_damage);
             root.Children.Add(_owned);
-            root.Children.Add(Text("Tip: to make something need it, give that object a Harvestable and set its Tool to this name (e.g. a dirt mound that only the shovel digs).", 11, true, top: 12));
+            root.Children.Add(Text(L.T("Tip: to make something need it, give that object a Harvestable and set its Tool to this name (e.g. a dirt mound that only the shovel digs)."), 11, true, top: 12));
 
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
-            var cancel = new Button { Content = "Cancel", Width = 90, Height = 34, Margin = new Thickness(0, 0, 8, 0), Style = Res("CardButton") as Style };
-            var ok = new Button { Content = "Create", Width = 90, Height = 34, IsDefault = true, Style = Res("AccentButton") as Style };
+            var cancel = new Button { Content = L.T("Cancel"), Width = 90, Height = 34, Margin = new Thickness(0, 0, 8, 0), Style = Res("CardButton") as Style };
+            var ok = new Button { Content = L.T("Create"), Width = 90, Height = 34, IsDefault = true, Style = Res("AccentButton") as Style };
             cancel.Click += (s, e) => { DialogResult = false; };
             ok.Click += (s, e) => Create();
             buttons.Children.Add(cancel); buttons.Children.Add(ok);
@@ -140,7 +145,7 @@ namespace EasyEngine
         private void Create()
         {
             var name = _name.Text.Trim();
-            if (name.Length == 0) { MessageBox.Show(this, "Give the item a name."); return; }
+            if (name.Length == 0) { MessageBox.Show(this, L.T("Give the item a name.")); return; }
             if (!double.TryParse(_damage.Text.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out var dmg)) dmg = 1;
             Result = new ItemSpec(name, _look, _color, dmg, _owned.IsChecked == true);
             DialogResult = true;

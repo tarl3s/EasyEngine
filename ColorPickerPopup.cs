@@ -64,7 +64,7 @@ namespace EasyEngine
             top.Children.Add(sv); top.Children.Add(hue);
 
             var hexBox = new TextBox { Width = 120, Height = 28, VerticalContentAlignment = VerticalAlignment.Center };
-            var ok = new Button { Content = "Select", Height = 28, Padding = new Thickness(14, 0, 14, 0), Margin = new Thickness(8, 0, 0, 0), Style = Theme.Style("AccentButton") };
+            var ok = new Button { Content = L.T("Select"), Height = 28, Padding = new Thickness(14, 0, 14, 0), Margin = new Thickness(8, 0, 0, 0), Style = Theme.Style("AccentButton") };
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
             bottom.Children.Add(hexBox); bottom.Children.Add(ok);
 

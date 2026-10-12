@@ -176,7 +176,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Could not start the game:\n" + ex.Message, "EasyEngine");
+            MessageBox.Show(L.T("Could not start the game:") + "\n" + ex.Message, "EasyEngine");
             Shutdown();
         }
     }

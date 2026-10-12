@@ -26,7 +26,8 @@ namespace EasyEngine
             InitializeComponent();
             _project = project;
             _obj = obj;
-            Title = $"Animations — {obj.Name}";
+            Title = L.F("Animations — {0}", obj.Name);
+            L.SetSkip(AnimTitle, true); // the animation's name
 
             _preview.Tick += PreviewTick;
             RefreshAnimList();
@@ -55,8 +56,8 @@ namespace EasyEngine
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var title = new StackPanel();
-            title.Children.Add(new TextBlock { Text = (isDefault ? "★ " : "") + anim.Name, Foreground = (SolidColorBrush)FindResource("Text"), FontWeight = FontWeights.SemiBold, FontSize = 13 });
-            title.Children.Add(new TextBlock { Text = $"{anim.Frames.Count} frame(s)", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11 });
+            title.Children.Add(L.Keep(new TextBlock { Text = (isDefault ? "★ " : "") + anim.Name, Foreground = (SolidColorBrush)FindResource("Text"), FontWeight = FontWeights.SemiBold, FontSize = 13 }));
+            title.Children.Add(new TextBlock { Text = L.F("{0} frame(s)", anim.Frames.Count), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11 });
             Grid.SetColumn(title, 0);
 
             var del = new Button { Content = "✕", Width = 24, Height = 24, Style = (Style)FindResource("GhostButton"), Foreground = (SolidColorBrush)FindResource("Danger"), VerticalAlignment = VerticalAlignment.Center };
@@ -103,7 +104,7 @@ namespace EasyEngine
         private void UpdateDefaultButton()
         {
             bool isDefault = _cur != null && _cur.Name == (_obj.DefaultAnimation ?? _obj.Animations.FirstOrDefault()?.Name);
-            DefaultBtn.Content = isDefault ? "★ Default" : "☆ Set as default";
+            DefaultBtn.Content = isDefault ? L.T("★ Default") : L.T("☆ Set as default");
         }
 
         // ---------------- preview ----------------
@@ -147,7 +148,7 @@ namespace EasyEngine
         {
             FramesPanel.Children.Clear();
             if (_cur == null) return;
-            FrameCount.Text = $"{_cur.Frames.Count} frame(s)";
+            FrameCount.Text = L.F("{0} frame(s)", _cur.Frames.Count);
             for (int i = 0; i < _cur.Frames.Count; i++)
                 FramesPanel.Children.Add(MakeFrameItem(i));
         }
@@ -166,7 +167,7 @@ namespace EasyEngine
             var left = SmallBtn("◀"); left.Click += (s, e) => MoveFrame(index, -1);
             var num = new TextBlock { Text = (index + 1).ToString(), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) };
             var right = SmallBtn("▶"); right.Click += (s, e) => MoveFrame(index, +1);
-            var edit = SmallBtn("✎"); edit.ToolTip = "Edit in the sprite editor"; edit.Click += (s, e) => EditFrame(index);
+            var edit = SmallBtn("✎"); edit.ToolTip = L.T("Edit in the sprite editor"); edit.Click += (s, e) => EditFrame(index);
             var del = SmallBtn("✕"); del.Foreground = (SolidColorBrush)FindResource("Danger"); del.Click += (s, e) => DeleteFrame(index);
             row.Children.Add(left); row.Children.Add(num); row.Children.Add(right); row.Children.Add(edit); row.Children.Add(del);
             stack.Children.Add(row);
@@ -202,7 +203,7 @@ namespace EasyEngine
             var files = PickImages();
             if (files == null || files.Length == 0) return;
 
-            var name = InputDialog.Prompt(this, "New animation", "Animation name (e.g. idle, walk, jump):", SuggestName());
+            var name = InputDialog.Prompt(this, L.T("New animation"), L.T("Animation name (e.g. idle, walk, jump):"), SuggestName());
             if (name == null) return;
 
             var anim = new SpriteAnimation { Name = name };
@@ -240,7 +241,7 @@ namespace EasyEngine
             }
             else
             {
-                var name = InputDialog.Prompt(this, "New animation", "Animation name (e.g. idle, walk):", SuggestName());
+                var name = InputDialog.Prompt(this, L.T("New animation"), L.T("Animation name (e.g. idle, walk):"), SuggestName());
                 if (name == null) return;
                 var anim = new SpriteAnimation { Name = name };
                 anim.Frames.Add(rel);
@@ -276,7 +277,7 @@ namespace EasyEngine
             foreach (var f in files.OrderBy(NaturalKey))
             {
                 try { anim.Frames.Add(ProjectIO.ImportAsset(_project, f, "sprites")); }
-                catch (Exception ex) { MessageBox.Show("Error importing " + Path.GetFileName(f) + ": " + ex.Message); }
+                catch (Exception ex) { MessageBox.Show(L.F("Error importing {0}:", Path.GetFileName(f)) + " " + ex.Message); }
             }
         }
 
@@ -284,9 +285,9 @@ namespace EasyEngine
         {
             var dlg = new OpenFileDialog
             {
-                Title = "Choose frames",
+                Title = L.T("Choose frames"),
                 Multiselect = true,
-                Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif"
+                Filter = L.T("Images") + "|*.png;*.jpg;*.jpeg;*.bmp;*.gif"
             };
             return dlg.ShowDialog() == true ? dlg.FileNames : null;
         }
@@ -302,7 +303,7 @@ namespace EasyEngine
         private void Rename_Click(object sender, RoutedEventArgs e)
         {
             if (_cur == null) return;
-            var name = InputDialog.Prompt(this, "Rename animation", "New name:", _cur.Name);
+            var name = InputDialog.Prompt(this, L.T("Rename animation"), L.T("New name:"), _cur.Name);
             if (name == null) return;
             bool wasDefault = _obj.DefaultAnimation == _cur.Name;
             _cur.Name = name;
@@ -325,7 +326,7 @@ namespace EasyEngine
 
         private void DeleteAnimation(SpriteAnimation anim)
         {
-            if (MessageBox.Show($"Delete animation \"{anim.Name}\"?", "Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            if (MessageBox.Show(L.F("Delete animation \"{0}\"?", anim.Name), L.T("Delete"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
                 return;
             _obj.Animations.Remove(anim);
             if (_obj.DefaultAnimation == anim.Name)

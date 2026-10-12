@@ -18,12 +18,12 @@ namespace EasyEngine
         /// <param name="look">current look: a built-in name, a picture path, or "" (= guessed from the item's name).</param>
         public static ComboBox Make(Project project, string itemName, string color, string look, Action<string> onChange, Window? owner = null)
         {
-            var combo = new ComboBox { Height = 30, MinWidth = 110, ToolTip = "How the item looks (in the hand and on the hotbar)" };
+            var combo = new ComboBox { Height = 30, MinWidth = 110, ToolTip = L.T("How the item looks (in the hand and on the hotbar)") };
             foreach (var l in ToolArt.Looks)
                 combo.Items.Add(new ComboBoxItem { Content = Entry(ToolArt.Make(itemName, color, 20, out _, l), ToolArt.LookTitle(l)), Tag = l });
             if (ToolArt.IsPicture(look))
-                combo.Items.Add(new ComboBoxItem { Content = Entry(Picture(project, look, 20), Path.GetFileName(look)), Tag = look });
-            combo.Items.Add(new ComboBoxItem { Content = Entry(new TextBlock { Text = "🖼", FontSize = 14, Width = 20 }, "My picture…"), Tag = PictureTag });
+                combo.Items.Add(new ComboBoxItem { Content = Entry(Picture(project, look, 20), Path.GetFileName(look), keep: true), Tag = look });
+            combo.Items.Add(new ComboBoxItem { Content = Entry(new TextBlock { Text = "🖼", FontSize = 14, Width = 20 }, L.T("My picture…")), Tag = PictureTag });
 
             string current = ToolArt.IsPicture(look) ? look : ToolArt.Shape(string.IsNullOrWhiteSpace(look) ? itemName : look);
             foreach (ComboBoxItem it in combo.Items) if ((string)it.Tag! == current) { combo.SelectedItem = it; break; }
@@ -35,12 +35,12 @@ namespace EasyEngine
                 var tag = (string)ci.Tag!;
                 if (tag == PictureTag)
                 {
-                    var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Picture of the item", Filter = "Images|*.png;*.jpg;*.jpeg;*.gif;*.bmp" };
+                    var dlg = new Microsoft.Win32.OpenFileDialog { Title = L.T("Picture of the item"), Filter = L.T("Images") + "|*.png;*.jpg;*.jpeg;*.gif;*.bmp" };
                     string? rel = null;
                     if (dlg.ShowDialog(owner ?? Application.Current.MainWindow) == true)
-                        try { rel = ProjectIO.ImportAsset(project, dlg.FileName, "sprites"); } catch (Exception ex) { MessageBox.Show("Couldn't use that picture: " + ex.Message); }
+                        try { rel = ProjectIO.ImportAsset(project, dlg.FileName, "sprites"); } catch (Exception ex) { MessageBox.Show(L.T("Couldn't use that picture:") + " " + ex.Message); }
                     if (rel == null) { combo.SelectedItem = last; return; }
-                    var item = new ComboBoxItem { Content = Entry(Picture(project, rel, 20), Path.GetFileName(rel)), Tag = rel };
+                    var item = new ComboBoxItem { Content = Entry(Picture(project, rel, 20), Path.GetFileName(rel), keep: true), Tag = rel };
                     combo.Items.Insert(combo.Items.Count - 1, item);
                     last = item; combo.SelectedItem = item;
                     onChange(rel);
@@ -69,12 +69,14 @@ namespace EasyEngine
             return img;
         }
 
-        private static StackPanel Entry(FrameworkElement icon, string text)
+        private static StackPanel Entry(FrameworkElement icon, string text, bool keep = false)
         {
             var sp = new StackPanel { Orientation = Orientation.Horizontal };
             icon.Margin = new Thickness(0, 0, 8, 0); icon.VerticalAlignment = VerticalAlignment.Center;
             sp.Children.Add(icon);
-            sp.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
+            var label = new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center };
+            if (keep) L.SetSkip(label, true); // a file name
+            sp.Children.Add(label);
             return sp;
         }
     }

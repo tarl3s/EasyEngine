@@ -75,21 +75,21 @@ namespace EasyEngine
             }
             catch (HttpRequestException)
             {
-                throw new OllamaException("Não consegui falar com o Ollama. Ele está instalado e rodando? (servidor em localhost:11434)");
+                throw new OllamaException(L.T("Couldn't talk to Ollama. Is it installed and running? (server at localhost:11434)"));
             }
             catch (TaskCanceledException)
             {
-                throw new OllamaException("A geração demorou demais e foi cancelada.");
+                throw new OllamaException(L.T("The answer took too long and was cancelled."));
             }
 
             var responseText = await resp.Content.ReadAsStringAsync(ct);
 
             if (!resp.IsSuccessStatusCode)
             {
-                // Ollama devolve 404 com msg quando o modelo não foi baixado.
+                // Ollama answers 404 with a message when the model isn't downloaded.
                 if (responseText.Contains("not found", StringComparison.OrdinalIgnoreCase))
-                    throw new OllamaException($"O modelo \"{model}\" não foi baixado. Rode no terminal:\n    ollama pull {model}");
-                throw new OllamaException($"Ollama respondeu com erro ({(int)resp.StatusCode}): {responseText}");
+                    throw new OllamaException(L.F("The model \"{0}\" isn't downloaded. Run this in a terminal:", model) + $"\n    ollama pull {model}");
+                throw new OllamaException(L.F("Ollama answered with an error ({0}): {1}", (int)resp.StatusCode, responseText));
             }
 
             var parsed = JsonSerializer.Deserialize<GenerateResponse>(responseText);

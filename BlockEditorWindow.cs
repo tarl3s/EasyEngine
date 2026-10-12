@@ -23,75 +23,78 @@ namespace EasyEngine
         private static readonly string[] Props = { "x", "y", "vx", "vy", "rot", "facing", "health", "w", "h", "speed" };
         private static readonly string[] CommonKeys = { "Space", "Up", "Down", "Left", "Right", "W", "A", "S", "D", "E", "F", "J", "K", "Enter", "LeftShift" };
 
-        private static readonly BlockDef[] Events =
+        // the blocks, with their labels in the editor's language (ids, keys, types and values stay English: they are saved)
+        private readonly BlockDef[] Events = MakeEvents(), Actions = MakeActions();
+
+        private static BlockDef[] MakeEvents() => new BlockDef[]
         {
-            new("start",      "When it spawns", Array.Empty<Field>()),
-            new("always",     "Every frame (always)", Array.Empty<Field>()),
-            new("key",        "While a key is held", new[] { new Field("key", "Key", "key", "Space") }),
-            new("keypress",   "When a key is pressed", new[] { new Field("key", "Key", "key", "Space"), new Field("cooldown", "Cooldown (s)", "num", "0.3") }, "Fires once per press. Cooldown stops it repeating too fast while held."),
-            new("timer",      "Every few seconds", new[] { new Field("every", "Seconds", "num", "1") }, "Repeats forever on this interval."),
-            new("touch",      "When it touches an object", new[] { new Field("name", "Object", "obj") }, "Fires the moment it starts touching that object (once per touch)."),
-            new("death",      "When it dies", Array.Empty<Field>()),
-            new("ifvar",      "While a variable is…", new[] { new Field("var", "Variable", "text"), new Field("op", "is", "choice", ">=", Ops), new Field("value", "Value", "num", "1") }),
-            new("iflocal",    "While its own variable is…", new[] { new Field("var", "Variable", "text"), new Field("op", "is", "choice", ">=", Ops), new Field("value", "Value", "num", "1") }),
-            new("hasitem",    "While it has an item", new[] { new Field("item", "Item", "text") }),
-            new("isnight",    "While it's night", Array.Empty<Field>(), "Needs a Day/Night cycle object in the scene. Great for enemies that only come out at night."),
-            new("isday",      "While it's day", Array.Empty<Field>(), "Needs a Day/Night cycle object in the scene."),
-            new("wheelup",    "When the mouse wheel scrolls up", Array.Empty<Field>()),
-            new("wheeldown",  "When the mouse wheel scrolls down", Array.Empty<Field>()),
-            new("expr",       "While a condition is true", new[] { new Field("expr", "Condition", "text") }),
-            new("click",      "When clicked", Array.Empty<Field>()),
-            new("rightclick", "When right-clicked", Array.Empty<Field>()),
-            new("mouseover",  "While the mouse is over it", Array.Empty<Field>()),
-            new("mousedown",  "While the mouse is pressed on it", Array.Empty<Field>()),
-            new("mousepress", "When the mouse is clicked (anywhere)", Array.Empty<Field>()),
+            new("start",      L.T("When it spawns"), Array.Empty<Field>()),
+            new("always",     L.T("Every frame (always)"), Array.Empty<Field>()),
+            new("key",        L.T("While a key is held"), new[] { new Field("key", L.T("Key"), "key", "Space") }),
+            new("keypress",   L.T("When a key is pressed"), new[] { new Field("key", L.T("Key"), "key", "Space"), new Field("cooldown", L.T("Cooldown (s)"), "num", "0.3") }, L.T("Fires once per press. Cooldown stops it repeating too fast while held.")),
+            new("timer",      L.T("Every few seconds"), new[] { new Field("every", L.T("Seconds"), "num", "1") }, L.T("Repeats forever on this interval.")),
+            new("touch",      L.T("When it touches an object"), new[] { new Field("name", L.T("Object"), "obj") }, L.T("Fires the moment it starts touching that object (once per touch).")),
+            new("death",      L.T("When it dies"), Array.Empty<Field>()),
+            new("ifvar",      L.T("While a variable is…"), new[] { new Field("var", L.T("Variable"), "text"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") }),
+            new("iflocal",    L.T("While its own variable is…"), new[] { new Field("var", L.T("Variable"), "text"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") }),
+            new("hasitem",    L.T("While it has an item"), new[] { new Field("item", L.T("Item"), "text") }),
+            new("isnight",    L.T("While it's night"), Array.Empty<Field>(), L.T("Needs a Day/Night cycle object in the scene. Great for enemies that only come out at night.")),
+            new("isday",      L.T("While it's day"), Array.Empty<Field>(), L.T("Needs a Day/Night cycle object in the scene.")),
+            new("wheelup",    L.T("When the mouse wheel scrolls up"), Array.Empty<Field>()),
+            new("wheeldown",  L.T("When the mouse wheel scrolls down"), Array.Empty<Field>()),
+            new("expr",       L.T("While a condition is true"), new[] { new Field("expr", L.T("Condition"), "text") }),
+            new("click",      L.T("When clicked"), Array.Empty<Field>()),
+            new("rightclick", L.T("When right-clicked"), Array.Empty<Field>()),
+            new("mouseover",  L.T("While the mouse is over it"), Array.Empty<Field>()),
+            new("mousedown",  L.T("While the mouse is pressed on it"), Array.Empty<Field>()),
+            new("mousepress", L.T("When the mouse is clicked (anywhere)"), Array.Empty<Field>()),
         };
 
         private static readonly string[] TweenProps = { "x", "y", "opacity", "rot", "w", "h", "scale" };
         private static readonly string[] Eases = { "linear", "easein", "easeout", "easeinout" };
         private static readonly string[] YesNo = { "0", "1" };
 
-        private static readonly BlockDef[] Actions =
+        private static BlockDef[] MakeActions() => new BlockDef[]
         {
-            new("velocity",  "Move at a speed", new[] { new Field("vx", "→ sideways", "num", "0"), new Field("vy", "↓ up / down", "num", "0") },
-                "Speed in each direction.  sideways: + = right, − = left.   up/down: + = down, − = up.   e.g. −250 sideways = move left."),
-            new("move",      "Nudge (shift position)", new[] { new Field("dx", "→ sideways / s", "num", "0"), new Field("dy", "↓ up-down / s", "num", "0") },
-                "Shifts its position a little each second, ignoring physics."),
-            new("accelerate","Speed up over time", new[] { new Field("ax", "→ sideways", "num", "0"), new Field("ay", "↓ up-down", "num", "0") },
-                "Adds to its speed gradually (not instant). + up/down makes it fall faster."),
-            new("jump",      "Jump", new[] { new Field("force", "Strength", "num", "600") }, "Only works while standing on the ground. Bigger = higher."),
-            new("rotate",    "Spin", new[] { new Field("speed", "Degrees / s", "num", "90") }, "Rotates continuously. Negative spins the other way."),
-            new("shoot",     "Shoot", new[] { new Field("directions", "Directions", "num", "1"), new Field("speed", "Speed", "num", "420"), new Field("life", "Life (s)", "num", "2"), new Field("bullet", "Bullet", "obj", "Bullet") },
-                "Fires projectiles. 1 direction = straight ahead; more = spread all around."),
-            new("spawn",     "Spawn an object", new[] { new Field("object", "Object", "obj"), new Field("at", "From", "choice", "", new[] { "", "top", "near" }) },
-                "From (empty) = at this object · top = falling from the top of the screen · near = on the ground, a little to the left or right."),
-            new("destroy",   "Destroy itself", Array.Empty<Field>()),
-            new("goscene",   "Go to another scene", new[] { new Field("scene", "Scene", "scene") }),
-            new("setvar",    "Set a variable", new[] { new Field("var", "Variable", "text"), new Field("to", "To", "val", "0") }),
-            new("addvar",    "Add to a variable", new[] { new Field("var", "Variable", "text"), new Field("amount", "Amount", "val", "1") }),
-            new("setlocal",  "Set its own variable", new[] { new Field("var", "Variable", "text"), new Field("to", "To", "val", "0") }),
-            new("addlocal",  "Add to its own variable", new[] { new Field("var", "Variable", "text"), new Field("amount", "Amount", "val", "1") }),
-            new("set",       "Set a property", new[] { new Field("target", "Object (or self)", "obj", "self"), new Field("prop", "Property", "choice", "x", Props), new Field("to", "To", "val", "0") }),
-            new("additem",   "Give an item", new[] { new Field("item", "Item", "text"), new Field("amount", "Amount", "num", "1") }),
-            new("removeitem","Remove an item", new[] { new Field("item", "Item", "text"), new Field("amount", "Amount", "num", "1") }),
-            new("boost",     "Multiply its speed", new[] { new Field("factor", "Times", "num", "2") }, "2 = twice as fast, 0.5 = half. Affects Platformer/Top-down speed."),
-            new("setspeed",  "Set its speed level", new[] { new Field("factor", "Level", "num", "1") }, "1 = normal, 0.5 = half, 2 = double. Resets the boost."),
-            new("say",       "Show a message", new[] { new Field("text", "Text", "text"), new Field("speaker", "Speaker (optional)", "text") }),
-            new("emit",      "Burst of particles", new[] { new Field("count", "How many", "num", "16"), new Field("speed", "Speed", "num", "180"), new Field("spread", "Spread (°)", "num", "360"), new Field("angle", "Angle (°)", "num", "0"), new Field("life", "Life (s)", "num", "0.8"), new Field("size", "Size", "num", "8"), new Field("gravity", "Gravity", "num", "400"), new Field("color", "Color", "text", "#FFD24D") },
-                "A one-off puff of particles (sparks, dust, explosions)."),
-            new("tween",     "Glide a property", new[] { new Field("prop", "Property", "choice", "x", TweenProps), new Field("to", "To", "val", "0"), new Field("duration", "Over (s)", "num", "0.5"), new Field("ease", "Ease", "choice", "linear", Eases), new Field("loop", "Loop (0/1)", "num", "0"), new Field("yoyo", "Yoyo (0/1)", "num", "0") },
-                "Smoothly animates a property to a value. Loop repeats; yoyo bounces back and forth."),
-            new("setvolume", "Set volume", new[] { new Field("channel", "Channel", "text", "master"), new Field("to", "Level (0-1)", "num", "1") }),
-            new("breaktile", "Break a tile", new[] { new Field("where", "Which", "choice", "touching", new[] { "touching", "below", "above", "left", "right", "front", "atmouse" }) },
-                "Breaks a tile of a breakable tilemap: any it overlaps (touching), the one below/above/beside/in front of it, or the one at the mouse."),
-            new("settime",   "Set time of day", new[] { new Field("time", "Time", "choice", "night", new[] { "day", "noon", "dusk", "night", "midnight" }) },
-                "Jumps the Day/Night cycle to that moment (needs a Day/Night cycle object in the scene)."),
-            new("playsound", "Play a sound", new[] { new Field("sound", "Sound", "sound"), new Field("volume", "Volume (0-1)", "num", "0.8") },
-                "Plays a sound file from the project's Assets/sounds folder."),
-            new("log",       "Write to the console", new[] { new Field("text", "Message", "text"), new Field("level", "Level", "choice", "info", new[] { "info", "warn", "error" }) },
-                "Shows a line in the debug console (F1 while playing). Use {variable} to print a value, e.g. Coins: {coins}."),
-            new("save",      "Save the game", Array.Empty<Field>()),
-            new("load",      "Load the game", Array.Empty<Field>()),
+            new("velocity",  L.T("Move at a speed"), new[] { new Field("vx", L.T("→ sideways"), "num", "0"), new Field("vy", L.T("↓ up / down"), "num", "0") },
+                L.T("Speed in each direction.  sideways: + = right, − = left.   up/down: + = down, − = up.   e.g. −250 sideways = move left.")),
+            new("move",      L.T("Nudge (shift position)"), new[] { new Field("dx", L.T("→ sideways / s"), "num", "0"), new Field("dy", L.T("↓ up-down / s"), "num", "0") },
+                L.T("Shifts its position a little each second, ignoring physics.")),
+            new("accelerate",L.T("Speed up over time"), new[] { new Field("ax", L.T("→ sideways"), "num", "0"), new Field("ay", L.T("↓ up-down"), "num", "0") },
+                L.T("Adds to its speed gradually (not instant). + up/down makes it fall faster.")),
+            new("jump",      L.T("Jump"), new[] { new Field("force", L.T("Strength"), "num", "600") }, L.T("Only works while standing on the ground. Bigger = higher.")),
+            new("rotate",    L.T("Spin"), new[] { new Field("speed", L.T("Degrees / s"), "num", "90") }, L.T("Rotates continuously. Negative spins the other way.")),
+            new("shoot",     L.T("Shoot"), new[] { new Field("directions", L.T("Directions"), "num", "1"), new Field("speed", L.T("Speed"), "num", "420"), new Field("life", L.T("Life (s)"), "num", "2"), new Field("bullet", L.T("Bullet"), "obj", "Bullet") },
+                L.T("Fires projectiles. 1 direction = straight ahead; more = spread all around.")),
+            new("spawn",     L.T("Spawn an object"), new[] { new Field("object", L.T("Object"), "obj"), new Field("at", L.T("From"), "choice", "", new[] { "", "top", "near" }) },
+                L.T("From (empty) = at this object · top = falling from the top of the screen · near = on the ground, a little to the left or right.")),
+            new("destroy",   L.T("Destroy itself"), Array.Empty<Field>()),
+            new("goscene",   L.T("Go to another scene"), new[] { new Field("scene", L.T("Scene"), "scene") }),
+            new("setvar",    L.T("Set a variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("to", L.T("To"), "val", "0") }),
+            new("addvar",    L.T("Add to a variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("amount", L.T("Amount"), "val", "1") }),
+            new("setlocal",  L.T("Set its own variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("to", L.T("To"), "val", "0") }),
+            new("addlocal",  L.T("Add to its own variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("amount", L.T("Amount"), "val", "1") }),
+            new("set",       L.T("Set a property"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self"), new Field("prop", L.T("Property"), "choice", "x", Props), new Field("to", L.T("To"), "val", "0") }),
+            new("additem",   L.T("Give an item"), new[] { new Field("item", L.T("Item"), "text"), new Field("amount", L.T("Amount"), "num", "1") }),
+            new("removeitem",L.T("Remove an item"), new[] { new Field("item", L.T("Item"), "text"), new Field("amount", L.T("Amount"), "num", "1") }),
+            new("boost",     L.T("Multiply its speed"), new[] { new Field("factor", L.T("Times"), "num", "2") }, L.T("2 = twice as fast, 0.5 = half. Affects Platformer/Top-down speed.")),
+            new("setspeed",  L.T("Set its speed level"), new[] { new Field("factor", L.T("Level"), "num", "1") }, L.T("1 = normal, 0.5 = half, 2 = double. Resets the boost.")),
+            new("say",       L.T("Show a message"), new[] { new Field("text", L.T("Text"), "text"), new Field("speaker", L.T("Speaker (optional)"), "text") }),
+            new("emit",      L.T("Burst of particles"), new[] { new Field("count", L.T("How many"), "num", "16"), new Field("speed", L.T("Speed"), "num", "180"), new Field("spread", L.T("Spread (°)"), "num", "360"), new Field("angle", L.T("Angle (°)"), "num", "0"), new Field("life", L.T("Life (s)"), "num", "0.8"), new Field("size", L.T("Size"), "num", "8"), new Field("gravity", L.T("Gravity"), "num", "400"), new Field("color", L.T("Color"), "text", "#FFD24D") },
+                L.T("A one-off puff of particles (sparks, dust, explosions).")),
+            new("tween",     L.T("Glide a property"), new[] { new Field("prop", L.T("Property"), "choice", "x", TweenProps), new Field("to", L.T("To"), "val", "0"), new Field("duration", L.T("Over (s)"), "num", "0.5"), new Field("ease", L.T("Ease"), "choice", "linear", Eases), new Field("loop", L.T("Loop (0/1)"), "num", "0"), new Field("yoyo", L.T("Yoyo (0/1)"), "num", "0") },
+                L.T("Smoothly animates a property to a value. Loop repeats; yoyo bounces back and forth.")),
+            new("setvolume", L.T("Set volume"), new[] { new Field("channel", L.T("Channel"), "text", "master"), new Field("to", L.T("Level (0-1)"), "num", "1") }),
+            new("breaktile", L.T("Break a tile"), new[] { new Field("where", L.T("Which"), "choice", "touching", new[] { "touching", "below", "above", "left", "right", "front", "atmouse" }) },
+                L.T("Breaks a tile of a breakable tilemap: any it overlaps (touching), the one below/above/beside/in front of it, or the one at the mouse.")),
+            new("settime",   L.T("Set time of day"), new[] { new Field("time", L.T("Time"), "choice", "night", new[] { "day", "noon", "dusk", "night", "midnight" }) },
+                L.T("Jumps the Day/Night cycle to that moment (needs a Day/Night cycle object in the scene).")),
+            new("playsound", L.T("Play a sound"), new[] { new Field("sound", L.T("Sound"), "sound"), new Field("volume", L.T("Volume (0-1)"), "num", "0.8") },
+                L.T("Plays a sound file from the project's Assets/sounds folder.")),
+            new("log",       L.T("Write to the console"), new[] { new Field("text", L.T("Message"), "text"), new Field("level", L.T("Level"), "choice", "info", new[] { "info", "warn", "error" }) },
+                L.T("Shows a line in the debug console (F1 while playing). Use {variable} to print a value, e.g. Coins: {coins}.")),
+            new("save",      L.T("Save the game"), Array.Empty<Field>()),
+            new("load",      L.T("Load the game"), Array.Empty<Field>()),
         };
 
         private class RuleModel
@@ -115,7 +118,7 @@ namespace EasyEngine
         public BlockEditorWindow(Project project, Scene scene, string json)
         {
             _project = project; _scene = scene;
-            Title = "Build behavior with blocks";
+            Title = L.T("Build behavior with blocks");
             Width = 720; Height = 620;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = Theme.Brush("Bg0", "#15151A");
@@ -130,20 +133,20 @@ namespace EasyEngine
 
             root.Children.Add(Docked(new TextBlock
             {
-                Text = "Each block runs:  WHEN something happens  →  DO something.  Add as many as you like.",
+                Text = L.T("Each block runs:  WHEN something happens  →  DO something.  Add as many as you like."),
                 Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
             }, Dock.Top));
 
             // bottom buttons
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-            var cancel = new Button { Content = "Cancel", Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
+            var cancel = new Button { Content = L.T("Cancel"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
             cancel.Click += (s, e) => { DialogResult = false; Close(); };
-            var done = new Button { Content = "Done", Height = 32, Padding = new Thickness(20, 0, 20, 0), Style = Theme.Style("AccentButton") };
+            var done = new Button { Content = L.T("Done"), Height = 32, Padding = new Thickness(20, 0, 20, 0), Style = Theme.Style("AccentButton") };
             done.Click += (s, e) => { ResultJson = Serialize(); DialogResult = true; Close(); };
             bottom.Children.Add(cancel); bottom.Children.Add(done);
             root.Children.Add(Docked(bottom, Dock.Bottom));
 
-            var add = new Button { Content = "➕  Add a block", Height = 34, Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 0, 14, 0), Style = Theme.Style("CardButton") };
+            var add = new Button { Content = L.T("➕  Add a block"), Height = 34, Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 0, 14, 0), Style = Theme.Style("CardButton") };
             add.Click += (s, e) => { _rules.Add(new RuleModel()); RenderRules(); };
             root.Children.Add(Docked(add, Dock.Bottom));
 
@@ -159,7 +162,7 @@ namespace EasyEngine
         {
             _list.Children.Clear();
             if (_rules.Count == 0)
-                _list.Children.Add(new TextBlock { Text = "No blocks yet — click \"Add a block\" to start.", Foreground = Theme.Brush("TextDim", "#888"), FontSize = 12, Margin = new Thickness(2, 6, 0, 0) });
+                _list.Children.Add(new TextBlock { Text = L.T("No blocks yet — click \"Add a block\" to start."), Foreground = Theme.Brush("TextDim", "#888"), FontSize = 12, Margin = new Thickness(2, 6, 0, 0) });
             for (int i = 0; i < _rules.Count; i++) _list.Children.Add(BuildCard(i));
         }
 
@@ -172,7 +175,7 @@ namespace EasyEngine
             var header = new Grid { Margin = new Thickness(0, 0, 0, 8) };
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            header.Children.Add(new TextBlock { Text = $"Block {index + 1}", Foreground = Theme.Brush("Text", "#EEE"), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+            header.Children.Add(new TextBlock { Text = L.F("Block {0}", index + 1), Foreground = Theme.Brush("Text", "#EEE"), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
             var hbtns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
             var up = Small("▲"); up.Click += (s, e) => { if (index > 0) { (_rules[index], _rules[index - 1]) = (_rules[index - 1], _rules[index]); RenderRules(); } };
             var dn = Small("▼"); dn.Click += (s, e) => { if (index < _rules.Count - 1) { (_rules[index], _rules[index + 1]) = (_rules[index + 1], _rules[index]); RenderRules(); } };
@@ -182,7 +185,7 @@ namespace EasyEngine
             panel.Children.Add(header);
 
             // WHEN row
-            panel.Children.Add(Pill("WHEN", "#F4A63B"));
+            panel.Children.Add(Pill(L.T("WHEN"), "#F4A63B"));
             var whenCombo = DefCombo(Events, rule.When);
             whenCombo.SelectionChanged += (s, e) => { if (whenCombo.SelectedItem is ComboBoxItem it) { rule.When = (string)it.Tag; RenderRules(); } };
             panel.Children.Add(whenCombo);
@@ -190,7 +193,7 @@ namespace EasyEngine
             panel.Children.Add(FieldsPanel(DefOf(Events, rule.When), rule.WhenP));
 
             // DO row
-            panel.Children.Add(Pill("→ DO", "#2BB673"));
+            panel.Children.Add(Pill(L.T("→ DO"), "#2BB673"));
             var doCombo = DefCombo(Actions, rule.Do);
             doCombo.SelectionChanged += (s, e) => { if (doCombo.SelectedItem is ComboBoxItem it) { rule.Do = (string)it.Tag; RenderRules(); } };
             panel.Children.Add(doCombo);
@@ -203,9 +206,9 @@ namespace EasyEngine
             return new Border { Background = Theme.Brush("Bg1", "#1E1E26"), BorderBrush = Theme.Brush("Border", "#333"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(12), Margin = new Thickness(0, 0, 0, 10), Child = panel };
         }
 
-        private static readonly (string label, string sym)[] CondOps =
+        private static (string label, string sym)[] CondOps => new[] // labels in the editor's language; read back by index
         {
-            ("is at least", ">="), ("is more than", ">"), ("is", "=="), ("is not", "!="), ("is less than", "<"), ("is at most", "<=")
+            (L.T("is at least"), ">="), (L.T("is more than"), ">"), (L.T("is"), "=="), (L.T("is not"), "!="), (L.T("is less than"), "<"), (L.T("is at most"), "<=")
         };
 
         private FrameworkElement Labeled(string label, FrameworkElement ctrl, double minW = 90)
@@ -219,7 +222,7 @@ namespace EasyEngine
 
         private void BuildCond(StackPanel panel, RuleModel rule)
         {
-            panel.Children.Add(new TextBlock { Text = "Only run if… (optional)", Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 3) });
+            panel.Children.Add(new TextBlock { Text = L.T("Only run if… (optional)"), Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 3) });
 
             var m = System.Text.RegularExpressions.Regex.Match(rule.Cond ?? "", @"^\s*([A-Za-z_][\w:.]*)\s*(>=|<=|==|!=|>|<)\s*(.+?)\s*$");
 
@@ -230,14 +233,14 @@ namespace EasyEngine
             var valBox = new TextBox { Height = 28, Text = m.Success ? m.Groups[3].Value : "" };
 
             var row = new WrapPanel { Margin = new Thickness(2, 0, 0, 0) };
-            row.Children.Add(Labeled("variable", varBox, 120));
-            row.Children.Add(Labeled("is…", opCb, 110));
-            row.Children.Add(Labeled("value", valBox, 70));
+            row.Children.Add(Labeled(L.T("variable"), varBox, 120));
+            row.Children.Add(Labeled(L.T("is…"), opCb, 110));
+            row.Children.Add(Labeled(L.T("value"), valBox, 70));
             panel.Children.Add(row);
-            panel.Children.Add(new TextBlock { Text = "Leave empty to always run.  Example:  coins  is at least  15", Foreground = Theme.Brush("TextDim", "#8a8a93"), FontSize = 10.5, Margin = new Thickness(2, 1, 0, 0) });
+            panel.Children.Add(new TextBlock { Text = L.T("Leave empty to always run.  Example:  coins  is at least  15"), Foreground = Theme.Brush("TextDim", "#8a8a93"), FontSize = 10.5, Margin = new Thickness(2, 1, 0, 0) });
 
             var adv = new TextBox { Height = 26, Margin = new Thickness(0, 3, 0, 0), Text = m.Success ? "" : (rule.Cond ?? "") };
-            panel.Children.Add(new TextBlock { Text = "…or an advanced condition (expression — overrides the boxes above)", Foreground = Theme.Brush("TextDim", "#8a8a93"), FontSize = 10, Margin = new Thickness(0, 4, 0, 1) });
+            panel.Children.Add(new TextBlock { Text = L.T("…or an advanced condition (expression — overrides the boxes above)"), Foreground = Theme.Brush("TextDim", "#8a8a93"), FontSize = 10, Margin = new Thickness(0, 4, 0, 1) });
             panel.Children.Add(adv);
 
             void Rebuild()
@@ -297,11 +300,12 @@ namespace EasyEngine
             Control ctrl;
             if (f.Type == "choice")
             {
+                // shown in the editor's language, saved by value (the item's Tag)
                 var cb = new ComboBox { Height = 28, MinWidth = 80 };
-                foreach (var o in f.Options ?? Array.Empty<string>()) cb.Items.Add(o.Length == 0 ? "(none)" : o);
-                cb.SelectedItem = cur.Length == 0 ? "(none)" : cur;
+                foreach (var o in f.Options ?? Array.Empty<string>()) cb.Items.Add(new ComboBoxItem { Content = OptionLabel(o), Tag = o });
+                cb.SelectedItem = cb.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == cur);
                 if (cb.SelectedItem == null && cb.Items.Count > 0) cb.SelectedIndex = 0;
-                cb.SelectionChanged += (s, e) => { var sel = cb.SelectedItem as string ?? ""; rule[f.Key] = sel == "(none)" ? "" : sel; };
+                cb.SelectionChanged += (s, e) => rule[f.Key] = (cb.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
                 ctrl = cb;
             }
             else if (f.Type == "obj" || f.Type == "scene" || f.Type == "key" || f.Type == "sound")
@@ -309,10 +313,12 @@ namespace EasyEngine
                 var cb = new ComboBox { Height = 28, MinWidth = 120 };
                 var items = SuggestionsFor(f.Type).ToList();
                 if (!string.IsNullOrEmpty(cur) && !items.Contains(cur)) items.Insert(0, cur); // keep a value that isn't in the list
-                foreach (var o in items) cb.Items.Add(o);
-                cb.SelectedItem = cur;
-                if (cb.SelectedItem == null && cb.Items.Count > 0) { cb.SelectedIndex = 0; rule[f.Key] = (string)cb.Items[0]; }
-                cb.SelectionChanged += (s, e) => rule[f.Key] = cb.SelectedItem as string ?? "";
+                foreach (var o in items)
+                    cb.Items.Add(o == "self" && f.Type == "obj" ? new ComboBoxItem { Content = L.T("self"), Tag = o }
+                                 : L.Keep(new ComboBoxItem { Content = o, Tag = o })); // names, keys and files: the person's own
+                cb.SelectedItem = cb.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == cur);
+                if (cb.SelectedItem == null && cb.Items.Count > 0) { cb.SelectedIndex = 0; rule[f.Key] = (string)((ComboBoxItem)cb.Items[0]).Tag; }
+                cb.SelectionChanged += (s, e) => rule[f.Key] = (cb.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
                 ctrl = cb;
             }
             else // num, text, val
@@ -334,6 +340,19 @@ namespace EasyEngine
             var names = _scene.Layers.SelectMany(l => l.Objects).Select(o => o.Name).Distinct();
             return new[] { "self" }.Concat(names);
         }
+
+        // what a choice option shows (the value is what's saved; symbols and property names show as they are)
+        private static string OptionLabel(string o) => o switch
+        {
+            "" => L.T("(none)"),
+            "top" => L.T("top"), "near" => L.T("near"),
+            "touching" => L.T("touching"), "below" => L.T("below"), "above" => L.T("above"), "left" => L.T("left"), "right" => L.T("right"),
+            "front" => L.T("front"), "atmouse" => L.T("at the mouse"),
+            "day" => L.T("day"), "noon" => L.T("noon"), "dusk" => L.T("dusk"), "night" => L.T("night"), "midnight" => L.T("midnight"),
+            "info" => L.T("info"), "warn" => L.T("warn"), "error" => L.T("error"),
+            "linear" => L.T("linear"), "easein" => L.T("ease in"), "easeout" => L.T("ease out"), "easeinout" => L.T("ease in and out"),
+            _ => o,
+        };
 
         // ---------------- JSON <-> rules ----------------
         private void ParseJson(string json)

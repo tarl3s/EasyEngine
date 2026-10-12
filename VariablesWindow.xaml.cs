@@ -30,12 +30,12 @@ namespace EasyEngine
         private void Build()
         {
             Root.Children.Clear();
-            Section("Global", "Shared across the whole game (score, lives…). Persists between scenes.", _project.Variables, null);
-            Section("Local (scene)", "Belongs to this scene. Reset every time the scene loads.", _scene.Variables, null);
-            Section("Object",
-                _obj != null ? $"Belongs to \"{_obj.Name}\". Each copy of it in the game gets its own." : "Belongs to the selected object.",
+            Section(L.T("Global"), L.T("Shared across the whole game (score, lives…). Persists between scenes."), _project.Variables, null);
+            Section(L.T("Local (scene)"), L.T("Belongs to this scene. Reset every time the scene loads."), _scene.Variables, null);
+            Section(L.T("Object"),
+                _obj != null ? L.F("Belongs to \"{0}\". Each copy of it in the game gets its own.", _obj.Name) : L.T("Belongs to the selected object."),
                 _obj?.Variables,
-                "Select an object in the scene to add its variables.");
+                L.T("Select an object in the scene to add its variables."));
         }
 
         private void Section(string title, string desc, Dictionary<string, double>? dict, string? emptyNote)
@@ -50,7 +50,7 @@ namespace EasyEngine
             }
 
             if (dict.Count == 0)
-                Root.Children.Add(new TextBlock { Text = "No variables yet.", Foreground = B("TextDim"), FontSize = 12, Margin = new Thickness(0, 0, 0, 6) });
+                Root.Children.Add(new TextBlock { Text = L.T("No variables yet."), Foreground = B("TextDim"), FontSize = 12, Margin = new Thickness(0, 0, 0, 6) });
 
             foreach (var kv in dict.OrderBy(k => k.Key).ToList())
                 Root.Children.Add(VarRow(dict, kv.Key, kv.Value));
@@ -65,7 +65,7 @@ namespace EasyEngine
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(96) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var lbl = new TextBlock { Text = name, Foreground = B("Text"), FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
+            var lbl = L.Keep(new TextBlock { Text = name, Foreground = B("Text"), FontSize = 13, VerticalAlignment = VerticalAlignment.Center }); // the variable's name
             var val = new TextBox { Text = value.ToString("0.###", CultureInfo.InvariantCulture), Height = 28, Margin = new Thickness(6, 0, 0, 0) };
             void Commit() { if (double.TryParse(val.Text.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out var v)) { dict[name] = v; Changed = true; } }
             val.LostFocus += (s, e) => Commit();
@@ -89,13 +89,13 @@ namespace EasyEngine
             var nameBox = new TextBox { Height = 28 };
             nameBox.Tag = "name";
             var valBox = new TextBox { Text = "0", Height = 28, Margin = new Thickness(6, 0, 0, 0) };
-            var add = new Button { Content = "Add", Width = 56, Height = 28, Margin = new Thickness(6, 0, 0, 0), Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Center };
+            var add = new Button { Content = L.T("Add"), Width = 56, Height = 28, Margin = new Thickness(6, 0, 0, 0), Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Center };
 
             void DoAdd()
             {
                 var n = nameBox.Text.Trim();
                 if (string.IsNullOrEmpty(n)) return;
-                if (dict.ContainsKey(n)) { MessageBox.Show("A variable with that name already exists."); return; }
+                if (dict.ContainsKey(n)) { MessageBox.Show(L.T("A variable with that name already exists.")); return; }
                 double v = 0; double.TryParse(valBox.Text.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out v);
                 dict[n] = v; Changed = true; Build();
             }
@@ -106,7 +106,7 @@ namespace EasyEngine
             // placeholder hint
             nameBox.GotFocus += (s, e) => { if (nameBox.Text == "") { } };
             nameBox.Text = "";
-            var hint = new TextBlock { Text = "new variable name", Foreground = B("TextDim"), FontSize = 12, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+            var hint = new TextBlock { Text = L.T("new variable name"), Foreground = B("TextDim"), FontSize = 12, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
             // simple placeholder overlay
             var namePanel = new Grid();
             namePanel.Children.Add(nameBox);

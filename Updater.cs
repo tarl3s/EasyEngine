@@ -113,7 +113,7 @@ namespace EasyEngine
             }
             var unpacked = Path.Combine(WorkDir, r.Tag);
             ZipFile.ExtractToDirectory(zip, unpacked);
-            return FindExeFolder(unpacked) ?? throw new InvalidDataException("The download doesn't contain EasyEngine.exe.");
+            return FindExeFolder(unpacked) ?? throw new InvalidDataException(L.T("The download doesn't contain EasyEngine.exe."));
         }
 
         /// <summary>The folder (the given one, or the single folder inside it) that holds EasyEngine.exe.</summary>
@@ -138,13 +138,27 @@ namespace EasyEngine
                 UseShellExecute = false, CreateNoWindow = true,
             };
             foreach (var a in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", script,
-                                      "-WaitPid", waitForPid.ToString(), "-NewDir", newDir, "-InstallDir", installDir, "-Start", start ? "1" : "0" })
+                                      "-WaitPid", waitForPid.ToString(), "-NewDir", newDir, "-InstallDir", installDir, "-Start", start ? "1" : "0",
+                                      "-TxtUpdating", L.T("Updating EasyEngine..."), "-TxtWaiting", L.T("Waiting for EasyEngine to close..."),
+                                      "-TxtRemoving", L.T("Removing the old version..."), "-TxtInstalling", SafeFormat(L.T("Installing the new version... {0} / {1}"), "Installing the new version... {0} / {1}"),
+                                      "-TxtOpening", L.T("Opening EasyEngine...") })
                 psi.ArgumentList.Add(a);
             return Process.Start(psi)!;
         }
 
+        // a translated "{0} / {1}" text whose placeholders don't work falls back to English (the script formats it)
+        private static string SafeFormat(string format, string english)
+        {
+            try { string.Format(format, 1, 2); return format; }
+            catch (FormatException) { return english; }
+        }
+
+        // the texts of the swap window come in as arguments, in the editor's language
         private const string SwapScript = @"
-param([int]$WaitPid, [string]$NewDir, [string]$InstallDir, [string]$Start = '1')
+param([int]$WaitPid, [string]$NewDir, [string]$InstallDir, [string]$Start = '1',
+      [string]$TxtUpdating = 'Updating EasyEngine...', [string]$TxtWaiting = 'Waiting for EasyEngine to close...',
+      [string]$TxtRemoving = 'Removing the old version...', [string]$TxtInstalling = 'Installing the new version... {0} / {1}',
+      [string]$TxtOpening = 'Opening EasyEngine...')
 $log = Join-Path $env:TEMP 'easyengine_update.log'
 ""$(Get-Date) updating $InstallDir from $NewDir"" | Out-File $log
 
@@ -157,7 +171,7 @@ try {
     $form.FormBorderStyle = 'FixedDialog'; $form.ControlBox = $false; $form.TopMost = $true
     $form.BackColor = [System.Drawing.Color]::FromArgb(30, 30, 36)
     $label = New-Object System.Windows.Forms.Label
-    $label.Text = 'Updating EasyEngine...'; $label.AutoSize = $false; $label.Dock = 'Fill'
+    $label.Text = $TxtUpdating; $label.AutoSize = $false; $label.Dock = 'Fill'
     $label.TextAlign = 'MiddleCenter'; $label.ForeColor = [System.Drawing.Color]::FromArgb(230, 236, 245)
     $label.Font = New-Object System.Drawing.Font('Segoe UI', 10)
     $bar = New-Object System.Windows.Forms.ProgressBar
@@ -171,7 +185,7 @@ function Show-Step([string]$text, [int]$done = -1, [int]$total = 0) {
     [System.Windows.Forms.Application]::DoEvents()
 }
 
-Show-Step 'Waiting for EasyEngine to close...'
+Show-Step $TxtWaiting
 $deadline = (Get-Date).AddSeconds(60)
 while ($WaitPid -gt 0 -and (Get-Process -Id $WaitPid -ErrorAction SilentlyContinue) -and (Get-Date) -lt $deadline) { Show-Step ''; Start-Sleep -Milliseconds 100 }
 Start-Sleep -Milliseconds 500
@@ -182,7 +196,7 @@ if (Test-Path $manifest) {
     foreach ($rel in $old) {
         $f = Join-Path $InstallDir $rel
         if (Test-Path -LiteralPath $f -PathType Leaf) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
-        if ((++$i % 10) -eq 0) { Show-Step 'Removing the old version...' $i $old.Count }
+        if ((++$i % 10) -eq 0) { Show-Step $TxtRemoving $i $old.Count }
     }
     # folders the old version left empty
     Get-ChildItem -LiteralPath $InstallDir -Directory -Recurse | Sort-Object { $_.FullName.Length } -Descending |
@@ -196,10 +210,10 @@ foreach ($file in $new) {
     $dir = Split-Path -Parent $dest
     if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
     Copy-Item -LiteralPath $file.FullName -Destination $dest -Force
-    if ((++$i % 5) -eq 0 -or $i -eq $new.Count) { Show-Step ""Installing the new version... $i / $($new.Count)"" $i $new.Count }
+    if ((++$i % 5) -eq 0 -or $i -eq $new.Count) { Show-Step ($TxtInstalling -f $i, $new.Count) $i $new.Count }
 }
 ""$(Get-Date) copied"" | Out-File $log -Append
-if ($Start -eq '1') { Show-Step 'Opening EasyEngine...'; Start-Process (Join-Path $InstallDir 'EasyEngine.exe') -WorkingDirectory $InstallDir -ArgumentList '--updated' }
+if ($Start -eq '1') { Show-Step $TxtOpening; Start-Process (Join-Path $InstallDir 'EasyEngine.exe') -WorkingDirectory $InstallDir -ArgumentList '--updated' }
 if ($form) { $form.Close() }
 ";
     }
