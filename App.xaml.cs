@@ -72,6 +72,8 @@ public partial class App : Application
 
         if (e.Args.Contains("--review")) { ProjectIO.SuppressRecent = true; RunReview(); return; }
 
+        if (e.Args.Contains("--update-now")) { RunUpdateNow(); return; } // install the latest GitHub release without asking
+
         // exported standalone game: a 'game' folder with a .eeproj sits next to the exe → play it directly
         if (!e.Args.Contains("--editor"))
         {
@@ -392,6 +394,25 @@ public partial class App : Application
 
     // Builds a demo project into DesktopJogos<folder> (replacing the old copy) and logs where it went.
     // --mining, --topdown, --makegame, --bossdemo, --infinite all go through here.
+    // --update-now: what the launcher's "Install it now?" does, without asking (and logged) — for testing the updater.
+    private async void RunUpdateNow()
+    {
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        var log = Path.Combine(Path.GetTempPath(), "easyengine_update_now.log");
+        try
+        {
+            File.WriteAllText(log, $"current v{Updater.Current.ToString(3)} in {Updater.InstallDir} (dev build: {Updater.IsDevBuild})\n");
+            var r = await Updater.CheckAsync();
+            if (r == null) { File.AppendAllText(log, "no newer release\n"); Shutdown(); return; }
+            File.AppendAllText(log, $"found {r.Tag}, downloading {r.ZipUrl}\n");
+            var dir = await Updater.DownloadAsync(r);
+            File.AppendAllText(log, $"unpacked to {dir}, swapping\n");
+            Updater.StartSwap(dir, Updater.InstallDir, Environment.ProcessId);
+        }
+        catch (Exception ex) { try { File.AppendAllText(log, "ERROR: " + ex + "\n"); } catch { } }
+        Shutdown();
+    }
+
     private void RunDemoBuild(string mode, string folder, Func<string, string> build)
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;

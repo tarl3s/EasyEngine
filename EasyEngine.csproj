@@ -6,8 +6,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <!-- Versioning: X.Y.Z — X = big change, Y = new feature added, Z = fix to something that existed -->
-    <Version>0.10.4</Version>
+    <!-- Versioning: X.Y.Z — X = big change, Y = a genuinely new behavior/editor/system, Z = fixes and improvements to what exists -->
+    <Version>0.11.0</Version>
+    <ApplicationIcon>EasyEngine.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

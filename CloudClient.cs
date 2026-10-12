@@ -203,6 +203,7 @@ namespace EasyEngine
         public static string? AiChoice { get; set; }         // last "Which AI to use" pick (the combo item's Tag); null = never chosen
         public static string LocalModel { get; set; } = "";  // name typed for "Custom local model…"
         public static List<string> SamplesInstalled { get; set; } = new(); // sample projects already put on this computer (SampleProjects)
+        public static string SamplesVersion { get; set; } = "";             // the engine version they were built with
 
         public static string Key(string providerId) => CloudKeys.TryGetValue(providerId, out var v) ? v : "";
         public static void SetKey(string providerId, string value) { CloudKeys[providerId] = value?.Trim() ?? ""; }
@@ -226,6 +227,7 @@ namespace EasyEngine
                     AiChoice = data.AiChoice;
                     LocalModel = data.LocalModel ?? "";
                     SamplesInstalled = data.SamplesInstalled ?? new();
+                    SamplesVersion = data.SamplesVersion ?? "";
                 }
             }
             catch { }
@@ -233,7 +235,7 @@ namespace EasyEngine
 
         public static void Save()
         {
-            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel, SamplesInstalled = SamplesInstalled })); }
+            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel, SamplesInstalled = SamplesInstalled, SamplesVersion = SamplesVersion })); }
             catch { }
         }
 
@@ -247,6 +249,7 @@ namespace EasyEngine
             [JsonPropertyName("aiChoice")]   public string? AiChoice { get; set; }
             [JsonPropertyName("localModel")] public string? LocalModel { get; set; }
             [JsonPropertyName("samplesInstalled")] public List<string>? SamplesInstalled { get; set; }
+            [JsonPropertyName("samplesVersion")] public string? SamplesVersion { get; set; }
         }
     }
 }

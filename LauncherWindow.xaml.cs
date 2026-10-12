@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using Microsoft.Win32;
 
@@ -10,12 +11,53 @@ namespace EasyEngine
         public LauncherWindow()
         {
             InitializeComponent();
-            var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            if (v != null) VersionText.Text = $"v{v.Major}.{v.Minor}.{v.Build}";
-            SampleProjects.EnsureInstalled(); // the projects that come with the engine, the first time (SampleProjects.cs)
+            VersionText.Text = "v" + Updater.Current.ToString(3);
+            if (Environment.GetCommandLineArgs().Contains("--updated")) VersionText.Text += "  — updated ✓";
+            SampleProjects.EnsureInstalled(); // the projects that come with the engine (SampleProjects.cs)
             LoadRecent();
             NewLocation.Text = DefaultParentFolder();
             _ = CheckOllamaAsync();
+            Loaded += async (s, e) => await CheckForUpdateAsync();
+        }
+
+        // ---------------- updates from GitHub (Updater.cs) ----------------
+        private async System.Threading.Tasks.Task CheckForUpdateAsync()
+        {
+            if (Updater.IsDevBuild || ProjectIO.SuppressRecent) return; // run from the code (or a test): the code is the update
+            var r = await Updater.CheckAsync();
+            if (r == null || !IsVisible) return;
+            var notes = string.Join("\n", r.Notes.Replace("\r", "").Split('\n').Where(l => l.Trim().Length > 0).Take(10));
+            var ask = MessageBox.Show(this,
+                $"A new version of EasyEngine is out: v{r.Version.ToString(3)} (you have v{Updater.Current.ToString(3)}).\n\n" +
+                (notes.Length > 0 ? notes + "\n\n" : "") +
+                "Install it now? EasyEngine will download it, close, replace the old version with the new one and open again. Your projects are not touched.",
+                "Update EasyEngine", MessageBoxButton.YesNo, MessageBoxImage.Information);
+            if (ask == MessageBoxResult.Yes) await InstallUpdateAsync(r);
+        }
+
+        private async System.Threading.Tasks.Task InstallUpdateAsync(Updater.Release r)
+        {
+            var bar = new System.Windows.Controls.ProgressBar { Height = 14, Maximum = 1, Margin = new Thickness(0, 10, 0, 0) };
+            var text = new System.Windows.Controls.TextBlock { Text = $"Downloading EasyEngine v{r.Version.ToString(3)}…", Foreground = (System.Windows.Media.Brush)FindResource("Text") };
+            var win = new Window
+            {
+                Title = "Updating EasyEngine", Owner = this, Width = 380, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = (System.Windows.Media.Brush)FindResource("Bg1"),
+                Content = new System.Windows.Controls.StackPanel { Margin = new Thickness(18), Children = { text, bar } },
+            };
+            win.Show();
+            try
+            {
+                var dir = await Updater.DownloadAsync(r, new Progress<double>(p => bar.Value = p));
+                text.Text = "Installing… EasyEngine will open again in a moment.";
+                Updater.StartSwap(dir, Updater.InstallDir, Environment.ProcessId);
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                win.Close();
+                MessageBox.Show(this, "The update couldn't be downloaded:\n" + ex.Message + "\n\nYou can keep using this version.", "Update EasyEngine", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private static string DefaultParentFolder()

@@ -12,8 +12,10 @@ own runtime (`PlayWindow`) and export as a self-contained `.exe`. Target audienc
 programming**. The owner's yardstick game is a mid-size **RPG + metroidvania + puzzle + hack-and-slash**; features
 that game needs come first (rotational physics/ragdolls/vehicles come last). Long-term goal: publish it free.
 
-- Repo: `github.com/tarl3s/EasyEngine` — **private**, branch `main`. Keep it private unless the owner says otherwise.
-- Version: `0.10.4` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
+- Repo: `github.com/tarl3s/EasyEngine` — **public** (MIT, since v0.11.0), branch `main`. Everything you push is public:
+  no secrets, no personal paths in docs meant for players. `README.md` (English) and `README.pt-BR.md` are the public
+  face — keep both in sync when features change.
+- Version: `0.11.0` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
 - The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
   this file are in **English** (the editor UI is 100% English by request; only `README.md` is Portuguese).
 
@@ -37,14 +39,14 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 
 | Flag | What | Log |
 |---|---|---|
-| `--fulltest` | the big battery (≈443 checks: every script action/event, behaviors, Scratch round-trip, editor, E2E) | `%TEMP%\easyengine_fulltest.log` |
+| `--fulltest` | the big battery (≈445 checks: every script action/event, behaviors, Scratch round-trip, editor, E2E) | `%TEMP%\easyengine_fulltest.log` |
 | `--e2e` | plays the test scenarios step by step (Axe, Lighting, Boss, Infinite World; ≈41 steps) | `easyengine_e2e.log` |
 | `--behtest` (49) / `--exprtest` (26) / `--blocktest` (7) / `--aijsontest` (20) | behaviors / expression evaluator / block-editor round-trip / AI-JSON parsing robustness | `easyengine_<name>.log` |
 | `--selftest` | opens real windows (editor, play, dialogs), measures text contrast, renders PNG snapshots | `easyengine_selftest.log`, `easyengine_snap_*.png` |
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
 | `--aitest [--model m]` | ~32 prompts through the real AI pipeline (needs a running AI) | `easyengine_aitest.log` |
 
-Last known green: fulltest 443/443, e2e 41/41, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS.
+Last known green: fulltest 445/445, e2e 41/41, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS.
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 
@@ -123,6 +125,16 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
   `<Version>` in `EasyEngine.csproj` and the fallback `Text="vX.Y.Z"` of `VersionText` in `LauncherWindow.xaml`.
   Each release commit is titled `vX.Y.Z: …` and gets an **annotated tag pushed to GitHub**
   (`git tag -a vX.Y.Z -m "…" && git push origin main --tags`). Tags must always match the real version.
+- **Every version is also a GitHub release** — that's what people download and what the in-app updater installs:
+  after pushing the tag, run `tools/Publish-Release.ps1 -NotesFile <notes.md>` (self-contained win-x64 build →
+  `EasyEngine-win-x64.zip` with an `easyengine-files.txt` manifest → `gh release create`). Write the notes for players
+  (what's new, in plain words). The README's download button points at `releases/latest/download/EasyEngine-win-x64.zip`,
+  so never rename that asset.
+- **Updater** (`Updater.cs`): the launcher checks `releases/latest`; if newer, it asks, downloads, and a script swaps
+  the files after the engine closes — deleting only the files in the old version's manifest. A build run from the
+  source (an `EasyEngine.csproj` above the exe, i.e. the owner's `bin\Debug`) never checks and never installs
+  samples. `--update-now` does the whole update without asking (log `%TEMP%\easyengine_update_now.log`).
+- **App icon**: `EasyEngine.ico`, drawn by `tools/Make-Icon.ps1` (the launcher's green hexagon).
 - **Encoding**: sources are UTF-8 *without* BOM, mixed LF/CRLF, full of emoji (🎓 ✨ ＋ —). **Never** rewrite files
   with Windows PowerShell `Get-Content | Set-Content` / `-replace` — it double-encodes UTF-8 (this broke the launcher
   once: `ðŸ§ª`, `â€”`). Use a proper edit tool or `sed`/`perl` (handle `\r?\n`). After bulk edits, grep for mojibake:
