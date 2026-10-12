@@ -459,16 +459,16 @@ namespace EasyEngine
             {
                 var c = ParseCutscene(json, out err);
                 ok = err == null;
-                return err ?? $"✓ {Plural(c.Steps.Count, "step")}";
+                return err ?? "✓ " + Steps(c.Steps.Count);
             }
             var b = ParseBoss(json, out err);
             ok = err == null;
             if (err != null) return err;
-            var s = $"✓ {Plural(b.Phases.Count, "phase")} · {Plural(b.Attacks.Count, "attack")}";
-            return b.Death.Count > 0 ? s + $" · death: {Plural(b.Death.Count, "step")}" : s;
+            var s = "✓ " + (b.Phases.Count == 1 ? L.T("1 phase") : L.F("{0} phases", b.Phases.Count)) + " · " + (b.Attacks.Count == 1 ? L.T("1 attack") : L.F("{0} attacks", b.Attacks.Count));
+            return b.Death.Count > 0 ? s + " · " + L.F("death: {0}", Steps(b.Death.Count)) : s;
         }
 
-        private static string Plural(int n, string w) => $"{n} {w}{(n == 1 ? "" : "s")}";
+        private static string Steps(int n) => n == 1 ? L.T("1 step") : L.F("{0} steps", n);
 
         /// <summary>What an AI result must have to be usable (null = fine).</summary>
         public static string? Problem(BossScript b)

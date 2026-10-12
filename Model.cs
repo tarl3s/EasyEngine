@@ -60,9 +60,9 @@ namespace EasyEngine
             {
                 sky = new Layer { Name = "Sky", Kind = LayerKind.Sky, ScreenSpace = true };
                 scene.Layers.Insert(0, sky);
-                notes.Add("added a Sky layer under all the others");
+                notes.Add(L.T("added a Sky layer under all the others"));
             }
-            else if (scene.Layers[0] != sky) { scene.Layers.Remove(sky); scene.Layers.Insert(0, sky); notes.Add("moved the Sky layer to the bottom"); }
+            else if (scene.Layers[0] != sky) { scene.Layers.Remove(sky); scene.Layers.Insert(0, sky); notes.Add(L.T("moved the Sky layer to the bottom")); }
 
             int nextId = all.Count == 0 ? 1 : all.Max(o => o.Id) + 1;
             void Place(GameObjectData? body, bool make, string key, string defName, double x, double size, string color)
@@ -73,18 +73,18 @@ namespace EasyEngine
                     if (name.Length == 0) name = defName;
                     body = new GameObjectData { Id = nextId++, Name = name, X = x, Y = 70, Width = size, Height = size, Color = color, CornerRadius = size / 2 };
                     sky.Objects.Add(body);
-                    notes.Add($"created the {defName.ToLowerInvariant()} \"{name}\"");
+                    notes.Add(defName == "Sun" ? L.F("created the sun \"{0}\"", name) : L.F("created the moon \"{0}\"", name));
                 }
                 if (body == null) return;
                 dn.Texts[key] = body.Name;
                 if (sky.Objects.Contains(body)) return;
                 scene.Layers.FirstOrDefault(l => l.Objects.Contains(body))?.Objects.Remove(body);
                 sky.Objects.Add(body);
-                notes.Add($"moved \"{body.Name}\" into the Sky layer");
+                notes.Add(L.F("moved \"{0}\" into the Sky layer", body.Name));
             }
             Place(sun, makeSun, "sun", "Sun", 120, 46, "#FFD24D");
             Place(moon, makeMoon, "moon", "Moon", 200, 38, "#D8E4FF");
-            return notes.Count == 0 ? null : "Day/Night: " + string.Join(", ", notes);
+            return notes.Count == 0 ? null : L.F("Day/Night: {0}", string.Join(", ", notes));
         }
     }
 
