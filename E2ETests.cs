@@ -73,7 +73,21 @@ public partial class App
                 return pw.TVar("isDay") == 1 && pw.TVar("dayness") >= 0.99 && pw.TDarkness < 0.01 && pw.TGlow < 0.01 && pw.TVisible("Sun") && !pw.TVisible("Moon");
             });
 
-            Step("Each light (torch + lamp) cuts its own hole in the darkness", () => pw.TLightHoles == 2);
+            Step("Each light (torch + lamp) and the sun cut their own hole in the darkness", () => pw.TLightHoles == 3);
+
+            Step("The sun and moon live in the Sky layer, behind every other layer", () => pw.TInSky("Sun") && pw.TInSky("Moon"));
+
+            Step("Just before night falls, the sun has already left the screen completely", () =>
+            {
+                pw.TSetTimeNow((19.8 / 35).ToString(System.Globalization.CultureInfo.InvariantCulture)); pw.TStep();
+                return pw.TVar("isDay") == 1 && (pw.TX("Sun") >= 960 || pw.TX("Sun") + pw.TW("Sun") <= 0);
+            });
+
+            Step("When night starts, the moon is still off-screen (it rises from the left)", () =>
+            {
+                pw.TSetTimeNow((20.1 / 35).ToString(System.Globalization.CultureInfo.InvariantCulture)); pw.TStep();
+                return pw.TVar("isNight") == 1 && pw.TX("Moon") + pw.TW("Moon") <= 0;
+            });
 
             Step("N jumps to night: dark-blue darkness, moon up, sun gone, the lights glow", () =>
             {

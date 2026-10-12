@@ -620,6 +620,7 @@ namespace EasyEngine
             StopAllSounds();
 
             World.Children.Clear();
+            Sky.Children.Clear(); _skyBodies.Clear();
             Lights.Children.Clear();
             Hud.Children.Clear();
             _entities.Clear();
@@ -2582,12 +2583,14 @@ namespace EasyEngine
                 if (string.IsNullOrWhiteSpace(name)) return;
                 var e = _entities.FirstOrDefault(z => !z.Dead && z != en && z.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
                 if (e == null) return;
+                MoveToSky(e); // the sun and moon ARE the sky: always behind every layer
                 var vis = active ? Visibility.Visible : Visibility.Collapsed;
                 e.Visual.Visibility = vis;
                 if (e.LightVisual != null) e.LightVisual.Visibility = vis;
                 if (!active) return;
-                double margin = 40, p = Math.Clamp(phase, 0, 1);
-                e.X = margin + p * (W - 2 * margin) - e.W / 2;      // left → right
+                // enters from fully off-screen left, leaves fully off-screen right — already gone in the last 3% of its turn
+                double p = Math.Clamp(phase * 1.06 - 0.03, 0, 1);
+                e.X = -e.W + p * (W + e.W);
                 e.Y = 64 + (1 - Math.Sin(p * Math.PI)) * arcH;       // arc: highest at the middle (below the top bar)
             }
             Place(bh.Text("sun", ""), !night, dayLen > 0 ? t / dayLen : 0);
@@ -2890,7 +2893,8 @@ namespace EasyEngine
             {
                 var en = _entities[i];
                 if (!en.Dead) continue;
-                World.Children.Remove(en.Visual); Hud.Children.Remove(en.Visual); // screen-space entities live in Hud
+                World.Children.Remove(en.Visual); Hud.Children.Remove(en.Visual); Sky.Children.Remove(en.Visual); // screen-space entities live in Hud, sun/moon in Sky
+                _skyBodies.Remove(en);
                 if (en.LightVisual != null) Lights.Children.Remove(en.LightVisual);
                 if (en.HotbarCanvas != null) Hud.Children.Remove(en.HotbarCanvas);
                 if (en.ChecklistPanel != null) Hud.Children.Remove(en.ChecklistPanel);

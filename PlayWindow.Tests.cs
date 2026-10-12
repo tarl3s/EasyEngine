@@ -51,6 +51,9 @@ namespace EasyEngine
 
         // lighting
         public void TUpdateLighting() => UpdateLighting();
+        public bool TInSky(string name) { var e = TE(name); return e != null && VisualTreeHelper.GetParent(e.Visual) == Sky && Root.Children.IndexOf(Sky) < Root.Children.IndexOf(World); }
+        public void TSetTimeNow(string when) => SetTimeOfDay(when, "test");
+        public double TW(string name) => TE(name)?.W ?? 0;
         public void TSetTime(string when) => Dispatcher.BeginInvoke(new System.Action(() => SetTimeOfDay(when, "selftest")), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         public int TLightHoles => _lightMasks.Count;
         public double TDarkness => Darkness.Opacity;

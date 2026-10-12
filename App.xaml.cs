@@ -485,7 +485,7 @@ public partial class App : Application
                 int errors = play.TLog.Errors + lightPlay.TLog.Errors;
                 string firstError = play.TLog.Entries.Concat(lightPlay.TLog.Entries).FirstOrDefault(x => x.Level == LogLevel.Error)?.FullText() ?? "";
                 Write($"lighting window: {lightPlay.TLightHoles} light holes, darkness {lightPlay.TDarkness:0.00}, sky {lightPlay.TSkyColor}");
-                if (lightPlay.TLightHoles != 2 || lightPlay.TDarkness < 0.5) { Write("SELFTEST FAIL: lighting did not render as expected"); try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { } Shutdown(); return; }
+                if (lightPlay.TLightHoles != 3 || lightPlay.TDarkness < 0.5 || !lightPlay.TInSky("Moon")) { Write("SELFTEST FAIL: lighting did not render as expected"); try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { } Shutdown(); return; }
                 try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { }
                 Write("ran loop ~2.5s, closed OK");
                 if (errors > 0) { Write($"SELFTEST FAIL: {errors} error(s) in the play console:\n{firstError}"); Shutdown(); return; }

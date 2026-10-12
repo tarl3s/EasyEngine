@@ -32,16 +32,36 @@ namespace EasyEngine
             Darkness.Fill = Brush(hex);
         }
 
+        // Sun & moon: moved into the Sky canvas (screen-fixed, behind every layer). They are drawn under the
+        // night darkness, so each one also cuts a hole the size of its disc — the moon stays bright at night.
+        private readonly HashSet<Entity> _skyBodies = new();
+
+        private void MoveToSky(Entity e)
+        {
+            if (_skyBodies.Contains(e)) return;
+            if (VisualTreeHelper.GetParent(e.Visual) is Panel parent) parent.Children.Remove(e.Visual);
+            Sky.Children.Add(e.Visual);
+            e.ScreenSpace = true; // positioned in screen pixels, no camera
+            _skyBodies.Add(e);
+        }
+
+        private (double radius, double intensity) LightParams(Entity en)
+        {
+            if (_skyBodies.Contains(en)) return (Math.Max(en.W, en.H) * 0.62, 1.0);
+            var lb = en.Beh(BehaviorKind.LightSource);
+            return (lb?.Num("radius", 200) ?? 200, Math.Clamp(lb?.Num("intensity", 0.9) ?? 0.9, 0, 1));
+        }
+
         // Called every rendered frame (and by the tests): keep one hole per visible light, at its screen position.
         private void UpdateLighting()
         {
-            var lit = _entities.Where(e => !e.Dead && e.LightVisual != null && e.LightVisual.Visibility == Visibility.Visible).ToList();
+            var lit = _entities.Where(e => !e.Dead && !_skyBodies.Contains(e) && e.LightVisual != null && e.LightVisual.Visibility == Visibility.Visible)
+                      .Concat(_skyBodies.Where(e => !e.Dead && e.Visual.Visibility == Visibility.Visible)).ToList();
             if (lit.Count != _lightMasks.Count || lit.Where((e, i) => _lightMasks[i].en != e).Any()) RebuildDarkStack(lit);
 
             foreach (var (en, mask) in _lightMasks)
             {
-                var lb = en.Beh(BehaviorKind.LightSource);
-                double r = lb?.Num("radius", 200) ?? 200;
+                double r = LightParams(en).radius;
                 double sx = en.CX + (en.ScreenSpace ? 0 : _camX), sy = en.CY + (en.ScreenSpace ? 0 : _camY);
                 mask.Center = mask.GradientOrigin = new Point(sx, sy);
                 mask.RadiusX = mask.RadiusY = r;
@@ -63,20 +83,22 @@ namespace EasyEngine
             UIElement chain = Darkness;
             foreach (var en in lit)
             {
-                var lb = en.Beh(BehaviorKind.LightSource);
-                double intensity = Math.Clamp(lb?.Num("intensity", 0.9) ?? 0.9, 0, 1);
+                double intensity = LightParams(en).intensity;
                 byte A(double darkness) => (byte)Math.Round(255 * Math.Clamp(darkness, 0, 1));
-                var mask = new RadialGradientBrush
+                var mask = new RadialGradientBrush { MappingMode = BrushMappingMode.Absolute };
+                if (_skyBodies.Contains(en)) // a crisp disc: the body itself, with a thin soft rim
                 {
-                    MappingMode = BrushMappingMode.Absolute,
-                    GradientStops =
-                    {
-                        new GradientStop(Color.FromArgb(A(1 - intensity), 0, 0, 0), 0),
-                        new GradientStop(Color.FromArgb(A(1 - intensity * 0.75), 0, 0, 0), 0.45),
-                        new GradientStop(Color.FromArgb(A(1 - intensity * 0.3), 0, 0, 0), 0.75),
-                        new GradientStop(Color.FromArgb(255, 0, 0, 0), 1)
-                    }
-                };
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0, 0, 0), 0));
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0, 0, 0), 0.8));
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 1));
+                }
+                else
+                {
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(A(1 - intensity), 0, 0, 0), 0));
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(A(1 - intensity * 0.75), 0, 0, 0), 0.45));
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(A(1 - intensity * 0.3), 0, 0, 0), 0.75));
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 1));
+                }
                 chain = new Border { IsHitTestVisible = false, Child = chain, OpacityMask = mask };
                 _lightMasks.Add((en, mask));
             }
