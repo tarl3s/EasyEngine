@@ -566,6 +566,14 @@ public partial class App : Application
             editor.Show();
             Write("editor constructed + shown OK");
 
+            // the chosen language reaches the window's own XAML texts (toolbar), not only what the code builds
+            editor.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle); // let Loaded run
+            bool HasButton(DependencyObject d, string text) => d is System.Windows.Controls.Button { Content: string s } && s == text
+                || LogicalTreeHelper.GetChildren(d).OfType<DependencyObject>().Any(ch => HasButton(ch, text));
+            if (!HasButton(editor, L.T("Save")) || !HasButton(editor, L.T("Export")))
+                throw new Exception($"the editor's toolbar is not in the chosen language ({L.Code})");
+            Write($"editor toolbar in {L.Code}: \"{L.T("Save")}\", \"{L.T("Export")}\" OK");
+
             var play = new PlayWindow(project, project.StartScene ?? project.Scenes[0].Name) { Owner = editor };
             play.Show();
             Write("play window shown OK");

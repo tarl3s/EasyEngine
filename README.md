@@ -70,6 +70,9 @@ old version and opens again. Your projects are never touched. The sample games a
   text effects, dialogue box styles, sound with volume channels.
 - **Debug console (F1)** — see what your game is doing: clicks, hits, rules that fired, sounds, warnings.
 - **Export** your game as a standalone `.exe`.
+- **Your language, your look** — the editor speaks English, Portuguese (Brazil and Portugal), Spanish, French, German,
+  Japanese and Chinese (Simplified and Traditional), and the AI answers you in it. Dark or light theme, bigger or smaller
+  interface, and a button that clears the engine's temporary files (⚙ Settings).
 
 <p align="center">
   <img src="docs/images/boss-fight.png" width="49%" alt="The Slime King boss fight">

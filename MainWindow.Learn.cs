@@ -163,7 +163,9 @@ namespace EasyEngine
             return ans;
         }
 
-        private static string BuildHelpQuestion(BehaviorInfo info) => L.F("How do I use {0} {1}? Explain step by step for a beginner.", info.Icon, L.T(info.Name));
+        // the translated name, with the English one the AI knows the behavior by
+        private static string BuildHelpQuestion(BehaviorInfo info) => L.F("How do I use {0} {1}? Explain step by step for a beginner.", info.Icon,
+            L.IsEnglish || L.T(info.Name) == info.Name ? info.Name : $"{L.T(info.Name)} ({info.Name})");
 
         // the "?" on a behavior card: open the AI tab in Learn mode and ask about it
         private void AskHowTo(BehaviorInfo info, bool send = true)

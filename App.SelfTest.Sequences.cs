@@ -36,7 +36,7 @@ public partial class App
         var card = bossEditor.TestSequenceCard(bossEditor.TestFindObject("SlimeKing")!);
         var cutCard = bossEditor.TestSequenceCard(bossEditor.TestFindObject("Intro")!);
         c.Write($"boss card: scratch {card.scratchButton} · json {card.jsonBox} · ask {card.askBox} · make {card.makeButton} · \"{card.summary}\" — cutscene card \"{cutCard.summary}\"");
-        if (!card.scratchButton || !card.jsonBox || !card.askBox || !card.makeButton || card.summary != "✓ 3 phases · 5 attacks · death: 8 steps" || cutCard.summary != "✓ 10 steps")
+        if (!card.scratchButton || !card.jsonBox || !card.askBox || !card.makeButton || card.summary != "✓ " + L.F("{0} phases", 3) + " · " + L.F("{0} attacks", 5) + " · " + L.F("death: {0}", L.F("{0} steps", 8)) || cutCard.summary != "✓ " + L.F("{0} steps", 10))
             throw new Exception("the Boss AI / Cutscene card is missing its Advanced Scratch button, JSON box or Ask-the-AI box");
 
         // the demo, live: the intro starts with its cinema bars

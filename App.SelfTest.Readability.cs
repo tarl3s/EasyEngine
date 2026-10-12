@@ -54,7 +54,7 @@ public partial class App
             foreach (var w in Windows.OfType<SequenceEditorWindow>().Take(1)) shots.Add((w, "advanced_scratch_cutscene"));
             foreach (var (w, name) in shots) c.Snapshot(w, name);
             // and the inspector scrolled down to its behavior cards
-            var cards = editor.InspectorRoot.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault(t => t.Text == "BEHAVIORS");
+            var cards = editor.InspectorRoot.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault(t => t.Text == L.T("BEHAVIORS"));
             editor.InspectorScroll.ScrollToVerticalOffset(cards?.TransformToAncestor(editor.InspectorRoot).Transform(new Point()).Y ?? editor.InspectorScroll.ScrollableHeight / 2);
             editor.UpdateLayout();
             c.Snapshot(editor, "editor_behaviors");

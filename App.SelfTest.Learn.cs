@@ -18,12 +18,12 @@ public partial class App
             .Where(b => b.Item1.Background != B(b.Item2 == active ? "Accent" : "Bg2") || b.Item1.Foreground != B(b.Item2 == active ? "AccentText" : "Text"))
             .Select(b => $"the {b.Item2} button has the wrong colours with {active} active").FirstOrDefault();
         bool HasHelpButton(DependencyObject d) =>
-            d is Button { Content: "?", ToolTip: "How does this work? (asks the AI in Learn mode)" } || LogicalTreeHelper.GetChildren(d).OfType<DependencyObject>().Any(HasHelpButton);
+            d is Button { Content: "?" } b && b.ToolTip as string == L.T("How does this work? (asks the AI in Learn mode)") || LogicalTreeHelper.GetChildren(d).OfType<DependencyObject>().Any(HasHelpButton);
 
         ed.TestSetAiMode(AiMode.Learn);
         var err = Colours(AiMode.Learn)
-            ?? ((string)ed.AiSend.Content != "Ask" ? "Learn's send button doesn't say Ask" : null)
-            ?? (!ed.AiHint.Text.StartsWith("Ask how to use anything") ? "Learn's hint is wrong: " + ed.AiHint.Text : null);
+            ?? ((string)ed.AiSend.Content != L.T("Ask") ? "Learn's send button doesn't say Ask" : null)
+            ?? (ed.AiHint.Text != L.T("Ask how to use anything — the AI explains step by step.") ? "Learn's hint is wrong: " + ed.AiHint.Text : null);
 
         // a real Parallax card has its "?"; the helper switches to Learn and fills the question (not sent)
         var mountains = new GameObjectData { Name = "Mountains" };
@@ -33,7 +33,7 @@ public partial class App
         ed.TestSetAiMode(AiMode.Build);
         var q = ed.TestAskHowTo(BehaviorKind.Parallax);
         err ??= !hasHelp ? "the behavior card has no \"?\" button"
-              : q != "How do I use 🏔 Parallax? Explain step by step for a beginner." ? "the \"?\" question is wrong: " + q
+              : q != L.F("How do I use {0} {1}? Explain step by step for a beginner.", "🏔", L.IsEnglish || L.T("Parallax") == "Parallax" ? "Parallax" : $"{L.T("Parallax")} (Parallax)") ? "the \"?\" question is wrong: " + q
               : Colours(AiMode.Learn);
         c.Write($"learn mode: buttons/hint/send/\"?\" {(err == null ? "OK" : "FAILED")} — \"?\" asks \"{q}\"");
 

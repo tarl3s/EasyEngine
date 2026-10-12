@@ -35,10 +35,10 @@ public partial class App
         var nodes = new List<object>();
         void Walk(object n) { nodes.Add(n); if (n is DependencyObject d) foreach (var ch in LogicalTreeHelper.GetChildren(d)) Walk(ch); }
         Walk(editor.InspectorRoot);
-        var whoBoxes = nodes.OfType<ComboBox>().Where(cb => (cb.ToolTip as string ?? "").StartsWith("What to show on the map")).ToList();
+        var whoBoxes = nodes.OfType<ComboBox>().Where(cb => cb.ToolTip as string == L.T("What to show on the map (an object, every copy of a prefab, or a whole group)")).ToList();
         var picked = whoBoxes.Select(cb => (cb.SelectedItem as ComboBoxItem)?.Tag as string).ToList();
-        bool addBtn = nodes.OfType<Button>().Any(b => b.Content as string == "＋ Add");
-        var swatches = nodes.OfType<Border>().Count(b => b.ToolTip as string == "Colour of its dot on the map");
+        bool addBtn = nodes.OfType<Button>().Any(b => b.Content as string == L.T("＋ Add"));
+        var swatches = nodes.OfType<Border>().Count(b => b.ToolTip as string == L.T("Colour of its dot on the map"));
         c.Write($"minimap inspector: {whoBoxes.Count} marker rows [{string.Join(", ", picked)}], {swatches} colour swatches, add button {addBtn}");
         if (whoBoxes.Count != 3 || !picked.SequenceEqual(new[] { "Slime", "Bats", "Coin" }) || swatches != 3 || !addBtn)
             c.LateChecks.Add(() => "the minimap's 'Also show' rows did not render as expected");

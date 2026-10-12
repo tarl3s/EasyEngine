@@ -20,7 +20,9 @@
         <!-- ===== TOOLBAR ===== -->
         <Border Grid.Row="0" Background="{StaticResource Bg1}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
             <Grid>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                <!-- two columns so a long language never pushes the left part over the right one -->
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0" ClipToBounds="True">
                     <TextBlock Text="⬡" Foreground="{StaticResource Accent}" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
                     <TextBlock x:Name="ProjectNameText" local:L.Skip="True" Text="EasyEngine" Foreground="{StaticResource Text}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" Margin="8,0,14,0"/>
                     <Button Content="New"   Style="{StaticResource GhostButton}" Height="32" Click="New_Click"/>
@@ -32,12 +34,12 @@
                     <Border Width="1" Background="{StaticResource Border}" Margin="10,8" />
                     <TextBlock Text="Scene" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <ComboBox x:Name="SceneCombo" local:L.Skip="True" Width="140" Height="28" VerticalAlignment="Center" SelectionChanged="SceneCombo_SelectionChanged"/>
-                    <Button Content="Add Scene"    Style="{StaticResource GhostButton}" Height="28" FontSize="12" Click="AddScene_Click"/>
-                    <Button Content="Rename"       Style="{StaticResource GhostButton}" Height="28" FontSize="12" Click="RenameScene_Click"/>
-                    <Button Content="Delete"       Style="{StaticResource GhostButton}" Height="28" FontSize="12" Foreground="{StaticResource Danger}" Click="DeleteScene_Click"/>
-                    <Button Content="Set as Start" Style="{StaticResource GhostButton}" Height="28" FontSize="12" Click="SetStartScene_Click"/>
+                    <Button Content="＋" ToolTip="Add a scene" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Margin="4,0,0,0" Click="AddScene_Click"/>
+                    <Button Content="✏" ToolTip="Rename this scene" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Click="RenameScene_Click"/>
+                    <Button Content="🗑" ToolTip="Delete this scene" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Foreground="{StaticResource Danger}" Click="DeleteScene_Click"/>
+                    <Button Content="★" ToolTip="Make this the start scene (the game begins here)" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Click="SetStartScene_Click"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,12,0">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,12,0">
                     <TextBlock x:Name="OllamaDot" Text="●" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12"/>
                     <Button Content="⚙" ToolTip="Settings (language, theme, size, temporary files)" Style="{StaticResource GhostButton}" Height="32" FontSize="15" Click="Settings_Click"/>
                     <Button Content="Export" Style="{StaticResource GhostButton}" Height="32" Click="Export_Click"/>
@@ -76,9 +78,9 @@
                     <TextBlock Text="SCENE" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" IsHitTestVisible="False"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12">
                         <TextBlock x:Name="ZoomLabel" Text="100%" Foreground="{StaticResource TextDim}" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="36" TextAlignment="Right"/>
-                        <Button Content="－" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" ToolTip="Zoom out (Ctrl + wheel / Ctrl -)" Click="ZoomOut_Click"/>
-                        <Button Content="＋" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" Margin="4,0,0,0" ToolTip="Zoom in (Ctrl + wheel / Ctrl +)" Click="ZoomIn_Click"/>
-                        <Button Content="Fit" Style="{StaticResource GhostButton}" Width="42" Height="26" FontSize="11" Margin="4,0,0,0" ToolTip="Fit scene (Ctrl 0)" Click="ZoomFit_Click"/>
+                        <Button Content="－" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" Padding="0" ToolTip="Zoom out (Ctrl + wheel / Ctrl -)" Click="ZoomOut_Click"/>
+                        <Button Content="＋" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" Padding="0" Margin="4,0,0,0" ToolTip="Zoom in (Ctrl + wheel / Ctrl +)" Click="ZoomIn_Click"/>
+                        <Button Content="Fit" Style="{StaticResource GhostButton}" MinWidth="42" Padding="6,0" Height="26" FontSize="11" Margin="4,0,0,0" ToolTip="Fit scene (Ctrl 0)" Click="ZoomFit_Click"/>
                         <Button x:Name="GridToggle" Content="Grid: off" Style="{StaticResource GhostButton}" Height="26" FontSize="11" Margin="8,0,0,0" Click="GridToggle_Click"/>
                     </StackPanel>
                 </Grid>
@@ -112,7 +114,7 @@
                     </Border>
                     <StackPanel DockPanel.Dock="Bottom" Margin="12,6,12,12">
                         <Button Content="＋ Empty Object" Style="{StaticResource CardButton}" Margin="0,0,0,6" HorizontalContentAlignment="Center" Click="AddEmpty_Click"/>
-                        <Button Content="Save selection as prefab" Style="{StaticResource GhostButton}" Height="28" FontSize="11" Click="SavePrefab_Click"/>
+                        <Button Style="{StaticResource GhostButton}" MinHeight="28" FontSize="11" Click="SavePrefab_Click"><TextBlock Text="Save selection as prefab" TextWrapping="Wrap" TextAlignment="Center" Margin="0,3"/></Button>
                     </StackPanel>
                     <TextBlock DockPanel.Dock="Top" Text="Click to add to the selected layer" Foreground="{StaticResource TextDim}" FontSize="11" Margin="12,8,12,6" TextWrapping="Wrap"/>
                     <TextBox x:Name="PrefabSearch" DockPanel.Dock="Top" Margin="12,0,12,8" Padding="4,3" Tag="Search prefabs…" TextChanged="PrefabSearch_TextChanged"/>
@@ -224,7 +226,7 @@
                         <Grid Height="26">
                             <TextBlock Text="SCENE LAYERS" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Content="＋" Style="{StaticResource GhostButton}" Width="28" Height="22" ToolTip="Add layer" Click="AddLayer_Click"/>
+                                <Button Content="＋" Style="{StaticResource GhostButton}" Width="28" Height="22" Padding="0" ToolTip="Add layer" Click="AddLayer_Click"/>
                                 <Button Tag="layers" Content="⋯" Click="DockMenu_Click" ToolTip="Move / float this panel" Width="30" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextDim}" FontSize="15"/>
                             </StackPanel>
                         </Grid>

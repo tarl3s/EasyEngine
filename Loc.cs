@@ -13,7 +13,7 @@ namespace EasyEngine
     /// The editor's languages. Texts are written in English in the code; <see cref="T"/> looks the English text up in the
     /// chosen language's table (Lang\&lt;code&gt;.json, embedded) and falls back to English when there is no entry.
     /// Two ways in:
-    /// - every element that loads (buttons, labels, menu items, tooltips, window titles…) is translated by itself
+    /// - every window, when it opens, translates its elements (buttons, labels, menu items, tooltips, its title…)
     ///   (<see cref="Install"/>), as long as its text was set directly (not bound to data) and it isn't inside an element
     ///   marked <see cref="SkipProperty"/> — the places that show the person's own names (objects, layers, chat…);
     /// - text the code changes later, message boxes and texts with numbers in them go through <see cref="T"/> / <see cref="F"/>.
@@ -125,11 +125,15 @@ namespace EasyEngine
 
         private static bool _installed, _everTranslated;
 
-        /// <summary>Translates every element as it loads (call once at startup).</summary>
+        /// <summary>Translates every window as it opens, and elements that load later (call once at startup).</summary>
         public static void Install()
         {
             if (_installed) return;
             _installed = true;
+            // WPF only raises Loaded on the elements that listen to it themselves, so a class handler alone misses most
+            // of a window: when a window opens, its whole tree (XAML and what the code built so far) is translated.
+            EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent,
+                new RoutedEventHandler((s, _) => { if (s is Window w && (!IsEnglish || _everTranslated)) TranslateTree(w); }), true);
             EventManager.RegisterClassHandler(typeof(FrameworkElement), FrameworkElement.LoadedEvent,
                 new RoutedEventHandler((s, _) => { if (s is FrameworkElement fe) TranslateOne(fe); }), true);
             EventManager.RegisterClassHandler(typeof(ContextMenu), ContextMenu.OpenedEvent,

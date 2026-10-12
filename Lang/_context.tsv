@@ -50,8 +50,8 @@ APPEARANCE	MainWindow.xaml.cs
 ATTACKS are lists of steps. PHASES choose which attacks the boss uses — the next phase starts when its health drops to a percentage. WHEN IT DIES plays at 0 health.	SequenceEditorWindow.cs
 Ability / Key Pickup	behavior AbilityPickup
 Add	behavior Area, behavior Interact, behavior UIButton, VariablesWindow.xaml.cs
-Add Scene	MainWindow.xaml
 Add a free cloud API key first (⚙ AI settings)	MainWindow.xaml.cs
+Add a scene	MainWindow.xaml
 Add files for the AI to use (images or audio)	MainWindow.xaml.cs
 Add layer	MainWindow.xaml
 Add the API key for this provider in the AI settings (⚙).	MainWindow.xaml.cs
@@ -230,7 +230,7 @@ Damage to enemies	NewItemDialog.cs
 Damage to enemies (default)	behavior ToolUse
 Damage to enemies, per item	MainWindow.Params.cs
 Damager / Hazard	behavior Damager
-Dark	SettingsWindow.cs
+Dark mode	SettingsWindow.cs
 Darker under solid blocks (underground) (0/1)	behavior DayNight
 Dash	behavior AbilityPickup
 Dash (0/1)	behavior Platformer
@@ -247,7 +247,7 @@ Default controls (WASD / arrows) (0/1)	behavior TopDown
 Default controls (arrows / A-D / Space) (0/1)	behavior Platformer
 Degrees / s	BlockEditorWindow.cs
 Degrees per second	behavior Spin
-Delete	AnimationWindow.xaml.cs, MainWindow.xaml, MainWindow.xaml.cs
+Delete	AnimationWindow.xaml.cs, MainWindow.xaml.cs
 Delete / remove	LauncherWindow.xaml, LauncherWindow.xaml.cs
 Delete animation "{0}"?	AnimationWindow.xaml.cs
 Delete failed:	LauncherWindow.xaml.cs
@@ -258,6 +258,7 @@ Delete project	LauncherWindow.xaml.cs
 Delete project "{0}"?	LauncherWindow.xaml.cs
 Delete scene	MainWindow.xaml.cs
 Delete scene "{0}"?	MainWindow.xaml.cs
+Delete this scene	MainWindow.xaml
 Depth (0 = far, 1 = near) (0-1)	behavior Parallax
 Describe the boss you want… (e.g. a fire golem that charges, spits fireballs and gets faster below half health)	MainWindow.Sequences.cs
 Describe the scene you want… (e.g. the camera shows the castle, the king says hello, then back to the player)	MainWindow.Sequences.cs
@@ -321,7 +322,7 @@ European. A good backup.	MainWindow.xaml.cs
 Every (s)	behavior Spawner, step shoot
 Every few seconds	BlockEditorWindow.cs
 Every frame (always)	BlockEditorWindow.cs
-Export	MainWindow.xaml, MainWindow.xaml.cs
+Export	App.xaml.cs, MainWindow.xaml, MainWindow.xaml.cs
 Export complete	MainWindow.xaml.cs
 Export failed	MainWindow.xaml.cs
 Export failed:\n{0}	MainWindow.xaml.cs
@@ -489,8 +490,9 @@ Level	BlockEditorWindow.cs
 Level (0-1)	BlockEditorWindow.cs
 Life (s)	BlockEditorWindow.cs, step shoot
 Lifetime (s)	behavior Projectile
-Light	behavior LightSource, SettingsWindow.cs
+Light	behavior LightSource
 Light block size	behavior DayNight
+Light mode	SettingsWindow.cs
 Lighting style	behavior DayNight
 Lights up the darkness around it (things near it show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).	behavior LightSource
 Lines (Text => condition)	behavior Checklist
@@ -508,6 +510,7 @@ Loop (straight back to start)	MainWindow.xaml.cs
 Lots of models, smaller daily limit.	MainWindow.xaml.cs
 Make an attack first (Attacks tab).	SequenceEditorWindow.cs
 Make it	MainWindow.Sequences.cs
+Make this the start scene (the game begins here)	MainWindow.xaml
 Make your own tool or weapon. It goes into this hotbar, and clicking uses it like the axe or the sword.	NewItemDialog.cs
 Makes text and buttons bigger or smaller in every window.	SettingsWindow.cs
 Map	behavior Generator
@@ -697,11 +700,12 @@ Remove this tile	MainWindow.xaml.cs
 Removed {0} items ({1}).	SettingsWindow.cs
 Removes the object when it leaves the visible area.	behavior DestroyOffscreen
 Removing the old version...	Updater.cs
-Rename	LauncherWindow.xaml, LauncherWindow.xaml.cs, MainWindow.xaml
+Rename	LauncherWindow.xaml, LauncherWindow.xaml.cs
 Rename animation	AnimationWindow.xaml.cs
 Rename failed:	LauncherWindow.xaml.cs
 Rename project	LauncherWindow.xaml.cs
 Rename scene	MainWindow.xaml.cs
+Rename this scene	MainWindow.xaml
 Repeat	behavior AdvancedPatrol, MainWindow.xaml.cs
 Repeats forever on this interval.	BlockEditorWindow.cs
 Reset layout to default	MainWindow.xaml.cs
@@ -718,7 +722,7 @@ Rows	MainWindow.xaml.cs
 Rules (JSON)	behavior Custom
 SCENE	MainWindow.xaml, MainWindow.xaml.cs
 SCENE LAYERS	MainWindow.xaml
-Save	MainWindow.xaml
+Save	App.xaml.cs, MainWindow.xaml
 Save as Prefab	MainWindow.xaml.cs
 Save as prefab	MainWindow.xaml.cs
 Save selection as prefab	MainWindow.xaml
@@ -745,7 +749,6 @@ Sells	behavior Shop
 Send	MainWindow.xaml.cs
 Set a property	BlockEditorWindow.cs
 Set a variable	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.cs, step setvar
-Set as Start	MainWindow.xaml
 Set its own variable	BlockEditorWindow.cs
 Set its speed level	BlockEditorWindow.cs
 Set the Custom endpoint URL and model name in the AI settings.	CloudClient.cs

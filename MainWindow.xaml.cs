@@ -1314,7 +1314,7 @@ namespace EasyEngine
             var kind = new TextBlock { Text = LayerKindLabel(layer.Kind), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
 
             bool Fixed() => layer.ScreenSpace || layer.Kind == LayerKind.UI;
-            var fix = new Button { Content = Fixed() ? L.T("fixed") : L.T("scroll"), Width = 46, Height = 22, FontSize = 10, Style = (Style)FindResource("GhostButton"), VerticalAlignment = VerticalAlignment.Center, ToolTip = L.T("Fixed = stays on screen (UI/HUD). Scroll = moves with the world.") };
+            var fix = new Button { Content = Fixed() ? L.T("fixed") : L.T("scroll"), MinWidth = 46, Padding = new Thickness(4, 0, 4, 0), Height = 22, FontSize = 10, Style = (Style)FindResource("GhostButton"), VerticalAlignment = VerticalAlignment.Center, ToolTip = L.T("Fixed = stays on screen (UI/HUD). Scroll = moves with the world.") };
             fix.Click += (s, e) => { e.Handled = true; PushUndo(); layer.ScreenSpace = !Fixed(); fix.Content = Fixed() ? L.T("fixed") : L.T("scroll"); Dirty(); };
 
             var del = new Button { Content = L.T("Delete"), Height = 22, FontSize = 10, Style = (Style)FindResource("GhostButton"), Foreground = (SolidColorBrush)FindResource("Danger"), VerticalAlignment = VerticalAlignment.Center };
@@ -1401,7 +1401,7 @@ namespace EasyEngine
                         FontSize = 10, FontWeight = FontWeights.SemiBold, Padding = new Thickness(6, 6, 6, 2)
                     });
                 foreach (var obj in g)
-                    ObjectsList.Items.Add(new ListBoxItem { Content = $"{obj.Name}   ·   {obj.Type}", Tag = obj, Padding = new Thickness(anyGroup ? 18 : 8, 5, 8, 5), Foreground = (SolidColorBrush)FindResource("Text") });
+                    ObjectsList.Items.Add(new ListBoxItem { Content = $"{obj.Name}   ·   {L.T(obj.Type)}", Tag = obj, Padding = new Thickness(anyGroup ? 18 : 8, 5, 8, 5), Foreground = (SolidColorBrush)FindResource("Text") });
             }
         }
 
@@ -1430,14 +1430,14 @@ namespace EasyEngine
 
             Section(L.T("OBJECT"));
             TextRow(L.T("Name"), obj.Name, v => { obj.Name = v; RefreshObjects(); Dirty(); });
-            InfoRow(L.T("Type"), obj.Type);
+            InfoRow(L.T("Type"), L.T(obj.Type));
             TextRow(L.T("Group"), obj.Group, v => { obj.Group = v.Trim(); RefreshObjects(); Dirty(); });
-            var rowBtns = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
-            var dup = new Button { Content = L.T("Duplicate"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            var rowBtns = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) }; // wraps when the words are long (German, French…)
+            var dup = new Button { Content = L.T("Duplicate"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) };
             dup.Click += (s, e) => DuplicateSelected();
-            var del = new Button { Content = L.T("Delete"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Danger"), Margin = new Thickness(0, 0, 8, 0) };
+            var del = new Button { Content = L.T("Delete"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Danger"), Margin = new Thickness(0, 0, 8, 6) };
             del.Click += (s, e) => DeleteSelected();
-            var toPrefab = new Button { Content = L.T("Save as Prefab"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+            var toPrefab = new Button { Content = L.T("Save as Prefab"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 6) };
             toPrefab.Click += (s, e) => SaveAsPrefab(obj);
             rowBtns.Children.Add(dup); rowBtns.Children.Add(del); rowBtns.Children.Add(toPrefab);
             InspectorRoot.Children.Add(rowBtns);

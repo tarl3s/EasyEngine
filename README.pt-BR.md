@@ -32,7 +32,7 @@ código: escolha comportamentos prontos em listas, encaixe blocos, ou só diga p
 
 É grátis, roda no seu computador, e a IA pode ser uma gratuita na nuvem ou totalmente offline.
 
-> A engine em si (menus, botões, comportamentos) é em inglês. A IA entende pedidos em português.
+> O editor fala português: escolha em ⚙ Settings → Language → Português (Brasil). A IA entende pedidos em português.
 
 ## Como começar
 
@@ -74,6 +74,9 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   de texto, estilos de caixa de diálogo, som com canais de volume.
 - **Console de debug (F1)** — veja o que o jogo está fazendo: cliques, golpes, regras que dispararam, sons, avisos.
 - **Exporte** o seu jogo como um `.exe` que roda sozinho.
+- **Seu idioma, seu visual** — o editor fala português (do Brasil e de Portugal), inglês, espanhol, francês, alemão,
+  japonês e chinês (simplificado e tradicional), e a IA te responde nele. Tema escuro ou claro, interface maior ou menor,
+  e um botão que limpa os arquivos temporários da engine (⚙ Settings / Configurações).
 
 <p align="center">
   <img src="docs/images/boss-fight.png" width="49%" alt="A luta contra o Slime King">

@@ -47,7 +47,7 @@ namespace EasyEngine
             var restartPanel = new StackPanel { Visibility = RestartVisibility(_pendingTheme) };
             restartPanel.Children.Add(restartNote); restartPanel.Children.Add(restart);
             restart.Click += (s, e) => App.Restart();
-            var theme = Dropdown.Make(new[] { ("dark", L.T("Dark")), ("light", L.T("Light")) }, AiSettings.ThemeName, name =>
+            var theme = Dropdown.Make(new[] { ("dark", L.T("Dark mode")), ("light", L.T("Light mode")) }, AiSettings.ThemeName, name =>
             {
                 AiSettings.ThemeName = name; AiSettings.Save();
                 _pendingTheme = name;
