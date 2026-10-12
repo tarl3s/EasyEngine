@@ -33,7 +33,7 @@ namespace EasyEngine
             ShowSummary();
             panel.Children.Add(summary);
 
-            var scratch = new Button { Content = "🧩  Advanced Scratch…", Style = (Style)FindResource("AccentButton"), Height = 36, Margin = new Thickness(0, 0, 0, 8), HorizontalContentAlignment = HorizontalAlignment.Center, Tag = "seq-scratch" };
+            var scratch = new Button { Content = L.T("🧩  Advanced Scratch…"), Style = (Style)FindResource("AccentButton"), Height = 36, Margin = new Thickness(0, 0, 0, 8), HorizontalContentAlignment = HorizontalAlignment.Center, Tag = "seq-scratch" };
             scratch.Click += (s, e) =>
             {
                 var win = new SequenceEditorWindow(_project, _scene, mode, Script(), obj.Name) { Owner = this };
@@ -43,7 +43,7 @@ namespace EasyEngine
             };
             panel.Children.Add(scratch);
 
-            panel.Children.Add(new TextBlock { Text = mode == SeqMode.Boss ? "Boss (JSON) — the blocks above edit this for you" : "Steps (JSON) — the blocks above edit this for you", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 2, 0, 3) });
+            panel.Children.Add(new TextBlock { Text = mode == SeqMode.Boss ? L.T("Boss (JSON) — the blocks above edit this for you") : L.T("Steps (JSON) — the blocks above edit this for you"), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 2, 0, 3) });
             var json = new TextBox
             {
                 Text = Script(), AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, Height = 150, Tag = "seq-json",
@@ -59,12 +59,12 @@ namespace EasyEngine
             panel.Children.Add(json);
 
             // ---- ✨ Ask the AI
-            panel.Children.Add(new TextBlock { Text = "✨ Ask the AI", FontWeight = FontWeights.SemiBold, FontSize = 12, Margin = new Thickness(0, 10, 0, 4) });
+            panel.Children.Add(new TextBlock { Text = L.T("✨ Ask the AI"), FontWeight = FontWeights.SemiBold, FontSize = 12, Margin = new Thickness(0, 10, 0, 4) });
             var ask = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 54, MaxHeight = 140, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Tag = "seq-ask", VerticalContentAlignment = VerticalAlignment.Top };
             var placeholder = new TextBlock
             {
-                Text = mode == SeqMode.Boss ? "Describe the boss you want… (e.g. a fire golem that charges, spits fireballs and gets faster below half health)"
-                                            : "Describe the scene you want… (e.g. the camera shows the castle, the king says hello, then back to the player)",
+                Text = mode == SeqMode.Boss ? L.T("Describe the boss you want… (e.g. a fire golem that charges, spits fireballs and gets faster below half health)")
+                                            : L.T("Describe the scene you want… (e.g. the camera shows the castle, the king says hello, then back to the player)"),
                 Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(7, 5, 7, 0), IsHitTestVisible = false
             };
             ask.TextChanged += (s, e) => placeholder.Visibility = ask.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -72,19 +72,19 @@ namespace EasyEngine
             askHost.Children.Add(ask); askHost.Children.Add(placeholder);
             panel.Children.Add(askHost);
 
-            var make = new Button { Content = "Make it", Style = (Style)FindResource("AccentButton"), Height = 32, Padding = new Thickness(18, 0, 18, 0), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Tag = "seq-make" };
-            var status = new TextBlock { FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0), Foreground = (SolidColorBrush)FindResource("TextDim"), Text = _seqAiStatus.TryGetValue(bh, out var st) ? st : "" };
+            var make = new Button { Content = L.T("Make it"), Style = (Style)FindResource("AccentButton"), Height = 32, Padding = new Thickness(18, 0, 18, 0), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Tag = "seq-make" };
+            var status = L.Keep(new TextBlock { FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0), Foreground = (SolidColorBrush)FindResource("TextDim"), Text = _seqAiStatus.TryGetValue(bh, out var st) ? st : "" }); // set by the code, already translated (holds the AI's notes)
             // While the AI works on this behavior (the card may be rebuilt meanwhile) nothing else may edit its script.
             void SetBusy(bool busy) { make.IsEnabled = ask.IsEnabled = json.IsEnabled = scratch.IsEnabled = !busy; }
-            if (_seqAiBusy.Contains(bh)) { SetBusy(true); status.Text = $"Asking {ActiveModelLabel}…"; }
+            if (_seqAiBusy.Contains(bh)) { SetBusy(true); status.Text = L.F("Asking {0}…", ActiveModelLabel); }
             make.Click += async (s, e) =>
             {
                 var request = ask.Text.Trim();
-                if (request.Length == 0) { status.Text = "Write what you want first."; return; }
+                if (request.Length == 0) { status.Text = L.T("Write what you want first."); return; }
                 if (AiNotReadyReason() is string notReady) { status.Text = notReady + "."; return; }
                 if (!_seqAiBusy.Add(bh)) return;
                 SetBusy(true);
-                status.Text = $"Asking {ActiveModelLabel}…";
+                status.Text = L.F("Asking {0}…", ActiveModelLabel);
                 string outcome;
                 try
                 {
@@ -106,16 +106,16 @@ namespace EasyEngine
         /// call left it outside the scene (writing then would lose the result and clear redo). Returns the status line.</summary>
         private string ApplySeqAi(BehaviorData bh, SeqMode mode, SeqAiResult result)
         {
-            if (!result.Ok) return "⚠ The AI's answer couldn't be used: " + result.Error + ". Try describing it differently.";
+            if (!result.Ok) return L.F("⚠ The AI's answer couldn't be used: {0}. Try describing it differently.", result.Error);
             if (!SceneHasBehavior(bh))
             {
-                const string stale = "⚠ The scene changed while the AI was working — not applied.";
+                var stale = L.T("⚠ The scene changed while the AI was working — not applied.");
                 Status(stale);
                 return stale;
             }
             PushUndo(); bh.Texts["script"] = result.Json; Dirty();
-            return "✓ Done — " + SequenceJson.Summary(mode, result.Json, out _).TrimStart('✓', ' ')
-                   + (result.Notes.Count > 0 ? "\nFixed up: " + string.Join("; ", result.Notes.Take(4)) : "");
+            return L.F("✓ Done — {0}", SequenceJson.Summary(mode, result.Json, out _).TrimStart('✓', ' '))
+                   + (result.Notes.Count > 0 ? "\n" + L.F("Fixed up: {0}", string.Join("; ", result.Notes.Take(4))) : "");
         }
 
         internal string TestApplySeqAi(BehaviorData bh, SeqMode mode, SeqAiResult result) => ApplySeqAi(bh, mode, result);

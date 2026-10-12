@@ -1073,6 +1073,7 @@ public partial class App
             FeatureTestsLightGrid(kit);
             FeatureTestsSamples(kit);
             FeatureTestsSettings(kit);
+            FeatureTestsI18nEditor(kit);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
@@ -1110,6 +1111,7 @@ public partial class App
     partial void FeatureTestsLightGrid(FullTestKit t);
     partial void FeatureTestsSamples(FullTestKit t);
     partial void FeatureTestsSettings(FullTestKit t);
+    partial void FeatureTestsI18nEditor(FullTestKit t);
 
     // Re-run a script and its block-editor round-trip; the measured outcome must match.
     private static bool SameOutcome(string script, int steps, Func<PlayWindow, double> read, Func<string, string> rt)

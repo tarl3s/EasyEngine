@@ -134,6 +134,26 @@ namespace EasyEngine
             // the settings scroll inside a capped height so the Build row, chat input and log stay visible
             AiPanel.SizeChanged += (s, e) => AiConfigScroll.MaxHeight = Math.Max(160, AiPanel.ActualHeight - 300);
             _ = RefreshOllamaStatusAsync();
+            L.Changed += OnLanguageChanged; // the XAML texts re-translate themselves; the code-built panels are rebuilt
+            Closed += (s, e) => L.Changed -= OnLanguageChanged;
+        }
+
+        /// <summary>The editor's language changed: rebuild every panel the code builds (their texts go through L.T).
+        /// The person's own content (names, the AI chat) is left as it is.</summary>
+        private void OnLanguageChanged()
+        {
+            GridToggle.Content = _snap ? L.T("Grid: on") : L.T("Grid: off");
+            RefreshPalette();
+            RefreshLayersKeepActive(); // re-selecting the layer rebuilds the objects list and its header too
+            var offset = InspectorScroll.VerticalOffset;
+            BuildInspector(_selected);
+            InspectorScroll.ScrollToVerticalOffset(offset);
+            SetAiMode(_aiMode);
+            UpdateAiTarget();
+            BuildCloudKeyRows();
+            AdvancedToggleText.Text = (AdvancedPanel.Visibility == Visibility.Visible ? "▾ " : "▸ ") + L.T("Advanced — paid keys, offline AI");
+            foreach (var pane in _panes.Values) if (pane.FloatWin != null) pane.FloatWin.Title = PaneTitle(pane.Key);
+            _ = RefreshOllamaStatusAsync();
         }
 
         // Re-select the AI the user picked last time (by its Tag); falls back to Cloud (Auto).
@@ -164,7 +184,6 @@ namespace EasyEngine
         private class DockPane
         {
             public string Key = "";
-            public string Title = "";
             public Border Card = null!;
             public DockRegion Region;
             public DockRegion LastDocked = DockRegion.Right;
@@ -177,10 +196,10 @@ namespace EasyEngine
 
         private void InitDocking()
         {
-            Register("prefabs",  "Prefabs",       CardPrefabs,  DockRegion.Left);
-            Register("ai",       "AI / Inspector",CardAi,       DockRegion.Right);
-            Register("layers",   "Layers",        CardLayers,   DockRegion.Bottom);
-            Register("objects",  "Objects",       CardObjects,  DockRegion.Bottom);
+            Register("prefabs", CardPrefabs, DockRegion.Left);
+            Register("ai", CardAi, DockRegion.Right);
+            Register("layers", CardLayers, DockRegion.Bottom);
+            Register("objects", CardObjects, DockRegion.Bottom);
 
             // apply saved layout (if any)
             foreach (var kv in AiSettings.DockLayout)
@@ -192,9 +211,9 @@ namespace EasyEngine
             RebuildRegion(DockRegion.Bottom);
         }
 
-        private void Register(string key, string title, Border card, DockRegion def)
+        private void Register(string key, Border card, DockRegion def)
         {
-            var pane = new DockPane { Key = key, Title = title, Card = card, Region = def, LastDocked = def };
+            var pane = new DockPane { Key = key, Card = card, Region = def, LastDocked = def };
             _panes[key] = pane;
             _dockOrder.Add(key);
         }
@@ -291,7 +310,7 @@ namespace EasyEngine
             {
                 var win = new Window
                 {
-                    Title = pane.Title,
+                    Title = PaneTitle(pane.Key),
                     Width = 380,
                     Height = 500,
                     Owner = this,
@@ -335,12 +354,12 @@ namespace EasyEngine
                 mi.Click += (_, __) => PlacePane(pane, target);
                 menu.Items.Add(mi);
             }
-            if (pane.Region != DockRegion.Left) Add("Dock left", DockRegion.Left);
-            if (pane.Region != DockRegion.Right) Add("Dock right", DockRegion.Right);
-            if (pane.Region != DockRegion.Bottom) Add("Dock bottom", DockRegion.Bottom);
+            if (pane.Region != DockRegion.Left) Add(L.T("Dock left"), DockRegion.Left);
+            if (pane.Region != DockRegion.Right) Add(L.T("Dock right"), DockRegion.Right);
+            if (pane.Region != DockRegion.Bottom) Add(L.T("Dock bottom"), DockRegion.Bottom);
             menu.Items.Add(new Separator());
-            if (pane.Region == DockRegion.Float) Add("Dock back", pane.LastDocked);
-            else Add("Float (separate window)", DockRegion.Float);
+            if (pane.Region == DockRegion.Float) Add(L.T("Dock back"), pane.LastDocked);
+            else Add(L.T("Float (separate window)"), DockRegion.Float);
             menu.PlacementTarget = fe;
             menu.IsOpen = true;
         }
@@ -352,17 +371,37 @@ namespace EasyEngine
             foreach (var key in _dockOrder)
             {
                 var pane = _panes[key];
-                var mi = new MenuItem { Header = $"{pane.Title}  ({pane.Region})" };
+                var mi = new MenuItem { Header = PanelsMenuHeader(pane) };
                 mi.Click += (_, __) => { if (pane.Region == DockRegion.Float && pane.FloatWin != null) pane.FloatWin.Activate(); else PlacePane(pane, pane.Region); };
                 menu.Items.Add(mi);
             }
             menu.Items.Add(new Separator());
-            var reset = new MenuItem { Header = "Reset layout to default" };
+            var reset = new MenuItem { Header = L.T("Reset layout to default") };
             reset.Click += (_, __) => ResetDockLayout();
             menu.Items.Add(reset);
             menu.PlacementTarget = (UIElement)sender;
             menu.IsOpen = true;
         }
+
+        private static string PanelsMenuHeader(DockPane pane) => $"{PaneTitle(pane.Key)}  ({RegionLabel(pane.Region)})";
+
+        // the panel names shown in the Panels menu and on floating windows (in the current language)
+        private static string PaneTitle(string key) => key switch
+        {
+            "prefabs" => L.T("Prefabs"),
+            "ai" => L.T("AI / Inspector"),
+            "layers" => L.T("Layers"),
+            "objects" => L.T("Objects"),
+            _ => key,
+        };
+
+        private static string RegionLabel(DockRegion r) => r switch
+        {
+            DockRegion.Left => L.T("Left"),
+            DockRegion.Right => L.T("Right"),
+            DockRegion.Bottom => L.T("Bottom"),
+            _ => L.T("Floating"),
+        };
 
         private void ResetDockLayout()
         {
@@ -409,18 +448,18 @@ namespace EasyEngine
 
         private void Undo()
         {
-            if (_undo.Count == 0) { Status("Nothing to undo"); return; }
+            if (_undo.Count == 0) { Status(L.T("Nothing to undo")); return; }
             _redo.Push(SceneJson());
             ReplaceActiveScene(FromJson(_undo.Pop()));
-            Status("Undo");
+            Status(L.T("Undo"));
         }
 
         private void Redo()
         {
-            if (_redo.Count == 0) { Status("Nothing to redo"); return; }
+            if (_redo.Count == 0) { Status(L.T("Nothing to redo")); return; }
             _undo.Push(SceneJson());
             ReplaceActiveScene(FromJson(_redo.Pop()));
-            Status("Redo");
+            Status(L.T("Redo"));
         }
 
         private void ReplaceActiveScene(Scene newScene)
@@ -469,7 +508,7 @@ namespace EasyEngine
         {
             _scene = scene;
             _undo.Clear(); _redo.Clear();
-            Title = $"EasyEngine — {_project.Name} · {scene.Name}";
+            UpdateTitle();
             SelectSceneInCombo(scene);
             SceneFrame.Width = scene.Width;
             SceneFrame.Height = scene.Height;
@@ -490,9 +529,9 @@ namespace EasyEngine
 
         private void AddScene_Click(object sender, RoutedEventArgs e)
         {
-            var name = InputDialog.Prompt(this, "New scene", "Scene name:", $"Scene {_project.Scenes.Count + 1}");
+            var name = InputDialog.Prompt(this, L.T("New scene"), L.T("Scene name:"), L.F("Scene {0}", _project.Scenes.Count + 1));
             if (name == null) return;
-            if (_project.Scenes.Any(s => s.Name == name)) { MessageBox.Show("A scene with that name already exists."); return; }
+            if (_project.Scenes.Any(s => s.Name == name)) { MessageBox.Show(L.T("A scene with that name already exists.")); return; }
             var scene = new Scene { Name = name };
             scene.Layers.Add(new Layer { Name = "Background", Kind = LayerKind.Background });
             scene.Layers.Add(new Layer { Name = "Base", Kind = LayerKind.Base });
@@ -505,21 +544,20 @@ namespace EasyEngine
 
         private void RenameScene_Click(object sender, RoutedEventArgs e)
         {
-            var name = InputDialog.Prompt(this, "Rename scene", "New name:", _scene.Name);
+            var name = InputDialog.Prompt(this, L.T("Rename scene"), L.T("New name:"), _scene.Name);
             if (name == null) return;
             bool wasStart = _project.StartScene == _scene.Name;
             _scene.Name = name;
             if (wasStart) _project.StartScene = name;
             RefreshSceneCombo();
             SelectSceneInCombo(_scene);
-            Title = $"EasyEngine — {_project.Name} · {name}";
             Dirty();
         }
 
         private void DeleteScene_Click(object sender, RoutedEventArgs e)
         {
-            if (_project.Scenes.Count <= 1) { MessageBox.Show("A project needs at least one scene."); return; }
-            if (MessageBox.Show($"Delete scene \"{_scene.Name}\"?", "Delete scene", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            if (_project.Scenes.Count <= 1) { MessageBox.Show(L.T("A project needs at least one scene.")); return; }
+            if (MessageBox.Show(L.F("Delete scene \"{0}\"?", _scene.Name), L.T("Delete scene"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             var removed = _scene;
             _project.Scenes.Remove(removed);
             if (_project.StartScene == removed.Name) _project.StartScene = _project.Scenes[0].Name;
@@ -533,7 +571,7 @@ namespace EasyEngine
             _project.StartScene = _scene.Name;
             RefreshSceneCombo();
             SelectSceneInCombo(_scene);
-            Status($"\"{_scene.Name}\" is now the start scene");
+            Status(L.F("\"{0}\" is now the start scene", _scene.Name));
             Dirty();
         }
 
@@ -582,28 +620,28 @@ namespace EasyEngine
             panel.Children.Add(new TextBlock
             {
                 Text = drawing
-                    ? "Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done."
-                    : (count > 0 ? $"Route: {count} point(s). Tip: the grid turns on while drawing so clicks snap to it."
-                                 : "No route yet. Click 'Draw path' (the grid turns on automatically), then click points on the scene to trace where it should go."),
+                    ? L.T("Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done.")
+                    : (count > 0 ? L.F("Route: {0} point(s). Tip: the grid turns on while drawing so clicks snap to it.", count)
+                                 : L.T("No route yet. Click 'Draw path' (the grid turns on automatically), then click points on the scene to trace where it should go.")),
                 Foreground = (SolidColorBrush)FindResource("TextDim"),
                 FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6)
             });
 
             var row = new StackPanel { Orientation = Orientation.Horizontal };
-            var draw = new Button { Content = drawing ? "✓ Finish" : "✎ Draw path", Height = 28, FontSize = 11, Padding = new Thickness(10, 0, 10, 0), Style = (Style)FindResource("CardButton") };
+            var draw = new Button { Content = drawing ? L.T("✓ Finish") : L.T("✎ Draw path"), Height = 28, FontSize = 11, Padding = new Thickness(10, 0, 10, 0), Style = (Style)FindResource("CardButton") };
             draw.Click += (s, e) =>
             {
-                if (ReferenceEquals(_pathDrawBh, bh)) { _pathDrawBh = null; _pathDrawObj = null; Status("Path saved."); }
+                if (ReferenceEquals(_pathDrawBh, bh)) { _pathDrawBh = null; _pathDrawObj = null; Status(L.T("Path saved.")); }
                 else
                 {
                     PushUndo();
                     _pathDrawBh = bh; _pathDrawObj = obj;
-                    if (!_snap) { _snap = true; GridToggle.Content = "Grid: on"; } // grid on so points snap
-                    Status("Draw mode: click points on the scene, then click Finish.");
+                    if (!_snap) { _snap = true; GridToggle.Content = L.T("Grid: on"); } // grid on so points snap
+                    Status(L.T("Draw mode: click points on the scene, then click Finish."));
                 }
                 BuildInspector(obj); RenderScene();
             };
-            var clear = new Button { Content = "Clear", Height = 28, FontSize = 11, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6, 0, 0, 0), Style = (Style)FindResource("GhostButton") };
+            var clear = new Button { Content = L.T("Clear"), Height = 28, FontSize = 11, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6, 0, 0, 0), Style = (Style)FindResource("GhostButton") };
             clear.Click += (s, e) => { PushUndo(); bh.Texts["path"] = ""; Dirty(); BuildInspector(obj); RenderScene(); };
             row.Children.Add(draw); row.Children.Add(clear);
             panel.Children.Add(row);
@@ -915,7 +953,7 @@ namespace EasyEngine
         private void GridToggle_Click(object sender, RoutedEventArgs e)
         {
             _snap = !_snap;
-            GridToggle.Content = _snap ? "Grid: on" : "Grid: off";
+            GridToggle.Content = _snap ? L.T("Grid: on") : L.T("Grid: off");
             RenderScene();
         }
 
@@ -969,10 +1007,10 @@ namespace EasyEngine
         {
             if (AiTarget == null) return;
             AiTarget.Text = _selection.Count == 0
-                ? "Target: auto-detect."
+                ? L.T("Target: auto-detect.")
                 : _selection.Count == 1
-                    ? $"Target: {_selection[0].Name} (AI edits only this)."
-                    : $"Target: {string.Join(", ", _selection.Select(o => o.Name))} (AI edits these {_selection.Count}).";
+                    ? L.F("Target: {0} (AI edits only this).", _selection[0].Name)
+                    : L.F("Target: {0} (AI edits these {1}).", string.Join(", ", _selection.Select(o => o.Name)), _selection.Count);
         }
 
         private void SelectInObjectsList(GameObjectData obj)
@@ -1002,7 +1040,7 @@ namespace EasyEngine
                 foreach (var pf in g) PaletteList.Children.Add(MakePrefabRow(pf));
             }
             if (PaletteList.Children.Count == 0)
-                PaletteList.Children.Add(new TextBlock { Text = "No prefabs match.", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(2, 4, 0, 0) });
+                PaletteList.Children.Add(new TextBlock { Text = L.T("No prefabs match."), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(2, 4, 0, 0) });
         }
 
         private FrameworkElement MakeCategoryHeader(string name, int count, bool collapsed)
@@ -1017,7 +1055,7 @@ namespace EasyEngine
                 Foreground = (SolidColorBrush)FindResource("TextDim")
             };
             btn.Click += (s, e) => { if (!_collapsedCats.Remove(name)) _collapsedCats.Add(name); RefreshPalette(); };
-            return btn;
+            return L.Keep(btn); // the category is the person's name
         }
 
         private void PrefabSearch_TextChanged(object sender, TextChangedEventArgs e)
@@ -1032,10 +1070,10 @@ namespace EasyEngine
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var add = new Button { Content = $"{pf.Icon}  {pf.Name}", Style = (Style)FindResource("CardButton"), Height = 36, HorizontalContentAlignment = HorizontalAlignment.Left };
+            var add = L.Keep(new Button { Content = $"{pf.Icon}  {pf.Name}", Style = (Style)FindResource("CardButton"), Height = 36, HorizontalContentAlignment = HorizontalAlignment.Left });
             add.Click += (s, e) => AddPrefabInstance(pf);
 
-            var del = new Button { Content = "Delete", Style = (Style)FindResource("GhostButton"), Height = 36, FontSize = 11, Foreground = (SolidColorBrush)FindResource("Danger"), Margin = new Thickness(4, 0, 0, 0) };
+            var del = new Button { Content = L.T("Delete"), Style = (Style)FindResource("GhostButton"), Height = 36, FontSize = 11, Foreground = (SolidColorBrush)FindResource("Danger"), Margin = new Thickness(4, 0, 0, 0) };
             del.Click += (s, e) => DeletePrefab(pf);
 
             Grid.SetColumn(add, 0); Grid.SetColumn(del, 1);
@@ -1058,7 +1096,7 @@ namespace EasyEngine
         private void AddToActiveLayer(GameObjectData obj, string baseName)
         {
             var layer = _activeLayer ?? _scene.Layers.FirstOrDefault();
-            if (layer == null) { Status("Create a layer first"); return; }
+            if (layer == null) { Status(L.T("Create a layer first")); return; }
             PushUndo();
             obj.Id = _project.NextId;
             obj.Name = UniqueName(baseName);
@@ -1067,38 +1105,40 @@ namespace EasyEngine
             if (obj.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)) { obj.X = 0; obj.Y = 0; } // tilemaps anchor at the scene origin
             layer.Objects.Add(obj);
             RenderScene(); RefreshObjects(); Select(obj); Dirty();
-            Status($"{obj.Name} added to \"{layer.Name}\"");
+            Status(L.F("{0} added to \"{1}\"", obj.Name, layer.Name));
         }
 
         private void DeletePrefab(PrefabDef pf)
         {
-            if (MessageBox.Show($"Remove prefab \"{pf.Name}\" from the palette?\n(objects already placed in scenes are NOT affected)",
-                "Delete prefab", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show(L.F("Remove prefab \"{0}\" from the palette?\n(objects already placed in scenes are NOT affected)", pf.Name),
+                L.T("Delete prefab"), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             _project.Prefabs.Remove(pf);
             RefreshPalette(); Dirty();
-            Status($"Prefab \"{pf.Name}\" removed");
+            Status(L.F("Prefab \"{0}\" removed", pf.Name));
         }
 
         private void SavePrefab_Click(object sender, RoutedEventArgs e)
         {
-            if (_selected == null) { Status("Select an object to save as a prefab"); return; }
+            if (_selected == null) { Status(L.T("Select an object to save as a prefab")); return; }
             SaveAsPrefab(_selected);
         }
 
         private void SaveAsPrefab(GameObjectData obj)
         {
-            var name = InputDialog.Prompt(this, "Save as prefab", "Prefab name:", obj.Name);
+            var name = InputDialog.Prompt(this, L.T("Save as prefab"), L.T("Prefab name:"), obj.Name);
             if (name == null) return;
             var existingCats = _project.Prefabs.Select(p => p.Category).Distinct().Where(c => !string.IsNullOrWhiteSpace(c));
-            var hint = existingCats.Any() ? " (existing: " + string.Join(", ", existingCats) + ")" : "";
-            var cat = InputDialog.Prompt(this, "Category", "Category — groups it in the palette" + hint + ":", string.IsNullOrWhiteSpace(obj.Group) ? "General" : obj.Group);
+            var prompt = existingCats.Any()
+                ? L.F("Category — groups it in the palette (existing: {0}):", string.Join(", ", existingCats))
+                : L.T("Category — groups it in the palette:");
+            var cat = InputDialog.Prompt(this, L.T("Category"), prompt, string.IsNullOrWhiteSpace(obj.Group) ? "General" : obj.Group);
             if (string.IsNullOrWhiteSpace(cat)) cat = "General";
             var icon = _project.Prefabs.FirstOrDefault(p => p.Name == obj.Type)?.Icon ?? "▢";
             var tmpl = JsonClone(obj);
             tmpl.Id = 0; tmpl.X = 0; tmpl.Y = 0;
             _project.Prefabs.Add(new PrefabDef { Name = name, Icon = icon, Category = cat, Template = tmpl });
             RefreshPalette(); Dirty();
-            Status($"Saved \"{name}\" as a prefab under \"{cat}\"");
+            Status(L.F("Saved \"{0}\" as a prefab under \"{1}\"", name, cat));
         }
 
         private string UniqueName(string baseName)
@@ -1134,7 +1174,7 @@ namespace EasyEngine
             clone.X += 24; clone.Y += 24;
             layer.Objects.Add(clone);
             RenderScene(); RefreshObjects(); Select(clone); Dirty();
-            Status($"Duplicated {name}");
+            Status(L.F("Duplicated {0}", name));
         }
 
         protected override void OnPreviewKeyDown(KeyEventArgs e)
@@ -1264,20 +1304,20 @@ namespace EasyEngine
         {
             var eye = new Button
             {
-                Content = layer.Visible ? "shown" : "hidden", Width = 50, Height = 22, FontSize = 10,
+                Content = layer.Visible ? L.T("shown") : L.T("hidden"), Width = 50, Height = 22, FontSize = 10,
                 Background = Brushes.Transparent, BorderThickness = new Thickness(0),
                 Foreground = (SolidColorBrush)FindResource(layer.Visible ? "Text" : "TextDim"), Cursor = Cursors.Hand, Tag = layer
             };
-            eye.Click += (s, e) => { layer.Visible = !layer.Visible; eye.Content = layer.Visible ? "shown" : "hidden"; eye.Foreground = (SolidColorBrush)FindResource(layer.Visible ? "Text" : "TextDim"); RenderScene(); Dirty(); e.Handled = true; };
+            eye.Click += (s, e) => { layer.Visible = !layer.Visible; eye.Content = layer.Visible ? L.T("shown") : L.T("hidden"); eye.Foreground = (SolidColorBrush)FindResource(layer.Visible ? "Text" : "TextDim"); RenderScene(); Dirty(); e.Handled = true; };
 
-            var name = new TextBlock { Text = layer.Name, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
-            var kind = new TextBlock { Text = layer.Kind.ToString(), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+            var name = L.Keep(new TextBlock { Text = layer.Name, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) });
+            var kind = new TextBlock { Text = LayerKindLabel(layer.Kind), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
 
             bool Fixed() => layer.ScreenSpace || layer.Kind == LayerKind.UI;
-            var fix = new Button { Content = Fixed() ? "fixed" : "scroll", Width = 46, Height = 22, FontSize = 10, Style = (Style)FindResource("GhostButton"), VerticalAlignment = VerticalAlignment.Center, ToolTip = "Fixed = stays on screen (UI/HUD). Scroll = moves with the world." };
-            fix.Click += (s, e) => { e.Handled = true; PushUndo(); layer.ScreenSpace = !Fixed(); fix.Content = Fixed() ? "fixed" : "scroll"; Dirty(); };
+            var fix = new Button { Content = Fixed() ? L.T("fixed") : L.T("scroll"), Width = 46, Height = 22, FontSize = 10, Style = (Style)FindResource("GhostButton"), VerticalAlignment = VerticalAlignment.Center, ToolTip = L.T("Fixed = stays on screen (UI/HUD). Scroll = moves with the world.") };
+            fix.Click += (s, e) => { e.Handled = true; PushUndo(); layer.ScreenSpace = !Fixed(); fix.Content = Fixed() ? L.T("fixed") : L.T("scroll"); Dirty(); };
 
-            var del = new Button { Content = "Delete", Height = 22, FontSize = 10, Style = (Style)FindResource("GhostButton"), Foreground = (SolidColorBrush)FindResource("Danger"), VerticalAlignment = VerticalAlignment.Center };
+            var del = new Button { Content = L.T("Delete"), Height = 22, FontSize = 10, Style = (Style)FindResource("GhostButton"), Foreground = (SolidColorBrush)FindResource("Danger"), VerticalAlignment = VerticalAlignment.Center };
             del.Click += (s, e) => { e.Handled = true; DeleteLayer(layer); };
 
             var grid = new Grid();
@@ -1292,11 +1332,20 @@ namespace EasyEngine
             return new ListBoxItem { Content = grid, Tag = layer, Padding = new Thickness(4, 4, 4, 4), Foreground = (SolidColorBrush)FindResource("Text"), HorizontalContentAlignment = HorizontalAlignment.Stretch }; // stretch: the kind sits at the right, not glued to the name
         }
 
+        private static string LayerKindLabel(LayerKind kind) => kind switch
+        {
+            LayerKind.Background => L.T("Background"),
+            LayerKind.Base => L.T("Base"),
+            LayerKind.UI => L.T("UI"),
+            LayerKind.Sky => L.T("Sky"),
+            _ => L.T("Custom"),
+        };
+
         private void DeleteLayer(Layer layer)
         {
-            if (_scene.Layers.Count <= 1) { MessageBox.Show("A scene needs at least one layer."); return; }
+            if (_scene.Layers.Count <= 1) { MessageBox.Show(L.T("A scene needs at least one layer.")); return; }
             if (layer.Objects.Count > 0 &&
-                MessageBox.Show($"Delete layer \"{layer.Name}\" and its {layer.Objects.Count} object(s)?", "Delete layer", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                MessageBox.Show(L.F("Delete layer \"{0}\" and its {1} object(s)?", layer.Name, layer.Objects.Count), L.T("Delete layer"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
                 return;
             PushUndo();
             _scene.Layers.Remove(layer);
@@ -1310,14 +1359,14 @@ namespace EasyEngine
             if (LayersList.SelectedItem is ListBoxItem item && item.Tag is Layer layer)
             {
                 _activeLayer = layer;
-                ObjectsHeader.Text = $"OBJECTS — {layer.Name}".ToUpper();
+                ObjectsHeader.Text = L.F("OBJECTS — {0}", layer.Name).ToUpper();
                 RefreshObjects();
             }
         }
 
         private void AddLayer_Click(object sender, RoutedEventArgs e)
         {
-            var name = InputDialog.Prompt(this, "New layer", "Layer name:", $"Layer {_scene.Layers.Count + 1}");
+            var name = InputDialog.Prompt(this, L.T("New layer"), L.T("Layer name:"), L.F("Layer {0}", _scene.Layers.Count + 1));
             if (name == null) return;
             PushUndo();
             _scene.Layers.Add(new Layer { Name = name, Kind = LayerKind.Custom });
@@ -1346,7 +1395,7 @@ namespace EasyEngine
                 if (anyGroup)
                     ObjectsList.Items.Add(new ListBoxItem
                     {
-                        Content = (g.Key.Length == 0 ? "Ungrouped" : g.Key).ToUpperInvariant(),
+                        Content = (g.Key.Length == 0 ? L.T("Ungrouped") : g.Key).ToUpperInvariant(),
                         IsHitTestVisible = false, Focusable = false,
                         Foreground = (SolidColorBrush)FindResource("TextDim"),
                         FontSize = 10, FontWeight = FontWeights.SemiBold, Padding = new Thickness(6, 6, 6, 2)
@@ -1379,55 +1428,55 @@ namespace EasyEngine
             InspectorRoot.Children.Clear();
             if (obj == null) { BuildSceneInspector(); return; }
 
-            Section("OBJECT");
-            TextRow("Name", obj.Name, v => { obj.Name = v; RefreshObjects(); Dirty(); });
-            InfoRow("Type", obj.Type);
-            TextRow("Group", obj.Group, v => { obj.Group = v.Trim(); RefreshObjects(); Dirty(); });
+            Section(L.T("OBJECT"));
+            TextRow(L.T("Name"), obj.Name, v => { obj.Name = v; RefreshObjects(); Dirty(); });
+            InfoRow(L.T("Type"), obj.Type);
+            TextRow(L.T("Group"), obj.Group, v => { obj.Group = v.Trim(); RefreshObjects(); Dirty(); });
             var rowBtns = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
-            var dup = new Button { Content = "Duplicate", Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            var dup = new Button { Content = L.T("Duplicate"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
             dup.Click += (s, e) => DuplicateSelected();
-            var del = new Button { Content = "Delete", Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Danger"), Margin = new Thickness(0, 0, 8, 0) };
+            var del = new Button { Content = L.T("Delete"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Foreground = (SolidColorBrush)FindResource("Danger"), Margin = new Thickness(0, 0, 8, 0) };
             del.Click += (s, e) => DeleteSelected();
-            var toPrefab = new Button { Content = "Save as Prefab", Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+            var toPrefab = new Button { Content = L.T("Save as Prefab"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
             toPrefab.Click += (s, e) => SaveAsPrefab(obj);
             rowBtns.Children.Add(dup); rowBtns.Children.Add(del); rowBtns.Children.Add(toPrefab);
             InspectorRoot.Children.Add(rowBtns);
 
-            Section("TRANSFORM");
-            NumRow("X", obj.X, v => { obj.X = v; ReposSelected(); Dirty(); });
-            NumRow("Y", obj.Y, v => { obj.Y = v; ReposSelected(); Dirty(); });
-            NumRow("Width", obj.Width, v => { obj.Width = Math.Max(2, v); RenderScene(); Dirty(); });
-            NumRow("Height", obj.Height, v => { obj.Height = Math.Max(2, v); RenderScene(); Dirty(); });
-            NumRow("Rotation", obj.Rotation, v => { obj.Rotation = v; RenderScene(); Dirty(); });
+            Section(L.T("TRANSFORM"));
+            NumRow(L.T("X"), obj.X, v => { obj.X = v; ReposSelected(); Dirty(); });
+            NumRow(L.T("Y"), obj.Y, v => { obj.Y = v; ReposSelected(); Dirty(); });
+            NumRow(L.T("Width"), obj.Width, v => { obj.Width = Math.Max(2, v); RenderScene(); Dirty(); });
+            NumRow(L.T("Height"), obj.Height, v => { obj.Height = Math.Max(2, v); RenderScene(); Dirty(); });
+            NumRow(L.T("Rotation"), obj.Rotation, v => { obj.Rotation = v; RenderScene(); Dirty(); });
 
-            Section("APPEARANCE");
-            ColorRow("Color", obj.Color, v => { obj.Color = v; RenderScene(); Dirty(); });
+            Section(L.T("APPEARANCE"));
+            ColorRow(L.T("Color"), obj.Color, v => { obj.Color = v; RenderScene(); Dirty(); });
             AnimationsRow(obj);
             SpriteRow(obj);
             if (obj.SpritePath != null || obj.Animations.Count > 0)
-                ComboRow("Image fit", new[] { "Stretch", "Tile (repeat)" }, obj.TileImage ? 1 : 0, i => { obj.TileImage = i == 1; RenderScene(); Dirty(); });
-            SliderRow("Opacity", obj.Opacity, 0, 1, v => { obj.Opacity = Math.Clamp(v, 0, 1); RenderScene(); Dirty(); }, percent: true);
-            NumRow("Corner radius", obj.CornerRadius < 0 ? 4 : obj.CornerRadius, v => { obj.CornerRadius = Math.Max(0, v); RenderScene(); Dirty(); });
-            ColorRow("Border color", obj.BorderColor ?? "#000000", v => { obj.BorderColor = v; Dirty(); });
-            NumRow("Border width", obj.BorderWidth, v => { obj.BorderWidth = Math.Max(0, v); Dirty(); });
+                ComboRow(L.T("Image fit"), new[] { L.T("Stretch"), L.T("Tile (repeat)") }, obj.TileImage ? 1 : 0, i => { obj.TileImage = i == 1; RenderScene(); Dirty(); });
+            SliderRow(L.T("Opacity"), obj.Opacity, 0, 1, v => { obj.Opacity = Math.Clamp(v, 0, 1); RenderScene(); Dirty(); }, percent: true);
+            NumRow(L.T("Corner radius"), obj.CornerRadius < 0 ? 4 : obj.CornerRadius, v => { obj.CornerRadius = Math.Max(0, v); RenderScene(); Dirty(); });
+            ColorRow(L.T("Border color"), obj.BorderColor ?? "#000000", v => { obj.BorderColor = v; Dirty(); });
+            NumRow(L.T("Border width"), obj.BorderWidth, v => { obj.BorderWidth = Math.Max(0, v); Dirty(); });
             if (obj.Behaviors.Any(b => b.Kind == BehaviorKind.Label))
             {
-                TextRow("Font", obj.FontFamily ?? "", v => { obj.FontFamily = string.IsNullOrWhiteSpace(v) ? null : v; Dirty(); });
-                ComboRow("Bold", new[] { "No", "Yes" }, obj.Bold ? 1 : 0, i => { obj.Bold = i == 1; Dirty(); });
+                TextRow(L.T("Font"), obj.FontFamily ?? "", v => { obj.FontFamily = string.IsNullOrWhiteSpace(v) ? null : v; Dirty(); });
+                ComboRow(L.T("Bold"), new[] { L.T("No"), L.T("Yes") }, obj.Bold ? 1 : 0, i => { obj.Bold = i == 1; Dirty(); });
             }
 
-            Section("PHYSICS");
-            ComboRow("Mode", new[] { "None", "Static", "Dynamic" }, (int)obj.Physics.Mode, i => { obj.Physics.Mode = (PhysicsMode)i; Dirty(); });
-            NumRow("Gravity ×", obj.Physics.GravityScale, v => { obj.Physics.GravityScale = v; Dirty(); });
-            NumRow("Bounciness", obj.Physics.Bounciness, v => { obj.Physics.Bounciness = Math.Clamp(v, 0, 1); Dirty(); });
+            Section(L.T("PHYSICS"));
+            ComboRow(L.T("Mode"), new[] { L.T("None"), L.T("Static"), L.T("Dynamic") }, (int)obj.Physics.Mode, i => { obj.Physics.Mode = (PhysicsMode)i; Dirty(); });
+            NumRow(L.T("Gravity ×"), obj.Physics.GravityScale, v => { obj.Physics.GravityScale = v; Dirty(); });
+            NumRow(L.T("Bounciness"), obj.Physics.Bounciness, v => { obj.Physics.Bounciness = Math.Clamp(v, 0, 1); Dirty(); });
 
-            Section("BEHAVIORS");
+            Section(L.T("BEHAVIORS"));
             foreach (var bh in obj.Behaviors.ToList())
                 BehaviorCard(obj, bh);
             if (_selection.Count > 1)
                 InspectorRoot.Children.Add(new TextBlock
                 {
-                    Text = $"＋ adds to all {_selection.Count} selected objects.",
+                    Text = L.F("＋ adds to all {0} selected objects.", _selection.Count),
                     Foreground = (SolidColorBrush)FindResource("Accent"),
                     FontSize = 11, Margin = new Thickness(0, 4, 0, 2), TextWrapping = TextWrapping.Wrap
                 });
@@ -1436,18 +1485,18 @@ namespace EasyEngine
 
         private void BuildSceneInspector()
         {
-            Section("SCENE");
-            TextRow("Name", _scene.Name, v => { _scene.Name = v; RefreshSceneCombo(); SelectSceneInCombo(_scene); Dirty(); });
-            NumRow("Width", _scene.Width, v => { _scene.Width = v; SceneFrame.Width = v; Dirty(); });
-            NumRow("Height", _scene.Height, v => { _scene.Height = v; SceneFrame.Height = v; Dirty(); });
-            ColorRow("Background", _scene.BackgroundColor, v => { _scene.BackgroundColor = v; RenderScene(); Dirty(); });
+            Section(L.T("SCENE"));
+            TextRow(L.T("Name"), _scene.Name, v => { _scene.Name = v; RefreshSceneCombo(); SelectSceneInCombo(_scene); Dirty(); });
+            NumRow(L.T("Width"), _scene.Width, v => { _scene.Width = v; SceneFrame.Width = v; Dirty(); });
+            NumRow(L.T("Height"), _scene.Height, v => { _scene.Height = v; SceneFrame.Height = v; Dirty(); });
+            ColorRow(L.T("Background"), _scene.BackgroundColor, v => { _scene.BackgroundColor = v; RenderScene(); Dirty(); });
 
-            Section("LIGHT");
-            NumRow("Ambient light (0-1)", _scene.AmbientLight, v => { _scene.AmbientLight = Math.Clamp(v, 0, 1); Dirty(); });
+            Section(L.T("LIGHT"));
+            NumRow(L.T("Ambient light (0-1)"), _scene.AmbientLight, v => { _scene.AmbientLight = Math.Clamp(v, 0, 1); Dirty(); });
 
             InspectorRoot.Children.Add(new TextBlock
             {
-                Text = "Select an object to edit it, or use the AI tab.",
+                Text = L.T("Select an object to edit it, or use the AI tab."),
                 Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 14, 0, 0)
             });
@@ -1464,9 +1513,9 @@ namespace EasyEngine
         // ---- animations ----
         private void AnimationsRow(GameObjectData obj)
         {
-            var grid = RowGrid("Animations");
+            var grid = RowGrid(L.T("Animations"));
             var inner = new StackPanel();
-            var open = new Button { Content = "🎞 Edit Animations…", Style = (Style)FindResource("CardButton"), Height = 32, HorizontalContentAlignment = HorizontalAlignment.Center };
+            var open = new Button { Content = L.T("🎞 Edit Animations…"), Style = (Style)FindResource("CardButton"), Height = 32, HorizontalContentAlignment = HorizontalAlignment.Center };
             open.Click += (s, e) =>
             {
                 PushUndo();
@@ -1475,7 +1524,7 @@ namespace EasyEngine
                 RenderScene(); BuildInspector(obj); Dirty();
             };
             inner.Children.Add(open);
-            string summary = obj.Animations.Count == 0 ? "No animations yet" : $"{obj.Animations.Count} animation(s) · default: {obj.DefaultAnimation ?? obj.Animations.First().Name}";
+            string summary = obj.Animations.Count == 0 ? L.T("No animations yet") : L.F("{0} animation(s) · default: {1}", obj.Animations.Count, obj.DefaultAnimation ?? obj.Animations.First().Name);
             inner.Children.Add(new TextBlock { Text = summary, Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap });
             Grid.SetColumn(inner, 1);
             grid.Children.Add(inner);
@@ -1483,9 +1532,10 @@ namespace EasyEngine
 
         private void SpriteRow(GameObjectData obj)
         {
-            var grid = RowGrid("Static image");
+            var grid = RowGrid(L.T("Static image"));
             var inner = new StackPanel { Orientation = Orientation.Horizontal };
-            var pick = new Button { Content = obj.SpritePath == null ? "Choose…" : Path.GetFileName(obj.SpritePath), Style = (Style)FindResource("CardButton"), Height = 28, Padding = new Thickness(8, 0, 8, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+            var pick = new Button { Content = obj.SpritePath == null ? L.T("Choose…") : Path.GetFileName(obj.SpritePath), Style = (Style)FindResource("CardButton"), Height = 28, Padding = new Thickness(8, 0, 8, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+            if (obj.SpritePath != null) L.SetSkip(pick, true); // the file name
             pick.Click += (s, e) => PickSprite(obj);
             inner.Children.Add(pick);
             if (obj.SpritePath != null)
@@ -1500,11 +1550,11 @@ namespace EasyEngine
 
         private void PickSprite(GameObjectData obj)
         {
-            var dlg = new OpenFileDialog { Title = "Choose image", Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif" };
+            var dlg = new OpenFileDialog { Title = L.T("Choose image"), Filter = L.T("Images") + "|*.png;*.jpg;*.jpeg;*.bmp;*.gif" };
             if (dlg.ShowDialog() == true)
             {
-                try { PushUndo(); obj.SpritePath = ProjectIO.ImportAsset(_project, dlg.FileName, "sprites"); RenderScene(); BuildInspector(obj); Dirty(); Status($"Image set on {obj.Name}"); }
-                catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+                try { PushUndo(); obj.SpritePath = ProjectIO.ImportAsset(_project, dlg.FileName, "sprites"); RenderScene(); BuildInspector(obj); Dirty(); Status(L.F("Image set on {0}", obj.Name)); }
+                catch (Exception ex) { MessageBox.Show(L.F("Error: {0}", ex.Message)); }
             }
         }
 
@@ -1518,11 +1568,11 @@ namespace EasyEngine
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var title = new TextBlock { Text = $"{info.Icon}  {info.Name}", FontWeight = FontWeights.SemiBold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+            var title = new TextBlock { Text = $"{info.Icon}  {L.T(info.Name)}", FontWeight = FontWeights.SemiBold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
             var help = new Button { Content = "?", Width = 24, Height = 24, FontSize = 11, Padding = new Thickness(0), Margin = new Thickness(0, 0, 6, 0), Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Center,
-                                    ToolTip = "How does this work? (asks the AI in Learn mode)" };
+                                    ToolTip = L.T("How does this work? (asks the AI in Learn mode)") };
             help.Click += (s, e) => AskHowTo(info);
-            var remove = new Button { Content = "Remove", Height = 24, FontSize = 11, Padding = new Thickness(8, 0, 8, 0), Style = (Style)FindResource("CardButton"), Foreground = (SolidColorBrush)FindResource("Danger") };
+            var remove = new Button { Content = L.T("Remove"), Height = 24, FontSize = 11, Padding = new Thickness(8, 0, 8, 0), Style = (Style)FindResource("CardButton"), Foreground = (SolidColorBrush)FindResource("Danger") };
             remove.Click += (s, e) => { PushUndo(); obj.Behaviors.Remove(bh); BuildInspector(obj); Dirty(); };
             Grid.SetColumn(title, 0); Grid.SetColumn(help, 1); Grid.SetColumn(remove, 2);
             header.Children.Add(title); header.Children.Add(help); header.Children.Add(remove);
@@ -1538,15 +1588,15 @@ namespace EasyEngine
                 {
                     if (bh.Kind == BehaviorKind.AdvancedPatrol && np.Key == "mode")
                     {
-                        ChoiceRow("Format", panel, (int)Math.Round(bh.Num("mode", 0)),
-                            new[] { "Platformer (gravity + jumps)", "Top-down (free + pathfinding)", "Free / flying (straight line)" },
+                        ChoiceRow(L.T("Format"), panel, (int)Math.Round(bh.Num("mode", 0)),
+                            new[] { L.T("Platformer (gravity + jumps)"), L.T("Top-down (free + pathfinding)"), L.T("Free / flying (straight line)") },
                             i => { bh.Nums["mode"] = i; if (_selected == obj) BuildInspector(obj); });
                         continue;
                     }
                     if (bh.Kind == BehaviorKind.AdvancedPatrol && np.Key == "repeat")
                     {
-                        ChoiceRow("Repeat", panel, (int)Math.Round(bh.Num("repeat", 0)),
-                            new[] { "Back and forth (retrace)", "Loop (straight back to start)", "Once (stop at the end)" },
+                        ChoiceRow(L.T("Repeat"), panel, (int)Math.Round(bh.Num("repeat", 0)),
+                            new[] { L.T("Back and forth (retrace)"), L.T("Loop (straight back to start)"), L.T("Once (stop at the end)") },
                             i => bh.Nums["repeat"] = i);
                         continue;
                     }
@@ -1574,7 +1624,7 @@ namespace EasyEngine
         // "＋ New item": make a custom tool/weapon (shovel, hammer, your own picture…) and put it in this hotbar
         private void NewItemButton(GameObjectData obj, BehaviorData hotbar, Panel panel)
         {
-            var btn = new Button { Content = "＋ New item (tool / weapon)…", Height = 28, Margin = new Thickness(0, 8, 0, 0), Style = (Style)FindResource("CardButton") };
+            var btn = new Button { Content = L.T("＋ New item (tool / weapon)…"), Height = 28, Margin = new Thickness(0, 8, 0, 0), Style = (Style)FindResource("CardButton") };
             btn.Click += (s, e) =>
             {
                 var dlg = new NewItemDialog(_project) { Owner = this };
@@ -1590,9 +1640,9 @@ namespace EasyEngine
         private void AddBehaviorControl(GameObjectData obj)
         {
             var combo = new ComboBox { Margin = new Thickness(0, 2, 0, 0) };
-            combo.Items.Add(new ComboBoxItem { Content = "＋ Add behavior…", Tag = null, IsSelected = true });
+            combo.Items.Add(new ComboBoxItem { Content = L.T("＋ Add behavior…"), Tag = null, IsSelected = true });
             foreach (var info in BehaviorCatalog.All)
-                if (!info.Hidden) combo.Items.Add(new ComboBoxItem { Content = $"{info.Icon}  {info.Name}", Tag = info.Kind });
+                if (!info.Hidden) combo.Items.Add(new ComboBoxItem { Content = $"{info.Icon}  {L.T(info.Name)}", Tag = info.Kind });
             combo.SelectionChanged += (s, e) =>
             {
                 if (combo.SelectedItem is ComboBoxItem ci && ci.Tag is BehaviorKind kind)
@@ -1611,7 +1661,7 @@ namespace EasyEngine
                     if (sky != null) RefreshLayersKeepActive();
                     BuildInspector(obj); RenderScene(); Dirty();
                     if (sky != null) Status(sky);
-                    else if (targets.Count > 1) Status($"Added {BehaviorCatalog.Info(kind).Name} to {added} of {targets.Count} selected object(s)");
+                    else if (targets.Count > 1) Status(L.F("Added {0} to {1} of {2} selected object(s)", L.T(BehaviorCatalog.Info(kind).Name), added, targets.Count));
                 }
             };
             InspectorRoot.Children.Add(combo);
@@ -1619,7 +1669,7 @@ namespace EasyEngine
 
         private void ScriptRow(BehaviorData bh, Panel target)
         {
-            var blockBtn = new Button { Content = "🧩  Build with blocks (easy)", Style = (Style)FindResource("AccentButton"), Height = 36, Margin = new Thickness(0, 2, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Center };
+            var blockBtn = new Button { Content = L.T("🧩  Build with blocks (easy)"), Style = (Style)FindResource("AccentButton"), Height = 36, Margin = new Thickness(0, 2, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Center };
             blockBtn.Click += (s, e) =>
             {
                 var win = new BlockEditorWindow(_project, _scene, bh.Text("script", "[]")) { Owner = this };
@@ -1631,7 +1681,7 @@ namespace EasyEngine
             };
             target.Children.Add(blockBtn);
 
-            target.Children.Add(new TextBlock { Text = "Advanced — raw rules (JSON). The blocks above edit this for you.", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 2, 0, 4), TextWrapping = TextWrapping.Wrap });
+            target.Children.Add(new TextBlock { Text = L.T("Advanced — raw rules (JSON). The blocks above edit this for you."), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 2, 0, 4), TextWrapping = TextWrapping.Wrap });
             var tb = new TextBox
             {
                 Text = bh.Text("script", "[]"),
@@ -1773,13 +1823,13 @@ namespace EasyEngine
 
         private void TilemapRow(GameObjectData obj, BehaviorData bh, Panel panel)
         {
-            panel.Children.Add(new TextBlock { Text = "Left-drag paints · Right-drag erases", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 2, 0, 6), TextWrapping = TextWrapping.Wrap });
+            panel.Children.Add(new TextBlock { Text = L.T("Left-drag paints · Right-drag erases"), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 2, 0, 6), TextWrapping = TextWrapping.Wrap });
 
-            NumRow("Tile size", _tmSize, v => { _tmSize = Math.Max(4, v); SerializeTilemap(); RenderScene(); Dirty(); }, panel);
-            NumRow("Columns", _tmCols, v => ResizeGrid((int)v, _tmRows), panel);
-            NumRow("Rows", _tmRows, v => ResizeGrid(_tmCols, (int)v), panel);
+            NumRow(L.T("Tile size"), _tmSize, v => { _tmSize = Math.Max(4, v); SerializeTilemap(); RenderScene(); Dirty(); }, panel);
+            NumRow(L.T("Columns"), _tmCols, v => ResizeGrid((int)v, _tmRows), panel);
+            NumRow(L.T("Rows"), _tmRows, v => ResizeGrid(_tmCols, (int)v), panel);
 
-            panel.Children.Add(new TextBlock { Text = "TILES (click to select)", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+            panel.Children.Add(new TextBlock { Text = L.T("TILES (click to select)"), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
             var wrap = new WrapPanel();
             wrap.Children.Add(TileSwatch(0));
             for (int i = 1; i <= _tmPalette.Count; i++) wrap.Children.Add(TileSwatch(i));
@@ -1791,12 +1841,12 @@ namespace EasyEngine
             if (_tmActive >= 1 && _tmActive <= _tmPalette.Count)
             {
                 var cur = _tmPalette[_tmActive - 1];
-                ColorRow("Tile color", cur.color, v => { _tmPalette[_tmActive - 1] = (v, _tmPalette[_tmActive - 1].solid); SerializeTilemap(); RenderScene(); Dirty(); }, panel);
-                var chk = new CheckBox { Content = "Solid (collision)", IsChecked = cur.solid, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(0, 2, 0, 6) };
+                ColorRow(L.T("Tile color"), cur.color, v => { _tmPalette[_tmActive - 1] = (v, _tmPalette[_tmActive - 1].solid); SerializeTilemap(); RenderScene(); Dirty(); }, panel);
+                var chk = new CheckBox { Content = L.T("Solid (collision)"), IsChecked = cur.solid, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(0, 2, 0, 6) };
                 chk.Checked += (s, e) => { _tmPalette[_tmActive - 1] = (_tmPalette[_tmActive - 1].color, true); SerializeTilemap(); Dirty(); };
                 chk.Unchecked += (s, e) => { _tmPalette[_tmActive - 1] = (_tmPalette[_tmActive - 1].color, false); SerializeTilemap(); Dirty(); };
                 panel.Children.Add(chk);
-                var rem = new Button { Content = "Remove this tile", Height = 28, FontSize = 11, Style = (Style)FindResource("CardButton"), Foreground = (SolidColorBrush)FindResource("Danger"), HorizontalContentAlignment = HorizontalAlignment.Center };
+                var rem = new Button { Content = L.T("Remove this tile"), Height = 28, FontSize = 11, Style = (Style)FindResource("CardButton"), Foreground = (SolidColorBrush)FindResource("Danger"), HorizontalContentAlignment = HorizontalAlignment.Center };
                 rem.Click += (s, e) => { _tmPalette.RemoveAt(_tmActive - 1); _tmActive = _tmPalette.Count >= 1 ? 1 : 0; SerializeTilemap(); RenderScene(); BuildInspector(obj); Dirty(); };
                 panel.Children.Add(rem);
             }
@@ -1812,7 +1862,7 @@ namespace EasyEngine
                 Background = index == 0 ? (SolidColorBrush)FindResource("Bg2") : Theme.Hex(_tmPalette[index - 1].color, "#888")
             };
             if (index == 0) b.Child = new TextBlock { Text = "⌫", Foreground = (SolidColorBrush)FindResource("Text"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            b.ToolTip = index == 0 ? "Eraser" : (_tmPalette[index - 1].solid ? "Solid tile" : "Decoration");
+            b.ToolTip = index == 0 ? L.T("Eraser") : (_tmPalette[index - 1].solid ? L.T("Solid tile") : L.T("Decoration"));
             b.MouseLeftButtonUp += (s, e) => { _tmActive = index; if (_tmObj != null) BuildInspector(_tmObj); };
             return b;
         }
@@ -1928,7 +1978,7 @@ namespace EasyEngine
         private void InfoRow(string label, string value, Panel? target = null)
         {
             var grid = RowGrid(label, target);
-            var tb = new TextBlock { Text = value, Foreground = (SolidColorBrush)FindResource("Text"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+            var tb = L.Keep(new TextBlock { Text = value, Foreground = (SolidColorBrush)FindResource("Text"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center }); // a value, not a label
             Grid.SetColumn(tb, 1); grid.Children.Add(tb);
         }
 
@@ -1947,10 +1997,10 @@ namespace EasyEngine
             // a button showing the colour: click → the colour picker (which also accepts a hex code)
             var grid = RowGrid(label, target);
             var swatch = new Rectangle { Width = 22, Height = 22, RadiusX = 4, RadiusY = 4, Fill = Theme.Hex(value, "#000"), Stroke = (Brush)FindResource("Border"), StrokeThickness = 1 };
-            var hexText = new TextBlock { Text = value, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var hexText = L.Keep(new TextBlock { Text = value, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
             var content = new StackPanel { Orientation = Orientation.Horizontal };
             content.Children.Add(swatch); content.Children.Add(hexText);
-            var btn = new Button { Content = content, Height = 30, Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(6, 0, 6, 0), ToolTip = "Click to pick a color" };
+            var btn = new Button { Content = content, Height = 30, Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(6, 0, 6, 0), ToolTip = L.T("Click to pick a color") };
             btn.Click += (s, e) => ShowColorPicker(btn, hexText.Text, hex => { hexText.Text = hex; swatch.Fill = Theme.Hex(hex, "#000"); onChange(hex); });
             Grid.SetColumn(btn, 1); grid.Children.Add(btn);
         }
@@ -1960,25 +2010,26 @@ namespace EasyEngine
 
         // A sound parameter: pick a .wav/.mp3 (copied into Assets/sounds). Used for SoundEmitter's "asset"
         // and for any behavior text parameter whose key ends in "Sound" (hitSound, swingSound…).
-        private void SoundRow(GameObjectData obj, BehaviorData bh, Panel target, string key = "asset", string label = "Sound file")
+        private void SoundRow(GameObjectData obj, BehaviorData bh, Panel target, string key = "asset", string? label = null)
         {
-            var grid = RowGrid(label, target);
+            var grid = RowGrid(label ?? L.T("Sound file"), target);
             var inner = new StackPanel { Orientation = Orientation.Horizontal };
             var current = bh.Text(key, "");
-            var pick = new Button { Content = string.IsNullOrEmpty(current) ? "Choose…" : Path.GetFileName(current), Style = (Style)FindResource("CardButton"), Height = 28, Padding = new Thickness(8, 0, 8, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+            var pick = new Button { Content = string.IsNullOrEmpty(current) ? L.T("Choose…") : Path.GetFileName(current), Style = (Style)FindResource("CardButton"), Height = 28, Padding = new Thickness(8, 0, 8, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+            if (!string.IsNullOrEmpty(current)) L.SetSkip(pick, true); // the file name
             pick.Click += (s, e) =>
             {
-                var dlg = new OpenFileDialog { Title = "Choose sound", Filter = "Audio|*.wav;*.mp3" };
+                var dlg = new OpenFileDialog { Title = L.T("Choose sound"), Filter = L.T("Audio") + "|*.wav;*.mp3" };
                 if (dlg.ShowDialog() == true)
                 {
                     try { PushUndo(); bh.Texts[key] = ProjectIO.ImportAsset(_project, dlg.FileName, "sounds"); BuildInspector(obj); Dirty(); }
-                    catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+                    catch (Exception ex) { MessageBox.Show(L.F("Error: {0}", ex.Message)); }
                 }
             };
             inner.Children.Add(pick);
             if (!string.IsNullOrEmpty(current))
             {
-                var clear = new Button { Content = "✕", ToolTip = "No sound", Style = (Style)FindResource("CardButton"), Height = 28, Width = 28, Margin = new Thickness(4, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+                var clear = new Button { Content = "✕", ToolTip = L.T("No sound"), Style = (Style)FindResource("CardButton"), Height = 28, Width = 28, Margin = new Thickness(4, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
                 clear.Click += (s, e) => { PushUndo(); bh.Texts[key] = ""; BuildInspector(obj); Dirty(); };
                 inner.Children.Add(clear);
             }
@@ -2013,12 +2064,12 @@ namespace EasyEngine
                 btn.Background = (SolidColorBrush)FindResource(m == mode ? "Accent" : "Bg2");
                 btn.Foreground = (SolidColorBrush)FindResource(m == mode ? "AccentText" : "Text");
             }
-            AiSend.Content = mode switch { AiMode.Brainstorm => "Send", AiMode.Learn => "Ask", _ => "Build it" };
+            AiSend.Content = mode switch { AiMode.Brainstorm => L.T("Send"), AiMode.Learn => L.T("Ask"), _ => L.T("Build it") };
             AiHint.Text = mode switch
             {
-                AiMode.Brainstorm => "Chat about ideas — the AI won't change anything.",
-                AiMode.Learn => "Ask how to use anything — the AI explains step by step.",
-                _ => "Describe what to build."
+                AiMode.Brainstorm => L.T("Chat about ideas — the AI won't change anything."),
+                AiMode.Learn => L.T("Ask how to use anything — the AI explains step by step."),
+                _ => L.T("Describe what to build.")
             };
         }
 
@@ -2061,17 +2112,17 @@ namespace EasyEngine
 
         /// <summary>Why the AI can't be asked right now (no cloud key / no local model chosen), or null when it's ready.</summary>
         private string? AiNotReadyReason() =>
-            _useCloud ? (AnyCloudKey() ? null : "Add a free cloud API key first (⚙ AI settings)")
-                      : (string.IsNullOrWhiteSpace(_model) ? "Choose an AI model first (AI panel)" : null);
+            _useCloud ? (AnyCloudKey() ? null : L.T("Add a free cloud API key first (⚙ AI settings)"))
+                      : (string.IsNullOrWhiteSpace(_model) ? L.T("Choose an AI model first (AI panel)") : null);
 
         // one-line friendly blurb shown on each free provider's card
         private static string FreeBlurb(string id) => id switch
         {
-            "groq"       => "★ Recommended — fast and simple, big free limit.",
-            "gemini"     => "Google. Very large daily limit.",
-            "openrouter" => "Lots of models, smaller daily limit.",
-            "mistral"    => "European. A good backup.",
-            _            => "Free, no credit card.",
+            "groq"       => L.T("★ Recommended — fast and simple, big free limit."),
+            "gemini"     => L.T("Google. Very large daily limit."),
+            "openrouter" => L.T("Lots of models, smaller daily limit."),
+            "mistral"    => L.T("European. A good backup."),
+            _            => L.T("Free, no credit card."),
         };
 
         private static readonly SolidColorBrush ReadyGreen = new(Color.FromRgb(0x4A, 0xDE, 0x80));
@@ -2103,25 +2154,25 @@ namespace EasyEngine
                 var top = new Grid();
                 top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                top.Children.Add(new TextBlock { Text = p.Name, FontSize = 12, FontWeight = FontWeights.SemiBold });
+                top.Children.Add(L.Keep(new TextBlock { Text = p.Name, FontSize = 12, FontWeight = FontWeights.SemiBold })); // a brand name
                 var status = new TextBlock { FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(status, 1); top.Children.Add(status);
                 body.Children.Add(top);
                 body.Children.Add(new TextBlock { Text = FreeBlurb(p.Id), FontSize = 10, Foreground = dim, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 6) });
 
                 // step 1: open the signup site
-                var getBtn = new Button { Content = "① Get free key (opens the site)", Style = (Style)FindResource("CardButton"), Height = 28, HorizontalContentAlignment = HorizontalAlignment.Center };
+                var getBtn = new Button { Content = L.T("① Get free key (opens the site)"), Style = (Style)FindResource("CardButton"), Height = 28, HorizontalContentAlignment = HorizontalAlignment.Center };
                 getBtn.Click += (s, e) => OpenUrl(p.KeyUrl);
                 body.Children.Add(getBtn);
 
                 // step 2: paste the key (masked, with Show)
-                body.Children.Add(new TextBlock { Text = "② Paste your key here:", FontSize = 10, Foreground = dim, Margin = new Thickness(0, 6, 0, 2) });
+                body.Children.Add(new TextBlock { Text = L.T("② Paste your key here:"), FontSize = 10, Foreground = dim, Margin = new Thickness(0, 6, 0, 2) });
                 var pasteRow = new Grid();
                 pasteRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 pasteRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 var pw = new PasswordBox { VerticalContentAlignment = VerticalAlignment.Center };
                 var tb = new TextBox { Visibility = Visibility.Collapsed, VerticalContentAlignment = VerticalAlignment.Center };
-                var show = new CheckBox { Content = "Show", FontSize = 11, Foreground = dim, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 0, 0, 0) };
+                var show = new CheckBox { Content = L.T("Show"), FontSize = 11, Foreground = dim, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 0, 0, 0) };
                 var field = new Grid();
                 field.Children.Add(pw); field.Children.Add(tb);
                 pasteRow.Children.Add(field);
@@ -2131,7 +2182,7 @@ namespace EasyEngine
                 void Refresh()
                 {
                     bool set = !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id));
-                    status.Text = set ? "✓ Ready" : "not set yet";
+                    status.Text = set ? L.T("✓ Ready") : L.T("not set yet");
                     status.Foreground = set ? ReadyGreen : dim;
                 }
                 bool syncing = false;
@@ -2160,8 +2211,8 @@ namespace EasyEngine
                 var header = new Grid { Margin = new Thickness(0, 7, 0, 2) };
                 header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                header.Children.Add(new TextBlock { Text = $"{p.Name}  ·  {p.KeyUrl}", Foreground = dim, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
-                var show = new CheckBox { Content = "Show", FontSize = 11, Foreground = dim, VerticalAlignment = VerticalAlignment.Center };
+                header.Children.Add(L.Keep(new TextBlock { Text = $"{p.Name}  ·  {p.KeyUrl}", Foreground = dim, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap }));
+                var show = new CheckBox { Content = L.T("Show"), FontSize = 11, Foreground = dim, VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(show, 1); header.Children.Add(show);
                 PaidKeysHost.Children.Add(header);
 
@@ -2183,7 +2234,7 @@ namespace EasyEngine
                     urlBox.TextChanged += (s, e) => { AiSettings.CustomUrl = urlBox.Text.Trim(); AiSettings.Save(); };
                     var modelBox = new TextBox { Text = AiSettings.CustomModel, Margin = new Thickness(0, 3, 0, 0) };
                     modelBox.TextChanged += (s, e) => { AiSettings.CustomModel = modelBox.Text.Trim(); AiSettings.Save(); };
-                    PaidKeysHost.Children.Add(new TextBlock { Text = "Base URL (…/v1) and model name:", Foreground = dim, FontSize = 10, Margin = new Thickness(0, 3, 0, 0) });
+                    PaidKeysHost.Children.Add(new TextBlock { Text = L.T("Base URL (…/v1) and model name:"), Foreground = dim, FontSize = 10, Margin = new Thickness(0, 3, 0, 0) });
                     PaidKeysHost.Children.Add(urlBox);
                     PaidKeysHost.Children.Add(modelBox);
                 }
@@ -2206,7 +2257,7 @@ namespace EasyEngine
             bool open = AdvancedPanel.Visibility != Visibility.Visible;
             AdvancedPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
             if (AdvancedToggleText != null)
-                AdvancedToggleText.Text = (open ? "▾" : "▸") + " Advanced — paid keys, offline AI";
+                AdvancedToggleText.Text = (open ? "▾ " : "▸ ") + L.T("Advanced — paid keys, offline AI");
         }
 
         private void AiConfigToggle_Click(object sender, RoutedEventArgs e)
@@ -2217,7 +2268,7 @@ namespace EasyEngine
 
         private string CloudLabel()
         {
-            if (_cloudProvider == "auto") return "Auto";
+            if (_cloudProvider == "auto") return L.T("Auto");
             var name = CloudClient.Provider(_cloudProvider)?.Name ?? _cloudProvider;
             if (string.IsNullOrEmpty(_cloudModelOverride)) return name;
             var sm = _cloudModelOverride.Contains('/') ? _cloudModelOverride[(_cloudModelOverride.IndexOf('/') + 1)..] : _cloudModelOverride;
@@ -2228,9 +2279,9 @@ namespace EasyEngine
         {
             if (AiConfigSummary == null) return;
             if (_useCloud)
-                AiConfigSummary.Text = AnyCloudKey() ? $"⚙ ☁ Cloud · {CloudLabel()}" : "⚙ ☁ Cloud — tap to add a free key";
+                AiConfigSummary.Text = AnyCloudKey() ? L.F("⚙ ☁ Cloud · {0}", CloudLabel()) : L.T("⚙ ☁ Cloud — tap to add a free key");
             else
-                AiConfigSummary.Text = $"⚙ ⚡ Local · {_model}";
+                AiConfigSummary.Text = L.F("⚙ ⚡ Local · {0}", _model);
         }
 
         private async Task RefreshOllamaStatusAsync()
@@ -2244,11 +2295,11 @@ namespace EasyEngine
                 OllamaDot.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : Theme.Hex("#F4C03B", "#F4C03B");
                 OllamaStatus.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : Theme.Hex("#F4C03B", "#F4C03B");
                 if (!hasKey)
-                    OllamaStatus.Text = "☁ Cloud selected — add a free API key below (any provider works).";
+                    OllamaStatus.Text = L.T("☁ Cloud selected — add a free API key below (any provider works).");
                 else
                 {
                     var names = string.Join(", ", CloudClient.Providers.Where(p => !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id))).Select(p => p.Name));
-                    OllamaStatus.Text = $"☁ Cloud · {CloudLabel()}. Keys set: {names}. Hitting one's daily limit auto-switches to the next.";
+                    OllamaStatus.Text = L.F("☁ Cloud · {0}. Keys set: {1}. Hitting one's daily limit auto-switches to the next.", CloudLabel(), names);
                 }
                 return;
             }
@@ -2257,7 +2308,7 @@ namespace EasyEngine
             {
                 OllamaDot.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
                 OllamaStatus.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
-                OllamaStatus.Text = "⚠ Ollama not found. The engine tries to start it automatically on launch.";
+                OllamaStatus.Text = L.T("⚠ Ollama not found. The engine tries to start it automatically on launch.");
                 return;
             }
             var models = await _ollama.ListModelsAsync();
@@ -2265,17 +2316,17 @@ namespace EasyEngine
             {
                 OllamaDot.Foreground = (SolidColorBrush)FindResource("Accent");
                 OllamaStatus.Foreground = (SolidColorBrush)FindResource("Accent");
-                OllamaStatus.Text = $"✓ Connected · model \"{_model}\" ready.";
+                OllamaStatus.Text = L.F("✓ Connected · model \"{0}\" ready.", _model);
             }
             else
             {
                 OllamaDot.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
                 OllamaStatus.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
-                OllamaStatus.Text = $"Ollama ok, but the model isn't downloaded:\n    ollama pull {_model}";
+                OllamaStatus.Text = L.F("Ollama ok, but the model isn't downloaded:\n    ollama pull {0}", _model);
             }
         }
 
-        private string ActiveModelLabel => _useCloud ? $"Cloud · {CloudLabel()}" : _model;
+        private string ActiveModelLabel => _useCloud ? L.F("Cloud · {0}", CloudLabel()) : _model;
 
         // Routes generation to the active provider. Cloud mode tries providers in order and falls back when one is out of quota.
         private async Task<string> AiGenerateAsync(string prompt, string system, bool json, double temperature, CancellationToken ct = default)
@@ -2298,8 +2349,8 @@ namespace EasyEngine
             }
 
             if (order.Count == 0) throw new CloudException(_cloudProvider == "auto"
-                ? "No free cloud key set. Add one in the AI settings (⚙)."
-                : "Add the API key for this provider in the AI settings (⚙).");
+                ? L.T("No free cloud key set. Add one in the AI settings (⚙).")
+                : L.T("Add the API key for this provider in the AI settings (⚙)."));
 
             CloudException? last = null;
             for (int i = 0; i < order.Count; i++)
@@ -2308,7 +2359,7 @@ namespace EasyEngine
                 try { return await _cloud.GenerateAsync(p, prompt, system, AiSettings.Key(p.Id), json, temperature, ct); }
                 catch (CloudException ex) when (ex.RateLimited && i < order.Count - 1) { last = ex; } // out of quota → try the next provider; other errors surface
             }
-            throw last ?? new CloudException("All free providers are out of quota right now. Try again later.");
+            throw last ?? new CloudException(L.T("All free providers are out of quota right now. Try again later."));
         }
 
         private async void AiSend_Click(object sender, RoutedEventArgs e)
@@ -2320,21 +2371,21 @@ namespace EasyEngine
             if (_aiMode != AiMode.Build) // Brainstorm / Learn: just chat, never change the project
             {
                 bool learn = _aiMode == AiMode.Learn;
-                AddAiMessage("You", prompt, false);
+                AddAiMessage(L.T("You"), prompt, false);
                 AiInput.Clear();
-                var th = AddAiMessage($"AI ({ActiveModelLabel})", "thinking…", true);
-                AiSend.IsEnabled = false; Status(learn ? "Looking it up…" : "Brainstorming…");
-                try { var ans = learn ? await TeachAsync(prompt) : await BrainstormAsync(prompt); AiLog.Children.Remove(th); AddAiMessage("AI", ans.Length > 0 ? ans : "(no response)", true); Status("Ready"); }
-                catch (AiException ex) { AiLog.Children.Remove(th); AddAiMessage("AI", "⚠ " + ex.Message, true); Status("Failed"); }
+                var th = AddAiMessage(L.F("AI ({0})", ActiveModelLabel), L.T("thinking…"), true);
+                AiSend.IsEnabled = false; Status(learn ? L.T("Looking it up…") : L.T("Brainstorming…"));
+                try { var ans = learn ? await TeachAsync(prompt) : await BrainstormAsync(prompt); AiLog.Children.Remove(th); AddAiMessage(L.T("AI"), ans.Length > 0 ? ans : L.T("(no response)"), true); Status(L.T("Ready")); }
+                catch (AiException ex) { AiLog.Children.Remove(th); AddAiMessage(L.T("AI"), "⚠ " + ex.Message, true); Status(L.T("Failed")); }
                 finally { AiSend.IsEnabled = true; }
                 return;
             }
 
-            AddAiMessage("You" + (_selected != null ? " (selected: " + _selected.Name + ")" : ""), prompt, false);
+            AddAiMessage(_selected != null ? L.F("You (selected: {0})", _selected.Name) : L.T("You"), prompt, false);
             AiInput.Clear();
-            var thinking = AddAiMessage($"AI ({ActiveModelLabel})", "thinking…", true);
+            var thinking = AddAiMessage(L.F("AI ({0})", ActiveModelLabel), L.T("thinking…"), true);
             AiSend.IsEnabled = false;
-            Status($"Asking {ActiveModelLabel}…");
+            Status(L.F("Asking {0}…", ActiveModelLabel));
 
             try
             {
@@ -2357,36 +2408,31 @@ namespace EasyEngine
                 {
                     _aiLastSummary = summary;
                     _aiLastObjects.Clear();
-                    foreach (var line in summary.Split('\n'))
-                    {
-                        var q1 = line.IndexOf('"');
-                        var q2 = q1 >= 0 ? line.IndexOf('"', q1 + 1) : -1;
-                        if (q1 >= 0 && q2 > q1) _aiLastObjects.Add(line.Substring(q1 + 1, q2 - q1 - 1));
-                    }
-                    AddAiMessage("AI — applied ✓", summary, true);
+                    _aiLastObjects.AddRange(_aiSpecObjects); // the objects the change touched (not read back from the translated summary)
+                    AddAiMessage(L.T("AI — applied ✓"), summary, true);
                     RenderScene(); RefreshLayers(); RefreshObjects(); RefreshPalette();
                     if (_selected != null) BuildInspector(_selected);
                     Dirty();
-                    Status("AI applied changes. Press Test to try it.");
+                    Status(L.T("AI applied changes. Press Test to try it."));
                 }
                 else
                 {
-                    AddAiMessage("AI", "I couldn't apply that. Try rephrasing. Raw reply:\n" + reply, true);
-                    Status("Could not apply AI response");
+                    AddAiMessage(L.T("AI"), L.F("I couldn't apply that. Try rephrasing. Raw reply:\n{0}", reply), true);
+                    Status(L.T("Could not apply AI response"));
                 }
             }
             catch (AiException ex)
             {
                 AiLog.Children.Remove(thinking);
-                AddAiMessage("AI", "⚠ " + ex.Message, true);
-                Status("Generation failed");
+                AddAiMessage(L.T("AI"), "⚠ " + ex.Message, true);
+                Status(L.T("Generation failed"));
             }
             finally { AiSend.IsEnabled = true; }
         }
 
         private void AddImages_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new OpenFileDialog { Title = "Add files for the AI to use (images or audio)", Multiselect = true, Filter = "Images & audio|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.wav;*.mp3|Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Audio|*.wav;*.mp3" };
+            var dlg = new OpenFileDialog { Title = L.T("Add files for the AI to use (images or audio)"), Multiselect = true, Filter = L.T("Images & audio") + "|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.wav;*.mp3|" + L.T("Images") + "|*.png;*.jpg;*.jpeg;*.bmp;*.gif|" + L.T("Audio") + "|*.wav;*.mp3" };
             if (dlg.ShowDialog() != true) return;
             int img = 0, snd = 0;
             foreach (var f in dlg.FileNames)
@@ -2397,10 +2443,10 @@ namespace EasyEngine
                     if (ext is ".wav" or ".mp3") { var rel = ProjectIO.ImportAsset(_project, f, "sounds"); if (!_aiSounds.Contains(rel)) { _aiSounds.Add(rel); snd++; } }
                     else { var rel = ProjectIO.ImportAsset(_project, f, "sprites"); if (!_aiImages.Contains(rel)) { _aiImages.Add(rel); img++; } }
                 }
-                catch (Exception ex) { MessageBox.Show("Error importing " + Path.GetFileName(f) + ": " + ex.Message); }
+                catch (Exception ex) { MessageBox.Show(L.F("Error importing {0}: {1}", Path.GetFileName(f), ex.Message)); }
             }
             RefreshAiImages();
-            Status($"Added {img} image(s) and {snd} sound(s) for the AI");
+            Status(L.F("Added {0} image(s) and {1} sound(s) for the AI", img, snd));
         }
 
         private string? ResolveSound(string filename)
@@ -2434,7 +2480,7 @@ namespace EasyEngine
                 {
                     try { var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.DecodePixelWidth = 40; bmp.UriSource = new Uri(abs); bmp.EndInit(); thumb.Background = new ImageBrush(bmp) { Stretch = Stretch.UniformToFill }; } catch { }
                 }
-                AiImages.Children.Add(thumb);
+                AiImages.Children.Add(L.Keep(thumb)); // the tooltip is the file name
             }
             foreach (var rel in _aiSounds)
             {
@@ -2442,7 +2488,7 @@ namespace EasyEngine
                 {
                     Margin = new Thickness(0, 0, 4, 4), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 3, 6, 3),
                     Background = (SolidColorBrush)FindResource("Bg2"), BorderBrush = (SolidColorBrush)FindResource("Border"), BorderThickness = new Thickness(1),
-                    Child = new TextBlock { Text = "♪ " + Path.GetFileName(rel), FontSize = 10, Foreground = (SolidColorBrush)FindResource("Text") }
+                    Child = L.Keep(new TextBlock { Text = "♪ " + Path.GetFileName(rel), FontSize = 10, Foreground = (SolidColorBrush)FindResource("Text") })
                 });
             }
         }
@@ -3000,6 +3046,12 @@ namespace EasyEngine
         public (bool ok, string summary) TestApplySpec(string reply) { bool r = ApplyProjectSpec(reply, "", out var s); return (r, s); }
         public GameObjectData? TestFindObject(string name) => _scene.Layers.SelectMany(l => l.Objects).FirstOrDefault(o => o.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         public GameTheme TestTheme => _project.Theme;
+        internal void TestLanguageChanged() => OnLanguageChanged();
+        internal IEnumerable<string> TestPanelsMenu() => _dockOrder.Select(k => PanelsMenuHeader(_panes[k]));
+        internal IReadOnlyList<string> TestAiSpecObjects => _aiSpecObjects;
+        internal void TestSelect(GameObjectData? obj) => Select(obj);
+        internal void TestMarkDirty() => Dirty();
+        internal bool TestIsDirty => IsDirty;
 
         // Accepts a JSON bool OR "true"/"false"/"1"/"0" string.
         private static bool AsBool(JsonElement e, out bool val)
@@ -3036,7 +3088,7 @@ namespace EasyEngine
                 if (rv.TryGetProperty("scene", out var s) && s.ValueKind == JsonValueKind.Array) RemoveFrom(s, _scene.Variables, "scene");
             }
 
-            if (parts.Count > 0) { ensureUndo(); changes.Add("Variables — " + string.Join("; ", parts)); }
+            if (parts.Count > 0) { ensureUndo(); changes.Add(L.F("Variables — {0}", string.Join("; ", parts))); }
 
             // in-game THEME (fonts + dialogue box look)
             if (root.TryGetProperty("theme", out var th) && th.ValueKind == JsonValueKind.Object)
@@ -3054,7 +3106,7 @@ namespace EasyEngine
                 t.DialogFontSize = N("dialogFontSize", t.DialogFontSize);
                 t.DialogCorner = N("dialogCorner", t.DialogCorner);
                 t.DialogSpeed = N("dialogSpeed", t.DialogSpeed);
-                changes.Add("Theme updated");
+                changes.Add(L.T("Theme updated"));
             }
         }
 
@@ -3072,7 +3124,7 @@ namespace EasyEngine
                 if (item.TryGetProperty("visible", out var vv) && (vv.ValueKind == JsonValueKind.True || vv.ValueKind == JsonValueKind.False))
                 { bool v = vv.GetBoolean(); acts.Add(() => lyr.Visible = v); lch.Add($"{lyr.Name}:{(v ? "visible" : "hidden")}"); }
             }
-            if (acts.Count > 0) { ensureUndo(); foreach (var a in acts) a(); changes.Add("Layers — " + string.Join("; ", lch)); }
+            if (acts.Count > 0) { ensureUndo(); foreach (var a in acts) a(); changes.Add(L.F("Layers — {0}", string.Join("; ", lch))); }
         }
 
         private GameObjectData? BuildObjectFromSpec(JsonElement spec, string userPrompt, string? nameOverride = null)
@@ -3109,6 +3161,7 @@ namespace EasyEngine
         private bool ApplyProjectSpec(string reply, string userPrompt, out string summary)
         {
             summary = "";
+            _aiSpecObjects.Clear();
             var json = LooseJson.Extract(reply);
             if (json == null) return false;
             JsonDocument doc;
@@ -3147,7 +3200,7 @@ namespace EasyEngine
                         var sp = SpecFor(obj);
                         if (sp is not JsonElement spec) continue;
                         EnsureUndo();
-                        if (ApplyBehaviorsToObject(obj, spec, userPrompt)) changes.Add($"Edited \"{obj.Name}\"");
+                        if (ApplyBehaviorsToObject(obj, spec, userPrompt)) changes.Add(EditedLine(obj));
                     }
 
                     if (root.TryGetProperty("layers", out var lyScoped) && lyScoped.ValueKind == JsonValueKind.Array)
@@ -3175,7 +3228,7 @@ namespace EasyEngine
                             if (player != null && !(name ?? "").Equals(player.Name, StringComparison.OrdinalIgnoreCase))
                             {
                                 EnsureUndo();
-                                if (ApplyBehaviorsToObject(player, spec, userPrompt)) changes.Add($"Edited \"{player.Name}\"");
+                                if (ApplyBehaviorsToObject(player, spec, userPrompt)) changes.Add(EditedLine(player));
                                 continue;
                             }
                         }
@@ -3191,12 +3244,12 @@ namespace EasyEngine
                         EnsureUndo();
                         if (existing != null)
                         {
-                            if (ApplyBehaviorsToObject(existing, spec, userPrompt)) changes.Add($"Edited \"{existing.Name}\"");
+                            if (ApplyBehaviorsToObject(existing, spec, userPrompt)) changes.Add(EditedLine(existing));
                         }
                         else
                         {
                             var obj = BuildObjectFromSpec(spec, userPrompt);
-                            if (obj != null) changes.Add((asPrefab ? "Prefab \"" : "Created \"") + obj.Name + (asPrefab ? "\"" : $"\" [{string.Join(",", obj.Behaviors.Select(b => b.Kind))}]"));
+                            if (obj != null) changes.Add(asPrefab ? PrefabLine(obj) : CreatedLine(obj));
                         }
                     }
 
@@ -3214,12 +3267,12 @@ namespace EasyEngine
                         {
                             EnsureUndo();
                             var created = BuildObjectFromSpec(spec, userPrompt, FirstThingNoun(userPrompt) ?? "Object");
-                            if (created != null) changes.Add($"Created \"{created.Name}\" [{string.Join(",", created.Behaviors.Select(b => b.Kind))}]");
+                            if (created != null) changes.Add(CreatedLine(created));
                             continue;
                         }
 
                         EnsureUndo();
-                        if (ApplyBehaviorsToObject(obj, spec, userPrompt)) changes.Add($"Edited \"{obj.Name}\"");
+                        if (ApplyBehaviorsToObject(obj, spec, userPrompt)) changes.Add(EditedLine(obj));
                     }
 
                 // simple/back-compat: top-level behaviors/custom and no create/edit → selected, player, or a new object
@@ -3230,12 +3283,12 @@ namespace EasyEngine
                         // platform/coin/enemy/door behavior with no target → it's a NEW object, not the player
                         EnsureUndo();
                         var created = BuildObjectFromSpec(root, userPrompt, FirstThingNoun(userPrompt) ?? "Object");
-                        if (created != null) changes.Add($"Created \"{created.Name}\" [{string.Join(",", created.Behaviors.Select(b => b.Kind))}]");
+                        if (created != null) changes.Add(CreatedLine(created));
                     }
                     else
                     {
                         var obj = _selected ?? FindPlayer();
-                        if (obj != null) { EnsureUndo(); if (ApplyBehaviorsToObject(obj, root, userPrompt)) changes.Add($"Edited \"{obj.Name}\""); }
+                        if (obj != null) { EnsureUndo(); if (ApplyBehaviorsToObject(obj, root, userPrompt)) changes.Add(EditedLine(obj)); }
                     }
                 }
 
@@ -3253,6 +3306,16 @@ namespace EasyEngine
                 summary = string.Join("\n", changes);
                 return true;
             }
+        }
+
+        // the lines of the AI's change summary; each also records the object it touched (for Ctrl+K, "show the last AI change")
+        private readonly List<string> _aiSpecObjects = new();
+        private string EditedLine(GameObjectData o) { _aiSpecObjects.Add(o.Name); return L.F("Edited \"{0}\"", o.Name); }
+        private string PrefabLine(GameObjectData o) { _aiSpecObjects.Add(o.Name); return L.F("Prefab \"{0}\"", o.Name); }
+        private string CreatedLine(GameObjectData o)
+        {
+            _aiSpecObjects.Add(o.Name);
+            return L.F("Created \"{0}\" [{1}]", o.Name, string.Join(",", o.Behaviors.Select(b => b.Kind)));
         }
 
         // ---- Brainstorm: free-form chat about the game (no edits) ----
@@ -3293,7 +3356,7 @@ namespace EasyEngine
                     }
                 }
             };
-            AiLog.Children.Add(bubble);
+            AiLog.Children.Add(L.Keep(bubble)); // the chat: the person's words and the AI's answers (the speaker is translated by the caller)
             (AiLog.Parent as ScrollViewer)?.ScrollToEnd(); // keep the newest message in view
             return bubble;
         }
@@ -3318,18 +3381,18 @@ namespace EasyEngine
 
         private void Open_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new OpenFileDialog { Filter = $"EasyEngine project (*{ProjectIO.Extension})|*{ProjectIO.Extension}" };
+            var dlg = new OpenFileDialog { Filter = L.F("EasyEngine project (*{0})", ProjectIO.Extension) + $"|*{ProjectIO.Extension}" };
             if (dlg.ShowDialog() == true)
             {
                 try { var p = ProjectIO.Load(dlg.FileName); var ed = new MainWindow(p); Application.Current.MainWindow = ed; ed.Show(); Close(); }
-                catch (Exception ex) { MessageBox.Show("Error opening: " + ex.Message); }
+                catch (Exception ex) { MessageBox.Show(L.F("Error opening: {0}", ex.Message)); }
             }
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            try { ProjectIO.Save(_project); Title = $"EasyEngine — {_project.Name} · {_scene.Name}"; Status($"Saved to {_project.FilePath}"); }
-            catch (Exception ex) { MessageBox.Show("Error saving: " + ex.Message); }
+            try { ProjectIO.Save(_project); _dirty = false; UpdateTitle(); Status(L.F("Saved to {0}", _project.FilePath)); }
+            catch (Exception ex) { MessageBox.Show(L.F("Error saving: {0}", ex.Message)); }
         }
 
         private void Variables_Click(object sender, RoutedEventArgs e)
@@ -3351,10 +3414,10 @@ namespace EasyEngine
 
         private async void Export_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_project.FolderPath)) { MessageBox.Show("Save the project first."); return; }
+            if (string.IsNullOrEmpty(_project.FolderPath)) { MessageBox.Show(L.T("Save the project first.")); return; }
             try { ProjectIO.Save(_project); } catch { }
 
-            var dlg = new OpenFolderDialog { Title = "Choose a folder to export the game into" };
+            var dlg = new OpenFolderDialog { Title = L.T("Choose a folder to export the game into") };
             if (dlg.ShowDialog() != true) return;
 
             var safe = string.Concat(_project.Name.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
@@ -3367,7 +3430,7 @@ namespace EasyEngine
 
             var btn = (Button)sender;
             btn.IsEnabled = false;
-            Status(selfContained ? "Exporting standalone game… (can take a minute)" : "Exporting…");
+            Status(selfContained ? L.T("Exporting standalone game… (can take a minute)") : L.T("Exporting…"));
 
             string? error = null;
             try
@@ -3395,14 +3458,14 @@ namespace EasyEngine
             catch (Exception ex) { error = ex.Message; }
             finally { btn.IsEnabled = true; }
 
-            if (error != null) { Status("Export failed"); MessageBox.Show("Export failed:\n" + error, "Export", MessageBoxButton.OK, MessageBoxImage.Error); return; }
+            if (error != null) { Status(L.T("Export failed")); MessageBox.Show(L.F("Export failed:\n{0}", error), L.T("Export"), MessageBoxButton.OK, MessageBoxImage.Error); return; }
 
-            Status("Exported to " + outRoot);
+            Status(L.F("Exported to {0}", outRoot));
             var note = selfContained
-                ? "Self-contained build — the player does NOT need .NET installed. Zip and share the whole folder."
-                : "The target PC needs the free .NET 8 Desktop Runtime (couldn't find the SDK to make a self-contained build).";
-            MessageBox.Show($"Game exported!\n\nFolder:\n{outRoot}\n\nDouble-click \"{safe}.exe\" to play.\n\n{note}",
-                "Export complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                ? L.T("Self-contained build — the player does NOT need .NET installed. Zip and share the whole folder.")
+                : L.T("The target PC needs the free .NET 8 Desktop Runtime (couldn't find the SDK to make a self-contained build).");
+            MessageBox.Show(L.F("Game exported!\n\nFolder:\n{0}\n\nDouble-click \"{1}.exe\" to play.\n\n{2}", outRoot, safe, note),
+                L.T("Export complete"), MessageBoxButton.OK, MessageBoxImage.Information);
             try { Process.Start("explorer.exe", outRoot); } catch { }
         }
 
@@ -3432,11 +3495,11 @@ namespace EasyEngine
                 UseShellExecute = false, CreateNoWindow = true,
                 RedirectStandardOutput = true, RedirectStandardError = true
             };
-            using var p = Process.Start(psi) ?? throw new Exception("Could not start " + file);
+            using var p = Process.Start(psi) ?? throw new Exception(L.F("Could not start {0}", file));
             string outp = p.StandardOutput.ReadToEnd();
             string err = p.StandardError.ReadToEnd();
             p.WaitForExit();
-            if (p.ExitCode != 0) throw new Exception($"Build failed (exit {p.ExitCode}).\n" + (string.IsNullOrWhiteSpace(err) ? outp : err));
+            if (p.ExitCode != 0) throw new Exception(L.F("Build failed (exit {0}).", p.ExitCode) + "\n" +(string.IsNullOrWhiteSpace(err) ? outp : err));
         }
 
         private static void CopyDir(string src, string dst, string[]? skipExt = null)
@@ -3458,11 +3521,11 @@ namespace EasyEngine
         {
             if (string.IsNullOrEmpty(_aiLastSummary))
             {
-                Status("No AI changes yet.");
+                Status(L.T("No AI changes yet."));
                 return;
             }
 
-            Status("Last AI change: " + _aiLastSummary.Replace("\n", " | "));
+            Status(L.F("Last AI change: {0}", _aiLastSummary.Replace("\n", " | ")));
 
             if (_aiLastObjects.Count > 0)
             {
@@ -3485,7 +3548,7 @@ namespace EasyEngine
                 }
             }
 
-            MessageBox.Show(_aiLastSummary, "Last AI Change", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(_aiLastSummary, L.T("Last AI Change"), MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void ScrollToObject(GameObjectData obj)
@@ -3496,9 +3559,12 @@ namespace EasyEngine
             SceneScroll.ScrollToVerticalOffset(cy - SceneScroll.ViewportHeight / 2);
         }
 
-        private bool IsDirty => Title.EndsWith(" *");
+        // unsaved changes (a flag, not read back from the window title — the title is shown text)
+        private bool _dirty;
+        private bool IsDirty => _dirty;
 
-        private void Dirty() { if (!_restoring) Title = $"EasyEngine — {_project.Name} · {_scene.Name} *"; }
+        private void Dirty() { if (!_restoring) { _dirty = true; UpdateTitle(); } }
+        private void UpdateTitle() => Title = $"EasyEngine — {_project.Name} · {_scene.Name}" + (_dirty ? " *" : "");
         private void Status(string msg) => StatusText.Text = msg;
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
@@ -3506,7 +3572,7 @@ namespace EasyEngine
             if (IsDirty && IsVisible) // an editor that was never shown (tests, headless runs) has no one to ask
             {
                 var result = MessageBox.Show(
-                    "You have unsaved changes. Do you want to save before closing?",
+                    L.T("You have unsaved changes. Do you want to save before closing?"),
                     "EasyEngine",
                     MessageBoxButton.YesNoCancel,
                     MessageBoxImage.Warning);
@@ -3514,7 +3580,7 @@ namespace EasyEngine
                 if (result == MessageBoxResult.Yes)
                 {
                     try { ProjectIO.Save(_project); }
-                    catch (Exception ex) { MessageBox.Show("Error saving: " + ex.Message); e.Cancel = true; return; }
+                    catch (Exception ex) { MessageBox.Show(L.F("Error saving: {0}", ex.Message)); e.Cancel = true; return; }
                 }
                 else if (result == MessageBoxResult.Cancel)
                 {

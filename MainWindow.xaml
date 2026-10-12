@@ -22,7 +22,7 @@
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                     <TextBlock Text="⬡" Foreground="{StaticResource Accent}" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="ProjectNameText" Text="EasyEngine" Foreground="{StaticResource Text}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" Margin="8,0,14,0"/>
+                    <TextBlock x:Name="ProjectNameText" local:L.Skip="True" Text="EasyEngine" Foreground="{StaticResource Text}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" Margin="8,0,14,0"/>
                     <Button Content="New"   Style="{StaticResource GhostButton}" Height="32" Click="New_Click"/>
                     <Button Content="Open"  Style="{StaticResource GhostButton}" Height="32" Click="Open_Click"/>
                     <Button Content="Save"  Style="{StaticResource GhostButton}" Height="32" Click="Save_Click"/>
@@ -31,7 +31,7 @@
 
                     <Border Width="1" Background="{StaticResource Border}" Margin="10,8" />
                     <TextBlock Text="Scene" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <ComboBox x:Name="SceneCombo" Width="140" Height="28" VerticalAlignment="Center" SelectionChanged="SceneCombo_SelectionChanged"/>
+                    <ComboBox x:Name="SceneCombo" local:L.Skip="True" Width="140" Height="28" VerticalAlignment="Center" SelectionChanged="SceneCombo_SelectionChanged"/>
                     <Button Content="Add Scene"    Style="{StaticResource GhostButton}" Height="28" FontSize="12" Click="AddScene_Click"/>
                     <Button Content="Rename"       Style="{StaticResource GhostButton}" Height="28" FontSize="12" Click="RenameScene_Click"/>
                     <Button Content="Delete"       Style="{StaticResource GhostButton}" Height="28" FontSize="12" Foreground="{StaticResource Danger}" Click="DeleteScene_Click"/>
@@ -76,8 +76,8 @@
                     <TextBlock Text="SCENE" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" IsHitTestVisible="False"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12">
                         <TextBlock x:Name="ZoomLabel" Text="100%" Foreground="{StaticResource TextDim}" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="36" TextAlignment="Right"/>
-                        <Button Content="－" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" ToolTip="Zoom out (Ctrl + roda / Ctrl -)" Click="ZoomOut_Click"/>
-                        <Button Content="＋" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" Margin="4,0,0,0" ToolTip="Zoom in (Ctrl + roda / Ctrl +)" Click="ZoomIn_Click"/>
+                        <Button Content="－" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" ToolTip="Zoom out (Ctrl + wheel / Ctrl -)" Click="ZoomOut_Click"/>
+                        <Button Content="＋" Style="{StaticResource GhostButton}" Width="30" Height="26" FontSize="13" Margin="4,0,0,0" ToolTip="Zoom in (Ctrl + wheel / Ctrl +)" Click="ZoomIn_Click"/>
                         <Button Content="Fit" Style="{StaticResource GhostButton}" Width="42" Height="26" FontSize="11" Margin="4,0,0,0" ToolTip="Fit scene (Ctrl 0)" Click="ZoomFit_Click"/>
                         <Button x:Name="GridToggle" Content="Grid: off" Style="{StaticResource GhostButton}" Height="26" FontSize="11" Margin="8,0,0,0" Click="GridToggle_Click"/>
                     </StackPanel>
@@ -243,7 +243,7 @@
                         </Grid>
                     </Border>
                     <TextBox x:Name="ObjectSearch" DockPanel.Dock="Top" Margin="8,6,8,6" Padding="4,3" Tag="Search objects…" TextChanged="ObjectSearch_TextChanged"/>
-                    <ListBox x:Name="ObjectsList" Background="Transparent" BorderThickness="0" Margin="6,0,6,6" SelectionChanged="ObjectsList_SelectionChanged"/>
+                    <ListBox x:Name="ObjectsList" local:L.Skip="True" Background="Transparent" BorderThickness="0" Margin="6,0,6,6" SelectionChanged="ObjectsList_SelectionChanged"/>
                 </DockPanel>
             </Border>
 
