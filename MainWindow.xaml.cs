@@ -143,6 +143,7 @@ namespace EasyEngine
         private void OnLanguageChanged()
         {
             GridToggle.Content = _snap ? L.T("Grid: on") : L.T("Grid: off");
+            StatusText.Text = L.T("Ready"); // the last message was in the old language
             RefreshPalette();
             RefreshLayersKeepActive(); // re-selecting the layer rebuilds the objects list and its header too
             var offset = InspectorScroll.VerticalOffset;
@@ -234,6 +235,7 @@ namespace EasyEngine
                 case System.Windows.Controls.Decorator dec: dec.Child = null; break;
             }
             if (el.Parent is Window w) w.Content = null;
+            if (el.LayoutTransform is ScaleTransform) el.LayoutTransform = Transform.Identity; // its floating window's interface size
         }
 
         private void SetRegionVisible(DockRegion region, bool vis)
@@ -320,7 +322,7 @@ namespace EasyEngine
                 };
                 win.Closed += (s, e) =>
                 {
-                    if (pane.FloatWin != null) // closed by the user (X) → dock back
+                    if (pane.FloatWin != null && !_closing) // closed by the user (X) → dock back (not when the editor itself closes: keep the layout)
                     {
                         pane.FloatWin = null;
                         Detach(pane.Card);
@@ -3590,6 +3592,9 @@ namespace EasyEngine
                 }
             }
             base.OnClosing(e);
+            if (!e.Cancel) _closing = true;
         }
+
+        private bool _closing; // the editor is closing: its floating panels close with it and keep their place in the layout
     }
 }

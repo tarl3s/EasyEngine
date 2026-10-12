@@ -102,6 +102,7 @@ namespace EasyEngine
         /// shows those labels too).</summary>
         public static List<(string value, string label)> KeyOptions() => Keys.Select(k => (k.value, KeyLabel(k.label))).ToList();
 
+        // each key name written out as an L.T literal so --strings collects it for the translators
         private static string KeyLabel(string label) => label switch
         {
             "Space" => L.T("Space"), "Enter" => L.T("Enter"), "Shift" => L.T("Shift"), "Ctrl" => L.T("Ctrl"), "Tab" => L.T("Tab"),

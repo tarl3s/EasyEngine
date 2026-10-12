@@ -148,8 +148,9 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
   with `--selftest` and `--selftest --theme light` (snapshots). Games (`PlayWindow`) keep their own look.
 - **Languages (9)**: every text the person can see goes through `L.T("English")` / `L.F("… {0} …", x)` (`Loc.cs`);
   elements also translate themselves when they load. Mark the person's own content (object/layer/scene/project names,
-  chat, pickers of their names) with `L.SetSkip`/`L.Keep`. Never translate values that are saved or compared (keep
-  value and label apart — `Dropdown` items carry the value in `Tag`). Catalog texts stay English in the catalog (the AI
+  chat, pickers of their names) with `L.SetSkip`/`L.Keep`. Never translate values the engine reads or compares (keep
+  value and label apart — `Dropdown` items carry the value in `Tag`); default names the person can rename (a new
+  boss attack "Attack 1", a phase) are theirs and are created in their language. Catalog texts stay English in the catalog (the AI
   reads them) and are translated where they are shown. After adding or changing texts: run `--strings` (rewrites
   `Lang/en.json`), then add the new entries to every `Lang/<code>.json` — the fulltest fails if a language falls below
   97% or breaks a `{0}`. `--lang <code>` forces a language in any mode (e.g. selftest snapshots). AI prompts stay in

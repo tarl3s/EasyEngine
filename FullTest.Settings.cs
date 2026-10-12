@@ -61,6 +61,18 @@ public partial class App
             SettingsCheckLog("languages", problems);
             return problems.Count == 0;
         });
+        t.Test("language: switching language live also re-translates texts the code set (Variables → Variáveis → Variablen → Variables)", () =>
+        {
+            L.SetLanguage("pt-BR");
+            var status = new TextBlock { Text = L.T("Variables") };      // set by the code, already in Portuguese
+            var button = new Button { Content = "💾 " + L.T("Save") };
+            var panel = new StackPanel(); panel.Children.Add(status); panel.Children.Add(button);
+            bool pt = status.Text == "Variáveis";
+            L.SetLanguage("de"); L.TranslateTree(panel);
+            bool de = status.Text == L.T("Variables") && status.Text != "Variáveis" && (string)button.Content == "💾 " + L.T("Save");
+            L.SetLanguage("en"); L.TranslateTree(panel);
+            return pt && de && status.Text == "Variables" && (string)button.Content == "💾 Save";
+        });
         t.Test("language: the AI is told to answer in the chosen language (nothing added in English)", () =>
         {
             L.UseTableForTests("ja", fake);
@@ -96,19 +108,23 @@ public partial class App
         });
 
         // ---------------- temporary files ----------------
-        t.Test("temporary files: only EasyEngine's logs, test projects and downloads go — settings, projects and others' files stay", () =>
+        t.Test("temporary files: only EasyEngine's logs, finished test projects and downloads go — settings, projects, others' files and a test still running stay", () =>
         {
             var temp = Path.Combine(Path.GetTempPath(), "EE_Full_Clean_" + Guid.NewGuid().ToString("N").Substring(0, 6));
             Directory.CreateDirectory(temp);
             void F(string rel) { var p = Path.Combine(temp, rel); Directory.CreateDirectory(Path.GetDirectoryName(p)!); File.WriteAllText(p, "x"); }
             F("easyengine_fulltest.log"); F("easyengine_snap_editor.png"); F("EE_SelfTest_ab12cd/My.eeproj"); F("EasyEngine_publish/EasyEngine.exe");
             F("settings.json"); F("My Game/My Game.eeproj"); F("other_app.log"); F("EE_notes.txt"); F("EasyEngine Samples/Boss Demo/Boss Demo.eeproj");
+            // finished test projects / downloads are old; a test still running keeps writing its folder (left alone)
+            foreach (var old in new[] { "EE_SelfTest_ab12cd/My.eeproj", "EasyEngine_publish/EasyEngine.exe" }) File.SetLastWriteTime(Path.Combine(temp, old), DateTime.Now.AddHours(-2));
+            F("EE_Full_busy01/Busy.eeproj");
             var (count, bytes) = CacheCleaner.Clean(temp);
             bool ok = count == 4 && bytes > 0
                       && !File.Exists(Path.Combine(temp, "easyengine_fulltest.log")) && !Directory.Exists(Path.Combine(temp, "EE_SelfTest_ab12cd"))
                       && File.Exists(Path.Combine(temp, "settings.json")) && File.Exists(Path.Combine(temp, "My Game", "My Game.eeproj"))
                       && File.Exists(Path.Combine(temp, "other_app.log")) && File.Exists(Path.Combine(temp, "EE_notes.txt"))
-                      && File.Exists(Path.Combine(temp, "EasyEngine Samples", "Boss Demo", "Boss Demo.eeproj"));
+                      && File.Exists(Path.Combine(temp, "EasyEngine Samples", "Boss Demo", "Boss Demo.eeproj"))
+                      && File.Exists(Path.Combine(temp, "EE_Full_busy01", "Busy.eeproj"));
             TestScenarios.TryDeleteDir(temp);
             return ok && CacheCleaner.Pretty(1536) == $"{1.5:0.#} KB";
         });

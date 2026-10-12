@@ -26,10 +26,10 @@ public partial class App : Application
         // the theme comes first (the styles load with it). Tests, demo builders and --play always run dark.
         AiSettings.Load();
         // (--theme light / --lang pt-BR force them in any mode, e.g. to take --selftest pictures of the light theme)
-        bool personRun = !e.Args.Any(a => a.StartsWith("--") && a != "--editor");
+        bool personRun = !e.Args.Any(a => a.StartsWith("--") && a is not ("--editor" or "--updated" or "--theme" or "--lang")); // --updated: the updater reopening the launcher
         string? ArgAfter(string flag) { int i = Array.IndexOf(e.Args, flag); return i >= 0 && i + 1 < e.Args.Length ? e.Args[i + 1] : null; }
         Theme.Init(ArgAfter("--theme") ?? (personRun ? AiSettings.ThemeName : "dark"));
-        if (ArgAfter("--lang") is string forcedLang) L.SetLanguage(forcedLang);
+        if (ArgAfter("--lang") is string forcedLang) { L.SetLanguage(forcedLang); _forcedLanguage = true; }
 
 
         // Every window gets the theme's light text colour, and everything inside inherits it. (It used to be forced on
@@ -115,11 +115,11 @@ public partial class App : Application
     /// always run in English, dark, 100%).</summary>
     public static void ApplyUserPreferences()
     {
-        AiSettings.Load();
-        L.SetLanguage(AiSettings.Language);
-        _uiScale = AiSettings.UiScale;
+        if (!_forcedLanguage) L.SetLanguage(AiSettings.Language); // settings.json was read at the top of OnStartup
         ApplyUiScale();
     }
+
+    private static bool _forcedLanguage; // --lang given: it beats the saved language
 
     /// <summary>Closes every window (the editor asks to save first — Cancel stops the restart) and starts EasyEngine
     /// again at the launcher, e.g. so a new theme applies.</summary>
@@ -128,7 +128,10 @@ public partial class App : Application
         var app = Current;
         var before = app.ShutdownMode;
         app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        foreach (var w in app.Windows.Cast<Window>().Reverse().ToList())
+        // dialogs first, then the top windows (launcher, editor); a window's own windows (floating panels) close with it,
+        // so the editor keeps its layout
+        var all = app.Windows.Cast<Window>().ToList();
+        foreach (var w in all.Where(w => w is SettingsWindow).Concat(all.Where(w => w is not SettingsWindow && w.Owner == null)))
         {
             w.Close();
             if (w.IsVisible) { app.ShutdownMode = before; return; } // the person cancelled (unsaved changes)

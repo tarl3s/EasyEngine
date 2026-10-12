@@ -26,7 +26,7 @@ namespace EasyEngine
             try
             {
                 list.AddRange(Directory.GetFiles(temp).Where(f => OurFile.IsMatch(Path.GetFileName(f))));
-                list.AddRange(Directory.GetDirectories(temp).Where(d => OurDir.IsMatch(Path.GetFileName(d)) && !IsBusyUpdate(d)));
+                list.AddRange(Directory.GetDirectories(temp).Where(d => OurDir.IsMatch(Path.GetFileName(d)) && !InUse(d, temp)));
             }
             catch { }
             return list;
@@ -63,12 +63,21 @@ namespace EasyEngine
             return (count, bytes);
         }
 
-        /// <summary>An update that is being installed right now (its swap script still running) must stay.</summary>
-        private static bool IsBusyUpdate(string dir)
+        /// <summary>A folder something is using right now stays: an update being installed (its swap script wrote its log in
+        /// the last minutes) or a test run still writing its project (a file changed in the last 10 minutes).</summary>
+        private static bool InUse(string dir, string temp)
         {
-            if (!Path.GetFileName(dir).Equals("EasyEngine_update", StringComparison.OrdinalIgnoreCase)) return false;
-            var log = Path.Combine(Path.GetTempPath(), "easyengine_update.log");
-            try { return File.Exists(log) && (DateTime.Now - File.GetLastWriteTime(log)).TotalMinutes < 5; } catch { return false; }
+            try
+            {
+                if (Path.GetFileName(dir).Equals("EasyEngine_update", StringComparison.OrdinalIgnoreCase))
+                {
+                    var log = Path.Combine(temp, "easyengine_update.log");
+                    if (File.Exists(log) && (DateTime.Now - File.GetLastWriteTime(log)).TotalMinutes < 5) return true;
+                }
+                var recent = DateTime.Now.AddMinutes(-10);
+                return new DirectoryInfo(dir).EnumerateFiles("*", SearchOption.AllDirectories).Any(f => f.LastWriteTime > recent);
+            }
+            catch { return true; } // can't tell: leave it
         }
 
         /// <summary>"12.3 MB" style size.</summary>

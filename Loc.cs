@@ -45,12 +45,30 @@ namespace EasyEngine
         public static event Action? Changed;
 
         private static Dictionary<string, string> _map = new();
+        private static Dictionary<string, string> _back = new(); // the previous language: its text → English
+
+        /// <summary>The English of a text the code set in the previous language (itself when it isn't one), keeping the icons
+        /// and endings around it like <see cref="T"/> does.</summary>
+        private static string ToEnglish(string shown)
+        {
+            if (_back.Count == 0 || string.IsNullOrEmpty(shown)) return shown;
+            if (_back.TryGetValue(shown, out var en)) return en;
+            int a = 0, b = shown.Length - 1;
+            while (a <= b && !IsWordChar(shown, a)) a++;
+            while (b >= a && !IsWordChar(shown, b) && shown[b] != ')') b--;
+            if (a > b) return shown;
+            return _back.TryGetValue(shown.Substring(a, b - a + 1), out en) ? shown.Substring(0, a) + en + shown.Substring(b + 1) : shown;
+        }
 
         /// <summary>Switches the language ("en", "pt-BR"…; unknown → English) and re-translates every open window.</summary>
         public static void SetLanguage(string? code)
         {
             var lang = All.FirstOrDefault(l => string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase)) ?? All[0];
             Code = lang.Code;
+            // the language we leave, read backwards: texts the code already put in it can find their English again
+            // (a text two English entries share, like "Pronto" = Done / Ready, is left as it is: no guessing)
+            _back = new();
+            foreach (var g in _map.GroupBy(kv => kv.Value)) if (g.Count() == 1) _back[g.Key] = g.First().Key;
             _map = lang.Code == "en" ? new() : LoadTable(lang.Code);
             if (Application.Current != null)
                 foreach (Window w in Application.Current.Windows) TranslateTree(w);
@@ -195,7 +213,7 @@ namespace EasyEngine
         {
             if (e.ReadLocalValue(p) is not string shown) return; // unset, bound, or not text
             var originals = (Dictionary<DependencyProperty, (string En, string Shown)>?)e.GetValue(OriginalProperty);
-            var en = originals != null && originals.TryGetValue(p, out var o) && o.Shown == shown ? o.En : shown;
+            var en = originals != null && originals.TryGetValue(p, out var o) && o.Shown == shown ? o.En : ToEnglish(shown);
             var target = T(en);
             if (target == shown && originals == null) return;
             if (originals == null) { originals = new(); e.SetValue(OriginalProperty, originals); }
