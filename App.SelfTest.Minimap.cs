@@ -51,6 +51,7 @@ public partial class App
         c.LateChecks.Add(() =>
         {
             var size = play.TMinimapShownSize();
+            c.Snapshot(play, "big_map");
             c.Write($"minimap big map: open {play.TMinimapMax()}, drawn {size.Width:0}x{size.Height:0}, dots purple {play.TMinimapDots("#9B59F0")} green {play.TMinimapDots("#5BC77A")} gray {play.TMinimapDots("#B4B4BE")} cyan {play.TMinimapDots("#00E5FF")}");
             if (!play.TMinimapMax() || !play.TMinimapTitleVisible() || !play.TUiHas("the map")) return "the big map did not open with its key";
             if (size.Width < 300 || size.Height < 200) return $"the big map is not drawn big ({size.Width:0}x{size.Height:0})";

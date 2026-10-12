@@ -12,4 +12,24 @@ internal sealed class SelfTestContext
     public Action<string> Write = _ => { };
     public List<Window> CloseLater { get; } = new();
     public List<Func<string?>> LateChecks { get; } = new();
+
+    /// <summary>Renders one of the engine's own windows (its content only — nothing else on the screen) to
+    /// %TEMP%\easyengine_snap_&lt;name&gt;.png, so a run leaves pictures of what was actually drawn. Returns the path.</summary>
+    public string Snapshot(Window w, string name)
+    {
+        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"easyengine_snap_{name}.png");
+        try
+        {
+            if (w.Content is not FrameworkElement root || root.ActualWidth < 1 || root.ActualHeight < 1) return "";
+            var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)root.ActualWidth, (int)root.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            bmp.Render(root);
+            var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+            using var fs = System.IO.File.Create(path);
+            enc.Save(fs);
+            Write($"snapshot: {path}");
+        }
+        catch (Exception ex) { Write($"snapshot {name} failed: {ex.Message}"); return ""; }
+        return path;
+    }
 }

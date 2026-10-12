@@ -32,6 +32,7 @@ public partial class App
             double appMs = sw.Elapsed.TotalMilliseconds / Math.Max(1, frames);
             double frameMs = play.TMeasureFrames(120); // this window's own frames (logic + render + layout), still walking right
             play.TKey("D", false);
+            c.Snapshot(play, "infinite_world");
             int layer = play.TTerrainLayerIndex, player = play.TWorldIndexOf("Player"), tree = play.TWorldIndexOfTree();
             c.Write($"infinite world (real window): {play.TTerrainChunks} chunks, {play.TTerrainVisuals} blocks drawn · World index: terrain {layer}, tree {tree}, player {player} · " +
                     $"walked {play.TX("Player") - 400:0} px · {frameMs:0.00} ms per frame (CPU) · streaming {play.TTerrainMs:0.00} ms avg, {play.TTerrainMsMax:0.0} ms worst · " +
