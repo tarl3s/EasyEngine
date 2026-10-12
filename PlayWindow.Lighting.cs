@@ -110,6 +110,48 @@ namespace EasyEngine
             Root.Children.Insert(Math.Min(_darkIndex, Root.Children.Count), chain);
         }
 
+        // ---------------- underground darkness (Day/Night "coverDark") ----------------
+        private partial class Entity
+        {
+            public double Cover, CoverTarget, CoverSampleIn; public bool CoverStarted; // the Day/Night controller's cover state
+        }
+
+        // How covered the "who" object is (0 = open sky, 1 = coverDepth blocks or more above it), eased toward the latest
+        // sample (~3 per second, sampled every 0.1 s). Also sets the variables cover / underground.
+        private double UpdateCover(Entity en, BehaviorData bh, double dt)
+        {
+            en.CoverSampleIn -= dt;
+            if (en.CoverSampleIn <= 0)
+            {
+                en.CoverSampleIn = 0.1;
+                string whoName = bh.Text("coverWho", "Player");
+                var who = _entities.FirstOrDefault(z => !z.Dead && z != en && z.Data.Name.Equals(whoName, StringComparison.OrdinalIgnoreCase));
+                en.CoverTarget = who == null ? 0 : Math.Clamp(BlocksAbove(who) / Math.Max(0.5, bh.Num("coverDepth", 6)), 0, 1);
+                if (!en.CoverStarted) { en.CoverStarted = true; en.Cover = en.CoverTarget; } // starting in a cave starts dark
+            }
+            en.Cover += (en.CoverTarget - en.Cover) * Math.Min(1, 3 * dt);
+            _vars["cover"] = en.Cover;
+            _vars["underground"] = en.Cover > 0.5 ? 1 : 0;
+            return en.Cover;
+        }
+
+        // Solid blocks (in 32 px rows) straight above the object, averaged over its left quarter, centre and right quarter.
+        private double BlocksAbove(Entity who)
+        {
+            double top = who.Y - 4000, sum = 0;
+            foreach (double f in new[] { 0.25, 0.5, 0.75 })
+            {
+                double x = who.X + who.W * f;
+                foreach (var s in SolidsNear(x, top, 1, who.Y - top))
+                {
+                    if (s == who || s.Dead || s.SolidDisabled || s.OneWay) continue;
+                    if (s.X <= x && x < s.X + s.W && s.Y + s.H <= who.Y + 2 && s.Y + s.H > top)
+                        sum += Math.Min(s.Y + s.H, who.Y) - Math.Max(s.Y, top);
+                }
+            }
+            return sum / 3 / 32;
+        }
+
         // ---------------- "Set time of day" (custom action + block) ----------------
         private void SetTimeOfDay(string when, string source)
         {
