@@ -229,7 +229,7 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <ListBox x:Name="LayersList" Background="Transparent" BorderThickness="0" Margin="6,6,6,6" SelectionChanged="LayersList_SelectionChanged"/>
+                    <ListBox x:Name="LayersList" ItemContainerStyle="{StaticResource ListRow}" Background="Transparent" BorderThickness="0" Margin="6,6,6,6" SelectionChanged="LayersList_SelectionChanged"/>
                 </DockPanel>
             </Border>
 
@@ -243,7 +243,7 @@
                         </Grid>
                     </Border>
                     <TextBox x:Name="ObjectSearch" DockPanel.Dock="Top" Margin="8,6,8,6" Padding="4,3" Tag="Search objects…" TextChanged="ObjectSearch_TextChanged"/>
-                    <ListBox x:Name="ObjectsList" local:L.Skip="True" Background="Transparent" BorderThickness="0" Margin="6,0,6,6" SelectionChanged="ObjectsList_SelectionChanged"/>
+                    <ListBox x:Name="ObjectsList" local:L.Skip="True" ItemContainerStyle="{StaticResource ListRow}" Background="Transparent" BorderThickness="0" Margin="6,0,6,6" SelectionChanged="ObjectsList_SelectionChanged"/>
                 </DockPanel>
             </Border>
 

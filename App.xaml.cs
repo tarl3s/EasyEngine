@@ -17,6 +17,7 @@ public partial class App : Application
     partial void SelfTestLearn(SelfTestContext c);
     partial void SelfTestSequences(SelfTestContext c);
     partial void SelfTestTerrain(SelfTestContext c);
+    partial void SelfTestReadability(SelfTestContext c);
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -622,6 +623,7 @@ public partial class App : Application
             SelfTestLearn(ctx);
             SelfTestSequences(ctx);
             SelfTestTerrain(ctx);
+            SelfTestReadability(ctx); // last: it measures the text of every window the others opened
 
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
             timer.Tick += (s, ev) =>

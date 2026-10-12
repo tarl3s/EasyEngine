@@ -12,8 +12,9 @@ namespace EasyEngine
         /// <summary>The editor themes: "dark" (default) and "light". Each is the colour of every palette brush in App.xaml.</summary>
         public static readonly string[] Names = { "dark", "light" };
 
-        // Keys of the App.xaml palette. Light: text ≥ 4.5:1 on every background it sits on (tested by --selftest);
-        // the accent is darker there, so it reads as text on white, and text ON the accent turns white.
+        // Keys of the App.xaml palette. Both themes: text ≥ 4.5:1 on every background it sits on (tested by --fulltest, and
+        // in real windows by --selftest / --selftest --theme light). In light the accent is darker, so it reads as text
+        // on white, and text ON the accent turns white.
         private static readonly Dictionary<string, (string Dark, string Light)> Palette = new()
         {
             ["Bg0"] = ("#141418", "#E9ECF1"),
@@ -23,11 +24,12 @@ namespace EasyEngine
             ["Hover"] = ("#34343F", "#DCE1E8"),
             ["Border"] = ("#35353F", "#C6CCD5"),
             ["Text"] = ("#E6E6EA", "#1B1E24"),
-            ["TextDim"] = ("#8C8C97", "#565D69"),
+            ["TextDim"] = ("#A0A0AA", "#565D69"),
             ["Accent"] = ("#18B98A", "#087A59"),
             ["AccentHover"] = ("#1ED29B", "#0A9068"),
-            ["Danger"] = ("#E5484B", "#B4232A"),
+            ["Danger"] = ("#F87878", "#B4232A"),
             ["AccentText"] = ("#062018", "#FFFFFF"),
+            ["Selection"] = ("#1E332D", "#D3EDE3"), // the selected row of a list (layers, objects, animations)
             ["Viewport"] = ("#111115", "#D5D9E0"),      // around the scene canvas
             ["ViewportCard"] = ("#1A1A20", "#C9CED7"),  // the scene's frame inside it
         };

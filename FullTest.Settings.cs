@@ -79,16 +79,19 @@ public partial class App
             var bg = accentButton?.Setters.OfType<Setter>().FirstOrDefault(s => s.Property == Control.BackgroundProperty)?.Value;
             return palette && ReferenceEquals(bg, Current.Resources["Accent"]);
         });
-        t.Test("theme: in light, text stays readable on every background (Text/TextDim/Danger on Bg0-3 and hover, text on the accent)", () =>
+        t.Test("theme: in both themes, text stays readable on every background (Text/TextDim/Danger on Bg0-3, hover and the selected row, text on the accent)", () =>
         {
-            var c = Theme.PaletteOf("light");
             var low = new List<string>();
-            foreach (var bgKey in new[] { "Bg0", "Bg1", "Bg2", "Bg3", "Hover" })
-                foreach (var fg in new[] { "Text", "TextDim", "Danger" })
-                    if (Contrast.Ratio(c[fg], c[bgKey]) < 4.5) low.Add($"{fg} on {bgKey}: {Contrast.Ratio(c[fg], c[bgKey]):0.0}");
-            if (Contrast.Ratio(c["AccentText"], c["Accent"]) < 4.5) low.Add("AccentText on Accent");
-            if (Contrast.Ratio(c["Accent"], c["Bg2"]) < 4.5) low.Add("Accent as text on Bg2");
-            SettingsCheckLog("light theme", low);
+            foreach (var theme in Theme.Names)
+            {
+                var c = Theme.PaletteOf(theme);
+                foreach (var bgKey in new[] { "Bg0", "Bg1", "Bg2", "Bg3", "Hover", "Selection" })
+                    foreach (var fg in new[] { "Text", "TextDim", "Danger" })
+                        if (Contrast.Ratio(c[fg], c[bgKey]) < 4.5) low.Add($"{theme}: {fg} on {bgKey}: {Contrast.Ratio(c[fg], c[bgKey]):0.0}");
+                if (Contrast.Ratio(c["AccentText"], c["Accent"]) < 4.5) low.Add($"{theme}: AccentText on Accent");
+                if (Contrast.Ratio(c["Accent"], c["Bg2"]) < 4.5) low.Add($"{theme}: Accent as text on Bg2");
+            }
+            SettingsCheckLog("themes", low);
             return low.Count == 0;
         });
 

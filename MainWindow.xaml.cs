@@ -2125,7 +2125,8 @@ namespace EasyEngine
             _            => L.T("Free, no credit card."),
         };
 
-        private static readonly SolidColorBrush ReadyGreen = new(Color.FromRgb(0x4A, 0xDE, 0x80));
+        private static readonly Brush ReadyGreen = Theme.Pick("#4ADE80", "#087A59");
+        private static readonly Brush WarnYellow = Theme.Pick("#F4C03B", "#8A6300"); // "Ollama not found", "add a key": dark amber on the light theme
 
         private void BuildCloudKeyRows() { BuildFreeKeyRows(); BuildPaidKeyRows(); }
 
@@ -2292,8 +2293,8 @@ namespace EasyEngine
             if (_useCloud)
             {
                 bool hasKey = AnyCloudKey();
-                OllamaDot.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : Theme.Hex("#F4C03B", "#F4C03B");
-                OllamaStatus.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : Theme.Hex("#F4C03B", "#F4C03B");
+                OllamaDot.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : WarnYellow;
+                OllamaStatus.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : WarnYellow;
                 if (!hasKey)
                     OllamaStatus.Text = L.T("☁ Cloud selected — add a free API key below (any provider works).");
                 else
@@ -2306,8 +2307,8 @@ namespace EasyEngine
 
             if (!await _ollama.IsRunningAsync())
             {
-                OllamaDot.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
-                OllamaStatus.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
+                OllamaDot.Foreground = WarnYellow;
+                OllamaStatus.Foreground = WarnYellow;
                 OllamaStatus.Text = L.T("⚠ Ollama not found. The engine tries to start it automatically on launch.");
                 return;
             }
@@ -2320,8 +2321,8 @@ namespace EasyEngine
             }
             else
             {
-                OllamaDot.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
-                OllamaStatus.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
+                OllamaDot.Foreground = WarnYellow;
+                OllamaStatus.Foreground = WarnYellow;
                 OllamaStatus.Text = L.F("Ollama ok, but the model isn't downloaded:\n    ollama pull {0}", _model);
             }
         }

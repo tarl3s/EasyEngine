@@ -71,7 +71,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="🎮" FontSize="22" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="0" Text="🎮" FontSize="22" Foreground="{StaticResource Text}" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Name}" Foreground="{StaticResource Text}" FontSize="14" FontWeight="SemiBold"/>
                                     <TextBlock Text="{Binding Path}" Foreground="{StaticResource TextDim}" FontSize="11" TextTrimming="CharacterEllipsis"/>
