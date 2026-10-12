@@ -58,12 +58,14 @@ Add a scene	MainWindow.xaml
 Add files for the AI to use (images or audio)	MainWindow.xaml.cs
 Add layer	MainWindow.xaml
 Add the API key for this provider in the AI settings (⚙).	MainWindow.xaml.cs
+Add to a text	BlockEditorWindow.cs
 Add to a variable	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.cs, step addvar
 Add to its own variable	BlockEditorWindow.cs
 Added {0} image(s) and {1} sound(s) for the AI	MainWindow.xaml.cs
 Added {0} to {1} of {2} selected object(s)	MainWindow.xaml.cs
 Adds to its speed gradually (not instant). + up/down makes it fall faster.	BlockEditorWindow.cs
 Adds up with other lights (0/1)	behavior LightSource
+Adds words to the end of a text variable.	BlockEditorWindow.cs
 Advanced Patrol	behavior AdvancedPatrol
 Advanced — paid keys, offline AI	MainWindow.xaml.cs
 Advanced — raw rules (JSON). The blocks above edit this for you.	MainWindow.xaml.cs
@@ -220,6 +222,7 @@ Colour of this block	MainWindow.TerrainBlocks.cs
 Colours what it touches (0/1)	behavior LightSource
 Columns	MainWindow.xaml.cs
 Columns from the generator: right is +, left is −.	MainWindow.TerrainBlocks.cs
+Compares words (capital letters don't matter). "Its own" reads this object's own text variable.	BlockEditorWindow.cs
 Condition	BlockEditorWindow.cs
 Control	step category
 Cooldown (s)	behavior Shooter, BlockEditorWindow.cs
@@ -424,7 +427,7 @@ Give an item	BlockEditorWindow.cs
 Give the item a name.	NewItemDialog.cs
 Give the project a name.	LauncherWindow.xaml.cs
 Give this object the look you copied (its size, behaviors and name stay)	MainWindow.xaml.cs
-Give variables a starting value. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object) and show them in a Label with {name}.	VariablesWindow.xaml
+Give variables a starting value. A variable is a Number, a Yes/No or a Text. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object; settext/toggle/iftext for texts and Yes/No) and show them in a Label with {name}.	VariablesWindow.xaml
 Gives hit points. When they reach 0: respawn=1 → respawn at last checkpoint/start (for the player); respawn=0 → the object is destroyed (for enemies). Writes the value to a variable for a Label or a Bar — 'health' is the player's: an enemy only shows its health in a variable of its own (e.g. bossHP).	behavior Health
 Glide a property	BlockEditorWindow.cs
 Glide to	step moveto
@@ -504,6 +507,7 @@ Item "{0}" added to the hotbar — the player starts with it	NewItemDialog.cs
 Item in hand (no Hotbar in this scene)	behavior ToolUse
 Items	behavior Hotbar, MainWindow.Params.cs
 Items that swing	behavior ToolUse
+Its own	BlockEditorWindow.cs
 Its target (player)	SequenceEditorWindow.cs
 Jump	BlockEditorWindow.cs, step jump
 Jump force	behavior Platformer
@@ -604,6 +608,7 @@ Name on the health bar	behavior BossAI
 Needs a Day/Night cycle object in the scene.	BlockEditorWindow.cs
 Needs a Day/Night cycle object in the scene. Great for enemies that only come out at night.	BlockEditorWindow.cs
 New	Dropdown.cs, MainWindow.xaml
+New Yes/No variable name:	BlockEditorWindow.cs
 New animation	AnimationWindow.xaml.cs
 New canvas of any size, e.g. 32×128	SpriteEditorWindow.cs
 New currency (a variable name, e.g. gems):	MainWindow.Params.cs
@@ -615,6 +620,7 @@ New name for the project:	LauncherWindow.xaml.cs
 New name:	AnimationWindow.xaml.cs, MainWindow.xaml.cs
 New project	LauncherWindow.xaml
 New scene	MainWindow.xaml.cs
+New text variable name:	BlockEditorWindow.cs, SequenceEditorWindow.cs
 New variable name:	MainWindow.Params.cs, SequenceEditorWindow.cs
 New {0}×{1} canvas	SpriteEditorWindow.cs
 Night	step settime
@@ -647,6 +653,7 @@ Nothing to clear.	SettingsWindow.cs
 Nothing to redo	MainWindow.xaml.cs
 Nothing to undo	MainWindow.xaml.cs
 Nudge (shift position)	BlockEditorWindow.cs
+Number	VariablesWindow.xaml.cs
 OBJECT	MainWindow.xaml.cs
 OBJECTS	MainWindow.xaml
 OBJECTS — {0}	MainWindow.xaml.cs
@@ -741,6 +748,8 @@ Puff of particles when broken (0/1)	behavior Tilemap
 Pulse	behavior Label
 Pushable Block	behavior Pushable
 Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'); hold the button to keep using it, one swing per cooldown. Each use: the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe, or your own (shovel…). Far away = a miss; wrong tool = refused; something solid in between (wall, water, a block) = blocked, the swing only hits what is in front. 'itemDamage' = damage per item (e.g. sword=2,axe=1), 'tools' = only these items swing (comma list, empty = all), 'toolLook' = look of the fixed tool. Everything shows in the F1 console.	behavior ToolUse
+Puts words in a text variable. {name} inside is replaced by that variable's value, e.g. Hello {playerName}!	BlockEditorWindow.cs
+Puts words in a text variable. {name} inside is replaced by that variable's value.	step settext
 Radius	behavior LightSource
 Rare	MainWindow.TerrainBlocks.cs
 Reach (px from the player)	behavior ToolUse
@@ -812,6 +821,7 @@ Self-contained build — the player does NOT need .NET installed. Zip and share 
 Sells	behavior Shop
 Send	MainWindow.xaml.cs
 Set a property	BlockEditorWindow.cs
+Set a text	BlockEditorWindow.cs, step settext
 Set a variable	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.cs, step setvar
 Set its own variable	BlockEditorWindow.cs
 Set its speed level	BlockEditorWindow.cs
@@ -914,6 +924,7 @@ Swing	MainWindow.Params.cs
 Swing duration (s)	behavior ToolUse
 Swing sound (default)	behavior ToolUse
 Switch / Lever	behavior Switch
+Switch a Yes/No	BlockEditorWindow.cs
 Switches to another scene when the trigger touches it or it's clicked. Great for doors and menu buttons.	behavior GoToScene
 Sword	ToolArt.cs
 TILES (click to select)	MainWindow.xaml.cs
@@ -926,8 +937,9 @@ Target: {0} (AI edits only this).	MainWindow.xaml.cs
 Target: {0} (AI edits these {1}).	MainWindow.xaml.cs
 Terrain Generator	behavior Terrain
 Test Checklist	behavior Checklist
-Text	BlockEditorWindow.cs, step title
+Text	BlockEditorWindow.cs, step title, VariablesWindow.xaml.cs
 Text (| = next line)	step say
+Text variable	BlockEditorWindow.cs, step settext
 Text — {variable} shows a value	behavior Label
 That project file no longer exists.	LauncherWindow.xaml.cs
 The answer took too long and was cancelled.	OllamaClient.cs
@@ -968,7 +980,7 @@ Time between swings (s)	behavior ToolUse
 Times	BlockEditorWindow.cs
 Tip: to make something need it, give that object a Harvestable and set its Tool to this name (e.g. a dirt mound that only the shovel digs).	NewItemDialog.cs
 Title	behavior Checklist
-To	BlockEditorWindow.cs, step camera, step move, step moveto, step setvar
+To	BlockEditorWindow.cs, step camera, step move, step moveto, step settext, step setvar
 To column	MainWindow.TerrainBlocks.cs
 To height	MainWindow.TerrainBlocks.cs
 Toggles a variable between 0 and 1. mode=click (click it), touch (trigger touches it), or interact (trigger stands on it and presses the key). stayOn=1 makes it a one-time switch that can't turn back off.	behavior Switch
@@ -1055,6 +1067,7 @@ Which AI to use	MainWindow.xaml
 Which shape the Shape tool draws	SpriteEditorWindow.cs
 While a condition is true	BlockEditorWindow.cs
 While a key is held	BlockEditorWindow.cs
+While a text variable…	BlockEditorWindow.cs
 While a variable is…	BlockEditorWindow.cs
 While it has an item	BlockEditorWindow.cs
 While it's day	BlockEditorWindow.cs
@@ -1072,6 +1085,7 @@ Whose light (usually the player)	behavior DayNight
 Width	MainWindow.xaml.cs
 Width × height in pixels (4 to 256 each), for example 32x128:	SpriteEditorWindow.cs
 Without a bullet object it fires small round bullets that hurt the target and vanish when they hit.	step shoot
+Words to add	BlockEditorWindow.cs
 World depth (blocks)	behavior Terrain
 World seed (0 = a new world every game)	behavior Terrain
 Write the size as width x height, for example 32x128 (each from 4 to 256).	SpriteEditorWindow.cs
@@ -1079,8 +1093,11 @@ Write to the console	BlockEditorWindow.cs
 Write what you want first.	MainWindow.Sequences.cs
 X	MainWindow.xaml.cs
 Y	MainWindow.xaml.cs
-Yes	MainWindow.xaml.cs
+Yes	MainWindow.xaml.cs, VariablesWindow.xaml.cs
 Yes = delete the files from disk	LauncherWindow.xaml.cs
+Yes becomes No and No becomes Yes.	BlockEditorWindow.cs
+Yes/No	VariablesWindow.xaml.cs
+Yes/No variable	BlockEditorWindow.cs
 You	MainWindow.xaml.cs
 You (selected: {0})	MainWindow.xaml.cs
 You can keep using this version.	UpdatePrompt.cs
@@ -1095,6 +1112,7 @@ at least	behavior Gate
 at most	behavior Gate
 at the mouse	BlockEditorWindow.cs
 below	BlockEditorWindow.cs
+contains	BlockEditorWindow.cs
 created the moon "{0}"	Model.cs
 created the sun "{0}"	Model.cs
 day	BlockEditorWindow.cs
@@ -1112,9 +1130,11 @@ info	BlockEditorWindow.cs
 is	behavior Gate, BlockEditorWindow.cs
 is at least	BlockEditorWindow.cs
 is at most	BlockEditorWindow.cs
+is empty	BlockEditorWindow.cs
 is less than	BlockEditorWindow.cs
 is more than	BlockEditorWindow.cs
 is not	BlockEditorWindow.cs
+is not empty	BlockEditorWindow.cs
 is…	BlockEditorWindow.cs
 left	BlockEditorWindow.cs
 less than	behavior Gate

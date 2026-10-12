@@ -198,6 +198,11 @@ namespace EasyEngine
         public PhysicsData Physics { get; set; } = new();
         public List<BehaviorData> Behaviors { get; set; } = new();
         public Dictionary<string, double> Variables { get; set; } = new(); // per-object (each copy gets its own)
+        // Yes/No variables keep their 1/0 in Variables (so every behavior and condition reads them); Flags names them.
+        private HashSet<string> _flags = VarScope.NewFlags(null);
+        public HashSet<string> Flags { get => _flags; set => _flags = VarScope.NewFlags(value); }
+        private Dictionary<string, string> _texts = new();
+        public Dictionary<string, string> Texts { get => _texts; set => _texts = value ?? new(); } // text variables
         public string Group { get; set; } = ""; // organization tag (groups objects in the scene list)
 
         public SpriteAnimation? ResolveDefaultAnimation()
@@ -224,6 +229,11 @@ namespace EasyEngine
         public string BackgroundColor { get; set; } = "#1A1A20";
         public double AmbientLight { get; set; } = 1.0; // 1 = no darkness, 0 = fully dark
         public Dictionary<string, double> Variables { get; set; } = new(); // scene-local (reset when the scene loads)
+        // Yes/No variables keep their 1/0 in Variables (so every behavior and condition reads them); Flags names them.
+        private HashSet<string> _flags = VarScope.NewFlags(null);
+        public HashSet<string> Flags { get => _flags; set => _flags = VarScope.NewFlags(value); }
+        private Dictionary<string, string> _texts = new();
+        public Dictionary<string, string> Texts { get => _texts; set => _texts = value ?? new(); } // text variables
         public List<Layer> Layers { get; set; } = new();
     }
 
@@ -288,6 +298,11 @@ namespace EasyEngine
         public List<Scene> Scenes { get; set; } = new();
         public List<PrefabDef> Prefabs { get; set; } = new();
         public Dictionary<string, double> Variables { get; set; } = new(); // global (shared across the whole game)
+        // Yes/No variables keep their 1/0 in Variables (so every behavior and condition reads them); Flags names them.
+        private HashSet<string> _flags = VarScope.NewFlags(null);
+        public HashSet<string> Flags { get => _flags; set => _flags = VarScope.NewFlags(value); }
+        private Dictionary<string, string> _texts = new();
+        public Dictionary<string, string> Texts { get => _texts; set => _texts = value ?? new(); } // text variables
         public GameTheme Theme { get; set; } = new();          // in-game look & feel
         public string? StartScene { get; set; } // scene the game starts on
         public bool ConsoleOnStart { get; set; } // open the F1 debug console when play starts (test scenarios)

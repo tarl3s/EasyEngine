@@ -14,7 +14,7 @@ namespace EasyEngine
     /// on-screen checklist that ticks itself and the F1 console open from the start.
     /// First scenario: "Axe Test". Everything is made with normal engine behaviors (nothing hard-coded).
     /// </summary>
-    public static class TestScenarios
+    public static partial class TestScenarios
     {
         public const string ProjectName = "EasyEngine Tests";
 
@@ -29,6 +29,7 @@ namespace EasyEngine
             project.ConsoleOnStart = true;
             project.Scenes.Add(AxeTest(project));
             project.Scenes.Add(LightingTest());
+            project.Scenes.Add(VariableTypesTest()); // TestScenarios.VarTypes.cs
             project.StartScene = "Axe Test";
             ProjectIO.Save(project);
             return project.FilePath!;

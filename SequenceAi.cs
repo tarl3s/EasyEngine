@@ -63,6 +63,8 @@ namespace EasyEngine
             if (sounds.Count > 0) sb.AppendLine("SOUNDS (for playsound): " + string.Join(", ", sounds));
             var vars = ParamSources.Variables(project).Where(v => !ParamSources.EngineVariables.Contains(v)).ToList();
             if (vars.Count > 0) sb.AppendLine("VARIABLES: " + string.Join(", ", vars));
+            var texts = ParamSources.TextVariables(project);
+            if (texts.Count > 0) sb.AppendLine("TEXT VARIABLES (for settext; {name} in a text shows a variable): " + string.Join(", ", texts));
 
             sb.AppendLine("Follow the REQUEST: the examples only show the format — invent names, attacks and numbers that fit what the user asked for.");
             sb.AppendLine("EXAMPLE:");

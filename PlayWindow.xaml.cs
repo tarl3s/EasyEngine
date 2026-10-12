@@ -199,6 +199,7 @@ namespace EasyEngine
                 ["timer"] = new[] { "every" }, ["touch"] = new[] { "name" },
                 ["ifvar"] = new[] { "var", "op", "value" }, ["iflocal"] = new[] { "var", "op", "value" },
                 ["hasitem"] = new[] { "item" }, ["expr"] = new[] { "expr" },
+                ["iftext"] = new[] { "var", "op", "value", "local" },
             };
             private static bool TriggerConsumes(string when, string key)
                 => TriggerKeys.TryGetValue(when, out var ks) && System.Array.Exists(ks, x => string.Equals(x, key, System.StringComparison.OrdinalIgnoreCase));
@@ -268,7 +269,7 @@ namespace EasyEngine
             ApplyTheme();
             ConsoleBtn.Visibility = DevTools ? Visibility.Visible : Visibility.Collapsed;
             if (DevTools) Hint.Text += " · F1 console";
-            foreach (var kv in _project.Variables) _vars[kv.Key] = kv.Value; // global vars
+            SeedGlobalVars(); // global vars (numbers, Yes/No, texts)
             // continue from a saved game if one exists (metroidvania/RPG progression)
             bool hadSave = LoadGame();
             string first = (hadSave && _pendingScene != null) ? _pendingScene : _sceneName;
@@ -294,7 +295,7 @@ namespace EasyEngine
             void Check(string name, bool ok) => log.Add((ok ? "PASS" : "FAIL") + "  " + name);
             Entity? Find(string n) => _entities.FirstOrDefault(e => e.Data.Name == n);
 
-            foreach (var kv in _project.Variables) _vars[kv.Key] = kv.Value;
+            SeedGlobalVars();
             LoadScene(_sceneName); // builds _entities / _solids without a render loop
 
             var player = Find("Player");
@@ -659,6 +660,7 @@ namespace EasyEngine
             // clone so gameplay doesn't mutate the editor data
             _scene = System.Text.Json.JsonSerializer.Deserialize<Scene>(System.Text.Json.JsonSerializer.Serialize(original))!;
             foreach (var kv in _scene.Variables) _vars[kv.Key] = kv.Value; // scene-local vars (reset on scene load)
+            SeedSceneTexts(_scene);
             Title = $"Test — {_project.Name} · {_scene.Name}";
 
             Darkness.Opacity = Math.Clamp(1.0 - _scene.AmbientLight, 0, 1);
@@ -842,6 +844,7 @@ namespace EasyEngine
             if (harv != null) en.HarvestLeft = Math.Max(1, (int)Math.Round(harv.Num("hits", 4)));
 
             foreach (var kv in obj.Variables) en.Locals[kv.Key] = kv.Value; // per-object vars
+            SeedLocalTexts(en, obj);
 
             if (en.Has(BehaviorKind.Tilemap)) BuildTilemap(obj, screenSpace, en);
 
@@ -1748,7 +1751,7 @@ namespace EasyEngine
             if (path == null) return;
             try
             {
-                var data = new SaveData { Scene = _sceneName, Vars = new Dictionary<string, double>(_vars) };
+                var data = new SaveData { Scene = _sceneName, Vars = new Dictionary<string, double>(_vars), Texts = new Dictionary<string, string>(_texts) };
                 System.IO.File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(data));
             }
             catch { }
@@ -1764,6 +1767,7 @@ namespace EasyEngine
                 var data = System.Text.Json.JsonSerializer.Deserialize<SaveData>(System.IO.File.ReadAllText(path));
                 if (data == null) return false;
                 if (data.Vars != null) foreach (var kv in data.Vars) _vars[kv.Key] = kv.Value;
+                if (data.Texts != null) foreach (var kv in data.Texts) _texts[kv.Key] = kv.Value; // older saves have no texts
                 if (!string.IsNullOrEmpty(data.Scene) && _project.FindScene(data.Scene) != null) _pendingScene = data.Scene;
                 return true;
             }
@@ -1776,7 +1780,7 @@ namespace EasyEngine
             if (!string.IsNullOrEmpty(id)) _vars["got:" + id] = 1;
         }
 
-        private class SaveData { public string Scene { get; set; } = ""; public Dictionary<string, double>? Vars { get; set; } }
+        private class SaveData { public string Scene { get; set; } = ""; public Dictionary<string, double>? Vars { get; set; } public Dictionary<string, string>? Texts { get; set; } }
 
         // Would moving this block by dx collide with another solid (walls, other blocks)?
         private bool BlockedHoriz(Entity block, double dx)
@@ -1824,6 +1828,11 @@ namespace EasyEngine
                             string v = p.Value.GetString() ?? "";
                             if (toTrigger) r.WT[name] = v; else r.T[name] = v;
                         }
+                        else if (p.Value.ValueKind is JsonValueKind.True or JsonValueKind.False) // a Yes/No: true = 1, false = 0
+                        {
+                            double v = p.Value.ValueKind == JsonValueKind.True ? 1 : 0;
+                            if (toTrigger) r.WN[name] = v; else r.N[name] = v;
+                        }
                     }
                     r.Summary = RuleSummary(r);
                     list.Add(r);
@@ -1843,11 +1852,12 @@ namespace EasyEngine
                 "touch" => $"touch {r.WStr("name")}",
                 "ifvar" or "iflocal" => $"{r.When} {r.WStr("var")} {r.WStr("op", ">=")} {r.WNum("value"):0.##}",
                 "hasitem" => $"hasitem {r.WStr("item")}",
+                "iftext" => $"iftext {r.WStr("var")} {r.WStr("op", "is")} \"{(r.WT.TryGetValue("value", out var tv) ? tv : "")}\"",
                 "expr" => $"({r.WStr("expr")})",
                 _ => r.When
             };
             var act = new System.Text.StringBuilder(r.Do.Length == 0 ? "(no action)" : r.Do);
-            foreach (var k in new[] { "var", "item", "object", "scene", "prop", "where", "sound", "text" })
+            foreach (var k in new[] { "var", "item", "object", "scene", "prop", "where", "sound", "text", "to" })
                 if (r.T.TryGetValue(k, out var v) && v.Length > 0) act.Append($" {k}={(v.Length > 24 ? v[..24] + "…" : v)}");
             if (r.T.TryGetValue("expr", out var ex)) act.Append($" = ({ex})");
             else foreach (var k in new[] { "to", "amount", "value", "force", "count", "factor" })
@@ -1856,7 +1866,7 @@ namespace EasyEngine
         }
 
         // Triggers that stay true frame after frame: logged only when they START firing.
-        private static bool ContinuousWhen(string when) => when is "always" or "key" or "keydown" or "ifvar" or "iflocal" or "hasitem"
+        private static bool ContinuousWhen(string when) => when is "always" or "key" or "keydown" or "ifvar" or "iflocal" or "iftext" or "hasitem"
             or "expr" or "isnight" or "isday" or "mouseover" or "hover" or "mousedown";
 
         private void RunCustom(Entity en, double dt)
@@ -1894,6 +1904,7 @@ namespace EasyEngine
                         fire = CompareVar(en.Locals.TryGetValue(r.WStr("var"), out var lv) ? lv : 0, r.WStr("op", ">="), r.WNum("value"));
                         break;
                     case "hasitem": fire = Var("item:" + r.WStr("item")) >= 1; break;
+                    case "iftext": fire = TextCondition(en, r); break;
                     case "isnight": fire = Var("isNight") >= 0.5; break;
                     case "isday": fire = Var("isNight") < 0.5; break;
                     case "wheelup": fire = _wheelDelta > 0; break;
@@ -1973,6 +1984,7 @@ namespace EasyEngine
                 case "addvar": _vars[r.Str("var")] = Var(r.Str("var")) + RuleValue(en, r, 1, "amount"); break;
                 case "setlocal": en.Locals[r.Str("var")] = RuleValue(en, r, 0, "to", "value"); break;
                 case "addlocal": en.Locals[r.Str("var")] = (en.Locals.TryGetValue(r.Str("var"), out var cl) ? cl : 0) + RuleValue(en, r, 1, "amount"); break;
+                case "settext": case "addtext": case "toggle": DoTextAction(en, r); break; // PlayWindow.Texts.cs
                 case "set": // set a property of self (or a named object) to an expression/number
                 {
                     var who = r.Str("target", "self");
@@ -2026,7 +2038,7 @@ namespace EasyEngine
                 case "log": // "Write to the console" — like Unity's Debug.Log, with {variable} substitution
                 {
                     var lvl = r.Str("level", "info").ToLowerInvariant() switch { "warn" or "warning" => LogLevel.Warn, "error" => LogLevel.Error, _ => LogLevel.Info };
-                    Log(lvl, "Script", en.Data.Name, Substitute(r.Str("text", r.Str("message", ""))));
+                    Log(lvl, "Script", en.Data.Name, Substitute(r.Str("text", r.Str("message", "")), en));
                     break;
                 }
                 default:
@@ -2156,12 +2168,19 @@ namespace EasyEngine
             }
         }
 
-        private string Substitute(string text)
+        // "{name}" in a text → that variable's value: a text variable wins, else the number ("{local.name}" = the object's own).
+        private string Substitute(string text, Entity? self = null)
         {
             if (string.IsNullOrEmpty(text) || !text.Contains('{')) return text;
             return System.Text.RegularExpressions.Regex.Replace(text, @"\{([^}]+)\}", m =>
             {
                 var key = m.Groups[1].Value.Trim();
+                if (self != null && key.StartsWith("local.", StringComparison.OrdinalIgnoreCase))
+                {
+                    var lname = key.Substring(6);
+                    if ((self.LocalTexts != null && self.LocalTexts.ContainsKey(lname)) || self.Locals.ContainsKey(lname)) return LocalTextOf(self, lname);
+                }
+                if (_texts.TryGetValue(key, out var t)) return t;
                 var val = Var(key);
                 return (val == Math.Floor(val)) ? ((long)val).ToString() : val.ToString("0.##");
             });
@@ -2925,7 +2944,7 @@ namespace EasyEngine
         private void UpdateLabel(Entity en, double dt)
         {
             var tb = en.LabelBlock!;
-            string full = en.LabelText.Contains('{') ? Substitute(en.LabelText) : en.LabelText;
+            string full = en.LabelText.Contains('{') ? Substitute(en.LabelText, en) : en.LabelText;
             switch (en.LabelEffect)
             {
                 case "typewriter":

@@ -2596,7 +2596,7 @@ namespace EasyEngine
         private void ResetTestScene()
         {
             _project.Prefabs = PrefabFactory.Defaults();
-            _project.Variables.Clear();
+            _project.Variables.Clear(); _project.Flags.Clear(); _project.Texts.Clear();
 
             var scene = new Scene { Name = "Scene 1" };
             scene.Layers.Add(new Layer { Name = "Background", Kind = LayerKind.Background });
@@ -2623,13 +2623,13 @@ namespace EasyEngine
             {
                 sb.Append($"{{{o.Name} {o.Physics.Mode}");
                 foreach (var b in o.Behaviors) sb.Append(" " + b.Kind + DumpBeh(b));
-                if (o.Variables.Count > 0) sb.Append(" vars(" + string.Join(",", o.Variables.Select(kv => $"{kv.Key}={kv.Value:0.##}")) + ")");
+                if (VarScope.Of(o).Count > 0) sb.Append(" vars(" + VarScope.Of(o).Describe() + ")");
                 sb.Append("} ");
             }
             var extraPrefabs = _project.Prefabs.Where(p => !new[] { "Player", "Enemy", "Bullet", "Particle", "Platform", "Door", "Tilemap" }.Contains(p.Name)).Select(p => p.Name).ToList();
             if (extraPrefabs.Count > 0) sb.Append("PREFABS[" + string.Join(",", extraPrefabs) + "] ");
-            if (_project.Variables.Count > 0) sb.Append("GLOBAL(" + string.Join(",", _project.Variables.Select(kv => $"{kv.Key}={kv.Value:0.##}")) + ") ");
-            if (_scene.Variables.Count > 0) sb.Append("SCENE(" + string.Join(",", _scene.Variables.Select(kv => $"{kv.Key}={kv.Value:0.##}")) + ") ");
+            if (VarScope.Of(_project).Count > 0) sb.Append("GLOBAL(" + VarScope.Of(_project).Describe() + ") ");
+            if (VarScope.Of(_scene).Count > 0) sb.Append("SCENE(" + VarScope.Of(_scene).Describe() + ") ");
             return sb.ToString();
         }
 
@@ -2654,7 +2654,7 @@ namespace EasyEngine
             sb.AppendLine("  \"variables\": {\"global\":{\"name\":value}, \"scene\":{\"name\":value}}, \"removeVariables\": {\"global\":[\"name\"], \"scene\":[\"name\"]}");
             sb.AppendLine("}");
             sb.AppendLine("Only include the fields/arrays you need. Omit empty ones.");
-            sb.AppendLine("VARIABLES: top-level \"variables\".global/.scene create or set the game's global/scene variables (initial values); \"removeVariables\" deletes them. Per-object variables go inside that object's edit/create as \"variables\":{\"name\":value} (and \"removeVariables\":[\"name\"]). You can change ANY variable this way.");
+            sb.AppendLine("VARIABLES: top-level \"variables\".global/.scene create or set the game's global/scene variables (initial values); \"removeVariables\" deletes them. Per-object variables go inside that object's edit/create as \"variables\":{\"name\":value} (and \"removeVariables\":[\"name\"]). You can change ANY variable this way. A value is a number, true/false (a Yes/No) or \"words\" (a Text, e.g. \"playerName\":\"Hero\").");
             sb.AppendLine();
             sb.AppendLine("KEY RULES:");
             sb.AppendLine("- To make a NEW thing (player, enemy, boss, coin, platform…), add it to \"create\" and it will be placed in the scene. ONE object can and should have MANY behaviors.");
@@ -2679,7 +2679,7 @@ namespace EasyEngine
             sb.AppendLine();
             if (compact)
             {
-                sb.AppendLine("For logic the kinds can't do, use a \"custom\" rule list: [{\"when\":<start|always|key|keypress|timer|touch|death|ifvar|iflocal|hasitem|expr|click|rightclick|mouseover|mousepress>,...params...,\"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|goscene|setvar|addvar|setlocal|addlocal|set|additem|removeitem|boost|setspeed|say|save|load>,...params...}]. Params by name: key, every, name, var/op/value, force, speed, vx/vy, dx/dy, to, amount, factor, text, scene, item, directions, prop. ANY value can be an \"expr\" string (math; reads self.x/self.cx/self.health, OtherObj.cx, a variable, item:NAME, mousex, time, dist(x1,y1,x2,y2)). Guard any rule with \"cond\":\"<expr>\". 'WHEN X happens, effect' is ALWAYS a custom rule (condition→action), never a static param.");
+                sb.AppendLine("For logic the kinds can't do, use a \"custom\" rule list: [{\"when\":<start|always|key|keypress|timer|touch|death|ifvar|iflocal|iftext|hasitem|expr|click|rightclick|mouseover|mousepress>,...params...,\"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|goscene|setvar|addvar|setlocal|addlocal|settext|toggle|set|additem|removeitem|boost|setspeed|say|save|load>,...params...}]. Params by name: key, every, name, var/op/value, force, speed, vx/vy, dx/dy, to, amount, factor, text, scene, item, directions, prop. Texts: settext(var,to:\"Hi {name}\"), toggle(var) flips a Yes/No, iftext(var,op:is|isnot|contains|empty,value). ANY value can be an \"expr\" string (math; reads self.x/self.cx/self.health, OtherObj.cx, a variable, item:NAME, mousex, time, dist(x1,y1,x2,y2)). Guard any rule with \"cond\":\"<expr>\". 'WHEN X happens, effect' is ALWAYS a custom rule (condition→action), never a static param.");
                 sb.AppendLine("Player = Platformer, physics Dynamic, controls=1 (dash/doubleJump/wallJump are 0/1 nums). Enemies: controls=0; prefer Patrol/Chase/custom. Killable enemy = Health respawn=0; player = respawn=1. Moving platform = Solid+Patrol. To spawn during play: make it asPrefab:true, then a Spawner or a custom spawn rule. Per-object looks: opacity, cornerRadius, borderColor+borderWidth, color, font. Draw art: \"pixelArt\":{\"palette\":{\"X\":\"#RRGGBB\"},\"rows\":[\"..XX..\"]} ('.'=transparent, <=16px). Only touch the exact object(s)/layer(s) the user names.");
             }
             else
@@ -2717,9 +2717,9 @@ namespace EasyEngine
             sb.AppendLine();
             sb.AppendLine("CUSTOM behavior — for ANY special/unique logic the kinds can't do (enemy patterns, dialogue, variables, inventory, conditions). ALWAYS use \"custom\" for things like 'every N do X', timed attacks, phases:");
             sb.AppendLine("CRUCIAL: 'WHEN <something> happens, <effect>' (e.g. 'when the player hits X, go 2x faster', 'when touch spike, lose a life') is ALWAYS a custom rule (condition → action). NEVER express it by changing a static param — a static param would apply from the start, not on the event.");
-            sb.AppendLine("\"custom\":[{\"when\":<start|always|key|keypress|timer|touch|death|ifvar|iflocal|hasitem|expr|click|rightclick|mousedown|mouseover|mousepress>, ...params, \"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|goscene|setvar|addvar|setlocal|addlocal|set|additem|removeitem|boost|setspeed|say|save|load>, ...params}]");
-            sb.AppendLine("Condition params: key(key); keypress(key,cooldown); timer(every); touch(name) [fires once when contact starts]; death [fires when this object's health hits 0]; ifvar/iflocal(var,op,value); hasitem(item); expr(expr) [any expression truthy]; click/rightclick/mousedown/mouseover [mouse over THIS object]; mousepress [mouse clicked anywhere].");
-            sb.AppendLine("Action params: velocity(vx,vy); move(dx,dy); accelerate(ax,ay); jump(force); rotate(speed); shoot(directions,speed); spawn(object); goscene(scene); setvar/setlocal(var,to); addvar/addlocal(var,amount); set(prop,to,[target]) [prop=x|y|vx|vy|rot|facing|health|w|h — set a property, default target=self]; boost(factor); setspeed(factor); say(text,speaker).");
+            sb.AppendLine("\"custom\":[{\"when\":<start|always|key|keypress|timer|touch|death|ifvar|iflocal|iftext|hasitem|expr|click|rightclick|mousedown|mouseover|mousepress>, ...params, \"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|goscene|setvar|addvar|setlocal|addlocal|settext|addtext|toggle|set|additem|removeitem|boost|setspeed|say|save|load>, ...params}]");
+            sb.AppendLine("Condition params: key(key); keypress(key,cooldown); timer(every); touch(name) [fires once when contact starts]; death [fires when this object's health hits 0]; ifvar/iflocal(var,op,value); iftext(var,op=is|isnot|contains|empty,value) [compares a Text variable]; hasitem(item); expr(expr) [any expression truthy]; click/rightclick/mousedown/mouseover [mouse over THIS object]; mousepress [mouse clicked anywhere].");
+            sb.AppendLine("Action params: velocity(vx,vy); move(dx,dy); accelerate(ax,ay); jump(force); rotate(speed); shoot(directions,speed); spawn(object); goscene(scene); setvar/setlocal(var,to); addvar/addlocal(var,amount); settext/addtext(var,to) [to = words, {name} puts a variable in: \"Hello {playerName}!\"]; toggle(var) [flips a Yes/No]; settext/toggle/iftext take \"local\":true for the object's own variable; set(prop,to,[target]) [prop=x|y|vx|vy|rot|facing|health|w|h — set a property, default target=self]; boost(factor); setspeed(factor); say(text,speaker).");
             sb.AppendLine("EXPRESSIONS (the big unlock): any set/add/compare value can be an \"expr\" string instead of a fixed number. Supports + - * / %, comparisons > < >= <= == !=, logic && || !, parentheses, functions abs min max floor ceil round sqrt sign sin cos atan2 clamp(x,lo,hi) rand(a,b) randi(a,b) dist(x1,y1,x2,y2). Read values: a variable name (score), item:NAME, self.x/self.y/self.vx/self.cx/self.health/self.facing/local.NAME, OtherObjectName.x/.cy/..., mousex/mousey (world), mousescreenx/y, time, scenew/sceneh.");
             sb.AppendLine("Universal guard: add \"cond\":\"<expression>\" to ANY rule and it only fires when the expression is truthy. e.g. {\"when\":\"click\",\"cond\":\"coins >= 15\",\"do\":\"addvar\",\"var\":\"coins\",\"expr\":\"coins - 15\"}.");
             sb.AppendLine("Expression examples: make an object follow the mouse => {\"when\":\"always\",\"do\":\"set\",\"prop\":\"x\",\"expr\":\"mousex - self.w/2\"}. Score from a formula => {\"when\":\"touch\",\"name\":\"Coin\",\"do\":\"setvar\",\"var\":\"score\",\"expr\":\"score + 10 * lives\"}. Enemy that charges only when the player is close => {\"when\":\"always\",\"cond\":\"dist(self.cx,self.cy,Player.cx,Player.cy) < 200\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(Player.cx - self.cx) * 180\"}. Click to buy/select => {\"when\":\"click\",\"do\":\"setvar\",\"var\":\"selected\",\"to\":1}.");
@@ -2742,11 +2742,11 @@ namespace EasyEngine
             if (allObjs.Count == 0) sb.AppendLine("Objects: (none yet)");
             else foreach (var o in allObjs)
             {
-                var ov = o.Variables.Count > 0 ? " vars{" + string.Join(",", o.Variables.Select(kv => $"{kv.Key}={kv.Value:0.##}")) + "}" : "";
+                var ov = VarScope.Of(o).Count > 0 ? " vars{" + VarScope.Of(o).Describe() + "}" : "";
                 sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Select(b => b.Kind))}]{ov}");
             }
-            if (_project.Variables.Count > 0) sb.AppendLine("Global variables: " + string.Join(", ", _project.Variables.Select(kv => $"{kv.Key}={kv.Value:0.##}")));
-            if (_scene.Variables.Count > 0) sb.AppendLine("Scene variables: " + string.Join(", ", _scene.Variables.Select(kv => $"{kv.Key}={kv.Value:0.##}")));
+            if (VarScope.Of(_project).Count > 0) sb.AppendLine("Global variables: " + VarScope.Of(_project).Describe());
+            if (VarScope.Of(_scene).Count > 0) sb.AppendLine("Scene variables: " + VarScope.Of(_scene).Describe());
             if (_selection.Count > 0)
                 sb.AppendLine($"The user SELECTED these object(s): {string.Join(", ", _selection.Select(o => o.Name))}. Apply the requested change ONLY to the selected object(s) via \"edit\" (one entry per selected object, by name). Do NOT create new objects or touch other objects.");
             sb.AppendLine();
@@ -2827,10 +2827,10 @@ namespace EasyEngine
             // object variables
             if (spec.TryGetProperty("variables", out var ov) && ov.ValueKind == JsonValueKind.Object)
                 foreach (var p in ov.EnumerateObject())
-                    if (p.Value.ValueKind == JsonValueKind.Number) { target.Variables[p.Name] = p.Value.GetDouble(); changed = true; }
+                    if (VarScope.Of(target).SetFromJson(p.Name, p.Value, out _)) changed = true; // number, true/false (Yes/No) or words (Text)
             if (spec.TryGetProperty("removeVariables", out var orv) && orv.ValueKind == JsonValueKind.Array)
                 foreach (var el in orv.EnumerateArray())
-                    if (el.ValueKind == JsonValueKind.String && target.Variables.Remove(el.GetString() ?? "")) changed = true;
+                    if (el.ValueKind == JsonValueKind.String && VarScope.Of(target).Remove(el.GetString() ?? "")) changed = true;
 
             // SAFEGUARD: Platformer/TopDown read the PLAYER's keyboard. On anything that isn't the player,
             // turn OFF the default controls so it doesn't mirror the player (it keeps the movement abilities;
@@ -3138,26 +3138,26 @@ namespace EasyEngine
         private void ApplyGlobalSceneVars(JsonElement root, Action ensureUndo, List<string> changes)
         {
             var parts = new List<string>();
-            void SetInto(JsonElement obj, Dictionary<string, double> dict, string label)
+            void SetInto(JsonElement obj, VarScope scope, string label) // a number, true/false (a Yes/No) or words (a Text)
             {
                 foreach (var p in obj.EnumerateObject())
-                    if (LooseJson.TryNumber(p.Value, out var nv)) { dict[p.Name] = nv; parts.Add($"{label} {p.Name}={nv:0.##}"); }
+                    if (scope.SetFromJson(p.Name, p.Value, out var shown)) parts.Add($"{label} {shown}");
             }
-            void RemoveFrom(JsonElement arr, Dictionary<string, double> dict, string label)
+            void RemoveFrom(JsonElement arr, VarScope scope, string label)
             {
                 foreach (var e in arr.EnumerateArray())
-                    if (e.ValueKind == JsonValueKind.String && dict.Remove(e.GetString() ?? "")) parts.Add($"{label} -{e.GetString()}");
+                    if (e.ValueKind == JsonValueKind.String && scope.Remove(e.GetString() ?? "")) parts.Add($"{label} -{e.GetString()}");
             }
 
             if (root.TryGetProperty("variables", out var v) && v.ValueKind == JsonValueKind.Object)
             {
-                if (v.TryGetProperty("global", out var g) && g.ValueKind == JsonValueKind.Object) SetInto(g, _project.Variables, "global");
-                if (v.TryGetProperty("scene", out var s) && s.ValueKind == JsonValueKind.Object) SetInto(s, _scene.Variables, "scene");
+                if (v.TryGetProperty("global", out var g) && g.ValueKind == JsonValueKind.Object) SetInto(g, VarScope.Of(_project), "global");
+                if (v.TryGetProperty("scene", out var s) && s.ValueKind == JsonValueKind.Object) SetInto(s, VarScope.Of(_scene), "scene");
             }
             if (root.TryGetProperty("removeVariables", out var rv) && rv.ValueKind == JsonValueKind.Object)
             {
-                if (rv.TryGetProperty("global", out var g) && g.ValueKind == JsonValueKind.Array) RemoveFrom(g, _project.Variables, "global");
-                if (rv.TryGetProperty("scene", out var s) && s.ValueKind == JsonValueKind.Array) RemoveFrom(s, _scene.Variables, "scene");
+                if (rv.TryGetProperty("global", out var g) && g.ValueKind == JsonValueKind.Array) RemoveFrom(g, VarScope.Of(_project), "global");
+                if (rv.TryGetProperty("scene", out var s) && s.ValueKind == JsonValueKind.Array) RemoveFrom(s, VarScope.Of(_scene), "scene");
             }
 
             if (parts.Count > 0) { ensureUndo(); changes.Add(L.F("Variables — {0}", string.Join("; ", parts))); }

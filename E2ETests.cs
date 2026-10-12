@@ -23,6 +23,7 @@ public partial class App
             var scenarios = new List<(string, Func<List<(string, bool, List<string>)>>)> { ("Axe Test", RunAxeE2E), ("Lighting Test", RunLightingE2E) };
             AddE2EScenariosBoss(scenarios);    // E2ETests.Boss.cs
             AddE2EScenariosTerrain(scenarios); // E2ETests.Terrain.cs
+            AddE2EScenariosVarTypes(scenarios); // E2ETests.VarTypes.cs
             foreach (var (title, run) in scenarios)
             {
                 sb.AppendLine($"===== {title} =====");
@@ -45,6 +46,7 @@ public partial class App
 
     partial void AddE2EScenariosBoss(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosTerrain(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
+    partial void AddE2EScenariosVarTypes(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
 
     /// <summary>Plays the "Lighting Test" scene headless: sky colour, daylight, N → night, M → morning, the cycle on its own.</summary>
     internal static List<(string step, bool ok, List<string> lines)> RunLightingE2E()

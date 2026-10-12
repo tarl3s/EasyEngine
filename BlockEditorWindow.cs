@@ -15,11 +15,13 @@ namespace EasyEngine
     /// </summary>
     public class BlockEditorWindow : Window
     {
-        // field types: num, text, choice, obj, scene, key, val (number OR expression)
+        // field types: num, text, choice, obj, scene, key, val (number OR expression), textvar / flagvar (a text / Yes-No
+        // variable, picked), bool (a checkbox, saved as true or left out)
         private record Field(string Key, string Label, string Type, string Default = "", string[]? Options = null);
         private record BlockDef(string Id, string Label, Field[] Fields, string Hint = "");
 
         private static readonly string[] Ops = { ">=", ">", "<=", "<", "==", "!=" };
+        private static readonly string[] TextOps = { "is", "isnot", "contains", "empty", "notempty" };
         private static readonly string[] Props = { "x", "y", "vx", "vy", "rot", "facing", "health", "w", "h", "speed" };
         private static readonly string[] CommonKeys = { "Space", "Up", "Down", "Left", "Right", "W", "A", "S", "D", "E", "F", "J", "K", "Enter", "LeftShift" };
 
@@ -38,6 +40,8 @@ namespace EasyEngine
             new("ifvar",      L.T("While a variable is…"), new[] { new Field("var", L.T("Variable"), "text"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") }),
             new("iflocal",    L.T("While its own variable is…"), new[] { new Field("var", L.T("Variable"), "text"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") }),
             new("hasitem",    L.T("While it has an item"), new[] { new Field("item", L.T("Item"), "text") }),
+            new("iftext",     L.T("While a text variable…"), new[] { new Field("var", L.T("Text variable"), "textvar"), new Field("op", L.T("is"), "choice", "is", TextOps), new Field("value", L.T("Text"), "text"), new Field("local", L.T("Its own"), "bool") },
+                L.T("Compares words (capital letters don't matter). \"Its own\" reads this object's own text variable.")),
             new("isnight",    L.T("While it's night"), Array.Empty<Field>(), L.T("Needs a Day/Night cycle object in the scene. Great for enemies that only come out at night.")),
             new("isday",      L.T("While it's day"), Array.Empty<Field>(), L.T("Needs a Day/Night cycle object in the scene.")),
             new("wheelup",    L.T("When the mouse wheel scrolls up"), Array.Empty<Field>()),
@@ -74,6 +78,12 @@ namespace EasyEngine
             new("addvar",    L.T("Add to a variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("amount", L.T("Amount"), "val", "1") }),
             new("setlocal",  L.T("Set its own variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("to", L.T("To"), "val", "0") }),
             new("addlocal",  L.T("Add to its own variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("amount", L.T("Amount"), "val", "1") }),
+            new("settext",   L.T("Set a text"), new[] { new Field("var", L.T("Text variable"), "textvar"), new Field("to", L.T("To"), "text"), new Field("local", L.T("Its own"), "bool") },
+                L.T("Puts words in a text variable. {name} inside is replaced by that variable's value, e.g. Hello {playerName}!")),
+            new("addtext",   L.T("Add to a text"), new[] { new Field("var", L.T("Text variable"), "textvar"), new Field("to", L.T("Words to add"), "text"), new Field("local", L.T("Its own"), "bool") },
+                L.T("Adds words to the end of a text variable.")),
+            new("toggle",    L.T("Switch a Yes/No"), new[] { new Field("var", L.T("Yes/No variable"), "flagvar"), new Field("local", L.T("Its own"), "bool") },
+                L.T("Yes becomes No and No becomes Yes.")),
             new("set",       L.T("Set a property"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self"), new Field("prop", L.T("Property"), "choice", "x", Props), new Field("to", L.T("To"), "val", "0") }),
             new("additem",   L.T("Give an item"), new[] { new Field("item", L.T("Item"), "text"), new Field("amount", L.T("Amount"), "num", "1") }),
             new("removeitem",L.T("Remove an item"), new[] { new Field("item", L.T("Item"), "text"), new Field("amount", L.T("Amount"), "num", "1") }),
@@ -297,8 +307,24 @@ namespace EasyEngine
             string cur = rule.TryGetValue(f.Key, out var v) ? v : f.Default;
             rule[f.Key] = cur; // ensure defaults are saved
 
+            if (f.Type == "bool")
+            {
+                var chk = new CheckBox { Content = f.Label, IsChecked = IsTrue(cur), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 14, 10, 4) };
+                chk.Checked += (s, e) => rule[f.Key] = "true"; chk.Unchecked += (s, e) => rule[f.Key] = "";
+                return chk;
+            }
+
             Control ctrl;
-            if (f.Type == "choice")
+            if (f.Type is "textvar" or "flagvar")
+            {
+                // variables of the right kind, plus "＋ New…"
+                var names = f.Type == "textvar" ? ParamSources.TextVariables(_project) : ParamSources.YesNoVariables(_project);
+                var cb = Dropdown.Make(names.Select(n => (n, n)), cur, v => rule[f.Key] = v,
+                                       f.Type == "textvar" ? L.T("New text variable name:") : L.T("New Yes/No variable name:"), this);
+                cb.Height = 28; cb.MinWidth = 140;
+                ctrl = cb;
+            }
+            else if (f.Type == "choice")
             {
                 // shown in the editor's language, saved by value (the item's Tag)
                 var cb = new ComboBox { Height = 28, MinWidth = 80 };
@@ -350,6 +376,7 @@ namespace EasyEngine
             "front" => L.T("front"), "atmouse" => L.T("at the mouse"),
             "day" => L.T("day"), "noon" => L.T("noon"), "dusk" => L.T("dusk"), "night" => L.T("night"), "midnight" => L.T("midnight"),
             "info" => L.T("info"), "warn" => L.T("warn"), "error" => L.T("error"),
+            "is" => L.T("is"), "isnot" => L.T("is not"), "contains" => L.T("contains"), "empty" => L.T("is empty"), "notempty" => L.T("is not empty"),
             "linear" => L.T("linear"), "easein" => L.T("ease in"), "easeout" => L.T("ease out"), "easeinout" => L.T("ease in and out"),
             _ => o,
         };
@@ -375,6 +402,8 @@ namespace EasyEngine
                         var name = p.Name.ToLowerInvariant();
                         string val = p.Value.ValueKind == System.Text.Json.JsonValueKind.String ? (p.Value.GetString() ?? "")
                                    : p.Value.ValueKind == System.Text.Json.JsonValueKind.Number ? p.Value.GetDouble().ToString(CultureInfo.InvariantCulture)
+                                   : p.Value.ValueKind == System.Text.Json.JsonValueKind.True ? "true"
+                                   : p.Value.ValueKind == System.Text.Json.JsonValueKind.False ? "false"
                                    : p.Value.ToString();
                         if (name == "when") { r.When = val.ToLowerInvariant(); continue; }
                         if (name == "do") { r.Do = val.ToLowerInvariant(); seenDo = true; continue; }
@@ -434,7 +463,9 @@ namespace EasyEngine
                     {
                         used.Add(f.Key);
                         string raw = bag.TryGetValue(f.Key, out var v) ? v : f.Default;
+                        if (f.Type == "bool") { if (IsTrue(raw)) into.Add($"\"{f.Key}\":true"); continue; }
                         if (string.IsNullOrWhiteSpace(raw) && f.Type != "num") continue;
+                        if (f.Type is "num" or "val" && raw.Trim().ToLowerInvariant() is "true" or "false") raw = raw.Trim().ToLowerInvariant() == "true" ? "1" : "0"; // a Yes/No value
                         if (f.Type == "num")
                         {
                             if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) into.Add($"\"{f.Key}\":{d.ToString(CultureInfo.InvariantCulture)}");
@@ -452,6 +483,7 @@ namespace EasyEngine
                         if (used.Contains(kv.Key) || string.IsNullOrWhiteSpace(kv.Value)) continue;
                         used.Add(kv.Key);
                         if (double.TryParse(kv.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) into.Add($"\"{kv.Key}\":{d.ToString(CultureInfo.InvariantCulture)}");
+                        else if (kv.Value is "true" or "false") into.Add($"\"{kv.Key}\":{kv.Value}"); // a JSON true/false stays one
                         else into.Add($"\"{kv.Key}\":{Q(kv.Value)}");
                     }
                 }
@@ -475,6 +507,8 @@ namespace EasyEngine
             sb.Append(']');
             return sb.ToString();
         }
+
+        private static bool IsTrue(string? v) => (v ?? "").Trim().ToLowerInvariant() is "true" or "1" or "yes";
 
         private static string Q(string s) => "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "") + "\"";
     }

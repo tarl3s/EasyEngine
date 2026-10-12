@@ -60,7 +60,62 @@ namespace EasyEngine
                 }
             }
             foreach (var builtin in EngineVariables) set.Add(builtin);
+            // a Text variable is never offered where a number is needed (unless the same name is also a number somewhere)
+            var numbers = new HashSet<string>(p.Variables.Keys.Concat(p.Scenes.SelectMany(s => s.Variables.Keys)).Concat(AllObjects(p).SelectMany(o => o.Variables.Keys)), StringComparer.OrdinalIgnoreCase);
+            foreach (var t in TextVariables(p)) if (!numbers.Contains(t)) set.Remove(t);
             return set.ToList();
+        }
+
+        /// <summary>Text variables (declared as Text in any scope, or written/read by a settext / addtext / iftext rule).</summary>
+        public static List<string> TextVariables(Project p) => Declared(p, s => s.Texts.Keys, "settext", "addtext", "iftext");
+
+        /// <summary>Yes/No variables (declared as Yes/No in any scope, or flipped by a toggle rule).</summary>
+        public static List<string> YesNoVariables(Project p) => Declared(p, s => s.Flags, "toggle");
+
+        private static List<string> Declared(Project p, Func<VarScope, IEnumerable<string>> names, params string[] ruleIds)
+        {
+            var set = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            void Add(string? s) { s = s?.Trim(); if (!string.IsNullOrEmpty(s)) set.Add(s); }
+            foreach (var k in names(VarScope.Of(p))) Add(k);
+            foreach (var s in p.Scenes) foreach (var k in names(VarScope.Of(s))) Add(k);
+            foreach (var o in AllObjects(p))
+            {
+                foreach (var k in names(VarScope.Of(o))) Add(k);
+                foreach (var b in o.Behaviors)
+                    if (b.Kind == BehaviorKind.Custom) foreach (var v in RuleVars(b.Text("script", ""), ruleIds)) Add(v);
+            }
+            return set.ToList();
+        }
+
+        /// <summary>The "var" of every Custom rule whose condition or action is one of <paramref name="ids"/>
+        /// (a condition's var is written before "do", an action's after it — or before it when the condition has none).</summary>
+        public static List<string> RuleVars(string script, params string[] ids)
+        {
+            var list = new List<string>();
+            if (string.IsNullOrWhiteSpace(script) || !ids.Any(id => script.Contains(id, StringComparison.OrdinalIgnoreCase))) return list;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(script, LooseJson.Options);
+                if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array) return list;
+                foreach (var rule in doc.RootElement.EnumerateArray())
+                {
+                    if (rule.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
+                    string when = "", act = ""; string? before = null, after = null; bool seenDo = false;
+                    foreach (var pr in rule.EnumerateObject())
+                    {
+                        var key = pr.Name.ToLowerInvariant();
+                        var val = pr.Value.ValueKind == System.Text.Json.JsonValueKind.String ? pr.Value.GetString() ?? "" : "";
+                        if (key == "when") when = val.ToLowerInvariant();
+                        else if (key == "do") { act = val.ToLowerInvariant(); seenDo = true; }
+                        else if (key == "var" && val.Length > 0) { if (seenDo) after = val; else before = val; }
+                    }
+                    bool whenHasVar = when is "ifvar" or "iflocal" or "iftext";
+                    if (ids.Contains(when) && before != null) list.Add(before);
+                    if (ids.Contains(act) && (after ?? (whenHasVar ? null : before)) is string av) list.Add(av);
+                }
+            }
+            catch { }
+            return list;
         }
 
         public static List<string> Objects(Scene s) => s.Layers.SelectMany(l => l.Objects).Select(o => o.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();

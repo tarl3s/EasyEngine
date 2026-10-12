@@ -612,6 +612,8 @@ public partial class App : Application
             AnimationWindow? anim = null;
             if (anyObj != null) { anim = new AnimationWindow(project, anyObj) { Owner = editor }; anim.Show(); Write("animation window shown OK"); }
 
+            // one variable of each kind, so the snapshot (and the contrast audit) see the type pickers, a Yes/No checkbox and a text box
+            var gv = VarScope.Of(project); gv.SetNumber("coins", 3); gv.SetYesNo("hasKey", true); gv.SetText("playerName", "Ana");
             var vars = new VariablesWindow(project, project.GetStartScene(), anyObj) { Owner = editor };
             vars.Show(); Write("variables window shown OK");
 
