@@ -336,7 +336,7 @@ namespace EasyEngine
             else Info("Combat", t.Data.Name, $"Hit by the {tool}: health {before:0.#} → {t.CurHealth:0.#}", $"damage {dmg:0.#}");
         }
 
-        // Nothing else in reach: break the breakable tile under the cursor (if the cursor is within reach).
+        // Nothing else in reach: break the breakable tile (or terrain block) under the cursor (if the cursor is within reach).
         private bool BreakTileWithTool(Entity user, BehaviorData bh, string tool, double reach, bool walls)
         {
             var p = user.ImpactAt;
@@ -345,8 +345,8 @@ namespace EasyEngine
             if (Math.Sqrt(dx * dx + dy * dy) > reach) return false;
             foreach (var map in _entities)
             {
-                if (map.Dead || map.Tiles == null) continue;
-                var mb = map.Beh(BehaviorKind.Tilemap);
+                if (map.Dead) continue;
+                var mb = BreakableBeh(map);
                 if (mb == null || mb.Num("byMelee", 1) < 0.5) continue; // "Break with tool clicks"
                 var cell = CellAt(map, p.X, p.Y);
                 if (cell == null) continue;
