@@ -78,7 +78,7 @@ namespace EasyEngine
                 var bh = en.Beh(BehaviorKind.Minimap);
                 if (bh == null) continue;
                 if (bh.Num("canMax", 1) < 0.5) { en.MiniMax = false; continue; }
-                bool down = KeyHeld(bh, "maxKey");
+                bool down = KeyHeld(bh, "maxKey", "M"); // a project saved before the key existed: M, as the title says
                 if (down && !en.MiniKeyWas)
                 {
                     en.MiniMax = !en.MiniMax;

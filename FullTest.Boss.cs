@@ -69,6 +69,15 @@ public partial class App
             p.TSteps(20);
             return p1 && p2 && p3 && p.TVar("p2") == 1 && p.TVar("p3") == 1 && p.TLogHas("P3 begins");
         });
+        t.Test("boss: phases go by their health threshold, not by their order in the list", () =>
+        {
+            var p = Boss("{'attacks':{'A':[{'do':'wait','time':0.2}]},'phases':[{'name':'P1','when':{'type':'start'},'attacks':['A']}," +
+                         "{'name':'Low','when':{'type':'health','value':25},'attacks':['A']},{'name':'Mid','when':{'type':'health','value':60},'attacks':['A']}],'death':[]}");
+            p.TSteps(3); bool p1 = p.TBossPhase("Boss") == "P1";
+            p.TSetHp("Boss", 11); p.TSteps(3); bool mid = p.TBossPhase("Boss") == "Mid";
+            p.TSetHp("Boss", 4); p.TSteps(3);
+            return p1 && mid && p.TBossPhase("Boss") == "Low";
+        });
         t.Test("boss: attacks loop — random never repeats the same one twice in a row; 'in order' cycles", () =>
         {
             var seen = new List<string>();
@@ -154,6 +163,25 @@ public partial class App
             p.TSteps(2);
             return p.TVar("health") == 5 && p.TVar("golemHp") == 2;
         });
+        t.Test("health: alone on its variable an object always shows it (a script-driven player, no follow camera); a 'Player'-typed copy doesn't overwrite the player's", () =>
+        {
+            PlayWindow Health(params (string name, string type, double max, bool keys)[] objs) => t.Sim("[]", PhysicsMode.None, (pr, sc) =>
+            {
+                var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
+                int id = 11;
+                foreach (var (name, type, max, keys) in objs)
+                {
+                    var o = new GameObjectData { Id = id, Name = name, Type = type, X = 300 + id++ * 60, Y = 300, Width = 32, Height = 32 };
+                    var td = BehaviorCatalog.Info(BehaviorKind.TopDown).CreateData(); td.Nums["controls"] = keys ? 1 : 0; o.Behaviors.Add(td);
+                    var hp = BehaviorCatalog.Info(BehaviorKind.Health).CreateData(); hp.Nums["max"] = max; o.Behaviors.Add(hp);
+                    l.Objects.Add(o);
+                }
+            });
+            var alone = Health(("Hero", "Object", 5, false));
+            var copy = Health(("Player", "Player", 5, true), ("Copy", "Player", 2, false));
+            alone.TSteps(2); copy.TSteps(2);
+            return alone.TVar("health") == 5 && copy.TVar("health") == 5;
+        });
         t.Test("boss jump: leaves the ground, lands, and the shockwave sends 2 waves + shakes the screen", () =>
         {
             var p = Boss(OneAttack("{'do':'jump','height':200,'toward':0,'shockwave':1}"));
@@ -194,6 +222,30 @@ public partial class App
             bool summoned = p.TAlive("Minion") == 3;
             p.TSetHp("Boss", 0); p.TSteps(3);
             return summoned && p.TAlive("Minion") == 1 && p.TDead("Boss");
+        });
+        t.Test("boss summon: minions start (patrol) and respawn where they appear, not at the scene's corner", () =>
+        {
+            var p = Boss(OneAttack("{'do':'summon','object':'Minion','count':2,'radius':100}"), more: (pr, sc, l) =>
+                pr.Prefabs.Add(new PrefabDef { Name = "Minion", Template = new GameObjectData { Name = "Minion", Width = 30, Height = 30, Behaviors = { BehaviorCatalog.Info(BehaviorKind.Health).CreateData() } } }));
+            p.TSteps(3);
+            var o = p.TOrigins("Minion");
+            return o.Count == 2 && o.All(m => m.sx > 500 && m.sy > 400 && m.sx == m.x && m.sy == m.y && m.rx == m.x && m.ry == m.y);
+        });
+        t.Test("boss bullets: a scene object can be the bullet; a target typed in another case ('player') is still hit", () =>
+        {
+            var p = Boss(OneAttack("{'do':'shoot','pattern':'aimed','count':1,'speed':600,'life':3,'bullet':'Orb'}"), c => c.Texts["target"] = "player",
+                         more: (pr, sc, l) => l.Objects.Add(new GameObjectData { Id = 30, Name = "Orb", X = 3000, Y = 100, Width = 22, Height = 22 }));
+            p.TSteps(3); bool orb = p.TAlive("bullet") == 1 && p.TW("bullet") == 22;
+            var q = Boss(OneAttack("{'do':'shoot','pattern':'aimed','count':1,'speed':600,'life':3}"), c => c.Texts["target"] = "player");
+            q.TSteps(80);
+            return orb && q.THp("Player") == 49;
+        });
+        t.Test("boss: cinema bars / a fade its steps turned on go away when its attack is cut short (it dies)", () =>
+        {
+            var p = Boss(OneAttack("{'do':'bars','on':1},{'do':'fadeout','time':0.1},{'do':'wait','time':5}"));
+            p.TSteps(20); bool on = p.TBarsShown && p.TFadeOpacity > 0.9;
+            p.TSetHp("Boss", 0); p.TSteps(60);
+            return on && p.TDead("Boss") && p.TBarsT == 0 && p.TFadeOpacity < 0.01;
         });
         t.Test("boss invulnerable: no damage while it flickers", () =>
         {
@@ -249,6 +301,16 @@ public partial class App
             p.THurt("Boss", 3, 0); bool noHurt = p.THp("Boss") <= 0;
             p.TSteps(40);
             return dying && harmless && noHurt && p.TDead("Boss") && p.TVar("after") == 1 && p.TVar("customDeath") == 1 && p.TLogHas("death sequence");
+        });
+        t.Test("boss death: a 'destroy self' among its death steps still plays the rest, then its 'death' rules", () =>
+        {
+            var p = Boss("{'attacks':{'A':[{'do':'wait','time':5}]},'phases':[{'name':'P1','when':{'type':'start'},'attacks':['A']}]," +
+                         "'death':[{'do':'destroy','object':'self'},{'do':'wait','time':0.3},{'do':'setvar','var':'bossDefeated','to':1}]}",
+                         more: (pr, sc, l) => l.Objects.First(o => o.Name == "Boss").Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] = "[{\"when\":\"death\",\"do\":\"setvar\",\"var\":\"customDeath\",\"to\":1}]" } }));
+            p.TSteps(3); p.TSetHp("Boss", 0); p.TSteps(3); p.TCleanup(); // removed like a live frame does
+            bool gone = p.TDead("Boss") && p.TVar("bossDefeated") == 0;
+            p.TSteps(30);
+            return gone && p.TVar("bossDefeated") == 1 && p.TVar("customDeath") == 1;
         });
         t.Test("boss death: without death steps it's removed right away", () =>
         {

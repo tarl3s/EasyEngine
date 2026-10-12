@@ -34,6 +34,8 @@ namespace EasyEngine
             return n;
         }
         public bool TEndlessX => _endlessX;
+        /// <summary>One live streaming tick with the camera showing `cameraView` (headless ticks stream around the player).</summary>
+        public void TTerrainStreamLive(Rect cameraView) { if (_terrain != null) StreamTerrain(_terrain, cameraView, 2, TerrainView(_terrain, false)); }
         public double? TSurfaceAt(double x) => _terrainSurfaceAt?.Invoke(x);
         public double TTerrainMs => _terrainMs;
         public double TTerrainMsMax => _terrainMsMax;

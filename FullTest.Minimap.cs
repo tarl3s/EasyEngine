@@ -106,6 +106,12 @@ public partial class App
             tab.TKey("Tab", true); tab.TStep();
             return !off.TMinimapMax() && mIgnored && tab.TMinimapMax();
         });
+        t.Test("minimap: a project saved before the key option existed opens the big map with M (as its title says)", () =>
+        {
+            var old = Map("", bh => bh.Texts.Remove("maxKey"));
+            old.TKey("M", true); old.TStep();
+            return old.TMinimapMax();
+        });
         t.Test("minimap: top-left starts below the play bar (it used to hide under Stop / Console)", () =>
         {
             var tl = Map("", bh => bh.Texts["corner"] = "tl");

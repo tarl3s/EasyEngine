@@ -219,14 +219,19 @@ namespace EasyEngine
             PreviewKeyDown += (s, e) =>
             {
                 if (e.Key == Key.F1) { if (DevTools) ToggleConsole(); e.Handled = true; return; }
-                if (e.Key == Key.Escape && !CutsceneTakesEscape) { if (Typing) { FocusGame(); e.Handled = true; } else Close(); return; } // Esc skips a skippable cutscene
+                if (e.Key == Key.Escape && !CutsceneTakesEscape) // Esc skips a skippable cutscene
+                {
+                    if (Typing) { FocusGame(); e.Handled = true; }
+                    else if (EscapeCloses(e.IsRepeat)) Close();
+                    return;
+                }
                 if (Typing) return;
                 bool fresh = _keys.Add(e.Key);
                 if (fresh && !MovementKeys.Contains(e.Key)) Info("Input", "", $"Key {e.Key}");
                 if (_dialogOpen && (e.Key == Key.Enter || e.Key == Key.Return)) { AdvanceDialog(); e.Handled = true; }
             };
-            PreviewKeyUp += (s, e) => _keys.Remove(e.Key);
-            Deactivated += (s, e) => { _keys.Clear(); _mouseDown = false; _rmbDown = false; }; // no stuck keys after alt-tab
+            PreviewKeyUp += (s, e) => ReleaseKey(e.Key);
+            Deactivated += (s, e) => { _keys.Clear(); _escHeldAfterSkip = false; _mouseDown = false; _rmbDown = false; }; // no stuck keys after alt-tab
 
             // Mouse: only the game area (Root) drives the game, so clicks in the console never swing a tool.
             Root.MouseMove += (s, e) => UpdateMouse(e);
@@ -1017,7 +1022,7 @@ namespace EasyEngine
         partial void MinimapEntityRemoved(Entity en);
         partial void SequencesRender(double dt);     // Render: overlays (fade, cinema bars, title, boss bar)
         partial void CameraTargetOverride(ref double tx, ref double ty, ref double smooth); // cutscene camera
-        partial void CameraClampOverride(ref bool clampX, ref bool clampY);                 // endless terrain frees X
+        partial void CameraClampOverride(ref bool clampX, ref double worldW, ref double worldH); // a terrain's world bounds
         partial void CameraShakeOffset(ref double ox, ref double oy);                       // screen shake
 
         // Platformer characters face the way they move (decided after physics, so it is the same live and headless).
@@ -2747,14 +2752,35 @@ namespace EasyEngine
             t.VX = dir * kb; t.VY = -kb * 0.6;
         }
 
-        // The default "health" variable is the player's: anything else only shows its health in a variable of its own
-        // (bossHP, hp…), so an ordinary enemy never overwrites the player's.
+        // One object writes each Health variable: alone on it, it always does; when several share it (an enemy left on the
+        // default "health"), the most player-like one wins, then the first in scene order — so an enemy never overwrites
+        // the player's. Decided once per tick.
+        private readonly Dictionary<string, Entity> _healthOwners = new(StringComparer.OrdinalIgnoreCase);
+        private long _healthOwnersFrame = -1;
+
         private bool PublishesHealth(Entity en, string varName)
         {
-            if (!varName.Equals("health", StringComparison.OrdinalIgnoreCase)) return true;
-            if (en == _cameraTarget || string.Equals(en.Data.Type, "Player", StringComparison.OrdinalIgnoreCase)) return true;
+            if (_healthOwnersFrame != _frameNo)
+            {
+                _healthOwners.Clear(); _healthOwnersFrame = _frameNo;
+                foreach (var e in _entities)
+                {
+                    var hb = e.Dead ? null : e.Beh(BehaviorKind.Health);
+                    if (hb == null) continue;
+                    var v = hb.Text("var", "health");
+                    if (!_healthOwners.TryGetValue(v, out var cur) || PlayerLikeness(e) > PlayerLikeness(cur)) _healthOwners[v] = e;
+                }
+            }
+            return _healthOwners.TryGetValue(varName, out var owner) && owner == en;
+        }
+
+        // 3 = the camera follows it, 2 = the keys drive it, 1 = typed "Player", 0 = anything else
+        private int PlayerLikeness(Entity en)
+        {
+            if (en == _cameraTarget) return 3;
             var ctl = en.Beh(BehaviorKind.Platformer) ?? en.Beh(BehaviorKind.TopDown);
-            return ctl != null && ctl.Num("controls", 1) >= 0.5;
+            if (ctl != null && ctl.Num("controls", 1) >= 0.5) return 2;
+            return string.Equals(en.Data.Type, "Player", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         }
 
         // What a Damager hurts: the live object with Health of that (exact) name. Every boss bullet asks every tick, so the
@@ -2798,13 +2824,11 @@ namespace EasyEngine
             AddEntity(clone);
         }
 
-        // fallback = what to fire when no prefab has that name (default: a plain yellow bullet)
+        // fallback = what to fire when no object in the scene nor prefab has that name (default: a plain yellow bullet)
         private Entity SpawnBullet(Entity shooter, double angleDeg, double speed, double life, string bulletName, GameObjectData? fallback = null)
         {
-            GameObjectData data;
-            var prefab = _project.Prefabs.FirstOrDefault(p => p.Name.Equals(bulletName, StringComparison.OrdinalIgnoreCase));
-            if (prefab != null) data = JsonClone(prefab.Template);
-            else data = fallback ?? new GameObjectData { Type = "Bullet", Color = "#F4C03B", Width = 14, Height = 14 };
+            var template = string.IsNullOrWhiteSpace(bulletName) ? null : FindTemplateOrPrefab(bulletName);
+            var data = template != null ? JsonClone(template) : fallback ?? new GameObjectData { Type = "Bullet", Color = "#F4C03B", Width = 14, Height = 14 };
 
             var proj = data.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Projectile);
             if (proj == null) { proj = BehaviorCatalog.Info(BehaviorKind.Projectile).CreateData(); data.Behaviors.Add(proj); }
@@ -2822,9 +2846,9 @@ namespace EasyEngine
             return Enum.TryParse<Key>(s.Trim(), ignoreCase: true, out var k) ? k : Key.T;
         }
 
-        private bool KeyHeld(BehaviorData bh, string param)
+        private bool KeyHeld(BehaviorData bh, string param, string def = "")
         {
-            var s = bh.Text(param, "");
+            var s = bh.Text(param, def);
             return !string.IsNullOrWhiteSpace(s) && _keys.Contains(ParseKey(s));
         }
 
@@ -2877,11 +2901,12 @@ namespace EasyEngine
             _camX += (tx - _camX) * smooth;
             _camY += (ty - _camY) * smooth;
 
-            bool clampX = (cam?.Num("clamp", 1) ?? 1) >= 0.5, clampY = clampX;
-            CameraClampOverride(ref clampX, ref clampY); // an endless terrain frees the X axis
+            bool clampY = (cam?.Num("clamp", 1) ?? 1) >= 0.5, clampX = clampY;
+            double worldW = _scene.Width, worldH = _scene.Height;
+            CameraClampOverride(ref clampX, ref worldW, ref worldH); // a terrain makes the world bigger (an endless one frees the X axis)
             double vw = Root.ActualWidth, vh = Root.ActualHeight;
-            if (clampX) _camX = _scene.Width > vw ? Math.Clamp(_camX, -(_scene.Width - vw), 0) : 0;
-            if (clampY) _camY = _scene.Height > vh ? Math.Clamp(_camY, -(_scene.Height - vh), 0) : 0;
+            if (clampX) _camX = worldW > vw ? Math.Clamp(_camX, -(worldW - vw), 0) : 0;
+            if (clampY) _camY = worldH > vh ? Math.Clamp(_camY, -(worldH - vh), 0) : 0;
         }
 
         // Label text + optional text effect (typewriter / fade / blink / pulse).

@@ -207,6 +207,78 @@ public partial class App
             p.TSteps(3);
             return p.TCutsceneRunning("Cut") && !p.TCutsceneTakesEscape;
         });
+        t.Test("cutscene: the Esc that skipped it doesn't also close the game (held, auto-repeat, a quick second tap)", () =>
+        {
+            var p = Cut("{'steps':[{'do':'wait','time':5}]}");
+            p.TSteps(3);
+            p.TKey("Escape", true); p.TStep();
+            bool skipped = !p.TCutsceneRunning("Cut"), held = !p.TEscapeCloses(repeat: true) && !p.TEscapeCloses();
+            p.TKey("Escape", false); p.TSteps(5); bool quickTap = !p.TEscapeCloses();
+            p.TSteps(40);
+            return skipped && held && quickTap && p.TEscapeCloses() && !p.TEscapeCloses(repeat: true);
+        });
+        t.Test("cutscene: with Enter as its skip key, the Enter that advances the dialogue doesn't skip it (one with no line open does)", () =>
+        {
+            var p = Cut("{'steps':[{'do':'say','text':'one'},{'do':'say','text':'two'},{'do':'wait','time':5}]}", c => c.Texts["skipKey"] = "Enter");
+            void Enter() { p.TKey("Enter", true); if (p.TDialog) p.TAdvanceDialog(); p.TSteps(2); p.TKey("Enter", false); p.TSteps(2); } // like the key handler
+            p.TSteps(5);
+            Enter(); Enter(); Enter(); // line one typed out, closed; line two typed out
+            bool onTwo = p.TCutsceneRunning("Cut") && p.TDialog && p.TDialogText == "two";
+            Enter(); bool waiting = p.TCutsceneRunning("Cut") && !p.TDialog;
+            Enter();
+            return onTwo && waiting && !p.TCutsceneRunning("Cut") && p.TLogHas("Skipped");
+        });
+        t.Test("cutscene: a 'move' whose object is destroyed, or taken over by another move, doesn't wait forever", () =>
+        {
+            const string steps = "{'steps':[{'do':'move','object':'Box','to':'','x':900,'y':300,'time':3},{'do':'setvar','var':'a','to':1}]}";
+            var p = Cut(steps);
+            p.TSteps(10); p.TDestroyAll("Box"); p.TCleanup(); p.TSteps(3); // removed like a live frame does
+            bool destroyed = p.TVar("a") == 1;
+            var q = Cut(steps, more: (pr, sc, l) =>
+            {
+                var c2 = BehaviorCatalog.Info(BehaviorKind.Cutscene).CreateData();
+                c2.Texts["script"] = J("{'steps':[{'do':'wait','time':0.2},{'do':'move','object':'Box','to':'','x':100,'y':300,'time':0.2}]}");
+                l.Objects.Add(new GameObjectData { Id = 15, Name = "Cut2", Behaviors = { c2 } });
+            });
+            q.TSteps(40);
+            return destroyed && q.TVar("a") == 1 && !q.TCutsceneRunning("Cut") && Math.Abs(q.TX("Box") - 100) < 0.5;
+        });
+        t.Test("cutscene: without a follow camera, 'camera back' returns the view to where it was", () =>
+        {
+            var p = Cut("{'steps':[{'do':'camera','object':'Far','time':0.3},{'do':'wait','time':0.2},{'do':'cameraback','time':0.3},{'do':'setvar','var':'done','to':1}]}",
+                        more: (pr, sc, l) => l.Objects.First(o => o.Name == "Player").Behaviors.RemoveAll(b => b.Kind == BehaviorKind.FollowCamera));
+            double x0 = p.TCamX; bool away = false;
+            for (int i = 0; i < 80; i++) { p.TStep(); p.TUpdateCamera(); away |= p.TCamX < -2000; }            return away && p.TVar("done") == 1 && !p.TCameraOverride && Math.Abs(p.TCamX - x0) < 1;
+        });
+        t.Test("cutscene: the camera stays where its target died; an unknown name warns and leaves the camera alone", () =>
+        {
+            var p = Cut("{'steps':[{'do':'camera','object':'Box','time':0.3},{'do':'destroy','object':'Box'},{'do':'wait','time':1}]}");
+            for (int i = 0; i < 50; i++) { p.TStep(); p.TUpdateCamera(); }
+            bool stays = p.TDead("Box") && p.TCameraOverride && Math.Abs(p.TCamX + 520) < 2 && Math.Abs(p.TCamY + 320) < 2;
+            var q = Cut("{'steps':[{'do':'camera','object':'Nobody','time':0.3},{'do':'wait','time':1}]}");
+            for (int i = 0; i < 10; i++) { q.TStep(); q.TUpdateCamera(); }
+            return stays && !q.TCameraOverride && q.TLogHas("no object 'Nobody'");
+        });
+        t.Test("cutscene: a scene named like a number (\"2\") is still found by goscene", () =>
+        {
+            var p = Cut("{'steps':[{'do':'goscene','scene':'2'}]}",
+                        more: (pr, sc, l) => { var s2 = new Scene { Name = "2" }; s2.Layers.Add(new Layer { Name = "Base", Kind = LayerKind.Base, Objects = { new GameObjectData { Name = "Won" } } }); pr.Scenes.Add(s2); });
+            p.TSteps(3);
+            return p.TScene == "2" && p.TExists("Won");
+        });
+        t.Test("cutscene: the lock also holds back a held mouse button ('mouse held' rules wait until it ends)", () =>
+        {
+            var p = Cut("{'steps':[{'do':'wait','time':0.5}]}", more: (pr, sc, l) => l.Objects.Add(new GameObjectData
+            {
+                Id = 16, Name = "Btn", X = 200, Y = 200, Width = 64, Height = 64,
+                Behaviors = { new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] = "[{\"when\":\"mousedown\",\"do\":\"addvar\",\"var\":\"n\",\"amount\":1}]" } } }
+            }));
+            p.TSteps(2);
+            p.TMouseAt(232, 232); p.TMouseDown(true);
+            p.TSteps(20); bool held = p.TVar("n") == 0 && p.TInputLocked;
+            p.TSteps(30);
+            return held && !p.TInputLocked && p.TVar("n") > 5;
+        });
         t.Test("cutscene: bad JSON warns once in the console and plays nothing", () =>
         {
             var p = Cut("{'steps':[{'do':'wait'");

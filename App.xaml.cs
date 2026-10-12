@@ -535,7 +535,13 @@ public partial class App : Application
             timer.Tick += (s, ev) =>
             {
                 timer.Stop();
-                void CloseAll() { foreach (var w in ctx.CloseLater) try { w.Close(); } catch { } try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { } }
+                void CloseAll()
+                {
+                    foreach (var w in ctx.CloseLater) try { w.Close(); } catch { }
+                    try { lightPlay.Close(); vars.Close(); anim?.Close(); play.Close(); editor.Close(); } catch { }
+                    // the throwaway projects this run made
+                    try { foreach (var dir in Directory.GetDirectories(Path.GetTempPath(), "EE_SelfTest_*")) try { Directory.Delete(dir, true); } catch { } } catch { }
+                }
                 int errors = play.TLog.Errors + lightPlay.TLog.Errors;
                 string firstError = play.TLog.Entries.Concat(lightPlay.TLog.Entries).FirstOrDefault(x => x.Level == LogLevel.Error)?.FullText() ?? "";
                 Write($"lighting window: {lightPlay.TLightHoles} light holes, darkness {lightPlay.TDarkness:0.00}, sky {lightPlay.TSkyColor}");

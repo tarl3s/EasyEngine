@@ -20,6 +20,9 @@ namespace EasyEngine
         public void THurt(string name, double amount, double fromX) { var e = TE(name); if (e != null) DamageEntity(e, amount, 300, fromX); }
         public double TInv(string name) => TE(name)?.InvTimer ?? 0;
         public int TFacing(string name) => TE(name)?.Facing ?? 0;
+        /// <summary>Where it started (patrols turn around it) and where it respawns, of every live one with that name.</summary>
+        public List<(double sx, double sy, double rx, double ry, double x, double y)> TOrigins(string name)
+            => _entities.Where(e => !e.Dead && e.Data.Name == name).Select(e => (e.StartX, e.StartY, e.RespawnX, e.RespawnY, e.X, e.Y)).ToList();
         public List<(double vx, double vy)> TVels(string name) => _entities.Where(e => !e.Dead && e.Data.Name == name).Select(e => (e.VX, e.VY)).ToList();
     }
 }
