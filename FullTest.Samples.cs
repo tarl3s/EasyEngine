@@ -103,6 +103,21 @@ public partial class App
             var colours = Enumerable.Range(0, w * h).Where(i => r[i * 4 + 3] != 0).Select(i => r[i * 4]).ToHashSet();
             return w == 12 && h == 12 && colours.Count > 30 && colours.All(c => c >= 1 && c <= 64);
         });
+        t.Test("sliders: the sprite editor and the inspector use the editor's own slider (click AND drag), never WPF's native one", () =>
+        {
+            static IEnumerable<System.Windows.DependencyObject> Tree(System.Windows.DependencyObject d) =>
+                new[] { d }.Concat(System.Windows.LogicalTreeHelper.GetChildren(d).OfType<System.Windows.DependencyObject>().SelectMany(Tree));
+            var project = ProjectIO.CreateNew("Sliders", TempDir("Sliders"));
+            var sprite = new SpriteEditorWindow(project, 16);
+            bool spriteOk = !Tree(sprite).OfType<System.Windows.Controls.Slider>().Any();
+            sprite.Close();
+            var editor = new MainWindow(project);
+            var obj = new GameObjectData { Name = "Lamp" };
+            obj.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.LightSource).CreateData()); // has an intensity slider, plus Opacity
+            project.Scenes[0].Layers[0].Objects.Add(obj);
+            editor.TestInspect(obj);
+            return spriteOk && !Tree(editor.InspectorRoot).OfType<System.Windows.Controls.Slider>().Any();
+        });
         t.Test("sprite editor: a polygon closes by clicking its first point again (after 3 corners), drawing the closing side", () =>
         {
             var w = new SpriteEditorWindow(ProjectIO.CreateNew("SpritePoly", TempDir("Sprite")), 16);

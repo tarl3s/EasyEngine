@@ -185,9 +185,9 @@ namespace EasyEngine
             optRow.Children.Add(new TextBlock { Text = L.T("Color"), VerticalAlignment = VerticalAlignment.Center, Foreground = dim, FontSize = 12, Margin = new Thickness(0, 0, 16, 0) });
             optRow.Children.Add(new TextBlock { Text = L.T("Brush"), VerticalAlignment = VerticalAlignment.Center, Foreground = dim, FontSize = 12, Margin = new Thickness(0, 0, 6, 0) });
             var brushVal = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = text, FontSize = 12, MinWidth = 34 };
-            var brushSlider = new Slider { Minimum = 1, Maximum = 10, Value = _brush, Width = 110, VerticalAlignment = VerticalAlignment.Center, IsSnapToTickEnabled = true, TickFrequency = 1, IsMoveToPointEnabled = true };
-            brushVal.Text = $" {_brush} px";
-            brushSlider.ValueChanged += (s, e) => { _brush = Math.Max(1, (int)Math.Round(brushSlider.Value)); brushVal.Text = $" {_brush} px"; };
+            // click to jump AND drag (SliderBar), in whole pixels
+            var brushSlider = SliderBar.Make(1, 10, _brush, v => _brush = Math.Max(1, (int)Math.Round(v)), v => brushVal.Text = $" {(int)Math.Round(v)} px", step: 1);
+            brushSlider.Width = 110; brushSlider.VerticalAlignment = VerticalAlignment.Center;
             optRow.Children.Add(brushSlider);
             optRow.Children.Add(brushVal);
             _fillChk = new CheckBox { Content = L.T("Fill the shape"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0), Foreground = text, ToolTip = L.T("Fill shapes / polygon") };

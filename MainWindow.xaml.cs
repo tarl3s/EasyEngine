@@ -1936,46 +1936,9 @@ namespace EasyEngine
             Grid.SetColumn(inner, 1); grid.Children.Add(inner);
         }
 
-        // A custom slider that reliably supports BOTH click-to-position and drag
-        // (the native WPF Slider thumb wasn't draggable in this build).
-        private FrameworkElement MakeSlider(double min, double max, double value, Action<double> onChange, Action<double> show)
-        {
-            const double Pad = 9, TrackH = 5, ThumbSz = 16, HostH = 24;
-            var accent = (SolidColorBrush)FindResource("Accent");
-            var host = new Canvas { Height = HostH, Background = Brushes.Transparent, ClipToBounds = false, Cursor = Cursors.Hand };
-            var track = new Border { Height = TrackH, CornerRadius = new CornerRadius(TrackH / 2), Background = (SolidColorBrush)FindResource("Border"), IsHitTestVisible = false };
-            var fill = new Border { Height = TrackH, CornerRadius = new CornerRadius(TrackH / 2), Background = accent, IsHitTestVisible = false };
-            var thumb = new Border { Width = ThumbSz, Height = ThumbSz, CornerRadius = new CornerRadius(ThumbSz / 2), Background = accent, BorderBrush = Brushes.White, BorderThickness = new Thickness(2), IsHitTestVisible = false };
-            host.Children.Add(track); host.Children.Add(fill); host.Children.Add(thumb);
-
-            double cur = Math.Clamp(value, min, max);
-            void Layout()
-            {
-                double w = host.ActualWidth; if (w <= 0) return;
-                double usable = Math.Max(1, w - Pad * 2);
-                double frac = max > min ? (cur - min) / (max - min) : 0;
-                double cx = Pad + frac * usable;
-                Canvas.SetTop(track, (HostH - TrackH) / 2); Canvas.SetLeft(track, 0); track.Width = w;
-                Canvas.SetTop(fill, (HostH - TrackH) / 2); Canvas.SetLeft(fill, 0); fill.Width = cx;
-                Canvas.SetTop(thumb, (HostH - ThumbSz) / 2); Canvas.SetLeft(thumb, cx - ThumbSz / 2);
-            }
-            void SetFromX(double x)
-            {
-                double usable = Math.Max(1, host.ActualWidth - Pad * 2);
-                double frac = Math.Clamp((x - Pad) / usable, 0, 1);
-                cur = min + frac * (max - min);
-                Layout(); show(cur); onChange(cur);
-            }
-            show(cur);
-            host.SizeChanged += (s, e) => Layout();
-            host.Loaded += (s, e) => Layout();
-            bool dragging = false;
-            host.MouseLeftButtonDown += (s, e) => { PushUndo(); dragging = true; host.CaptureMouse(); SetFromX(e.GetPosition(host).X); };
-            host.MouseMove += (s, e) => { if (dragging) SetFromX(e.GetPosition(host).X); };
-            host.MouseLeftButtonUp += (s, e) => { dragging = false; host.ReleaseMouseCapture(); };
-            host.LostMouseCapture += (s, e) => dragging = false;
-            return host;
-        }
+        // click-to-position AND drag (SliderBar.cs); each click or drag is one undo step
+        private FrameworkElement MakeSlider(double min, double max, double value, Action<double> onChange, Action<double> show) =>
+            SliderBar.Make(min, max, value, onChange, show, onStart: PushUndo);
 
         private void ChoiceRow(string label, Panel panel, int current, string[] options, Action<int> onPick)
         {

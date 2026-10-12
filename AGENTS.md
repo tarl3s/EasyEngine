@@ -156,7 +156,8 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
   97% or breaks a `{0}`. `--lang <code>` forces a language in any mode (e.g. selftest snapshots). AI prompts stay in
   English; the chat and Learn mode are told to answer in the chosen language (`L.AiReplyRule`).
 - Game-loop code must not allocate per frame (cached brushes are frozen, lists reused, no LINQ in hot paths).
-- Prefer shared helpers (`LooseJson`, `Theme`, `Dropdown.Make`, `ParamSources`, `DemoKit`) over new copies.
+- Prefer shared helpers (`LooseJson`, `Theme`, `Dropdown.Make`, `ParamSources`, `DemoKit`) over new copies. Sliders are always
+  `SliderBar.Make` (click AND drag) — WPF's native `Slider` thumb can't be dragged in this app.
 - Commit messages: imperative summary + a body explaining *what changed for the user* and the test totals.
 
 ## Testing the way the owner wants
