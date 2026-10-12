@@ -26,6 +26,13 @@ dotnet run -- --editor            # force the launcher even next to an exported 
 dotnet run -- --play <proj.eeproj>  # play a project with no editor
 ```
 
+**How the owner opens the engine:** the desktop shortcut `EasyEngine.lnk` runs `tools/Start-EasyEngine.ps1` (hidden
+PowerShell). If any `.cs`/`.xaml`/`.csproj` is newer than `bin\Debug\net8.0-windows\EasyEngine.dll`, it rebuilds
+first (small "Updating…" window, log in `%TEMP%\easyengine_build.log`), then starts the exe — so every change you
+make shows up the next time they open it. While their engine is open, Windows locks `bin\Debug\…\EasyEngine.exe`:
+build and test elsewhere (`dotnet build -p:OutDir=<scratch>/`), never kill their window (unsaved work), and tell
+them to close and reopen it from the shortcut.
+
 Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run headless and log to `%TEMP%`:
 
 | Flag | What | Log |
