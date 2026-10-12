@@ -1452,6 +1452,7 @@ namespace EasyEngine
             NumRow(L.T("Rotation"), obj.Rotation, v => { obj.Rotation = v; RenderScene(); Dirty(); });
 
             Section(L.T("APPEARANCE"));
+            LookCopyRow(obj);
             ColorRow(L.T("Color"), obj.Color, v => { obj.Color = v; RenderScene(); Dirty(); });
             AnimationsRow(obj);
             SpriteRow(obj);
@@ -1542,12 +1543,60 @@ namespace EasyEngine
             inner.Children.Add(pick);
             if (obj.SpritePath != null)
             {
+                // ✎ edit it in the sprite editor (saved as a new file: the original stays) · ⧉ a copy of the file for this object
+                var edit = new Button { Content = "✎", Style = (Style)FindResource("GhostButton"), Height = 28, Width = 28, Margin = new Thickness(4, 0, 0, 0), ToolTip = L.T("Edit this image in the sprite editor (the original file stays as it is)") };
+                edit.Click += (s, e) =>
+                {
+                    var win = new SpriteEditorWindow(_project, 32, ProjectIO.AbsoluteAsset(_project, obj.SpritePath)) { Owner = this };
+                    if (win.ShowDialog() != true || win.SavedRelativePath == null) return;
+                    PushUndo(); obj.SpritePath = win.SavedRelativePath; RenderScene(); BuildInspector(obj); Dirty();
+                };
+                var dup = new Button { Content = "⧉", Style = (Style)FindResource("GhostButton"), Height = 28, Width = 28, Margin = new Thickness(2, 0, 0, 0), ToolTip = L.T("Duplicate this image: this object uses a copy of the file, so you can change it without touching the original") };
+                dup.Click += (s, e) =>
+                {
+                    try { var copy = ProjectIO.DuplicateAsset(_project, obj.SpritePath); PushUndo(); obj.SpritePath = copy; RenderScene(); BuildInspector(obj); Dirty(); Status(L.F("Image copied to {0}", Path.GetFileName(copy))); }
+                    catch (Exception ex) { MessageBox.Show(L.F("Error: {0}", ex.Message)); }
+                };
+                inner.Children.Add(edit); inner.Children.Add(dup);
                 var clear = new Button { Content = "✕", Style = (Style)FindResource("GhostButton"), Height = 28, Width = 28, Margin = new Thickness(4, 0, 0, 0), Foreground = (SolidColorBrush)FindResource("Danger") };
                 clear.Click += (s, e) => { PushUndo(); obj.SpritePath = null; RenderScene(); BuildInspector(obj); Dirty(); };
                 inner.Children.Add(clear);
             }
             Grid.SetColumn(inner, 1);
             grid.Children.Add(inner);
+        }
+
+        // "Copy look" / "Paste look": an object's whole appearance — sprite, animations, colour, opacity, corners, border —
+        // onto another object (any scene; kept for the session).
+        private static GameObjectData? _lookClip;
+
+        private void LookCopyRow(GameObjectData obj)
+        {
+            var row = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 8) };
+            var copy = new Button { Content = L.T("📋 Copy look"), Style = (Style)FindResource("CardButton"), Height = 28, Margin = new Thickness(0, 0, 4, 0), HorizontalContentAlignment = HorizontalAlignment.Center,
+                                    ToolTip = L.T("Copy this object's sprite, animations, colour and the rest of its look") };
+            copy.Click += (s, e) => { _lookClip = CopyLook(obj, new GameObjectData()); BuildInspector(obj); Status(L.F("Look of {0} copied", obj.Name)); };
+            var paste = new Button { Content = L.T("📥 Paste look"), Style = (Style)FindResource("CardButton"), Height = 28, Margin = new Thickness(4, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Center,
+                                     IsEnabled = _lookClip != null, ToolTip = L.T("Give this object the look you copied (its size, behaviors and name stay)") };
+            paste.Click += (s, e) =>
+            {
+                if (_lookClip == null) return;
+                PushUndo(); CopyLook(_lookClip, obj); RenderScene(); BuildInspector(obj); Dirty();
+                Status(L.F("Look pasted on {0}", obj.Name));
+            };
+            row.Children.Add(copy); row.Children.Add(paste);
+            InspectorRoot.Children.Add(row);
+        }
+
+        /// <summary>Copies the appearance of <paramref name="from"/> onto <paramref name="to"/> (animations as new lists) and
+        /// returns <paramref name="to"/>.</summary>
+        public static GameObjectData CopyLook(GameObjectData from, GameObjectData to)
+        {
+            to.SpritePath = from.SpritePath; to.TileImage = from.TileImage; to.Color = from.Color; to.Opacity = from.Opacity;
+            to.CornerRadius = from.CornerRadius; to.BorderColor = from.BorderColor; to.BorderWidth = from.BorderWidth;
+            to.Animations = from.Animations.Select(a => new SpriteAnimation { Name = a.Name, Frames = new List<string>(a.Frames), Fps = a.Fps, Loop = a.Loop }).ToList();
+            to.DefaultAnimation = from.DefaultAnimation;
+            return to;
         }
 
         private void PickSprite(GameObjectData obj)

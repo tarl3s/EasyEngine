@@ -168,8 +168,9 @@ namespace EasyEngine
             var num = new TextBlock { Text = (index + 1).ToString(), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) };
             var right = SmallBtn("▶"); right.Click += (s, e) => MoveFrame(index, +1);
             var edit = SmallBtn("✎"); edit.ToolTip = L.T("Edit in the sprite editor"); edit.Click += (s, e) => EditFrame(index);
+            var dup = SmallBtn("⧉"); dup.ToolTip = L.T("Duplicate this frame (the copy goes right after it)"); dup.Click += (s, e) => { anim.Frames.Insert(index + 1, anim.Frames[index]); RefreshFrames(); RestartPreview(); RefreshAnimList(); };
             var del = SmallBtn("✕"); del.Foreground = (SolidColorBrush)FindResource("Danger"); del.Click += (s, e) => DeleteFrame(index);
-            row.Children.Add(left); row.Children.Add(num); row.Children.Add(right); row.Children.Add(edit); row.Children.Add(del);
+            row.Children.Add(left); row.Children.Add(num); row.Children.Add(right); row.Children.Add(edit); row.Children.Add(dup); row.Children.Add(del);
             stack.Children.Add(row);
 
             return stack;
@@ -317,6 +318,18 @@ namespace EasyEngine
             if (_cur == null) return;
             _obj.DefaultAnimation = _cur.Name;
             UpdateDefaultButton(); RefreshAnimList();
+        }
+
+        // a copy of the animation, named "walk 2" (its frames are the same pictures; editing a frame saves a new file)
+        private void DuplicateAnim_Click(object sender, RoutedEventArgs e)
+        {
+            if (_cur == null) return;
+            int n = 2;
+            while (_obj.Animations.Any(a => a.Name.Equals($"{_cur.Name} {n}", StringComparison.OrdinalIgnoreCase))) n++;
+            string name = $"{_cur.Name} {n}";
+            var copy = new SpriteAnimation { Name = name, Frames = new List<string>(_cur.Frames), Fps = _cur.Fps, Loop = _cur.Loop };
+            _obj.Animations.Insert(_obj.Animations.IndexOf(_cur) + 1, copy);
+            RefreshAnimList(); SelectAnim(copy);
         }
 
         private void DeleteAnim_Click(object sender, RoutedEventArgs e)

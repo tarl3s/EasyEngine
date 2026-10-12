@@ -118,6 +118,43 @@ public partial class App
             editor.TestInspect(obj);
             return spriteOk && !Tree(editor.InspectorRoot).OfType<System.Windows.Controls.Slider>().Any();
         });
+        t.Test("sprite editor: copy / cut / paste — the whole drawing or a selection comes back as a selection you can move", () =>
+        {
+            SpriteEditorWindow.UseSystemClipboard = false; // never the person's real clipboard
+            var w = new SpriteEditorWindow(ProjectIO.CreateNew("SpriteClip", TempDir("Sprite")), 16);
+            w.TestSelectTool("Polygon");
+            w.PolygonDown(2, 2, false); w.PolygonDown(12, 2, false); w.PolygonDown(12, 12, false); w.PolygonDown(2, 2, false);
+            w.CutSelection();                                   // nothing selected: the whole drawing goes to the clipboard
+            bool cut = w.TestPixelAlpha(12, 7) == 0;
+            w.PasteClipboard();
+            bool pasted = w.TestPixelAlpha(12, 7) == 255 && w.TestSelectionSize == (16, 16);
+            w.TestSelect(10, 4, 4, 6); w.CopySelection(); w.PasteClipboard();
+            bool part = w.TestSelectionSize == (4, 6) && w.TestPixelAlpha(2, 3) == 255; // the copied right side, pasted at the top left
+            w.Close();
+            return cut && pasted && part;
+        });
+        t.Test("copy look: an object gets another's sprite, animations, colour and border (its own copy of the lists)", () =>
+        {
+            var a = new GameObjectData { Name = "A", SpritePath = "Assets/sprites/slime.png", Color = "#123456", Opacity = 0.5, BorderWidth = 2, DefaultAnimation = "walk" };
+            a.Animations.Add(new SpriteAnimation { Name = "walk", Frames = { "f1.png", "f2.png" }, Fps = 8 });
+            var b = new GameObjectData { Name = "B", Width = 99 };
+            EasyEngine.MainWindow.CopyLook(a, b);
+            b.Animations[0].Frames.Add("f3.png");
+            return b.SpritePath == a.SpritePath && b.Color == "#123456" && b.Opacity == 0.5 && b.BorderWidth == 2 && b.DefaultAnimation == "walk"
+                   && b.Width == 99 && b.Name == "B" && a.Animations[0].Frames.Count == 2 && b.Animations[0].Fps == 8;
+        });
+        t.Test("duplicate image: the file is copied next to itself (slime_copy.png, then slime_copy2.png)", () =>
+        {
+            var p = ProjectIO.CreateNew("DupImg", TempDir("Dup"));
+            var dir = Path.Combine(p.FolderPath!, "Assets", "sprites"); Directory.CreateDirectory(dir);
+            File.WriteAllBytes(Path.Combine(dir, "slime.png"), new byte[] { 1, 2, 3 });
+            var c1 = ProjectIO.DuplicateAsset(p, Path.Combine("Assets", "sprites", "slime.png"));
+            var c2 = ProjectIO.DuplicateAsset(p, Path.Combine("Assets", "sprites", "slime.png"));
+            bool ok = Path.GetFileName(c1) == "slime_copy.png" && Path.GetFileName(c2) == "slime_copy2.png"
+                      && File.ReadAllBytes(ProjectIO.AbsoluteAsset(p, c2)).SequenceEqual(new byte[] { 1, 2, 3 });
+            TestScenarios.TryDeleteDir(Path.GetDirectoryName(p.FolderPath!)!);
+            return ok;
+        });
         t.Test("sprite editor: a polygon closes by clicking its first point again (after 3 corners), drawing the closing side", () =>
         {
             var w = new SpriteEditorWindow(ProjectIO.CreateNew("SpritePoly", TempDir("Sprite")), 16);

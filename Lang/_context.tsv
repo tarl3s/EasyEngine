@@ -20,6 +20,7 @@ A bar that fills based on a variable, e.g. health. Fill = var / max. Put it on a
 A boss fight. Attacks are lists of steps (warn, dash, jump with a shockwave, shoot rings/fans/aimed bullets, summon minions, become invulnerable…). Phases pick which attacks it uses — the next phase starts when its health drops to a percentage — and a death sequence plays when it is defeated. Give it Health (Disappear, with its own variable like bossHP) and a Damager for contact damage. Build it with 🧩 Advanced Scratch or ask the AI.	behavior BossAI
 A clickable button. On click it runs an effect: goscene (change scene), setvar, addvar, say, save or load. Put it on a UI layer; add a Label for its text. Great for menus and HUD.	behavior UIButton
 A column	behavior Generator
+A copy of this animation (e.g. to make a variation)	AnimationWindow.xaml
 A custom behavior written as a tiny rule script (when → do). Usually created by the AI when the request is too complex for the other behaviors.	behavior Custom
 A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). In Platformer mode, adding it creates a 'Sky' layer under all the others with a Sun and a Moon already linked (Top-down has no sky — just the light changes) — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Platformer: turn on 'coverDark' and it also gets darker the more solid blocks are above the player (caves, underground) — torches still light it up; it sets the variables cover (0 to 1) and underground (0 or 1). 'True black darkness' makes the dark pure black (no night tint) and fully dark underground. Lighting style: Smooth = soft circles of light; Blocks = light computed block by block (each Light then chooses whether solid blocks stop it, whether it colours what it touches and whether it adds up with other lights). Works for Top-down and Platformer.	behavior DayNight
 A grid of tiles you paint in the editor (ground, walls, level geometry). Solid tiles become collision automatically. Add it to an empty object, then paint with the Tiles panel. Turn on 'Breakable' to let individual tiles be destroyed (by bullets, melee, damagers, stomping, touching, or the 'Break a tile' block).	behavior Tilemap
@@ -222,7 +223,9 @@ Columns from the generator: right is +, left is −.	MainWindow.TerrainBlocks.cs
 Condition	BlockEditorWindow.cs
 Control	step category
 Cooldown (s)	behavior Shooter, BlockEditorWindow.cs
-Copy	Styles.xaml
+Copy	SpriteEditorWindow.cs, Styles.xaml
+Copy the selection, or the whole drawing (Ctrl+C)	SpriteEditorWindow.cs
+Copy this object's sprite, animations, colour and the rest of its look	MainWindow.xaml.cs
 Corner	behavior Checklist, behavior Minimap
 Corner radius	MainWindow.xaml.cs
 Cost	behavior Shop
@@ -243,7 +246,8 @@ Ctrl	ParamSources.cs
 Custom	MainWindow.xaml.cs
 Custom (AI script)	behavior Custom
 Custom…	SpriteEditorWindow.cs
-Cut	Styles.xaml
+Cut	SpriteEditorWindow.cs, Styles.xaml
+Cut the selection (Ctrl+X)	SpriteEditorWindow.cs
 Cutscene	behavior Cutscene
 DRAW	SpriteEditorWindow.cs
 Damage	behavior Damager
@@ -315,13 +319,15 @@ Downloading EasyEngine v{0}…	UpdatePrompt.cs
 Drag from one end of the line to the other.	SpriteEditorWindow.cs
 Drag to draw the shape you picked beside the tool.	SpriteEditorWindow.cs
 Drag to scatter the pixels.	SpriteEditorWindow.cs
-Drag to select, then drag the selection to move it. R turns it, Esc lets it go.	SpriteEditorWindow.cs
+Drag to select, then drag the selection to move it. R turns it, Ctrl+C / Ctrl+V copy and paste, Esc lets it go.	SpriteEditorWindow.cs
 Drag to soften the pixels.	SpriteEditorWindow.cs
 Draw mode: click points on the scene, then click Finish.	MainWindow.xaml.cs
 Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done.	MainWindow.xaml.cs
 Draws a small map in a corner showing the whole scene (in an endless world: the area around the player, with the ground), with a dot for the player and optional dots for other things, each in its own colour. Put it on a UI layer. 'markers' = comma-separated 'Name:#RRGGBB' entries; a name matches an object (and every copy of a prefab) or a whole group (empty = just the player). With 'canMax' on, a key opens a big map in the middle of the screen (press it again to close).	behavior Minimap
 Drops	behavior Harvestable, behavior Tilemap, MainWindow.TerrainBlocks.cs
 Duplicate	MainWindow.xaml.cs
+Duplicate this frame (the copy goes right after it)	AnimationWindow.xaml.cs
+Duplicate this image: this object uses a copy of the file, so you can change it without touching the original	MainWindow.xaml.cs
 Duplicated {0}	MainWindow.xaml.cs
 Dusk	step settime
 Dynamic	MainWindow.xaml.cs
@@ -334,6 +340,7 @@ EasyEngine project	LauncherWindow.xaml.cs
 EasyEngine project (*{0})	MainWindow.xaml.cs
 EasyEngine's logs, test projects and finished downloads in the Windows temp folder: {0}.	SettingsWindow.cs
 Edit in the sprite editor	AnimationWindow.xaml.cs
+Edit this image in the sprite editor (the original file stays as it is)	MainWindow.xaml.cs
 Edited "{0}"	MainWindow.xaml.cs
 Effect	behavior Label
 Effect speed	behavior Label
@@ -416,6 +423,7 @@ Gentle	behavior Terrain
 Give an item	BlockEditorWindow.cs
 Give the item a name.	NewItemDialog.cs
 Give the project a name.	LauncherWindow.xaml.cs
+Give this object the look you copied (its size, behaviors and name stay)	MainWindow.xaml.cs
 Give variables a starting value. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object) and show them in a Label with {name}.	VariablesWindow.xaml
 Gives hit points. When they reach 0: respawn=1 → respawn at last checkpoint/start (for the player); respawn=0 → the object is destroyed (for enemies). Writes the value to a variable for a Label or a Bar — 'health' is the player's: an enemy only shows its health in a variable of its own (e.g. bossHP).	behavior Health
 Glide a property	BlockEditorWindow.cs
@@ -472,6 +480,7 @@ Hurts	behavior Damager
 Hurts a target that touches it (enemy contact, spikes, hazards), with knockback and i-frames. Turn on 'Disappears after hitting' for bullets and other things that are used up by a hit.	behavior Damager
 I couldn't apply that. Try rephrasing. Raw reply:\n{0}	MainWindow.xaml.cs
 I-frames (s)	behavior Health
+Image copied to {0}	MainWindow.xaml.cs
 Image fit	MainWindow.xaml.cs
 Image set on {0}	MainWindow.xaml.cs
 Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.xaml.cs
@@ -541,6 +550,8 @@ Location	LauncherWindow.xaml
 Lock the player	step lock
 Lock the player (0/1)	behavior Cutscene
 Look for a new version when EasyEngine starts	SettingsWindow.cs
+Look of {0} copied	MainWindow.xaml.cs
+Look pasted on {0}	MainWindow.xaml.cs
 Looking it up…	MainWindow.xaml.cs
 Looks	step category
 Loop	AnimationWindow.xaml
@@ -684,7 +695,8 @@ Parallax	behavior Parallax
 Particle Emitter	behavior Particles
 Particle life (s)	behavior Particles
 Particle size	behavior Particles
-Paste	Styles.xaml
+Paste	SpriteEditorWindow.cs, Styles.xaml
+Paste what you copied, here or from another sprite or program, then drag it into place (Ctrl+V)	SpriteEditorWindow.cs
 Path points (drawn)	behavior AdvancedPatrol
 Path saved.	MainWindow.xaml.cs
 Pathfinding — route around walls (top-down) (0/1)	behavior AdvancedPatrol
@@ -925,6 +937,7 @@ The canvas is empty — draw something first.	SpriteEditorWindow.cs
 The download doesn't contain EasyEngine.exe.	Updater.cs
 The easiest 2D game engine — you bring the art, the AI writes the code.	LauncherWindow.xaml
 The editor's language. The AI also answers you in it. Your games keep their own texts.	SettingsWindow.cs
+The image file is missing.	ProjectIO.cs
 The item needs a name.	NewItemDialog.cs
 The model "{0}" isn't downloaded. Run this in a terminal:	OllamaClient.cs
 The name is empty.	ProjectIO.cs
@@ -1209,6 +1222,7 @@ y	step camera, step move, step moveto, step spawn
 ✨ Ask the AI	MainWindow.Sequences.cs
 ✨ Local+ — smarter, still light (3b)	MainWindow.xaml
 ➕  Add a block	BlockEditorWindow.cs
+⧉ Duplicate animation	AnimationWindow.xaml
 ⬆  Updates	SettingsWindow.cs
 ⬚ Select	SpriteEditorWindow.cs
 ⬡ Polygon	SpriteEditorWindow.cs
@@ -1235,7 +1249,9 @@ y	step camera, step move, step moveto, step spawn
 💳 OpenAI / ChatGPT (your API key)	MainWindow.xaml
 📂  Open Project…	LauncherWindow.xaml
 📈 Phases	SequenceEditorWindow.cs
+📋 Copy look	MainWindow.xaml.cs
 📎 Add files (images / audio)	MainWindow.xaml
+📥 Paste look	MainWindow.xaml.cs
 🔍  Interface size	SettingsWindow.cs
 🔥 Local — needs GPU/RAM (14b)	MainWindow.xaml
 🔨 Build	MainWindow.xaml

@@ -44,6 +44,7 @@
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="DefaultBtn" Content="☆ Set as default" Style="{StaticResource CardButton}" Height="32" Padding="12,0" HorizontalContentAlignment="Center" Click="SetDefault_Click"/>
+                        <Button Content="⧉ Duplicate animation" Style="{StaticResource CardButton}" Height="32" Padding="12,0" Margin="8,0,0,0" HorizontalContentAlignment="Center" ToolTip="A copy of this animation (e.g. to make a variation)" Click="DuplicateAnim_Click"/>
                         <Button Content="🗑 Delete animation" Style="{StaticResource CardButton}" Height="32" Padding="12,0" Margin="8,0,0,0" HorizontalContentAlignment="Center" Foreground="{StaticResource Danger}" Click="DeleteAnim_Click"/>
                     </StackPanel>
                 </Grid>

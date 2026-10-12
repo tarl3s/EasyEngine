@@ -175,6 +175,21 @@ namespace EasyEngine
             return Path.Combine("Assets", kind, Path.GetFileName(dest));
         }
 
+        /// <summary>Copies a project asset next to itself ("slime.png" → "slime_copy.png", "slime_copy2.png"…) and returns
+        /// the copy's project-relative path.</summary>
+        public static string DuplicateAsset(Project p, string relative)
+        {
+            var src = AbsoluteAsset(p, relative);
+            if (!File.Exists(src)) throw new FileNotFoundException(L.T("The image file is missing."), src);
+            var dir = Path.GetDirectoryName(src)!;
+            var stem = Path.GetFileNameWithoutExtension(src); var ext = Path.GetExtension(src);
+            var dest = Path.Combine(dir, stem + "_copy" + ext);
+            for (int i = 2; File.Exists(dest); i++) dest = Path.Combine(dir, $"{stem}_copy{i}{ext}");
+            File.Copy(src, dest);
+            var relDir = Path.GetDirectoryName(relative) ?? "";
+            return Path.Combine(relDir, Path.GetFileName(dest));
+        }
+
         /// <summary>Saves a drawn bitmap as a PNG in Assets/sprites and returns its project-relative path.</summary>
         public static string SaveSprite(Project p, System.Windows.Media.Imaging.BitmapSource bmp, string baseName)
         {

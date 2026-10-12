@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -163,6 +164,12 @@ namespace EasyEngine
             mirror.Children.Add(SmallBtn("⇋", L.T("Mirror the selection left ↔ right"), () => FlipSelection(true)));
             mirror.Children.Add(SmallBtn("⇵", L.T("Mirror the selection up ↕ down"), () => FlipSelection(false)));
             tools.Children.Add(mirror);
+            // copy / cut / paste (Ctrl+C / X / V): between sprites, and pictures from other programs
+            var clipRow = new UniformGrid { Columns = 3 };
+            clipRow.Children.Add(SmallBtn(L.T("Copy"), L.T("Copy the selection, or the whole drawing (Ctrl+C)"), CopySelection));
+            clipRow.Children.Add(SmallBtn(L.T("Cut"), L.T("Cut the selection (Ctrl+X)"), CutSelection));
+            clipRow.Children.Add(SmallBtn(L.T("Paste"), L.T("Paste what you copied, here or from another sprite or program, then drag it into place (Ctrl+V)"), PasteClipboard));
+            tools.Children.Add(clipRow);
             root.Children.Add(tools);
 
             // --- top of the drawing area: colour, brush, Fill (shapes) and what the chosen tool does ---
@@ -267,7 +274,7 @@ namespace EasyEngine
                 Tool.Fill => L.T("Click an area to fill it with the colour."),
                 Tool.Blur => L.T("Drag to soften the pixels."),
                 Tool.Jumble => L.T("Drag to scatter the pixels."),
-                Tool.Select => L.T("Drag to select, then drag the selection to move it. R turns it, Esc lets it go."),
+                Tool.Select => L.T("Drag to select, then drag the selection to move it. R turns it, Ctrl+C / Ctrl+V copy and paste, Esc lets it go."),
                 Tool.Eyedropper => L.T("Click a pixel to take its colour."),
                 _ => "",
             };
@@ -379,6 +386,16 @@ namespace EasyEngine
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
+            if (Keyboard.Modifiers == ModifierKeys.Control && !(Keyboard.FocusedElement is TextBox))
+            {
+                switch (e.Key)
+                {
+                    case Key.C: CopySelection(); e.Handled = true; return;
+                    case Key.X: CutSelection(); e.Handled = true; return;
+                    case Key.V: PasteClipboard(); e.Handled = true; return;
+                    case Key.A: SelectAll(); e.Handled = true; return;
+                }
+            }
             if (_tool == Tool.Polygon)
             {
                 if (e.Key == Key.Enter) { FinishPolygon(); e.Handled = true; }
@@ -615,6 +632,100 @@ namespace EasyEngine
         internal int TestPolygonPoints => _poly.Count;   // tests: corners of the polygon being drawn (0 = none / closed)
         internal void TestSelectTool(string tool) => SelectTool(Enum.Parse<Tool>(tool));
         internal int TestPixelAlpha(int x, int y) => _data[(y * _w + x) * 4 + 3];
+
+        // ---- copy / cut / paste ----
+        // Through the Windows clipboard, as a picture AND as a PNG (the PNG keeps transparency): it works between sprites,
+        // and pictures copied in other programs can be pasted. What was copied here is also kept, in case the clipboard
+        // can't be read.
+        private static (byte[] px, int w, int h)? _clip;
+        internal static bool UseSystemClipboard = true; // tests turn it off: they must never touch the person's clipboard
+
+        /// <summary>The selection's pixels (the whole drawing when nothing is selected).</summary>
+        private (byte[] px, int w, int h) SelectionPixels()
+        {
+            if (_sel is not { } s) return ((byte[])_data.Clone(), _w, _h);
+            if (_selBuf != null) return ((byte[])_selBuf.Clone(), s.w, s.h);
+            int x0 = Math.Max(0, s.x), y0 = Math.Max(0, s.y), x1 = Math.Min(_w, s.x + s.w), y1 = Math.Min(_h, s.y + s.h);
+            int w = Math.Max(1, x1 - x0), h = Math.Max(1, y1 - y0);
+            var px = new byte[w * h * 4];
+            for (int j = 0; j < h && y0 + j < _h; j++) Array.Copy(_data, ((y0 + j) * _w + x0) * 4, px, j * w * 4, Math.Min(w, _w - x0) * 4);
+            return (px, w, h);
+        }
+
+        /// <summary>Copies the selection (or the whole drawing). Ctrl+C.</summary>
+        public void CopySelection()
+        {
+            var c = SelectionPixels();
+            _clip = c;
+            if (!UseSystemClipboard) return;
+            try
+            {
+                var bmp = BitmapSource.Create(c.w, c.h, 96, 96, PixelFormats.Bgra32, null, c.px, c.w * 4);
+                var png = new System.IO.MemoryStream();
+                var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(bmp)); enc.Save(png);
+                var data = new DataObject();
+                data.SetImage(bmp);
+                data.SetData("PNG", png);
+                Clipboard.SetDataObject(data, true);
+            }
+            catch { } // the clipboard is busy: pasting here still works from _clip
+        }
+
+        /// <summary>Copies, then removes the selection (or the whole drawing). Ctrl+X.</summary>
+        public void CutSelection()
+        {
+            CopySelection();
+            if (_sel is not { } s) Array.Clear(_data, 0, _data.Length);
+            else if (_selBuf != null && _selBase != null) Array.Copy(_selBase, _data, _data.Length);
+            else
+                for (int y = Math.Max(0, s.y); y < Math.Min(_h, s.y + s.h); y++)
+                    Array.Clear(_data, (y * _w + Math.Max(0, s.x)) * 4, (Math.Min(_w, s.x + s.w) - Math.Max(0, s.x)) * 4);
+            DropSelection();
+            Flush();
+        }
+
+        /// <summary>Pastes what was copied (here, in another sprite, or a picture from another program) as a selection
+        /// you can drag into place. Ctrl+V.</summary>
+        public void PasteClipboard()
+        {
+            var c = (UseSystemClipboard ? ReadClipboard() : null) ?? _clip;
+            if (c == null) return;
+            if (_tool != Tool.Select) SelectTool(Tool.Select); else DropSelection();
+            _selBase = (byte[])_data.Clone();
+            _selBuf = c.Value.px; _sel = (0, 0, c.Value.w, c.Value.h);
+            _selOrig = (byte[])_selBuf.Clone(); _selOrigW = c.Value.w; _selOrigH = c.Value.h; _selAngle = 0;
+            PasteSel(0, 0);
+            Flush(); UpdateMarquee();
+        }
+
+        /// <summary>Selects the whole drawing. Ctrl+A.</summary>
+        public void SelectAll()
+        {
+            if (_tool != Tool.Select) SelectTool(Tool.Select); else DropSelection();
+            _sel = (0, 0, _w, _h);
+            UpdateMarquee();
+        }
+
+        private static (byte[] px, int w, int h)? ReadClipboard()
+        {
+            try
+            {
+                BitmapSource? src = null;
+                if (Clipboard.ContainsData("PNG") && Clipboard.GetData("PNG") is System.IO.Stream png)
+                    src = BitmapDecoder.Create(png, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+                else if (Clipboard.ContainsImage()) src = Clipboard.GetImage();
+                if (src == null) return null;
+                var conv = new FormatConvertedBitmap(src, PixelFormats.Bgra32, null, 0);
+                int w = Math.Min(conv.PixelWidth, 256), h = Math.Min(conv.PixelHeight, 256); // a big picture is cut to the canvas limit
+                var px = new byte[w * h * 4];
+                conv.CopyPixels(new Int32Rect(0, 0, w, h), px, w * 4, 0);
+                return (px, w, h);
+            }
+            catch { return null; }
+        }
+
+        internal (int w, int h)? TestSelectionSize => _sel is { } s ? (s.w, s.h) : null;
+        internal void TestSelect(int x, int y, int w, int h) { SelectAll(); DropSelection(); _sel = (x, y, w, h); UpdateMarquee(); }
 
         // ---- selection / move ----
         private static bool PointIn((int x, int y, int w, int h) s, int x, int y) => x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h;
