@@ -52,6 +52,8 @@ public partial class App : Application
 
         if (e.Args.Contains("--restore-recent")) { RunRestoreRecent(); return; }
 
+        if (e.Args.Contains("--strings")) { RunStrings(e.Args); return; } // dev tool: writes Lang/en.json, the texts to translate
+
         if (e.Args.Contains("--selftest")) { RunSelfTest(); return; }
 
         if (e.Args.Contains("--aitest")) { RunAiTest(e.Args); return; }
