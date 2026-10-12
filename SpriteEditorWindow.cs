@@ -85,12 +85,15 @@ namespace EasyEngine
             DockPanel.SetDock(bottom, Dock.Bottom);
             Button Ghost(string label, string? tip = null) => new() { Content = label, Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = tip };
             var canvasBar = new StackPanel { Orientation = Orientation.Horizontal };
+            var undo = Ghost("↶", L.T("Undo (Ctrl+Z)")); undo.FontSize = 15; undo.Click += (s, e) => Undo();
+            var redo = Ghost("↷", L.T("Redo (Ctrl+Y)")); redo.FontSize = 15; redo.Margin = new Thickness(0, 0, 12, 0); redo.Click += (s, e) => Redo();
+            canvasBar.Children.Add(undo); canvasBar.Children.Add(redo);
             _sizeLabel = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = dim, FontSize = 12, Margin = new Thickness(0, 0, 8, 0) };
             canvasBar.Children.Add(_sizeLabel);
             foreach (var sz in new[] { 16, 32, 64 })
             {
                 var b = Ghost($"{sz}²", L.F("New {0}×{1} canvas", sz, sz));
-                int s2 = sz; b.Click += (s, e) => { if (Confirm(L.T("Start a new blank canvas? Current drawing will be lost."))) NewCanvas(s2, s2); };
+                int s2 = sz; b.Click += (s, e) => { if (Confirm(L.T("Start a new blank canvas? Current drawing will be lost."))) { Checkpoint(); NewCanvas(s2, s2); } };
                 canvasBar.Children.Add(b);
             }
             var custom = Ghost(L.T("Custom…"), L.T("New canvas of any size, e.g. 32×128"));
@@ -98,7 +101,7 @@ namespace EasyEngine
             canvasBar.Children.Add(custom);
             var clear = Ghost(L.T("Clear"));
             clear.Foreground = Theme.Brush("Danger", "#E5484B");
-            clear.Click += (s, e) => { if (Confirm(L.T("Clear the canvas?"))) { DropSelection(); Array.Clear(_data, 0, _data.Length); Flush(); } };
+            clear.Click += (s, e) => { if (Confirm(L.T("Clear the canvas?"))) { Checkpoint(); DropSelection(); Array.Clear(_data, 0, _data.Length); Flush(); } };
             canvasBar.Children.Add(clear);
             DockPanel.SetDock(canvasBar, Dock.Left);
             bottom.Children.Add(canvasBar);
@@ -280,6 +283,54 @@ namespace EasyEngine
             };
         }
 
+        // ---- undo / redo (Ctrl+Z / Ctrl+Y): a picture of the drawing before each change, up to 60 steps ----
+        private const int UndoSteps = 60;
+        private readonly LinkedList<(byte[] px, int w, int h)> _undo = new();
+        private readonly Stack<(byte[] px, int w, int h)> _redo = new();
+
+        /// <summary>Remembers the drawing as it is now, before a change (a new change forgets what was undone).</summary>
+        private void Checkpoint()
+        {
+            if (_data == null) return;
+            _undo.AddLast(((byte[])_data.Clone(), _w, _h));
+            if (_undo.Count > UndoSteps) _undo.RemoveFirst();
+            _redo.Clear();
+        }
+
+        /// <summary>Ctrl+Z: back one step (a polygon being drawn is cancelled first).</summary>
+        public void Undo()
+        {
+            if (_poly.Count > 0) { CancelPolygon(); return; }
+            if (_undo.Count == 0) return;
+            _redo.Push(((byte[])_data.Clone(), _w, _h));
+            var s = _undo.Last!.Value; _undo.RemoveLast();
+            RestoreDrawing(s);
+        }
+
+        /// <summary>Ctrl+Y (or Ctrl+Shift+Z): forward again.</summary>
+        public void Redo()
+        {
+            if (_redo.Count == 0) return;
+            _undo.AddLast(((byte[])_data.Clone(), _w, _h));
+            RestoreDrawing(_redo.Pop());
+        }
+
+        private void RestoreDrawing((byte[] px, int w, int h) s)
+        {
+            DropSelection();
+            if (s.w != _w || s.h != _h)
+            {
+                _w = s.w; _h = s.h;
+                _bmp = new WriteableBitmap(_w, _h, 96, 96, PixelFormats.Bgra32, null);
+                RecomputeScale();
+                _sizeLabel.Text = $"{_w}×{_h}";
+            }
+            _data = (byte[])s.px.Clone();
+            Flush();
+        }
+
+        internal int TestUndoSteps => _undo.Count;
+
         private void NewCanvas(int w, int h)
         {
             DropSelection();
@@ -338,6 +389,7 @@ namespace EasyEngine
 
             _view.CaptureMouse();
             _dragX0 = x; _dragY0 = y; _lastPx = x; _lastPy = y;
+            if (_tool is Tool.Pencil or Tool.Eraser or Tool.Fill or Tool.Blur or Tool.Jumble or Tool.Line or Tool.Shape) Checkpoint();
             switch (_tool)
             {
                 case Tool.Eyedropper: if (inside) Pick(x, y); break;
@@ -386,10 +438,13 @@ namespace EasyEngine
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
+            if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.Z) { Redo(); e.Handled = true; return; }
             if (Keyboard.Modifiers == ModifierKeys.Control && !(Keyboard.FocusedElement is TextBox))
             {
                 switch (e.Key)
                 {
+                    case Key.Z: Undo(); e.Handled = true; return;
+                    case Key.Y: Redo(); e.Handled = true; return;
                     case Key.C: CopySelection(); e.Handled = true; return;
                     case Key.X: CutSelection(); e.Handled = true; return;
                     case Key.V: PasteClipboard(); e.Handled = true; return;
@@ -580,7 +635,7 @@ namespace EasyEngine
         {
             if (doubleClick) { FinishPolygon(); return; }
             if (NearPolyStart(x, y)) { FinishPolygon(); return; } // back on the first point: close it
-            if (_poly.Count == 0) _polySnap = (byte[])_data.Clone();
+            if (_poly.Count == 0) { Checkpoint(); _polySnap = (byte[])_data.Clone(); }
             _poly.Add((x, y));
             ShowPolyStart();
             PolygonPreview(x, y);
@@ -625,6 +680,7 @@ namespace EasyEngine
 
         private void CancelPolygon()
         {
+            if (_poly.Count > 0 && _undo.Count > 0) _undo.RemoveLast(); // nothing was drawn: forget its undo step
             if (_polySnap != null) { Array.Copy(_polySnap, _data, _data.Length); Flush(); }
             _poly.Clear(); _polySnap = null; ShowPolyStart();
         }
@@ -674,6 +730,7 @@ namespace EasyEngine
         /// <summary>Copies, then removes the selection (or the whole drawing). Ctrl+X.</summary>
         public void CutSelection()
         {
+            Checkpoint();
             CopySelection();
             if (_sel is not { } s) Array.Clear(_data, 0, _data.Length);
             else if (_selBuf != null && _selBase != null) Array.Copy(_selBase, _data, _data.Length);
@@ -690,6 +747,7 @@ namespace EasyEngine
         {
             var c = (UseSystemClipboard ? ReadClipboard() : null) ?? _clip;
             if (c == null) return;
+            Checkpoint();
             if (_tool != Tool.Select) SelectTool(Tool.Select); else DropSelection();
             _selBase = (byte[])_data.Clone();
             _selBuf = c.Value.px; _sel = (0, 0, c.Value.w, c.Value.h);
@@ -734,7 +792,7 @@ namespace EasyEngine
         {
             if (_sel is { } s && PointIn(s, x, y))
             {
-                if (_selBuf == null) LiftSelection();
+                if (_selBuf == null) { Checkpoint(); LiftSelection(); }
                 _movingSel = true;
                 _grabDX = x - _sel!.Value.x; _grabDY = y - _sel!.Value.y;
             }
@@ -777,6 +835,7 @@ namespace EasyEngine
         /// <summary>Turns the selection by <paramref name="degrees"/> (clockwise; negative = left) around its centre.</summary>
         public void RotateSelection(double degrees)
         {
+            Checkpoint();
             if (!EnsureFloatingSelection()) return;
             _selAngle = ((_selAngle + degrees) % 360 + 360) % 360;
             var (buf, w, h) = Rotate(_selOrig!, _selOrigW, _selOrigH, _selAngle);
@@ -792,6 +851,7 @@ namespace EasyEngine
         /// <summary>Mirrors the selection left↔right (<paramref name="horizontal"/>) or up↕down.</summary>
         public void FlipSelection(bool horizontal)
         {
+            Checkpoint();
             if (!EnsureFloatingSelection()) return;
             var s = _sel!.Value;
             var flipped = new byte[_selBuf!.Length];
@@ -842,7 +902,7 @@ namespace EasyEngine
             var text = InputDialog.Prompt(this, L.T("Canvas size"), L.T("Width × height in pixels (4 to 256 each), for example 32x128:"), $"{_w}x{_h}");
             if (text == null) return;
             if (ParseSize(text) is not { } size) { MessageBox.Show(this, L.T("Write the size as width x height, for example 32x128 (each from 4 to 256)."), L.T("Sprite editor")); return; }
-            if (Confirm(L.F("Start a new blank {0}×{1} canvas? Current drawing will be lost.", size.w, size.h))) NewCanvas(size.w, size.h);
+            if (Confirm(L.F("Start a new blank {0}×{1} canvas? Current drawing will be lost.", size.w, size.h))) { Checkpoint(); NewCanvas(size.w, size.h); }
         }
 
         /// <summary>"32x128", "32 × 128", "32*128", "32,128" → (32, 128); null if it isn't two sizes from 4 to 256.</summary>

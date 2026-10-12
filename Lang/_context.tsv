@@ -749,6 +749,7 @@ Recalc interval (s)	behavior PathChase
 Recent projects	LauncherWindow.xaml
 Rectangle	SpriteEditorWindow.cs
 Redo	MainWindow.xaml.cs
+Redo (Ctrl+Y)	SpriteEditorWindow.cs
 Refused sound	behavior ToolUse
 Remove	MainWindow.xaml.cs
 Remove an item	BlockEditorWindow.cs
@@ -999,6 +1000,7 @@ UI	MainWindow.xaml.cs
 UI Button	behavior UIButton
 Underground (veins)	MainWindow.TerrainBlocks.cs
 Undo	MainWindow.xaml.cs
+Undo (Ctrl+Z)	SpriteEditorWindow.cs
 Ungrouped	MainWindow.xaml.cs
 Unique id (keeps 'once' maps stable)	behavior Generator
 Unlock the player	step unlock

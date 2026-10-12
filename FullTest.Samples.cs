@@ -146,6 +146,27 @@ public partial class App
             TestScenarios.TryDeleteDir(Path.GetDirectoryName(project.FolderPath!)!);
             return ok;
         });
+        t.Test("sprite editor: Ctrl+Z / Ctrl+Y undo and redo a drawing step, a cut, and cancel a polygon being drawn", () =>
+        {
+            SpriteEditorWindow.UseSystemClipboard = false;
+            var w = new SpriteEditorWindow(ProjectIO.CreateNew("SpriteUndo", TempDir("Sprite")), 16);
+            w.TestSelectTool("Polygon");
+            w.PolygonDown(2, 2, false); w.PolygonDown(12, 2, false); w.PolygonDown(12, 12, false); w.PolygonDown(2, 2, false);
+            bool drawn = w.TestPixelAlpha(12, 7) == 255 && w.TestUndoSteps == 1;
+            w.Undo();
+            bool undone = w.TestPixelAlpha(12, 7) == 0;
+            w.Redo();
+            bool redone = w.TestPixelAlpha(12, 7) == 255;
+            w.CutSelection(); w.Undo();
+            bool cutBack = w.TestPixelAlpha(12, 7) == 255;
+            w.TestSelectTool("Polygon");
+            int steps = w.TestUndoSteps;
+            w.PolygonDown(3, 13, false); w.PolygonDown(9, 13, false);
+            w.Undo();                                           // a polygon in progress: cancelled, no step left behind
+            bool cancelled = w.TestPolygonPoints == 0 && w.TestUndoSteps == steps && w.TestPixelAlpha(6, 13) == 0;
+            w.Close();
+            return drawn && undone && redone && cutBack && cancelled;
+        });
         t.Test("copy look: an object gets another's sprite, animations, colour and border (its own copy of the lists)", () =>
         {
             var a = new GameObjectData { Name = "A", SpritePath = "Assets/sprites/slime.png", Color = "#123456", Opacity = 0.5, BorderWidth = 2, DefaultAnimation = "walk" };
