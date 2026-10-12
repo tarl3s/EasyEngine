@@ -136,7 +136,7 @@ namespace EasyEngine
             string kindId = "number";
             var kindBox = Dropdown.Make(KindOptions(), kindId, v => kindId = v);
             kindBox.Height = 28; kindBox.Margin = new Thickness(6, 0, 0, 0);
-            var add = new Button { Content = L.T("Add"), Width = 56, Height = 28, Margin = new Thickness(6, 0, 0, 0), Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left };
+            var add = new Button { Content = L.T("Add"), MinWidth = 56, Padding = new Thickness(8, 0, 8, 0), Height = 28, Margin = new Thickness(6, 0, 0, 0), Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left };
 
             void DoAdd()
             {

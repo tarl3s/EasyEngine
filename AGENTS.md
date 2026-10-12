@@ -46,7 +46,7 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
 | `--aitest [--model m]` | ~32 prompts through the real AI pipeline (needs a running AI) | `easyengine_aitest.log` |
 
-Last known green: fulltest 451/451, e2e 41/41, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS.
+Last known green: fulltest 502/502, e2e 48/48, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS (dark and light).
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 

@@ -55,8 +55,8 @@ old version and opens again. Your projects are never touched. The sample games a
   patrol (even along a route you draw), health/damage/knockback, items you swing (sword, axe, pickaxe, your own),
   hotbar, shops and crafting, collectibles, doors between scenes, springs, pushable blocks, and more.
   Every setting is **picked from a list** — no syntax to learn.
-- **🧩 Blocks for custom logic** — Scratch-style *when → do* blocks, with global, scene and per-object variables,
-  an inventory and dialogue.
+- **🧩 Blocks for custom logic** — Scratch-style *when → do* blocks, with global, scene and per-object variables
+  (numbers, yes/no and text), an inventory and dialogue.
 - **👑 Boss AI** — bosses with **phases by health**, attacks built from steps (warn, dash, jump with a shockwave,
   ring/spread/aimed shots, summon minions, invulnerable…), a death sequence and a boss health bar.
 - **🎬 Cutscenes** — dialogue, camera moves, big titles, fades, cinema bars, moving characters, locking the controls;
