@@ -26,6 +26,25 @@
             <!-- camadas fixas de interface (não sofrem a câmera) -->
             <Canvas x:Name="Hud"/>
 
+            <!-- cutscene / boss overlays: their state lives in the logic (PlayWindow.Sequences.cs / .Boss.cs), drawn in Render -->
+            <Rectangle x:Name="FadeRect" Fill="Black" Opacity="0" IsHitTestVisible="False"/>
+            <Rectangle x:Name="BarTop" Fill="Black" Height="0" VerticalAlignment="Top" IsHitTestVisible="False"/>
+            <Rectangle x:Name="BarBottom" Fill="Black" Height="0" VerticalAlignment="Bottom" IsHitTestVisible="False"/>
+            <TextBlock x:Name="BigTitle" Opacity="0" FontSize="56" FontWeight="Bold" Foreground="White" TextAlignment="Center" TextWrapping="Wrap"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40,0" IsHitTestVisible="False">
+                <TextBlock.Effect><DropShadowEffect ShadowDepth="0" BlurRadius="18" Color="Black" Opacity="0.9"/></TextBlock.Effect>
+            </TextBlock>
+            <Border x:Name="BossBar" Visibility="Collapsed" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,64,0,0" Width="520" IsHitTestVisible="False">
+                <StackPanel>
+                    <TextBlock x:Name="BossBarName" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4">
+                        <TextBlock.Effect><DropShadowEffect ShadowDepth="0" BlurRadius="6" Color="Black" Opacity="0.9"/></TextBlock.Effect>
+                    </TextBlock>
+                    <Border Height="18" CornerRadius="5" Background="#CC1A1A22" BorderBrush="#AAFFFFFF" BorderThickness="1" Padding="2">
+                        <Rectangle x:Name="BossBarFill" Fill="#E5484D" HorizontalAlignment="Left" RadiusX="3" RadiusY="3" Width="0"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <!-- dialogue box -->
             <Border x:Name="DialogBox" Visibility="Collapsed" VerticalAlignment="Bottom" Margin="40,0,40,32"
                     Background="#E6101014" BorderBrush="#2EE0E0E0" BorderThickness="1" CornerRadius="10" Padding="18,14">

@@ -324,6 +324,20 @@ public partial class App : Application
             editor.TestApplySpec("{\"create\":[{\"name\":\"Blinker\",\"animations\":[{\"name\":\"idle\",\"fps\":4,\"frames\":[{\"palette\":{\"R\":\"#ff0000\"},\"rows\":[\"RR\",\"RR\"]},{\"palette\":{\"B\":\"#0000ff\"},\"rows\":[\"BB\",\"BB\"]}]}]}]}");
             var blinker = editor.TestFindObject("Blinker");
             Check("AI drew a 2-frame animation", blinker != null && blinker.Animations.Count == 1 && blinker.Animations[0].Frames.Count == 2);
+
+            // 7) Boss AI / Cutscene "✨ Ask the AI" replies: normalised, then read with the same parser as the game
+            var seqNotes = new List<string>();
+            var bossJson = SequenceAi.Normalize(SeqMode.Boss, "Here is your boss:\n```json\n{\"boss\":{\"attacks\":{\"Stomp\":[{\"Type\":\"Slam\",\"Height\":\"300\"},{\"action\":\"fire\",\"pattern\":\"aimed\",\"count\":\"3\"}]}," +
+                                                "\"phases\":[{\"name\":\"Rage\",\"when\":{\"type\":\"health\",\"value\":\"50\"},\"attacks\":[\"stomp\"]}]}}\n```", seqNotes, out var bossErr);
+            var bossParsed = bossJson != null ? SequenceJson.ParseBoss(bossJson, out _) : null;
+            Check("Boss reply: fenced {\"boss\":…} with step synonyms + quoted numbers normalised", bossErr == null
+                  && bossParsed?.Attack("Stomp")?.Steps.Select(s => s.Do).SequenceEqual(new[] { "jump", "shoot" }) == true && bossParsed.Attack("Stomp")!.Steps[0].Num("height") == 300);
+            Check("Boss reply: attack names match whatever their case; a health phase keeps its %", bossParsed?.Phases.FirstOrDefault()?.Attacks.SequenceEqual(new[] { "Stomp" }) == true
+                  && bossParsed.Phases[0].When == "health" && bossParsed.Phases[0].Value == 50);
+            Check("Boss reply without attacks is rejected (so it can be retried)", SequenceAi.Normalize(SeqMode.Boss, "{\"phases\":[{\"name\":\"P\"}]}", new List<string>(), out var noAtk) == null && noAtk != null);
+            var cutJson = SequenceAi.Normalize(SeqMode.Cutscene, "{\"steps\":[{\"do\":\"Talk\",\"line\":\"Hi\",\"who\":\"Bob\"},{\"do\":\"teleport\"}]}", seqNotes, out var cutErr);
+            Check("Cutscene reply: 'Talk' → say (text + speaker); unknown 'teleport' dropped with a note", cutErr == null && cutJson != null
+                  && SequenceJson.ParseCutscene(cutJson, out _).Steps.Single().Str("speaker") == "Bob" && seqNotes.Any(n => n.Contains("teleport")));
         }
         catch (Exception ex) { sb.AppendLine("FATAL: " + ex); fail++; }
         sb.Insert(0, "aijsontest " + DateTime.Now + "\n");

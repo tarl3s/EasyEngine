@@ -78,7 +78,12 @@ namespace EasyEngine
         private static TextParam TIf(TextParam t, Func<ParamCtx, bool> showIf) { t.ShowIf = showIf; return t; }
         private static NumParam NIf(NumParam n, Func<ParamCtx, bool> showIf) { n.ShowIf = showIf; return n; }
 
-        private static readonly string[] Effects = { "say|Show a message", "setvar|Set a variable", "addvar|Add to a variable", "goscene|Go to a scene" };
+        // a new Boss AI already fights: a charge and a ring of bullets, at random
+        private const string DefaultBoss = "{\"attacks\":{\"Charge\":[{\"do\":\"telegraph\",\"time\":0.6},{\"do\":\"dash\",\"speed\":560,\"time\":0.7}]," +
+                                           "\"Ring\":[{\"do\":\"telegraph\",\"time\":0.4,\"color\":\"#FFB020\"},{\"do\":\"shoot\",\"pattern\":\"ring\",\"count\":10,\"speed\":300}]}," +
+                                           "\"phases\":[{\"name\":\"Phase 1\",\"when\":{\"type\":\"start\"},\"attacks\":[\"Charge\",\"Ring\"],\"order\":\"random\",\"pause\":1}],\"death\":[]}";
+
+        private static readonly string[] Effects ={ "say|Show a message", "setvar|Set a variable", "addvar|Add to a variable", "goscene|Go to a scene" };
 
         public static readonly List<BehaviorInfo> All = new()
         {
@@ -207,8 +212,8 @@ namespace EasyEngine
                 Texts = { T("key","Key","J", PickKind.Key), TNone("requires","Needs this to swing","", PickKind.Requirement) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Damager, Name = "Damager / Hazard", Icon = "💢",
-                Desc = "Hurts a target that touches it (enemy contact, spikes, hazards), with knockback and i-frames.",
-                Nums = { new("damage","Damage",1), new("knockback","Knockback",320) },
+                Desc = "Hurts a target that touches it (enemy contact, spikes, hazards), with knockback and i-frames. Turn on 'Disappears after hitting' for bullets and other things that are used up by a hit.",
+                Nums = { new("damage","Damage",1), new("knockback","Knockback",320), new("vanish","Disappears after hitting (0/1)",0) },
                 Texts = { T("target","Hurts","Player", PickKind.Object) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Checkpoint, Name = "Checkpoint", Icon = "🚩",
@@ -301,10 +306,15 @@ namespace EasyEngine
                 Texts = { T("title","Title","Test checklist"), T("items","Lines (Text => condition)","", PickKind.LongText),
                           T("corner","Corner","tr", PickKind.Choice, "tr|Top right", "tl|Top left") } },
 
-            // (M5) cutscene — filled in by the sequences work
-            new BehaviorInfo { Kind = BehaviorKind.Cutscene, Name = "Cutscene", Icon = "🎬", Hidden = true,
-                Desc = "A scripted scene: steps run one after another (camera, dialogue, moves, fades).",
-                Texts = { T("script","Steps","{\"steps\":[]}", PickKind.Special) } },
+            new BehaviorInfo { Kind = BehaviorKind.Cutscene, Name = "Cutscene", Icon = "🎬",
+                Desc = "A scripted scene: its steps run one after another — dialogue that waits for Enter, camera moves, screen shake, fades, cinema bars, a big title, moving/showing/hiding objects, setting variables. It plays when the scene starts, when the player walks into this object's area, when a variable turns on, or when a key is pressed. Build the steps with 🧩 Advanced Scratch or ask the AI. The player can skip it with the skip key.",
+                Nums = { new("once","Only once (0/1)",1), new("lock","Lock the player (0/1)",1), new("bars","Cinema bars (0/1)",1) },
+                Texts = { T("trigger","Plays when","start", PickKind.Choice, "start|The scene starts", "enter|The player enters this object's area", "var|A variable turns on", "key|A key is pressed"),
+                          TIf(T("var","Variable","", PickKind.Variable), IfText("trigger", "var")),
+                          TIf(T("key","Key","E", PickKind.Key), IfText("trigger", "key")),
+                          TIf(T("who","Who enters","Player", PickKind.Object), IfText("trigger", "enter")),
+                          T("skipKey","Skip key","Escape", PickKind.Key),
+                          T("script","Steps","{\"steps\":[]}", PickKind.Special) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Shop, Name = "Shop / Crafting bench", Icon = "🛒",
                 Desc = "Stand near it and press the key to pay a cost and receive an item. Set 'currency' to 'coins' for a shop, or to an item like 'item:wood' for a crafting bench (e.g. craft a sword from wood). Buys once by default.",
@@ -400,10 +410,15 @@ namespace EasyEngine
                 Texts = { T("var","Shows variable","health", PickKind.Variable), TNone("maxVar","Full value from a variable","", PickKind.Variable),
                           T("color","Fill color","#3BC97A", PickKind.Color), T("bg","Background color","#2A2A33", PickKind.Color) } },
 
-            // (M6) boss — filled in by the boss work
-            new BehaviorInfo { Kind = BehaviorKind.BossAI, Name = "Boss AI", Icon = "👑", Hidden = true,
-                Desc = "A boss: phases by health, attacks made of steps, a death sequence.",
-                Texts = { T("script","Boss","{\"attacks\":{},\"phases\":[],\"death\":[]}", PickKind.Special) } },
+            new BehaviorInfo { Kind = BehaviorKind.BossAI, Name = "Boss AI", Icon = "👑",
+                Desc = "A boss fight. Attacks are lists of steps (warn, dash, jump with a shockwave, shoot rings/fans/aimed bullets, summon minions, become invulnerable…). Phases pick which attacks it uses — the next phase starts when its health drops to a percentage — and a death sequence plays when it is defeated. Give it Health (Disappear, with its own variable like bossHP) and a Damager for contact damage. Build it with 🧩 Advanced Scratch or ask the AI.",
+                Nums = { NIf(new("distance","How close (px)",400), IfText("starts", "near")), new("heavy","Heavy (no knockback) (0/1)",1), new("hpbar","Boss health bar (0/1)",1) },
+                Texts = { T("moves","Moves","ground", PickKind.Choice, "ground|On the ground (gravity)", "fly|Flying (no gravity)"),
+                          T("starts","Starts when","start", PickKind.Choice, "start|The scene starts", "near|The player comes close", "var|A variable turns on"),
+                          TIf(T("var","Variable","", PickKind.Variable), IfText("starts", "var")),
+                          T("target","Fights","Player", PickKind.Object),
+                          TIf(T("title","Name on the health bar","BOSS"), IfOn("hpbar")),
+                          T("script","Boss", DefaultBoss, PickKind.Special) } },
         };
 
         public static BehaviorInfo Info(BehaviorKind kind) => All.Find(b => b.Kind == kind)!;
