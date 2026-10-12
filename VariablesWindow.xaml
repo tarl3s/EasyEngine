@@ -1,14 +1,14 @@
 <Window x:Class="EasyEngine.VariablesWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Variables" Height="600" Width="480"
+        Title="Variables" Height="600" Width="580"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource Bg0}" FontFamily="Segoe UI">
     <DockPanel>
         <Border DockPanel.Dock="Top" Background="{StaticResource Bg1}" Padding="18,12">
             <StackPanel>
                 <TextBlock Text="Variables" Foreground="{StaticResource Text}" FontSize="18" FontWeight="SemiBold"/>
-                <TextBlock Text="Give variables a starting value. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object) and show them in a Label with {name}." Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                <TextBlock Text="Give variables a starting value. A variable is a Number, a Yes/No or a Text. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object; settext/toggle/iftext for texts and Yes/No) and show them in a Label with {name}." Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
         <Border DockPanel.Dock="Bottom" Background="{StaticResource Bg1}" Padding="18,10">

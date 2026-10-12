@@ -12,7 +12,7 @@ namespace EasyEngine
     // parser (tolerant: synonyms, numbers as strings, missing fields → defaults) and the stable serializer.
 
     /// <summary>One field of a step. Types: num, val (number or expression), text, longtext, bool, choice,
-    /// object (scene object / self / player), spawn (scene object or prefab), sound, color, var, key, scene.</summary>
+    /// object (scene object / self / player), spawn (scene object or prefab), sound, color, var, textvar (a text variable), key, scene.</summary>
     public record StepField(string Key, string Label, string Type, string Default = "", string[]? Options = null, string? OnlyIfEmpty = null);
 
     public record StepDef(string Id, string Label, string Category, StepField[] Fields, string Hint = "");
@@ -43,6 +43,8 @@ namespace EasyEngine
                 "Shows a dialogue line and waits until the player presses Enter."),
             new("setvar", "Set a variable", "Story", new[] { F("var", "Variable", "var"), F("to", "To", "val", "1") }),
             new("addvar", "Add to a variable", "Story", new[] { F("var", "Variable", "var"), F("amount", "Amount", "val", "1") }),
+            new("settext", "Set a text", "Story", new[] { F("var", "Text variable", "textvar"), F("to", "To", "text") },
+                "Puts words in a text variable. {name} inside is replaced by that variable's value."),
             new("settime", "Set the time of day", "Story", new[] { F("time", "Time", "choice", "night", "day|Day", "noon|Noon", "dusk|Dusk", "night|Night", "midnight|Midnight") }),
             new("goscene", "Go to a scene", "Story", new[] { F("scene", "Scene", "scene") }),
             new("move", "Move an object", "Motion", new[] { F("object", "Object", "object", "player"), At("to", "To", ""), X("to"), Y("to"), Num("time", "Seconds", 1), Bool("wait", "Wait until it arrives", true) },

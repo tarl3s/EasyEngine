@@ -18,7 +18,7 @@ namespace EasyEngine
         public void TLoad()
         {
             _headless = true; // tests never play audio; sounds are only recorded + logged
-            foreach (var kv in _project.Variables) _vars[kv.Key] = kv.Value;
+            SeedGlobalVars();
             LoadScene(_sceneName);
         }
 

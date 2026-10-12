@@ -389,6 +389,13 @@ namespace EasyEngine
                 // instant steps the Custom rules already know: the same code runs them
                 case "setvar": DoCustom(self, SeqRule(s, "setvar", "var", "to"), 0); break;
                 case "addvar": DoCustom(self, SeqRule(s, "addvar", "var", "amount"), 0); break;
+                case "settext": // the words stay words (SeqRule would read a word as an expression)
+                {
+                    var tr = new CustomRule { Do = "settext" };
+                    tr.T["var"] = s.Str("var"); tr.T["to"] = s.Str("to") is { Length: > 0 } words ? words : s.Str("text", s.Str("value"));
+                    DoCustom(self, tr, 0);
+                    break;
+                }
                 case "playsound": DoCustom(self, SeqRule(s, "playsound", "sound", "volume"), 0); break;
                 case "settime": DoCustom(self, SeqRule(s, "settime", "time"), 0); break;
                 case "goscene": r.WentToScene = true; DoCustom(self, SeqRule(s, "goscene", "scene"), 0); break;

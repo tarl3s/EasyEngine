@@ -37,7 +37,7 @@ public partial class App
         var launcher = Open(new LauncherWindow());
         var settings = Open(new SettingsWindow { Owner = editor });
         var blocks = Open(new BlockEditorWindow(project, scene,
-            "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1},{\"when\":\"keypress\",\"key\":\"B\",\"cond\":\"coins >= 15\",\"do\":\"say\",\"text\":\"Boost!\"}]") { Owner = editor });
+            "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1},{\"when\":\"keypress\",\"key\":\"B\",\"cond\":\"coins >= 15\",\"do\":\"say\",\"text\":\"Boost!\"},{\"when\":\"iftext\",\"var\":\"playerName\",\"op\":\"is\",\"value\":\"Ana\",\"do\":\"settext\",\"var\":\"greet\",\"to\":\"Hi {playerName}!\",\"local\":true}]") { Owner = editor });
         var sprite = Open(new SpriteEditorWindow(project, 16) { Owner = editor });
         var newItem = Open(new NewItemDialog(project) { Owner = editor });
         var input = Open(new InputDialog("Rename project", "New name:", "My Game") { Owner = editor });
