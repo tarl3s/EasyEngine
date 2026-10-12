@@ -44,7 +44,9 @@ namespace EasyEngine
         private sealed class Chunk
         {
             public readonly TileCell?[] Cells = new TileCell?[ChunkSize * ChunkSize]; // [row * ChunkSize + col], null = air
-            public readonly Canvas Canvas = new() { IsHitTestVisible = false };
+            // cached as one bitmap: a moving camera then composes a few dozen chunk pictures instead of thousands of blocks
+            // (digging a block re-draws only its chunk)
+            public readonly Canvas Canvas = new() { IsHitTestVisible = false, CacheMode = new BitmapCache() };
             public readonly List<Entity> Trees = new();
         }
 
@@ -409,7 +411,8 @@ namespace EasyEngine
 
         private static System.Windows.Shapes.Rectangle BlockRect(double x, double y, double w, double h, Brush fill)
         {
-            var rect = new System.Windows.Shapes.Rectangle { Width = w + 0.5, Height = h + 0.5, Fill = fill }; // +0.5: no hairline seams
+            // +1 px overlap: no hairline seams between blocks, nor between the cached chunk pictures
+            var rect = new System.Windows.Shapes.Rectangle { Width = w + 1, Height = h + 1, Fill = fill };
             Canvas.SetLeft(rect, x); Canvas.SetTop(rect, y);
             return rect;
         }
