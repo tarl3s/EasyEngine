@@ -17,6 +17,7 @@ namespace EasyEngine
     public partial class PlayWindow : Window
     {
         private const double Gravity = 2000.0;
+        private const double MaxFallSpeed = 1500.0; // px/s — faster, a hitchy frame (dt up to 0.05) could skip through a block
 
         // partial: feature files (PlayWindow.Boss.cs, .Terrain.cs, .Sequences.cs…) add their own per-object state
         private partial class Entity
@@ -105,6 +106,8 @@ namespace EasyEngine
         private class TileCell
         {
             public int R, C; public double X, Y, W, H; public bool Solid; public int Hp = 1; public bool Broken;
+            public bool Unbreakable;   // terrain bedrock
+            public string? Drop;       // what it drops (null = the map's "drop"); a terrain cell drops its material's item
             public string Color = "#888888";
             public System.Windows.Shapes.Rectangle? Visual;
             public Entity? Collider;
@@ -1918,7 +1921,13 @@ namespace EasyEngine
                     }
                     break;
                 }
-                case "spawn": SpawnFrom(en, r.T.ContainsKey("object") ? r.Str("object") : r.Str("name", "Enemy"), r.Str("at", "").Equals("top", StringComparison.OrdinalIgnoreCase)); break;
+                case "spawn":
+                {
+                    string what = r.T.ContainsKey("object") ? r.Str("object") : r.Str("name", "Enemy"), at = r.Str("at", "").ToLowerInvariant();
+                    if (at == "near") SpawnNear(en, what); // a little to the left or right, on the ground (PlayWindow.Terrain.cs)
+                    else SpawnFrom(en, what, at == "top");
+                    break;
+                }
                 case "destroy": en.Dead = true; break;
                 case "goscene":
                 {
@@ -1963,8 +1972,7 @@ namespace EasyEngine
                     string where = r.Str("where", "touching").ToLowerInvariant();
                     foreach (var map in _entities)
                     {
-                        if (map.Tiles == null) continue;
-                        var mb = map.Beh(BehaviorKind.Tilemap); if (mb == null) continue;
+                        var mb = BreakableBeh(map); if (mb == null) continue;
                         double ts = map.TileTS;
                         switch (where)
                         {
@@ -2213,7 +2221,7 @@ namespace EasyEngine
             // 1b) top-down movers: move with wall/tilemap collision, no gravity
             foreach (var en in _entities)
             {
-                if (en.Dead || !en.FrameTopDown) continue;
+                if (en.Dead || !en.FrameTopDown || TerrainFrozen(en)) continue;
                 en.X += en.VX * dt; ResolveX(en);
                 en.Grounded = false;
                 en.Y += en.VY * dt; ResolveY(en, dt);
@@ -2222,7 +2230,7 @@ namespace EasyEngine
             // 2) dynamic entities (with gravity, collision, moving-platform carry)
             foreach (var en in _entities)
             {
-                if (en.Dead || !en.FrameDynamic) continue;
+                if (en.Dead || !en.FrameDynamic || TerrainFrozen(en)) continue; // far over unloaded terrain: wait, don't fall through
 
                 bool collide = en.FrameCollide;
 
@@ -2230,6 +2238,7 @@ namespace EasyEngine
                 if (ground != null) { en.X += ground.PlatDX; en.Y += ground.PlatDY; }
 
                 if (en.DashTimer <= 0) en.VY += Gravity * en.Data.Physics.GravityScale * dt;
+                if (en.VY > MaxFallSpeed) en.VY = MaxFallSpeed;
 
                 en.X += en.VX * dt;
                 if (collide) ResolveX(en);
@@ -2238,8 +2247,8 @@ namespace EasyEngine
                 en.Y += en.VY * dt;
                 if (collide) ResolveY(en, dt);
 
-                // fell off the world → lose a hit point and respawn (prevents falling forever)
-                if (en.Y > _scene.Height + 320)
+                // fell off the world → lose a hit point and respawn (prevents falling forever); a terrain deeper than the scene counts too
+                if (en.Y > Math.Max(_scene.Height, _terrainBottom) + 320)
                 {
                     if (en.Beh(BehaviorKind.Health) != null)
                     {
@@ -2484,11 +2493,20 @@ namespace EasyEngine
             }
         }
 
-        // ---- breakable tilemaps ----
+        // ---- breakable tilemaps (and mineable terrains: their cells are TileCells too) ----
+        // The behavior that makes this entity's cells breakable: a breakable Tilemap, or a mineable Terrain (else null).
+        private BehaviorData? BreakableBeh(Entity map)
+            => map.Tiles != null ? map.Beh(BehaviorKind.Tilemap) : map.Terrain is { Mineable: true } t ? t.Bh : null;
+
         // Damage one tile; when its hit points reach 0, remove its visual + collider and puff particles.
         private void DamageCell(Entity map, BehaviorData bh, TileCell cell, int amount)
         {
             if (cell.Broken) return;
+            if (cell.Unbreakable)
+            {
+                LogThrottled("tile-hard:" + map.Data.Name, 1.0, LogLevel.Info, "Tile", map.Data.Name, $"Block ({cell.C},{cell.R}) is bedrock — it can't be broken");
+                return;
+            }
             // a tilemap can require a flag/item to be breakable at all (e.g. "holding:pickaxe")
             var requires = bh.Text("requires", "");
             if (!string.IsNullOrWhiteSpace(requires) && Var(requires) < 0.5)
@@ -2497,58 +2515,66 @@ namespace EasyEngine
                 return;
             }
             cell.Hp -= Math.Max(1, amount);
-            if (cell.Hp > 0) return;
+            if (cell.Hp > 0)
+            {
+                Info("Tile", map.Data.Name, $"Hit tile ({cell.C},{cell.R}) — {cell.Hp} more to break");
+                EmitParticles(cell.X + cell.W / 2, cell.Y + cell.H / 2, 4, 120, 360, 0, 0.3, Math.Max(2, cell.W / 8), 500, cell.Color);
+                return;
+            }
             cell.Broken = true;
-            var dropName = bh.Text("drop", "");
-            Info("Tile", map.Data.Name, $"Broke tile ({cell.C},{cell.R})" + (dropName.Length > 0 ? $" → +{Math.Max(1, bh.Num("dropAmount", 1)):0} {dropName}" : ""));
-            var host = map.ScreenSpace ? Hud : World;
-            if (cell.Visual != null) host.Children.Remove(cell.Visual);
+            // a broken tile can drop a resource into the inventory (e.g. dirt/wood/stone)
+            var drop = cell.Drop ?? bh.Text("drop", "");
+            double dropAmount = Math.Max(1, bh.Num("dropAmount", 1));
+            Info("Tile", map.Data.Name, $"Broke tile ({cell.C},{cell.R})" + (drop.Length > 0 ? $" → +{dropAmount:0} {drop}" : ""));
+            if (cell.Visual?.Parent is Panel host) host.Children.Remove(cell.Visual);
             if (cell.Collider != null) { cell.Collider.Dead = true; _solids.Remove(cell.Collider); }
             if (map.TileGrid != null) { int idx = cell.R * map.TileCols + cell.C; if (idx >= 0 && idx < map.TileGrid.Length) map.TileGrid[idx] = null; }
-            // a broken tile can drop a resource into the inventory (e.g. dirt/wood/stone)
-            var drop = bh.Text("drop", "");
-            if (!string.IsNullOrWhiteSpace(drop)) _vars["item:" + drop] = Var("item:" + drop) + Math.Max(1, bh.Num("dropAmount", 1));
+            map.Terrain?.Dug.Add((cell.C, cell.R)); // stays dug when its chunk is unloaded and comes back
+            if (!string.IsNullOrWhiteSpace(drop)) _vars["item:" + drop] = Var("item:" + drop) + dropAmount;
             if (bh.Num("breakParticles", 1) >= 0.5)
                 EmitParticles(cell.X + cell.W / 2, cell.Y + cell.H / 2, 10, 160, 360, 0, 0.5, Math.Max(3, cell.W / 6), 500, cell.Color);
+        }
+
+        // The cell at grid (c, r) of a breakable tilemap or a terrain (null = empty / outside / not loaded).
+        private static TileCell? GridCell(Entity map, int c, int r)
+        {
+            if (map.Terrain != null) return map.Terrain.Cell(c, r);
+            if (map.TileGrid == null || c < 0 || r < 0 || c >= map.TileCols || r >= map.TileRows) return null;
+            return map.TileGrid[r * map.TileCols + c];
         }
 
         // The live cell at a world point (or null).
         private TileCell? CellAt(Entity map, double wx, double wy)
         {
-            if (map.TileGrid == null) return null;
-            int c = (int)Math.Floor((wx - map.TileX0) / map.TileTS);
-            int r = (int)Math.Floor((wy - map.TileY0) / map.TileTS);
-            if (c < 0 || r < 0 || c >= map.TileCols || r >= map.TileRows) return null;
-            var cell = map.TileGrid[r * map.TileCols + c];
+            if (map.TileTS <= 0) return null;
+            var cell = GridCell(map, (int)Math.Floor((wx - map.TileX0) / map.TileTS), (int)Math.Floor((wy - map.TileY0) / map.TileTS));
             return (cell != null && !cell.Broken && cell.Solid) ? cell : null;
         }
 
         // Break the first live cell overlapping an AABB; true if one was broken.
         private bool BreakOverlap(Entity map, BehaviorData bh, double ax, double ay, double aw, double ah, int amount)
         {
-            if (map.TileGrid == null) return false;
-            int c0 = Math.Max(0, (int)Math.Floor((ax - map.TileX0) / map.TileTS));
-            int c1 = Math.Min(map.TileCols - 1, (int)Math.Floor((ax + aw - 0.001 - map.TileX0) / map.TileTS));
-            int r0 = Math.Max(0, (int)Math.Floor((ay - map.TileY0) / map.TileTS));
-            int r1 = Math.Min(map.TileRows - 1, (int)Math.Floor((ay + ah - 0.001 - map.TileY0) / map.TileTS));
+            if (map.TileTS <= 0) return false;
+            int c0 = (int)Math.Floor((ax - map.TileX0) / map.TileTS), c1 = (int)Math.Floor((ax + aw - 0.001 - map.TileX0) / map.TileTS);
+            int r0 = (int)Math.Floor((ay - map.TileY0) / map.TileTS), r1 = (int)Math.Floor((ay + ah - 0.001 - map.TileY0) / map.TileTS);
             for (int r = r0; r <= r1; r++)
                 for (int c = c0; c <= c1; c++)
                 {
-                    var cell = map.TileGrid[r * map.TileCols + c];
+                    var cell = GridCell(map, c, r);
                     if (cell != null && !cell.Broken && cell.Solid) { DamageCell(map, bh, cell, amount); return true; }
                 }
             return false;
         }
 
-        // Per-frame: let bullets / damagers / stomping / touching break breakable tilemaps.
+        // Per-frame: let bullets / damagers / stomping / touching break breakable tilemaps (and terrain blocks).
         private void UpdateBreakables(double dt)
         {
             foreach (var map in _entities)
             {
-                if (map.Dead || map.Tiles == null) continue;
-                var bh = map.Beh(BehaviorKind.Tilemap); if (bh == null) continue;
+                if (map.Dead) continue;
+                var bh = BreakableBeh(map); if (bh == null) continue;
                 bool byBullet = bh.Num("byBullet", 1) >= 0.5;
-                bool byDamage = bh.Num("byDamage", 1) >= 0.5;
+                bool byDamage = bh.Num("byDamage", map.Terrain == null ? 1 : 0) >= 0.5; // a terrain isn't chewed up by every enemy that touches it
                 bool byTouch = bh.Num("byTouch", 0) >= 0.5;
                 bool byStomp = bh.Num("byStomp", 0) >= 0.5;
                 if (!(byBullet || byDamage || byTouch || byStomp)) continue;
