@@ -189,9 +189,11 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Button x:Name="AiModeBuild" Grid.Column="0" Content="🔨 Build" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Margin="0,0,4,0" Click="AiBuild_Click"/>
-                                <Button x:Name="AiModeBrainstorm" Grid.Column="1" Content="💡 Brainstorm" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Margin="4,0,0,0" Click="AiBrainstorm_Click"/>
+                                <Button x:Name="AiModeBuild" Grid.Column="0" Content="🔨 Build" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Padding="4,0" Margin="0,0,3,0" Click="AiBuild_Click"/>
+                                <Button x:Name="AiModeBrainstorm" Grid.Column="1" Content="💡 Brainstorm" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Padding="4,0" Margin="3,0,3,0" Click="AiBrainstorm_Click"/>
+                                <Button x:Name="AiModeLearn" Grid.Column="2" Content="🎓 Learn" Style="{StaticResource CardButton}" HorizontalContentAlignment="Center" Padding="4,0" Margin="3,0,0,0" Click="AiLearn_Click"/>
                             </Grid>
                             <TextBlock x:Name="AiHint" Margin="2,6,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" Text="Describe what to build."/>
                             <Border Margin="0,6,0,0" Background="{StaticResource Bg2}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="5" Padding="8,5">

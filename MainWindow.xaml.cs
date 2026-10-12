@@ -39,7 +39,7 @@ namespace EasyEngine
 
         private readonly List<string> _aiImages = new(); // relative paths of images the user gave the AI
         private readonly List<string> _aiSounds = new(); // relative paths of audio the user gave the AI
-        private bool _aiBrainstorm; // false = Build (makes changes), true = Brainstorm (just chats)
+        private AiMode _aiMode; // Build makes changes; Brainstorm and Learn only chat
         private string? _aiLastSummary;
         private readonly List<string> _aiLastObjects = new();
 
@@ -112,7 +112,7 @@ namespace EasyEngine
             RefreshPalette();
             InitDocking();
             SetTab(false); // default to the AI tab
-            SetAiMode(false);
+            SetAiMode(AiMode.Build);
             UpdateAiTarget();
             AiSettings.Load();
             BuildCloudKeyRows();
@@ -1504,11 +1504,15 @@ namespace EasyEngine
             var header = new Grid { Margin = new Thickness(0, 0, 0, 6) };
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var title = new TextBlock { Text = $"{info.Icon}  {info.Name}", FontWeight = FontWeights.SemiBold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+            var help = new Button { Content = "?", Width = 24, Height = 24, FontSize = 11, Padding = new Thickness(0), Margin = new Thickness(0, 0, 6, 0), Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Center,
+                                    ToolTip = "How does this work? (asks the AI in Learn mode)" };
+            help.Click += (s, e) => AskHowTo(info);
             var remove = new Button { Content = "Remove", Height = 24, FontSize = 11, Padding = new Thickness(8, 0, 8, 0), Style = (Style)FindResource("CardButton"), Foreground = (SolidColorBrush)FindResource("Danger") };
             remove.Click += (s, e) => { PushUndo(); obj.Behaviors.Remove(bh); BuildInspector(obj); Dirty(); };
-            Grid.SetColumn(title, 0); Grid.SetColumn(remove, 1);
-            header.Children.Add(title); header.Children.Add(remove);
+            Grid.SetColumn(title, 0); Grid.SetColumn(help, 1); Grid.SetColumn(remove, 2);
+            header.Children.Add(title); header.Children.Add(help); header.Children.Add(remove);
             panel.Children.Add(header);
 
             if (bh.Kind == BehaviorKind.Tilemap)
@@ -1984,20 +1988,25 @@ namespace EasyEngine
             TabAi.Foreground = inspector ? (SolidColorBrush)FindResource("Text") : (SolidColorBrush)FindResource("AccentText");
         }
 
-        private void AiBuild_Click(object sender, RoutedEventArgs e) => SetAiMode(false);
-        private void AiBrainstorm_Click(object sender, RoutedEventArgs e) => SetAiMode(true);
+        private void AiBuild_Click(object sender, RoutedEventArgs e) => SetAiMode(AiMode.Build);
+        private void AiBrainstorm_Click(object sender, RoutedEventArgs e) => SetAiMode(AiMode.Brainstorm);
+        private void AiLearn_Click(object sender, RoutedEventArgs e) => SetAiMode(AiMode.Learn);
 
-        private void SetAiMode(bool brainstorm)
+        private void SetAiMode(AiMode mode)
         {
-            _aiBrainstorm = brainstorm;
-            AiModeBuild.Background = brainstorm ? (SolidColorBrush)FindResource("Bg2") : (SolidColorBrush)FindResource("Accent");
-            AiModeBuild.Foreground = brainstorm ? (SolidColorBrush)FindResource("Text") : Brushes.White;
-            AiModeBrainstorm.Background = brainstorm ? (SolidColorBrush)FindResource("Accent") : (SolidColorBrush)FindResource("Bg2");
-            AiModeBrainstorm.Foreground = brainstorm ? Brushes.White : (SolidColorBrush)FindResource("Text");
-            AiSend.Content = brainstorm ? "Send" : "Build it";
-            AiHint.Text = brainstorm
-                ? "Chat about ideas — the AI won't change anything."
-                : "Describe what to build.";
+            _aiMode = mode;
+            foreach (var (btn, m) in new[] { (AiModeBuild, AiMode.Build), (AiModeBrainstorm, AiMode.Brainstorm), (AiModeLearn, AiMode.Learn) })
+            {
+                btn.Background = (SolidColorBrush)FindResource(m == mode ? "Accent" : "Bg2");
+                btn.Foreground = (SolidColorBrush)FindResource(m == mode ? "AccentText" : "Text");
+            }
+            AiSend.Content = mode switch { AiMode.Brainstorm => "Send", AiMode.Learn => "Ask", _ => "Build it" };
+            AiHint.Text = mode switch
+            {
+                AiMode.Brainstorm => "Chat about ideas — the AI won't change anything.",
+                AiMode.Learn => "Ask how to use anything — the AI explains step by step.",
+                _ => "Describe what to build."
+            };
         }
 
         // ============================================================
@@ -2291,13 +2300,14 @@ namespace EasyEngine
             if (_useCloud && !AnyCloudKey()) { Status("Add a free cloud API key first (⚙ AI settings)"); return; }
             if (!_useCloud && string.IsNullOrWhiteSpace(_model)) { Status("Choose an AI model"); return; }
 
-            if (_aiBrainstorm)
+            if (_aiMode != AiMode.Build) // Brainstorm / Learn: just chat, never change the project
             {
+                bool learn = _aiMode == AiMode.Learn;
                 AddAiMessage("You", prompt, false);
                 AiInput.Clear();
                 var th = AddAiMessage($"AI ({ActiveModelLabel})", "thinking…", true);
-                AiSend.IsEnabled = false; Status("Brainstorming…");
-                try { var ans = await BrainstormAsync(prompt); AiLog.Children.Remove(th); AddAiMessage("AI", ans.Length > 0 ? ans : "(no response)", true); Status("Ready"); }
+                AiSend.IsEnabled = false; Status(learn ? "Looking it up…" : "Brainstorming…");
+                try { var ans = learn ? await TeachAsync(prompt) : await BrainstormAsync(prompt); AiLog.Children.Remove(th); AddAiMessage("AI", ans.Length > 0 ? ans : "(no response)", true); Status("Ready"); }
                 catch (AiException ex) { AiLog.Children.Remove(th); AddAiMessage("AI", "⚠ " + ex.Message, true); Status("Failed"); }
                 finally { AiSend.IsEnabled = true; }
                 return;
