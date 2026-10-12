@@ -73,6 +73,13 @@ namespace EasyEngine
             c => !c.Scene.Layers.SelectMany(l => l.Objects).Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Hotbar));
         private static readonly Func<ParamCtx, bool> CoverOn = c => IfOff("mode")(c) && IfOn("coverDark")(c); // Day/Night underground darkness
         private static readonly Func<ParamCtx, bool> LightBlocks = IfOn("lightStyle"); // Day/Night "Blocks" lighting
+        // a Light's block options (stopped by blocks, colours, adds up) only exist in the scene's "Blocks" lighting
+        private static readonly Func<ParamCtx, bool> InBlockLighting = c => BlockLighting(c.Scene);
+
+        /// <summary>The scene's Day/Night uses "Blocks" lighting (light computed block by block) — the only style where a
+        /// Light can be stopped by blocks, colour what it touches and add up with other lights.</summary>
+        public static bool BlockLighting(Scene s) =>
+            s.Layers.SelectMany(l => l.Objects).SelectMany(o => o.Behaviors).Any(b => b.Kind == BehaviorKind.DayNight && b.Num("lightStyle", 0) >= 0.5);
         private static readonly Func<ParamCtx, bool> Never = _ => false; // stored and edited by another field's editor
 
         private static TextParam T(string k, string l, string d, PickKind p = PickKind.Text, params string[] o) => new(k, l, d, p, o);
@@ -168,7 +175,8 @@ namespace EasyEngine
             new BehaviorInfo { Kind = BehaviorKind.LightSource, Name = "Light", Icon = "💡",
                 Desc = "Lights up the darkness around it (things near it show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).",
                 Nums = { new("radius","Radius",200), new("intensity","Intensity (0-1)",0.9),
-                         new("stopByBlocks","Solid blocks stop this light (0/1)",1), new("tint","Colours what it touches (0/1)",1), new("addUp","Adds up with other lights (0/1)",1) },
+                         NIf(new("stopByBlocks","Solid blocks stop this light (0/1)",1), InBlockLighting), NIf(new("tint","Colours what it touches (0/1)",1), InBlockLighting),
+                         NIf(new("addUp","Adds up with other lights (0/1)",1), InBlockLighting) },
                 Texts = { T("color","Color","#FFA040", PickKind.Color) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Parallax, Name = "Parallax", Icon = "🏔",

@@ -107,6 +107,41 @@ public partial class App
             return low.Count == 0;
         });
 
+        // ---------------- asking to update before opening ----------------
+        var newer = new Updater.Release(new Version(99, 0, 0), "v99.0.0", "Big news", "https://example.com/e.zip");
+        t.Test("update: before opening, a newer version is offered once; No opens the launcher, Yes installs", () =>
+        {
+            int asked = 0;
+            bool no = System.Threading.Tasks.Task.Run(() => UpdatePrompt.BeforeOpeningAsync(() => System.Threading.Tasks.Task.FromResult<Updater.Release?>(newer), r => { asked++; return false; })).Result;
+            bool yes = System.Threading.Tasks.Task.Run(() => UpdatePrompt.BeforeOpeningAsync(() => System.Threading.Tasks.Task.FromResult<Updater.Release?>(newer), r => { asked++; return true; })).Result;
+            bool none = System.Threading.Tasks.Task.Run(() => UpdatePrompt.BeforeOpeningAsync(() => System.Threading.Tasks.Task.FromResult<Updater.Release?>(null), r => { asked++; return true; })).Result;
+            return !no && yes && !none && asked == 2 && UpdatePrompt.Checked;
+        });
+        t.Test("update: no answer in time (offline) opens the launcher without asking", () =>
+        {
+            bool asked = false;
+            var never = new System.Threading.Tasks.TaskCompletionSource<Updater.Release?>().Task;
+            bool r = System.Threading.Tasks.Task.Run(() => UpdatePrompt.BeforeOpeningAsync(() => never, _ => asked = true, waitMs: 50)).Result;
+            return !r && !asked;
+        });
+
+        // ---------------- a Light's block options ----------------
+        t.Test("light: its block options show only in Blocks lighting; otherwise one click switches the Day/Night to Blocks", () =>
+        {
+            var scene = new Scene { Name = "S" };
+            var layer = new Layer { Name = "Base" }; scene.Layers.Add(layer);
+            var lamp = new GameObjectData { Name = "Lamp" }; var light = BehaviorCatalog.Info(BehaviorKind.LightSource).CreateData(); lamp.Behaviors.Add(light);
+            layer.Objects.Add(lamp);
+            var info = BehaviorCatalog.Info(BehaviorKind.LightSource);
+            bool Shown(string key) => info.Nums.First(n => n.Key == key) is var n && (n.ShowIf == null || n.ShowIf(new ParamCtx(light, lamp, scene)));
+            bool noDayNight = !Shown("stopByBlocks") && !EasyEngine.MainWindow.UseBlockLighting(scene) && Shown("radius");
+            var sky = new GameObjectData { Name = "Sky" }; var dn = BehaviorCatalog.Info(BehaviorKind.DayNight).CreateData(); dn.Nums["lightStyle"] = 0; sky.Behaviors.Add(dn);
+            layer.Objects.Add(sky);
+            bool smooth = !BehaviorCatalog.BlockLighting(scene) && !Shown("tint") && !Shown("addUp");
+            bool switched = EasyEngine.MainWindow.UseBlockLighting(scene) && dn.Num("lightStyle", 0) == 1;
+            return noDayNight && smooth && switched && BehaviorCatalog.BlockLighting(scene) && Shown("stopByBlocks") && Shown("tint") && Shown("addUp");
+        });
+
         // ---------------- temporary files ----------------
         t.Test("temporary files: only EasyEngine's logs, finished test projects and downloads go — settings, projects, others' files and a test still running stay", () =>
         {

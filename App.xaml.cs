@@ -106,9 +106,18 @@ public partial class App : Application
 
         // normal: show the launcher, in the person's language, theme and size
         ApplyUserPreferences();
+        _ = OpenLauncherAsync();
+    }
+
+    // asks about a new version first (UpdatePrompt), then opens the launcher — unless an update is being installed
+    private async System.Threading.Tasks.Task OpenLauncherAsync()
+    {
+        ShutdownMode = ShutdownMode.OnExplicitShutdown; // the "Checking…" window closing must not end the app
+        if (await UpdatePrompt.BeforeOpeningAsync()) return;
         var launcher = new LauncherWindow();
         MainWindow = launcher;
         launcher.Show();
+        ShutdownMode = ShutdownMode.OnLastWindowClose;
     }
 
     /// <summary>Language, theme and interface size from settings.json (only for the editor — tests and exported games

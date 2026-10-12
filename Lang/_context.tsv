@@ -24,7 +24,7 @@ A day/night cycle. Add it to one object (a controller, can be invisible). It dim
 A grid of tiles you paint in the editor (ground, walls, level geometry). Solid tiles become collision automatically. Add it to an empty object, then paint with the Tiles panel. Turn on 'Breakable' to let individual tiles be destroyed (by bullets, melee, damagers, stomping, touching, or the 'Break a tile' block).	behavior Tilemap
 A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). ANY name is an item — make your own (shovel, hammer, magic wand…) with the '＋ New item' button, or add ':look' to a slot: a built-in drawing (pickaxe, axe, sword, shovel, hammer, hoe, tile) or a picture file (e.g. wand:#FFFFFF:Assets/sprites/wand.png). A Harvestable whose 'tool' is that name only accepts it. You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.	behavior Hotbar
 A key is pressed	behavior Cutscene
-A new version of EasyEngine is out: v{0} (you have v{1}).	LauncherWindow.xaml.cs
+A new version of EasyEngine is out: v{0} (you have v{1}).	UpdatePrompt.cs
 A one-off puff of particles (sparks, dust, explosions).	BlockEditorWindow.cs
 A project needs at least one scene.	MainWindow.xaml.cs
 A row	behavior Generator
@@ -114,6 +114,7 @@ Block {0}	BlockEditorWindow.cs
 Blocks (light per block)	behavior DayNight
 Blocks above you until it's darkest	behavior DayNight
 Blocks can be mined (0/1)	behavior Terrain
+Blocks stopping this light, colouring what it touches and adding up with other lights need Day/Night → Lighting style: Blocks.	MainWindow.xaml.cs
 Bold	MainWindow.xaml.cs
 Border color	MainWindow.xaml.cs
 Border width	MainWindow.xaml.cs
@@ -171,6 +172,7 @@ Chases a target but navigates AROUND walls/obstacles using grid pathfinding (unl
 Chases another object by name.	behavior Chase
 Chat about ideas — the AI won't change anything.	MainWindow.xaml.cs
 Checking Ollama…	MainWindow.xaml
+Checking for a new version…	UpdatePrompt.cs
 Checkpoint	behavior Checkpoint
 Choose a folder to export the game into	MainWindow.xaml.cs
 Choose an AI model first (AI panel)	MainWindow.xaml.cs
@@ -241,6 +243,7 @@ Dawn/dusk fade (seconds)	behavior DayNight
 Day	step settime
 Day / Night cycle	behavior DayNight
 Day length (seconds)	behavior DayNight
+Day/Night now lights the scene block by block.	MainWindow.xaml.cs
 Day/Night: {0}	Model.cs
 Decoration	MainWindow.xaml.cs
 Default controls (WASD / arrows) (0/1)	behavior TopDown
@@ -286,7 +289,7 @@ Don't show this on the map	MainWindow.Minimap.cs
 Done	BlockEditorWindow.cs
 Double jump	behavior AbilityPickup
 Double jump (0/1)	behavior Platformer
-Downloading EasyEngine v{0}…	LauncherWindow.xaml.cs
+Downloading EasyEngine v{0}…	UpdatePrompt.cs
 Draw mode: click points on the scene, then click Finish.	MainWindow.xaml.cs
 Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done.	MainWindow.xaml.cs
 Draws a small map in a corner showing the whole scene (in an endless world: the area around the player, with the ground), with a dot for the player and optional dots for other things, each in its own colour. Put it on a UI layer. 'markers' = comma-separated 'Name:#RRGGBB' entries; a name matches an object (and every copy of a prefab) or a whole group (empty = just the player). With 'canMax' on, a key opens a big map in the middle of the screen (press it again to close).	behavior Minimap
@@ -442,9 +445,9 @@ Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.xaml.cs
 Images & audio	MainWindow.xaml.cs
 In order	SequenceEditorWindow.cs
 Inspector	MainWindow.xaml
-Install it now? EasyEngine will download it, close, replace the old version with the new one and open again. Your projects are not touched.	LauncherWindow.xaml.cs
+Install it now? EasyEngine will download it, close, replace the old version with the new one and open again. Your projects are not touched.	UpdatePrompt.cs
 Installing the new version... {0} / {1}	Updater.cs
-Installing… EasyEngine will open again in a moment.	LauncherWindow.xaml.cs
+Installing… EasyEngine will open again in a moment.	UpdatePrompt.cs
 Intensity (0-1)	behavior LightSource
 Interact (press key)	behavior Interact
 Invalid destination folder.	LauncherWindow.xaml.cs
@@ -494,6 +497,7 @@ Light	behavior LightSource
 Light block size	behavior DayNight
 Light mode	SettingsWindow.cs
 Lighting style	behavior DayNight
+Lights shine in the dark of a Day/Night cycle. Add Day/Night to an object, with Lighting style: Blocks, for light that blocks stop and that colours what it touches.	MainWindow.xaml.cs
 Lights up the darkness around it (things near it show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).	behavior LightSource
 Lines (Text => condition)	behavior Checklist
 Load the game	behavior UIButton, BlockEditorWindow.cs
@@ -887,7 +891,7 @@ The same every time (built once)	behavior Generator
 The scene starts	behavior BossAI, behavior Cutscene
 The steps run one after another, top to bottom. Steps like Say, Wait, Move or Camera wait until they're done.	SequenceEditorWindow.cs
 The target PC needs the free .NET 8 Desktop Runtime (couldn't find the SDK to make a self-contained build).	MainWindow.xaml.cs
-The update couldn't be downloaded:	LauncherWindow.xaml.cs
+The update couldn't be downloaded:	UpdatePrompt.cs
 Theme updated	MainWindow.xaml.cs
 These steps play when its health reaches 0 (it can't be hurt and doesn't hurt anymore). Then its Custom 'death' rules run and it disappears. Leave it empty to make it disappear at once.	SequenceEditorWindow.cs
 This object (self)	SequenceEditorWindow.cs
@@ -934,8 +938,8 @@ Undo	MainWindow.xaml.cs
 Ungrouped	MainWindow.xaml.cs
 Unique id (keeps 'once' maps stable)	behavior Generator
 Unlock the player	step unlock
-Update EasyEngine	LauncherWindow.xaml.cs
-Updating EasyEngine	LauncherWindow.xaml.cs
+Update EasyEngine	UpdatePrompt.cs
+Updating EasyEngine	UpdatePrompt.cs
 Updating EasyEngine...	Updater.cs
 Use Item (swing / attack)	behavior ToolUse
 Uses attacks	SequenceEditorWindow.cs
@@ -1012,7 +1016,7 @@ Yes	MainWindow.xaml.cs
 Yes = delete the files from disk	LauncherWindow.xaml.cs
 You	MainWindow.xaml.cs
 You (selected: {0})	MainWindow.xaml.cs
-You can keep using this version.	LauncherWindow.xaml.cs
+You can keep using this version.	UpdatePrompt.cs
 You have unsaved changes. Do you want to save before closing?	MainWindow.xaml.cs
 Your projects and settings were not touched.	SettingsWindow.cs
 Yoyo (0/1)	BlockEditorWindow.cs
@@ -1166,6 +1170,7 @@ y	step camera, step move, step moveto, step spawn
 💀 When it dies	SequenceEditorWindow.cs
 💉 Pick	SpriteEditorWindow.cs
 💡 Brainstorm	MainWindow.xaml
+💡 Use Blocks lighting	MainWindow.xaml.cs
 💳 Claude / Anthropic (your API key)	MainWindow.xaml
 💳 Custom — any OpenAI-compatible (your API key)	MainWindow.xaml
 💳 DeepSeek (your API key)	MainWindow.xaml

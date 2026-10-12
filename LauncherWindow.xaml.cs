@@ -43,42 +43,12 @@ namespace EasyEngine
         // ---------------- updates from GitHub (Updater.cs) ----------------
         private async System.Threading.Tasks.Task CheckForUpdateAsync()
         {
-            if (Updater.IsDevBuild || ProjectIO.SuppressRecent || !AiSettings.CheckUpdates) return; // run from the code (or a test): the code is the update
+            // the startup check (UpdatePrompt, before this window opened) already asked; this one is for when it got no
+            // answer in time (offline, slow network)
+            if (!UpdatePrompt.Enabled || UpdatePrompt.Checked) return;
             var r = await Updater.CheckAsync();
             if (r == null || !IsVisible) return;
-            var notes = string.Join("\n", r.Notes.Replace("\r", "").Split('\n').Where(l => l.Trim().Length > 0).Take(10));
-            var ask = MessageBox.Show(this,
-                L.F("A new version of EasyEngine is out: v{0} (you have v{1}).", r.Version.ToString(3), Updater.Current.ToString(3)) + "\n\n" +
-                (notes.Length > 0 ? notes + "\n\n" : "") +
-                L.T("Install it now? EasyEngine will download it, close, replace the old version with the new one and open again. Your projects are not touched."),
-                L.T("Update EasyEngine"), MessageBoxButton.YesNo, MessageBoxImage.Information);
-            if (ask == MessageBoxResult.Yes) await InstallUpdateAsync(r);
-        }
-
-        private async System.Threading.Tasks.Task InstallUpdateAsync(Updater.Release r)
-        {
-            var bar = new System.Windows.Controls.ProgressBar { Height = 14, Maximum = 1, Margin = new Thickness(0, 10, 0, 0) };
-            var text = new System.Windows.Controls.TextBlock { Text = L.F("Downloading EasyEngine v{0}…", r.Version.ToString(3)), Foreground = (System.Windows.Media.Brush)FindResource("Text") };
-            var win = new Window
-            {
-                Title = L.T("Updating EasyEngine"), Owner = this, Width = 380, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = (System.Windows.Media.Brush)FindResource("Bg1"),
-                Content = new System.Windows.Controls.StackPanel { Margin = new Thickness(18), Children = { text, bar } },
-            };
-            win.Show();
-            try
-            {
-                var dir = await Updater.DownloadAsync(r, new Progress<double>(p => bar.Value = p));
-                text.Text = L.T("Installing… EasyEngine will open again in a moment.");
-                Updater.StartSwap(dir, Updater.InstallDir, Environment.ProcessId);
-                Application.Current.Shutdown();
-            }
-            catch (Exception ex)
-            {
-                win.Close();
-                MessageBox.Show(this, L.T("The update couldn't be downloaded:") + "\n" + ex.Message + "\n\n" + L.T("You can keep using this version."),
-                                L.T("Update EasyEngine"), MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            if (UpdatePrompt.Ask(r, this)) await UpdatePrompt.InstallAsync(r, this);
         }
 
         private static string DefaultParentFolder()
