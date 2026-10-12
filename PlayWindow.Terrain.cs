@@ -40,7 +40,6 @@ namespace EasyEngine
         private readonly Dictionary<string, (HashSet<(int c, int r)> dug, HashSet<int> felled)> _terrainMemory = new();
 
         private enum Block : byte { Air, Grass, Dirt, Stone, Ore, Bedrock }
-        private static readonly int[] BlockHits = { 0, 1, 1, 2, 3, 0 }; // hits to break each material (bedrock never breaks)
 
         private sealed class Chunk
         {
@@ -55,13 +54,19 @@ namespace EasyEngine
         {
             public Entity Host = null!; public BehaviorData Bh = null!;
             public Entity? Focus;                         // the "start on the ground" object: the headless view follows it
-            public int Seed, Hills, DirtDepth, BaseRow, Rows, Cols; // Cols 0 = endless
+            public int Seed, Hills, DirtDepth, BaseRow, Rows;
+            public bool Endless = true; public int ColMin, ColMax;   // a sized world: columns ColMin..ColMax (from the generator)
+            public bool EdgeWall = true;                            // a sized world ends in an invisible wall (else: fall off)
             public double Ts, X0, CaveThreshold, TreeDensity;
             public bool Caves, Ores, Mineable;
             public string TreeName = "";
-            public readonly string[] Colors = new string[6];
-            public readonly Brush[] Fills = new Brush[12];  // two shades per material (frozen, shared by every block)
-            public readonly string?[] Drops = new string?[6];
+            // per material: grass, dirt, stone, ore, bedrock, then the "More blocks" (index 6 + i)
+            public List<TerrainBlockSpec> Extra = new();
+            public string[] Colors = new string[6];
+            public Brush[] Fills = new Brush[12];  // two shades per material (frozen, shared by every block)
+            public string?[] Drops = new string?[6];
+            public int[] Hits = { 0, 1, 1, 2, 3, 0 };   // hits to break (bedrock never breaks)
+            public byte[] Collide = new byte[6];       // 0 solid, 1 platform (stand on it, jump through it), 2 see-through
             public Brush WallDirt = null!, WallStone = null!; // the dark back wall of caves and dug-out blocks
             public readonly Dictionary<(int cx, int cy), Chunk> Chunks = new();
             public int Built;                             // chunks built so far (loads, including reloads)
@@ -79,9 +84,10 @@ namespace EasyEngine
                 new[] { (40.0, 10.0), (14.0, 4.0), (5.0, 1.2) },
             };
 
-            public bool InWorld(int c) => Cols <= 0 || (c >= 0 && c < Cols);
+            public bool InWorld(int c) => Endless || (c >= ColMin && c <= ColMax);
             public int Column(double x) => (int)Math.Floor((x - X0) / Ts);
-            public bool ChunkExists(int cx, int cy) => cy >= 0 && cy * ChunkSize < Rows && (Cols <= 0 || (cx >= 0 && cx * ChunkSize < Cols));
+            public bool ChunkExists(int cx, int cy) => cy >= 0 && cy * ChunkSize < Rows
+                && (Endless || (cx >= FloorDiv(ColMin, ChunkSize) && cx <= FloorDiv(ColMax, ChunkSize)));
 
             /// <summary>The loaded cell at (c, r) — null for air, outside the world, or a chunk that isn't loaded.</summary>
             public TileCell? Cell(int c, int r)
@@ -103,7 +109,15 @@ namespace EasyEngine
 
             public Block BlockAt(int c, int r, int surf)
             {
-                if (!InWorld(c) || r < surf || r >= Rows) return Block.Air;
+                if (!InWorld(c) || r < 0 || r >= Rows) return Block.Air;
+                var b = BaseAt(c, r, surf);
+                return Extra.Count == 0 || b == Block.Bedrock ? b : ExtraAt(c, r, surf, b);
+            }
+
+            // the generator's own ground: grass, dirt, stone, ore, caves, bedrock
+            private Block BaseAt(int c, int r, int surf)
+            {
+                if (r < surf || r >= Rows) return Block.Air;
                 if (r == Rows - 1) return Block.Bedrock;
                 int below = r - surf;
                 // caves: never in the top layers (the ground you walk on stays whole) nor right above the bedrock
@@ -111,6 +125,62 @@ namespace EasyEngine
                 if (below == 0) return Block.Grass;
                 if (below <= DirtDepth) return Block.Dirt;
                 return Ores && IsOre(c, r) ? Block.Ore : Block.Stone;
+            }
+
+            private static bool IsGround(Block b) => b is Block.Grass or Block.Dirt or Block.Stone or Block.Ore;
+
+            // "More blocks": the first one whose place, box and amount fit this spot replaces what was there
+            private Block ExtraAt(int c, int r, int surf, Block b)
+            {
+                int y = BaseRow - r; // blocks above the ground level (up = +)
+                for (int i = 0; i < Extra.Count; i++)
+                {
+                    var s = Extra[i];
+                    var (lo, hi) = s.YRange;
+                    if (y < lo || y > hi) continue;
+                    if (s.XOn) { var (xl, xh) = s.XRange; if (c < xl || c > xh) continue; }
+                    int k = Seed + 1009 + 97 * i;
+                    bool here = s.Where switch
+                    {
+                        "sky" => b == Block.Air && r < surf && Cloud(c, r, k, s),
+                        "surface" => b == Block.Grass && Rand01(c, 0, k) < s.Chance,
+                        "underground" => IsGround(b) && r > surf && Vein(c, r, k, s.Chance),
+                        "caves" => IsGround(b) && r - surf > 3 && Rand01(c, r, k) < Math.Min(1, s.Chance * 2) && TouchesCave(c, r),
+                        "area" => b != Block.Air && Rand01(c, r, k) < s.Chance,
+                        _ => false,
+                    };
+                    if (here) return (Block)(6 + i);
+                }
+                return b;
+            }
+
+            // soft wide blobs, like clouds ("all" fills the whole box)
+            private static bool Cloud(int c, int r, int k, TerrainBlockSpec s) =>
+                s.Amount == "all" || Noise2(c / 6.0, r / 2.0, k) > 0.9 - 0.6 * s.Chance;
+
+            // ore-like veins: some 4×4 regions hold a small cluster ("all" fills every ground block)
+            private static bool Vein(int c, int r, int k, double chance)
+            {
+                if (chance >= 1) return true;
+                int rx = FloorDiv(c, 4), ry = FloorDiv(r, 4);
+                uint h = Hash(rx, ry, k);
+                if (h % 1000 >= chance * 600) return false;
+                int oc = rx * 4 + 1 + (int)((h >> 8) & 1), or = ry * 4 + 1 + (int)((h >> 9) & 1);
+                int d = Math.Abs(c - oc) + Math.Abs(r - or);
+                return d <= 1 || (d == 2 && Rand01(c, r, k + 6) < 0.35);
+            }
+
+            private static readonly (int dc, int dr)[] Around = { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+            // a ground block with cave air right next to it (the walls, floor and ceiling of caves)
+            private bool TouchesCave(int c, int r)
+            {
+                foreach (var (dc, dr) in Around)
+                {
+                    int s = SurfaceRow(c + dc);
+                    if (r + dr - s > 3 && BaseAt(c + dc, r + dr, s) == Block.Air) return true;
+                }
+                return false;
             }
 
             private double CaveNoise(int c, int r) => 0.65 * Noise2(c / 16.0, r / 9.0, Seed + 17) + 0.35 * Noise2(c / 6.0, r / 5.0, Seed + 29);
@@ -214,19 +284,36 @@ namespace EasyEngine
                 Hills = Math.Clamp((int)Math.Round(bh.Num("hills", 2)), 0, 3),
                 DirtDepth = Math.Max(0, (int)Math.Round(bh.Num("dirtDepth", 4))),
                 BaseRow = baseRow, Rows = baseRow + Math.Max(8, (int)Math.Round(bh.Num("depth", 60))),
-                Cols = bh.Num("endless", 1) >= 0.5 ? 0 : Math.Max(1, (int)Math.Round(bh.Num("width", 80))),
+                Endless = bh.Num("endless", 1) >= 0.5,
+                ColMin = -Math.Max(0, (int)Math.Round(bh.Num("left", 0))), ColMax = Math.Max(1, (int)Math.Round(bh.Num("width", 80))) - 1,
+                EdgeWall = bh.Num("edge", 0) < 0.5,
                 Caves = bh.Num("caves", 1) >= 0.5, CaveThreshold = 0.74 - 0.3 * Math.Clamp(bh.Num("caveAmount", 0.35), 0, 1),
                 Ores = bh.Num("ores", 1) >= 0.5, Mineable = bh.Num("mineable", 1) >= 0.5,
                 TreeDensity = bh.Num("trees", 1) >= 0.5 ? Math.Clamp(bh.Num("treeDensity", 0.25), 0, 1) : 0,
                 TreeName = bh.Text("tree", "Tree"), Dug = mem.dug, Felled = mem.felled
             };
-            string[] colors = { "", bh.Text("grass", "#5FB548"), bh.Text("dirt", "#8A5A32"), bh.Text("stone", "#767680"), bh.Text("ore", "#E2B23C"), "#2B2B33" };
+            // "More blocks" come after the generator's own six materials (at most 200 of them: a block id is one byte)
+            t.Extra = TerrainBlockSpec.Parse(bh.Text("blocks", "")).Take(200).ToList();
+            int kinds = 6 + t.Extra.Count;
+            t.Colors = new string[kinds]; t.Fills = new Brush[kinds * 2]; t.Drops = new string?[kinds];
+            t.Hits = new int[kinds]; t.Collide = new byte[kinds];
+            new[] { 0, 1, 1, 2, 3, 0 }.CopyTo(t.Hits, 0);
+            var colors = new List<string> { "", bh.Text("grass", "#5FB548"), bh.Text("dirt", "#8A5A32"), bh.Text("stone", "#767680"), bh.Text("ore", "#E2B23C"), "#2B2B33" };
+            for (int i = 0; i < t.Extra.Count; i++)
+            {
+                var s = t.Extra[i];
+                colors.Add(s.Color);
+                t.Hits[6 + i] = s.Hits; t.Drops[6 + i] = s.Drop.Length > 0 ? s.Drop : null;
+                t.Collide[6 + i] = s.Collide switch { "platform" => 1, "none" => 2, _ => 0 };
+            }
             static SolidColorBrush Frozen(Color c, double f) => FrozenBrush(Color.FromRgb((byte)(c.R * f), (byte)(c.G * f), (byte)(c.B * f)));
-            for (int b = 1; b < colors.Length; b++)
+            for (int b = 1; b < colors.Count; b++)
             {
                 var col = ParseColor(colors[b], Color.FromRgb(0x9A, 0x9A, 0xA0));
                 t.Colors[b] = colors[b];
-                t.Fills[b * 2] = Frozen(col, 1); t.Fills[b * 2 + 1] = Frozen(col, 0.9);
+                t.Fills[b * 2] = Frozen(col, 1);
+                bool sky = b >= 6 && t.Extra[b - 6].Where == "sky"; // clouds in one tone (the ground's checker looks patchy in the sky)
+                t.Fills[b * 2 + 1] = sky ? t.Fills[b * 2] : Frozen(col, 0.9);
                 if (b == (int)Block.Dirt) t.WallDirt = Frozen(col, 0.4);
                 if (b == (int)Block.Stone) t.WallStone = Frozen(col, 0.4);
             }
@@ -242,7 +329,14 @@ namespace EasyEngine
             // A terrain placed in the Background layer itself goes right after its own marker (the layer is still loading).
             bool inBackground = _scene.Layers.Any(l => l.Kind == LayerKind.Background && l.Objects.Contains(en.Data));
             World.Children.Insert(inBackground ? World.Children.IndexOf(en.Visual) + 1 : Math.Min(_worldBackgroundEnd, World.Children.Count), _terrainLayer);
-            _endlessX = t.Cols == 0;
+            _endlessX = t.Endless;
+            if (!t.Endless && t.EdgeWall) // a sized world that ends in an invisible wall, all the way up and down
+            {
+                var edge = new GameObjectData { Name = "(world edge)" };
+                double left = t.X0 + t.ColMin * ts, right = t.X0 + (t.ColMax + 1) * ts, h = 100000;
+                _solids.Add(new Entity { Data = edge, X = left - 64, Y = -h, W = 64, H = 2 * h });
+                _solids.Add(new Entity { Data = edge, X = right, Y = -h, W = 64, H = 2 * h });
+            }
             _terrainSurfaceAt = x => t.InWorld(t.Column(x)) ? t.SurfaceRow(t.Column(x)) * t.Ts : null;
             _terrainBottom = t.Rows * ts;
         }
@@ -267,7 +361,7 @@ namespace EasyEngine
             }
             var view = TerrainView(t, false);
             StreamTerrain(t, view, int.MaxValue, view); // everything around the player right now: nothing falls on frame 1
-            Info("Terrain", t.Host.Data.Name, $"World seed {t.Seed} · {(t.Cols == 0 ? "endless" : t.Cols + " blocks wide")} · {t.Chunks.Count} chunks loaded",
+            Info("Terrain", t.Host.Data.Name, $"World seed {t.Seed} · {(t.Endless ? "endless" : $"{t.ColMax - t.ColMin + 1} blocks wide ({-t.ColMin} left, {t.ColMax + 1} right, {(t.EdgeWall ? "walls" : "open edges")})")} · {(t.Extra.Count > 0 ? $"{t.Extra.Count} extra blocks · " : "")}{t.Chunks.Count} chunks loaded",
                  $"blocks {t.Ts:0}px · ground at row {t.BaseRow} · {t.Rows} rows deep" + (t.Focus != null ? $" · {t.Focus.Data.Name} placed on the ground at ({t.Focus.X:0}, {t.Focus.Y:0})" : ""));
         }
 
@@ -277,14 +371,16 @@ namespace EasyEngine
         }
 
         // The camera stays inside the world, and the terrain is part of it even where it goes past the scene (the default
-        // ground lies below a 540 px scene): down to its bottom, and to its right edge — an endless one has no left/right edge.
-        partial void CameraClampOverride(ref bool clampX, ref double worldW, ref double worldH)
+        // ground lies below a 540 px scene): down to its bottom, and to its left and right edges. An endless world, or a
+        // sized one whose edges are open (you can fall off), doesn't hold the camera sideways.
+        partial void CameraClampOverride(ref bool clampX, ref double worldX0, ref double worldW, ref double worldH)
         {
             var t = _terrain;
             if (t == null) return;
             worldH = Math.Max(worldH, _terrainBottom);
-            if (t.Cols == 0) clampX = false;
-            else worldW = Math.Max(worldW, t.X0 + t.Cols * t.Ts);
+            if (t.Endless || !t.EdgeWall) { clampX = false; return; }
+            worldX0 = Math.Min(worldX0, t.X0 + t.ColMin * t.Ts);
+            worldW = Math.Max(worldW, t.X0 + (t.ColMax + 1) * t.Ts);
         }
 
         partial void TerrainBeforeLogic(double dt)
@@ -416,7 +512,7 @@ namespace EasyEngine
                     ch.Canvas.Children.Add(rect);
                     ch.Cells[lr * ChunkSize + lc] = new TileCell
                     {
-                        C = c, R = r, X = x, Y = y, W = ts, H = ts, Solid = true, Hp = BlockHits[(int)b],
+                        C = c, R = r, X = x, Y = y, W = ts, H = ts, Solid = t.Collide[(int)b] != 2, OneWay = t.Collide[(int)b] == 1, Hp = t.Hits[(int)b],
                         Unbreakable = b == Block.Bedrock, Drop = t.Drops[(int)b], Color = t.Colors[(int)b], Visual = rect
                     };
                 }
@@ -476,7 +572,7 @@ namespace EasyEngine
 
         // A terrain cell as a collider entity (SolidsNear): made on first use and cached in the cell.
         private static Entity TerrainCollider(TerrainState t, TileCell cell)
-            => cell.Collider ??= new Entity { Data = t.Host.Data, X = cell.X, Y = cell.Y, W = cell.W, H = cell.H };
+            => cell.Collider ??= new Entity { Data = t.Host.Data, X = cell.X, Y = cell.Y, W = cell.W, H = cell.H, OneWay = cell.OneWay };
 
         // World Y of the highest generated ground top under the span [x, x + w] (null = no terrain there).
         private double? TerrainTopUnder(double x, double w)

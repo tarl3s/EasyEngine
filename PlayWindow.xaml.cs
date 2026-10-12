@@ -115,6 +115,7 @@ namespace EasyEngine
         private class TileCell
         {
             public int R, C; public double X, Y, W, H; public bool Solid; public int Hp = 1; public bool Broken;
+            public bool OneWay;        // terrain "platform" block: stand on it, jump up through it
             public bool Unbreakable;   // terrain bedrock
             public string? Drop;       // what it drops (null = the map's "drop"); a terrain cell drops its material's item
             public string Color = "#888888";
@@ -1027,7 +1028,7 @@ namespace EasyEngine
         partial void MinimapEntityRemoved(Entity en);
         partial void SequencesRender(double dt);     // Render: overlays (fade, cinema bars, title, boss bar)
         partial void CameraTargetOverride(ref double tx, ref double ty, ref double smooth); // cutscene camera
-        partial void CameraClampOverride(ref bool clampX, ref double worldW, ref double worldH); // a terrain's world bounds
+        partial void CameraClampOverride(ref bool clampX, ref double worldX0, ref double worldW, ref double worldH); // a terrain's world bounds
         partial void CameraShakeOffset(ref double ox, ref double oy);                       // screen shake
 
         // Platformer and top-down characters face the key held (A/D, even against a wall), else the way they move —
@@ -2331,7 +2332,7 @@ namespace EasyEngine
                         while (_c <= _c1)
                         {
                             var cell = _t.Cell(_c++, _r);
-                            if (cell != null && !cell.Broken) { Current = TerrainCollider(_t, cell); return true; }
+                            if (cell != null && !cell.Broken && cell.Solid) { Current = TerrainCollider(_t, cell); return true; } // see-through blocks don't collide
                         }
                     return false;
                 }
@@ -2913,10 +2914,10 @@ namespace EasyEngine
             _camY += (ty - _camY) * smooth;
 
             bool clampY = (cam?.Num("clamp", 1) ?? 1) >= 0.5, clampX = clampY;
-            double worldW = _scene.Width, worldH = _scene.Height;
-            CameraClampOverride(ref clampX, ref worldW, ref worldH); // a terrain makes the world bigger (an endless one frees the X axis)
+            double worldX0 = 0, worldW = _scene.Width, worldH = _scene.Height; // the world spans x worldX0..worldW
+            CameraClampOverride(ref clampX, ref worldX0, ref worldW, ref worldH); // a terrain makes the world bigger (an endless one frees the X axis)
             double vw = Root.ActualWidth, vh = Root.ActualHeight;
-            if (clampX) _camX = worldW > vw ? Math.Clamp(_camX, -(worldW - vw), 0) : 0;
+            if (clampX) _camX = worldW - worldX0 > vw ? Math.Clamp(_camX, -(worldW - vw), -worldX0) : -worldX0;
             if (clampY) _camY = worldH > vh ? Math.Clamp(_camY, -(worldH - vh), 0) : 0;
         }
 

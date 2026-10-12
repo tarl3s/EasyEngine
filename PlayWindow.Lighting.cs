@@ -177,7 +177,7 @@ namespace EasyEngine
                 if (t == null) continue;
                 int c = t.Column(x);
                 for (int r = Math.Max(0, (int)Math.Floor(top / t.Ts)), r1 = Math.Min(t.Rows - 1, (int)Math.Floor(who.Y / t.Ts)); r <= r1; r++)
-                    if (t.Cell(c, r) is { Broken: false } cell) sum += Above(cell.X, cell.Y, cell.W, cell.H);
+                    if (t.Cell(c, r) is { Broken: false, Solid: true, OneWay: false } cell) sum += Above(cell.X, cell.Y, cell.W, cell.H);
             }
             return sum / 3 / 32;
         }

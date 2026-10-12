@@ -17,6 +17,7 @@ namespace EasyEngine
         Item, Items, ItemDamage, ItemSounds, HotbarItems, Look,
         Variable, Currency, Requirement,
         MapMarkers,            // minimap: which things show, each with its colour
+        TerrainBlocks,         // Terrain Generator: extra blocks, each with where it grows (visual editor)
         Special                // drawn by its own editor (script, tilemap, path, boss/cutscene steps)
     }
 
@@ -268,7 +269,7 @@ namespace EasyEngine
                           TIf(T("coverWho","Whose light (usually the player)","Player", PickKind.Object), CoverOn) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Terrain, Name = "Terrain Generator", Icon = "⛰",
-                Desc = "Builds a whole world by itself: grassy hills, dirt, stone, caves, ore and trees, made of blocks you can dig. Put it on ONE empty object — the world starts at that object's X and goes right (and left too when it's endless: walk forever, it is built as you go). The same 'seed' always makes the same world (0 = a new world every game). 'Ground level' is how far down the grass starts; 'Start this object on the ground' puts the player on the grass at its X. Mining: click a block with the item in hand (Use Item), the 'Break a tile' block, or bullets; dirt takes 1 hit, stone 2, ore 3, the bottom row (bedrock) never breaks; each block gives its drop item (dirt/stone/ore), and 'Only breaks when' (e.g. holding:pickaxe) limits it to the right tool. Trees are a tree object or prefab (e.g. a Harvestable tree) planted on the grass. For the AI: make the scene tall enough (height ≥ ground level + depth × block size), spawn night enemies with a custom rule {\"do\":\"spawn\",\"object\":\"Slime\",\"at\":\"near\"} (near = on the ground a little to the left/right of the spawner).",
+                Desc = "Builds a whole world by itself: grassy hills, dirt, stone, caves, ore and trees, made of blocks you can dig. Put it on ONE empty object — the world starts at that object's X and goes right (and left too when it's endless: walk forever, it is built as you go). The same 'seed' always makes the same world (0 = a new world every game). 'Ground level' is how far down the grass starts; 'Start this object on the ground' puts the player on the grass at its X. Mining: click a block with the item in hand (Use Item), the 'Break a tile' block, or bullets; dirt takes 1 hit, stone 2, ore 3, the bottom row (bedrock) never breaks; each block gives its drop item (dirt/stone/ore), and 'Only breaks when' (e.g. holding:pickaxe) limits it to the right tool. Trees are a tree object or prefab (e.g. a Harvestable tree) planted on the grass. 'More blocks' adds your own blocks, each growing in the sky, on the surface, underground, around caves or in an area (heights in blocks from the ground level, up = +, down = −; columns from the generator) — clouds to jump on, a deeper ore, a sand biome. The world is endless, or has a size to the left and right that ends in an invisible wall or an edge you can fall off. For the AI: make the scene tall enough (height ≥ ground level + depth × block size), spawn night enemies with a custom rule {\"do\":\"spawn\",\"object\":\"Slime\",\"at\":\"near\"} (near = on the ground a little to the left/right of the spawner).",
                 Nums = { new("seed","World seed (0 = a new world every game)",0),
                          new("tileSize","Block size",32, "24|Small (24)", "32|Medium (32)", "40|Large (40)"),
                          new("surface","Ground level (px from the top)",600),
@@ -279,7 +280,9 @@ namespace EasyEngine
                          NIf(new("caveAmount","How many caves (0-1)",0.35), IfOn("caves")),
                          new("ores","Ores (0/1)",1),
                          new("endless","Endless to the left and right (0/1)",1),
-                         NIf(new("width","World width (blocks)",80), IfOff("endless")),
+                         NIf(new("left","Blocks to the left",0), IfOff("endless")),
+                         NIf(new("width","Blocks to the right",80), IfOff("endless")),
+                         NIf(new("edge","At the end of the map",0, "0|An invisible wall (the camera stops)", "1|The world just ends (you can fall off)"), IfOff("endless")),
                          new("mineable","Blocks can be mined (0/1)",1),
                          NIf(new("byBullet","Bullets break blocks (0/1)",1), IfOn("mineable")),
                          NIf(new("byDamage","Enemies/hazards break blocks (0/1)",0), IfOn("mineable")),
@@ -292,7 +295,8 @@ namespace EasyEngine
                           TIf(TNone("stoneDrop","Stone drops","stone", PickKind.Item), IfOn("mineable")),
                           TIf(TNone("oreDrop","Ore drops","ore", PickKind.Item), IfOn("mineable")),
                           TIf(T("tree","Tree","Tree", PickKind.ObjectOrPrefab), IfOn("trees")),
-                          TNone("startOn","Start this object on the ground","Player", PickKind.Object) } },
+                          TNone("startOn","Start this object on the ground","Player", PickKind.Object),
+                          T("blocks","More blocks","", PickKind.TerrainBlocks) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Hotbar, Name = "Hotbar / Inventory", Icon = "🎒",
                 Desc = "A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). ANY name is an item — make your own (shovel, hammer, magic wand…) with the '＋ New item' button, or add ':look' to a slot: a built-in drawing (pickaxe, axe, sword, shovel, hammer, hoe, tile) or a picture file (e.g. wand:#FFFFFF:Assets/sprites/wand.png). A Harvestable whose 'tool' is that name only accepts it. You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.",

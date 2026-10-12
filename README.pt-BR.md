@@ -66,7 +66,8 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   o controle; disparam no início, ao entrar numa área, por variável ou tecla.
 - **✨ Ask the AI** dentro dos editores de chefe e cinemática: descreva, e a IA escreve os passos.
 - **Mundo** — física AABB, plataformas de um sentido e móveis, tilemaps (quebráveis), **geração procedural** e um
-  **gerador de terreno infinito** (morros, cavernas, minérios, árvores) que dá pra minerar.
+  **gerador de terreno** (morros, cavernas, minérios, árvores, e blocos seus — nuvens, minérios mais fundos, biomas)
+  que dá pra minerar, infinito ou do tamanho que você escolher.
 - **Dia, noite e iluminação** — sol e lua, tochas e lâmpadas, escuridão no subterrâneo, e uma **iluminação por
   blocos**, em que paredes bloqueiam a luz e as tochas colorem o que tocam. **Minimapa** com mapa
   grande numa tecla.

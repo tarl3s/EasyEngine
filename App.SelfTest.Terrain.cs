@@ -43,5 +43,30 @@ public partial class App
             if (frameMs > 16 || play.TTerrainMsMax > 50) return $"infinite world: too slow ({frameMs:0.0} ms per frame, streaming worst {play.TTerrainMsMax:0} ms)";
             return null;
         });
+
+        // "More blocks", for review: the Land's card in the editor, and the game with clouds and a sand biome near the player
+        var dir2 = Path.Combine(Path.GetTempPath(), "EE_SelfTest_blocks_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+        Directory.CreateDirectory(dir2);
+        var proj2 = ProjectIO.Load(InfiniteWorld.Build(dir2));
+        proj2.ConsoleOnStart = false;
+        var landBh = proj2.Scenes.SelectMany(s => s.Layers).SelectMany(l => l.Objects).First(o => o.Name == "Land").Behaviors.First(b => b.Kind == BehaviorKind.Terrain);
+        var cloud = TerrainBlockSpec.For("sky", "Cloud", "#F2F5FA"); cloud.YFrom = 3; cloud.YTo = 8; cloud.Amount = "lots";
+        var sand = TerrainBlockSpec.For("area", "Sand", "#E3CF8A"); sand.YFrom = 20; sand.YTo = -6; sand.Amount = "all"; sand.XFrom = -10; sand.XTo = 8;
+        landBh.Texts["blocks"] = TerrainBlockSpec.Serialize(new[] { cloud, sand }); landBh.Nums["seed"] = 777;
+        var ed2 = new MainWindow(proj2) { ShowActivated = false };
+        ed2.Show(); c.CloseLater.Add(ed2);
+        ed2.TestInspect(ed2.TestFindObject("Land")!);
+        ed2.TabInspector.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        var play2 = new PlayWindow(proj2, proj2.StartScene!) { Owner = ed2 };
+        play2.Show(); c.CloseLater.Add(play2);
+        c.LateChecks.Add(() =>
+        {
+            ed2.InspectorScroll.ScrollToEnd(); ed2.UpdateLayout();
+            c.Snapshot(ed2, "terrain_blocks");
+            play2.TMeasureFrames(30);
+            c.Snapshot(play2, "terrain_blocks_play");
+            c.Write($"terrain blocks (real window): {play2.TTerrainChunks} chunks, {play2.TTerrainVisuals} blocks drawn");
+            return play2.TLog.Errors > 0 ? "terrain blocks: console error — " + play2.TLog.Entries.First(e => e.Level == LogLevel.Error).FullText() : null;
+        });
     }
 }

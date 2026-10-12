@@ -174,6 +174,9 @@ namespace EasyEngine
                 case PickKind.MapMarkers:
                     MapMarkersEditor(obj, bh, panel);
                     break;
+                case PickKind.TerrainBlocks:
+                    TerrainBlocksEditor(obj, bh, panel);
+                    break;
                 case PickKind.Special:
                     if (bh.Kind == BehaviorKind.Custom && tp.Key == "script") ScriptRow(bh, panel);
                     else if (bh.Kind == BehaviorKind.AdvancedPatrol && tp.Key == "path") AdvancedPatrolRow(obj, bh, panel);
@@ -191,6 +194,7 @@ namespace EasyEngine
         // feature editors, each in its own file: minimap markers (MainWindow.Minimap.cs),
         // Boss AI / Cutscene card = Advanced Scratch + JSON + "Ask the AI" (MainWindow.Sequences.cs)
         partial void MapMarkersEditor(GameObjectData obj, BehaviorData bh, Panel panel);
+        partial void TerrainBlocksEditor(GameObjectData obj, BehaviorData bh, Panel panel); // MainWindow.TerrainBlocks.cs
         partial void SequenceCard(GameObjectData obj, BehaviorData bh, Panel panel);
 
         /// <summary>A catalog's "value|Label" options, with the labels in the current language (the values stay as they are).</summary>

@@ -375,6 +375,61 @@ public partial class App
             t.Test($"terrain perf: 600 headless frames, player running across {chunksCrossed:0.0} chunks with 10 slimes → {ms:0.00} ms/frame " +
                    $"(streaming avg {w.TTerrainMs:0.00} ms, worst {w.TTerrainMsMax:0.0} ms), ≤ {maxVis} blocks drawn in ≤ {maxChunks} chunks", () =>
                 chunksCrossed >= 10 && ms < 8 && maxVis < 6000 && w.TAlive("Slime") == 10);
+
+        // ---------------- "More blocks" and the world's size ----------------
+        string Blocks(params TerrainBlockSpec[] b) => TerrainBlockSpec.Serialize(b);
+        t.Test("terrain blocks: the list survives saving, and a hand-written one is read tolerantly (numbers in quotes, odd words, no name = 'Block')", () =>
+        {
+            var cloud = TerrainBlockSpec.For("sky", "Cloud", "#FFFFFF");
+            var back = TerrainBlockSpec.Parse(Blocks(cloud)).Single();
+            var loose = TerrainBlockSpec.Parse("[{\"name\":\"Gem\",\"where\":\"deep\",\"yFrom\":\"-20\",\"yTo\":-40,\"xOn\":1,\"hits\":\"99\",},{\"color\":\"#fff\"}]");
+            return back.Where == "sky" && back.Collide == "platform" && back.YFrom == 4 && back.Name == "Cloud"
+                   && loose.Count == 2 && loose[1].Name == "Block" && loose[1].Color == "#fff" && loose[0].Where == "underground" && loose[0].YFrom == -20 && loose[0].XOn && loose[0].Hits == 10
+                   && TerrainBlockSpec.Parse("not json").Count == 0 && TerrainBlockSpec.Parse("").Count == 0;
+        });
+        t.Test("terrain blocks: sky blocks fill their height box above the ground (up = +) and nowhere else; platforms you stand on", () =>
+        {
+            var cloud = TerrainBlockSpec.For("sky", "Cloud", "#FFFFFF"); cloud.YFrom = 3; cloud.YTo = 6; cloud.Amount = "all";
+            var w = World(tb => { tb.Texts["blocks"] = Blocks(cloud); tb.Nums["hills"] = 0; tb.Nums["trees"] = 0; });
+            int c = Col(w), g = w.TTerrainBaseRow;
+            bool box = Enumerable.Range(3, 4).All(y => w.TTerrainBlock(c, g - y) == 6);
+            bool outside = w.TTerrainBlock(c, g - 2) == 0 && w.TTerrainBlock(c, g - 7) == 0 && w.TTerrainBlock(c, g) == 1;
+            w.TTerrainStreamLive(new System.Windows.Rect(w.TX("A") - 400, 0, 800, g * 32 + 200));
+            var cell = w.TTerrainCellInfo(c, g - 4);
+            return box && outside && cell is { solid: true, oneWay: true, hits: 1 };
+        });
+        t.Test("terrain blocks: underground veins stay in their depth; an area replaces only the ground between its columns", () =>
+        {
+            var gem = TerrainBlockSpec.For("underground", "Gem", "#5FD4E8"); gem.YFrom = -6; gem.YTo = -9; gem.Amount = "all"; gem.Hits = 5;
+            var sand = TerrainBlockSpec.For("area", "Sand", "#E3CF8A"); sand.YFrom = 30; sand.YTo = -3; sand.Amount = "all"; sand.XFrom = 2; sand.XTo = 6; sand.Collide = "none";
+            var w = World(tb => { tb.Texts["blocks"] = Blocks(gem, sand); tb.Nums["hills"] = 0; tb.Nums["caves"] = 0; tb.Nums["trees"] = 0; });
+            int g = w.TTerrainBaseRow;
+            bool veins = Enumerable.Range(6, 4).All(d => w.TTerrainBlock(20, g + d) == 6) && w.TTerrainBlock(20, g + 5) != 6 && w.TTerrainBlock(20, g + 10) != 6;
+            bool area = Enumerable.Range(2, 5).All(c => w.TTerrainBlock(c, g) == 7 && w.TTerrainBlock(c, g + 3) == 7)
+                        && w.TTerrainBlock(7, g) == 1 && w.TTerrainBlock(2, g - 1) == 0;   // not past its columns, not into the air
+            // see-through sand doesn't collide (the generator's own blocks still do)
+            w.TTerrainStreamLive(new System.Windows.Rect(-200, 0, 1200, (g + 20) * 32));
+            return veins && area && w.TTerrainCellInfo(4, g) is { solid: false } && w.TTerrainCellInfo(20, g + 7) is { hits: 5 };
+        });
+        t.Test("terrain size: a sized world grows left and right of the generator and ends in invisible walls (the camera stops)", () =>
+        {
+            var w = World(tb => { tb.Nums["endless"] = 0; tb.Nums["left"] = 10; tb.Nums["width"] = 20; tb.Nums["hills"] = 0; });
+            int g = w.TTerrainBaseRow;
+            bool span = w.TTerrainBlock(-10, g) == 1 && w.TTerrainBlock(-11, g) == 0 && w.TTerrainBlock(19, g) == 1 && w.TTerrainBlock(20, g) == 0;
+            double leftEdge = w.TTerrainCellCenter(-10, g).X - 16;
+            Teleport(w, leftEdge + 40); w.TKey("Left", true); w.TSteps(120); w.TKey("Left", false);
+            w.TTerrainSnapCamera();
+            return span && !w.TEndlessX && w.TEdgeWalls == 2 && w.TX("A") >= leftEdge - 0.5 && -w.TCamX >= leftEdge - 0.5;
+        });
+        t.Test("terrain size: with open ends the player walks off the edge and falls out of the world (no walls)", () =>
+        {
+            var w = World(tb => { tb.Nums["endless"] = 0; tb.Nums["left"] = 0; tb.Nums["width"] = 12; tb.Nums["edge"] = 1; tb.Nums["hills"] = 0; });
+            double leftEdge = w.TTerrainCellCenter(0, w.TTerrainBaseRow).X - 16;
+            Teleport(w, leftEdge + 40); w.TKey("Left", true); w.TSteps(60); w.TKey("Left", false);
+            bool past = w.TX("A") < leftEdge;
+            w.TSteps(30);
+            return w.TEdgeWalls == 0 && past && w.TTerrainBox("A").Y > w.TTerrainCellCenter(0, w.TTerrainBaseRow).Y;
+        });
         }
     }
 }

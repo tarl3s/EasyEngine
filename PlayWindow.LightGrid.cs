@@ -112,7 +112,7 @@ namespace EasyEngine
                 if (cy < 0) continue;
                 int r = (int)(cy / t.Ts);
                 for (int i = 0; i < _gCols; i++)
-                    if (t.Cell(t.Column(wx0 + (i + 0.5) * cs), r) is { Broken: false }) _gSolid[j * _gCols + i] = true;
+                    if (t.Cell(t.Column(wx0 + (i + 0.5) * cs), r) is { Broken: false, Solid: true, OneWay: false }) _gSolid[j * _gCols + i] = true;
             }
         }
 

@@ -34,6 +34,12 @@ namespace EasyEngine
             return n;
         }
         public bool TEndlessX => _endlessX;
+        /// <summary>Row of the generator's ground level ("More blocks" heights count from it, up = +).</summary>
+        public int TTerrainBaseRow => _terrain?.BaseRow ?? 0;
+        /// <summary>A loaded cell's collision and hits (null = no cell there).</summary>
+        public (bool solid, bool oneWay, int hits)? TTerrainCellInfo(int c, int r) => _terrain?.Cell(c, r) is TileCell k ? (k.Solid, k.OneWay, k.Hp) : null;
+        /// <summary>The invisible walls at a sized world's ends.</summary>
+        public int TEdgeWalls => _solids.Count(s => s.Data.Name == "(world edge)");
         /// <summary>One live streaming tick with the camera showing `cameraView` (headless ticks stream around the player).</summary>
         public void TTerrainStreamLive(Rect cameraView) { if (_terrain != null) StreamTerrain(_terrain, cameraView, 2, TerrainView(_terrain, false)); }
         public double? TSurfaceAt(double x) => _terrainSurfaceAt?.Invoke(x);

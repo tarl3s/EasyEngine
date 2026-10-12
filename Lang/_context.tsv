@@ -9,6 +9,7 @@
 (prefab)	ParamSources.cs
 1 = normal, 0.5 = half, 2 = double. Resets the boost.	BlockEditorWindow.cs
 1 attack	SequenceModel.cs
+1 hit	MainWindow.TerrainBlocks.cs
 1 phase	SequenceModel.cs
 1 step	SequenceModel.cs
 1 — forward	behavior Shooter
@@ -24,6 +25,7 @@ A day/night cycle. Add it to one object (a controller, can be invisible). It dim
 A grid of tiles you paint in the editor (ground, walls, level geometry). Solid tiles become collision automatically. Add it to an empty object, then paint with the Tiles panel. Turn on 'Breakable' to let individual tiles be destroyed (by bullets, melee, damagers, stomping, touching, or the 'Break a tile' block).	behavior Tilemap
 A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). ANY name is an item — make your own (shovel, hammer, magic wand…) with the '＋ New item' button, or add ':look' to a slot: a built-in drawing (pickaxe, axe, sword, shovel, hammer, hoe, tile) or a picture file (e.g. wand:#FFFFFF:Assets/sprites/wand.png). A Harvestable whose 'tool' is that name only accepts it. You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.	behavior Hotbar
 A key is pressed	behavior Cutscene
+A lot	MainWindow.TerrainBlocks.cs
 A new version of EasyEngine is out: v{0} (you have v{1}).	UpdatePrompt.cs
 A one-off puff of particles (sparks, dust, explosions).	BlockEditorWindow.cs
 A project needs at least one scene.	MainWindow.xaml.cs
@@ -68,6 +70,7 @@ Aimed at the target	step shoot
 Alignment	behavior Label
 All free providers are out of quota right now. Try again later.	MainWindow.xaml.cs
 All items	MainWindow.Params.cs
+All of it	MainWindow.TerrainBlocks.cs
 Also show	behavior Minimap
 Also show on the map	MainWindow.Minimap.cs
 Also unlocks	behavior AbilityPickup
@@ -75,6 +78,8 @@ Always	MainWindow.Params.cs
 Ambient light (0-1)	MainWindow.xaml.cs
 Amount	BlockEditorWindow.cs, step addvar
 Amount given	behavior Shop
+An area (replaces the ground)	MainWindow.TerrainBlocks.cs
+An invisible wall (the camera stops)	behavior Terrain
 An invisible zone. When the target enters it, fires an effect: goscene, setvar, addvar or say. once=1 fires a single time. Use for level exits, cutscene triggers, hidden-room reveals, kill-zones.	behavior Area
 An on-screen checklist for testing. Each line is 'Text => condition' (one per line or separated by ';'). A line ticks ✓ by itself when its condition becomes true (e.g. holding:axe >= 1, stat:hits >= 1, item:wood >= 5) and stays ticked. Logs to the F1 console and sets check:done / check:total / check:all.	behavior Checklist
 Angle (°)	BlockEditorWindow.cs
@@ -82,11 +87,13 @@ Animation name (e.g. idle, walk):	AnimationWindow.xaml.cs
 Animation name (e.g. idle, walk, jump):	AnimationWindow.xaml.cs
 Animations	AnimationWindow.xaml, MainWindow.xaml.cs
 Animations — {0}	AnimationWindow.xaml.cs
+Around caves	MainWindow.TerrainBlocks.cs
 Ask	MainWindow.xaml.cs
 Ask how to use anything — the AI explains step by step.	MainWindow.xaml.cs
 Asking {0}…	MainWindow.Sequences.cs, MainWindow.xaml.cs
 At	step emit, step spawn
 At random (never twice in a row)	SequenceEditorWindow.cs
+At the end of the map	behavior Terrain
 At the start	SequenceEditorWindow.cs
 At this object	behavior Spawner
 Attack	SequenceEditorWindow.cs, step category
@@ -110,11 +117,13 @@ Big (32 px)	behavior DayNight
 Big title	step title
 Blink	behavior Label
 Block size	behavior Terrain
-Block {0}	BlockEditorWindow.cs
+Block {0}	BlockEditorWindow.cs, MainWindow.TerrainBlocks.cs
 Blocks (light per block)	behavior DayNight
 Blocks above you until it's darkest	behavior DayNight
 Blocks can be mined (0/1)	behavior Terrain
 Blocks stopping this light, colouring what it touches and adding up with other lights need Day/Night → Lighting style: Blocks.	MainWindow.xaml.cs
+Blocks to the left	behavior Terrain
+Blocks to the right	behavior Terrain
 Bold	MainWindow.xaml.cs
 Border color	MainWindow.xaml.cs
 Border width	MainWindow.xaml.cs
@@ -135,13 +144,14 @@ Break with damagers/hazards (0/1)	behavior Tilemap
 Break with item clicks (Tool Use) (0/1)	behavior Tilemap
 Breakable (0/1)	behavior Tilemap
 Breaks a tile of a breakable tilemap: any it overlaps (touching), the one below/above/beside/in front of it, or the one at the mouse.	BlockEditorWindow.cs
+Breaks after	MainWindow.TerrainBlocks.cs
 Brightness at night (0-1)	behavior DayNight
 Brightness by day (0-1)	behavior DayNight
 Brush	SpriteEditorWindow.cs
 Build behavior with blocks	BlockEditorWindow.cs
 Build failed (exit {0}).	MainWindow.xaml.cs
 Build it	MainWindow.xaml, MainWindow.xaml.cs
-Builds a whole world by itself: grassy hills, dirt, stone, caves, ore and trees, made of blocks you can dig. Put it on ONE empty object — the world starts at that object's X and goes right (and left too when it's endless: walk forever, it is built as you go). The same 'seed' always makes the same world (0 = a new world every game). 'Ground level' is how far down the grass starts; 'Start this object on the ground' puts the player on the grass at its X. Mining: click a block with the item in hand (Use Item), the 'Break a tile' block, or bullets; dirt takes 1 hit, stone 2, ore 3, the bottom row (bedrock) never breaks; each block gives its drop item (dirt/stone/ore), and 'Only breaks when' (e.g. holding:pickaxe) limits it to the right tool. Trees are a tree object or prefab (e.g. a Harvestable tree) planted on the grass. For the AI: make the scene tall enough (height ≥ ground level + depth × block size), spawn night enemies with a custom rule {"do":"spawn","object":"Slime","at":"near"} (near = on the ground a little to the left/right of the spawner).	behavior Terrain
+Builds a whole world by itself: grassy hills, dirt, stone, caves, ore and trees, made of blocks you can dig. Put it on ONE empty object — the world starts at that object's X and goes right (and left too when it's endless: walk forever, it is built as you go). The same 'seed' always makes the same world (0 = a new world every game). 'Ground level' is how far down the grass starts; 'Start this object on the ground' puts the player on the grass at its X. Mining: click a block with the item in hand (Use Item), the 'Break a tile' block, or bullets; dirt takes 1 hit, stone 2, ore 3, the bottom row (bedrock) never breaks; each block gives its drop item (dirt/stone/ore), and 'Only breaks when' (e.g. holding:pickaxe) limits it to the right tool. Trees are a tree object or prefab (e.g. a Harvestable tree) planted on the grass. 'More blocks' adds your own blocks, each growing in the sky, on the surface, underground, around caves or in an area (heights in blocks from the ground level, up = +, down = −; columns from the generator) — clouds to jump on, a deeper ore, a sand biome. The world is endless, or has a size to the left and right that ends in an invisible wall or an edge you can fall off. For the AI: make the scene tall enough (height ≥ ground level + depth × block size), spawn night enemies with a custom rule {"do":"spawn","object":"Slime","at":"near"} (near = on the ground a little to the left/right of the spawner).	behavior Terrain
 Bullet	behavior Shooter, BlockEditorWindow.cs
 Bullet (optional)	step shoot
 Bullet life (s)	behavior Shooter
@@ -190,16 +200,20 @@ Click to pick a color	MainWindow.xaml.cs
 Click to pick a colour	SequenceEditorWindow.cs
 Click “ADD ANIMATION” to create one (idle, walk, jump…).	AnimationWindow.xaml
 Close	SettingsWindow.cs, VariablesWindow.xaml
+Cloud	MainWindow.TerrainBlocks.cs
 Cloud · {0}	MainWindow.xaml.cs
 Collectible	behavior Collectible
 Collide with walls (0/1)	behavior AdvancedPatrol, behavior Platformer, behavior TopDown
+Collision	MainWindow.TerrainBlocks.cs
 Color	behavior Label, behavior LightSource, behavior Particles, BlockEditorWindow.cs, MainWindow.xaml.cs
 Colour	step emit, step fadeout, step telegraph
 Colour (of the metal part)	NewItemDialog.cs
 Colour of its dot on the map	MainWindow.Minimap.cs
 Colour of the metal part	MainWindow.Params.cs
+Colour of this block	MainWindow.TerrainBlocks.cs
 Colours what it touches (0/1)	behavior LightSource
 Columns	MainWindow.xaml.cs
+Columns from the generator: right is +, left is −.	MainWindow.TerrainBlocks.cs
 Condition	BlockEditorWindow.cs
 Control	step category
 Cooldown (s)	behavior Shooter, BlockEditorWindow.cs
@@ -219,6 +233,7 @@ Create an object	step spawn
 Create failed:	LauncherWindow.xaml.cs
 Created "{0}" [{1}]	MainWindow.xaml.cs
 Creates copies of an object. If 'key' is set, it spawns when that key is pressed; otherwise every 'interval' seconds. 'at'=top drops them from the top of the screen (random x). max=0 means unlimited. The spawned object can be a scene object or a prefab; give it physics Dynamic to make it fall.	behavior Spawner
+Crystal	MainWindow.TerrainBlocks.cs
 Ctrl	ParamSources.cs
 Custom	MainWindow.xaml.cs
 Custom (AI script)	behavior Custom
@@ -294,7 +309,7 @@ Downloading EasyEngine v{0}…	UpdatePrompt.cs
 Draw mode: click points on the scene, then click Finish.	MainWindow.xaml.cs
 Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done.	MainWindow.xaml.cs
 Draws a small map in a corner showing the whole scene (in an endless world: the area around the player, with the ground), with a dot for the player and optional dots for other things, each in its own colour. Put it on a UI layer. 'markers' = comma-separated 'Name:#RRGGBB' entries; a name matches an object (and every copy of a prefab) or a whole group (empty = just the player). With 'canMax' on, a key opens a big map in the middle of the screen (press it again to close).	behavior Minimap
-Drops	behavior Harvestable, behavior Tilemap
+Drops	behavior Harvestable, behavior Tilemap, MainWindow.TerrainBlocks.cs
 Duplicate	MainWindow.xaml.cs
 Duplicated {0}	MainWindow.xaml.cs
 Dusk	step settime
@@ -365,6 +380,7 @@ Flat	behavior Terrain
 Flies in a direction at a speed and disappears after a while.	behavior Projectile
 Float (separate window)	MainWindow.xaml.cs
 Floating	MainWindow.xaml.cs
+Flower grass	MainWindow.TerrainBlocks.cs
 Flying (no gravity)	behavior BossAI
 Follow Camera	behavior FollowCamera
 Follows a path you draw with the mouse, using platformer physics — it walks the route, jumps up steps, and hops over obstacles in its way. Select it, click 'Draw path', then click points on the scene.	behavior AdvancedPatrol
@@ -375,6 +391,8 @@ Free / flying (straight line)	MainWindow.xaml.cs
 Free, no credit card.	MainWindow.xaml.cs
 From	BlockEditorWindow.cs
 From (empty) = at this object · top = falling from the top of the screen · near = on the ground, a little to the left or right.	BlockEditorWindow.cs
+From column	MainWindow.TerrainBlocks.cs
+From height	MainWindow.TerrainBlocks.cs
 Full value	behavior Bar
 Full value from a variable	behavior Bar
 Game exported!\n\nFolder:\n{0}\n\nDouble-click "{1}.exe" to play.\n\n{2}	MainWindow.xaml.cs
@@ -410,6 +428,7 @@ Health	behavior Health
 Heart	SpriteEditorWindow.cs
 Heavy (no knockback) (0/1)	behavior BossAI
 Height	MainWindow.xaml.cs, step jump
+Heights in blocks from the ground level: up (sky) is +, down is −.	MainWindow.TerrainBlocks.cs
 Hexagon	SpriteEditorWindow.cs
 Hide an object	step hide
 Hills	behavior Terrain
@@ -433,6 +452,7 @@ How many	BlockEditorWindow.cs, step emit, step summon
 How many caves (0-1)	behavior Terrain
 How many resources each tile drops	behavior Tilemap
 How many to spawn	behavior Generator
+How much	MainWindow.TerrainBlocks.cs
 How much one turn rotates	SpriteEditorWindow.cs
 How near (px)	behavior Interact
 How the item looks (in the hand and on the hotbar)	LookPicker.cs, MainWindow.Params.cs
@@ -445,6 +465,7 @@ Image set on {0}	MainWindow.xaml.cs
 Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.xaml.cs
 Images & audio	MainWindow.xaml.cs
 In order	SequenceEditorWindow.cs
+In the sky	MainWindow.TerrainBlocks.cs
 Inspector	MainWindow.xaml
 Install it now? EasyEngine will download it, close, replace the old version with the new one and open again. Your projects are not touched.	UpdatePrompt.cs
 Installing the new version... {0} / {1}	Updater.cs
@@ -535,7 +556,9 @@ Mirror the selection up ↕ down	SpriteEditorWindow.cs
 Mode	MainWindow.xaml.cs
 Model "{0}" isn't available on {1}.	CloudClient.cs
 Moon	behavior DayNight
+More blocks	behavior Terrain, MainWindow.TerrainBlocks.cs
 More…	NewItemDialog.cs
+Moss	MainWindow.TerrainBlocks.cs
 Motion	step category
 Move / float this panel	MainWindow.xaml
 Move an object	step move
@@ -553,6 +576,7 @@ My Game	LauncherWindow.xaml
 My picture…	LookPicker.cs
 Name	InputDialog.xaml, MainWindow.xaml.cs
 Name (also what Harvestable 'tool' asks for)	NewItemDialog.cs
+Name of this block	MainWindow.TerrainBlocks.cs
 Name on the health bar	behavior BossAI
 Needs a Day/Night cycle object in the scene.	BlockEditorWindow.cs
 Needs a Day/Night cycle object in the scene. Great for enemies that only come out at night.	BlockEditorWindow.cs
@@ -562,7 +586,7 @@ New canvas of any size, e.g. 32×128	SpriteEditorWindow.cs
 New currency (a variable name, e.g. gems):	MainWindow.Params.cs
 New every visit (roguelike)	behavior Generator
 New item	NewItemDialog.cs
-New item name (e.g. wood, key, shovel):	MainWindow.Params.cs
+New item name (e.g. wood, key, shovel):	MainWindow.Params.cs, MainWindow.TerrainBlocks.cs
 New layer	MainWindow.xaml.cs
 New name for the project:	LauncherWindow.xaml.cs
 New name:	AnimationWindow.xaml.cs, MainWindow.xaml.cs
@@ -593,7 +617,7 @@ No variables yet.	VariablesWindow.xaml.cs
 Non-stop	behavior Particles
 None	behavior Label, MainWindow.xaml.cs
 Noon	step settime
-Normal	behavior Terrain
+Normal	behavior Terrain, MainWindow.TerrainBlocks.cs
 Nothing	MainWindow.Params.cs
 Nothing else	behavior AbilityPickup, MainWindow.Params.cs
 Nothing to clear.	SettingsWindow.cs
@@ -612,10 +636,13 @@ Ollama ok, but the model isn't downloaded:\n    ollama pull {0}	MainWindow.xaml.
 On	step bars
 On click	behavior UIButton
 On the ground (gravity)	behavior BossAI
+On the surface (instead of grass)	MainWindow.TerrainBlocks.cs
 Once (stop at the end)	MainWindow.xaml.cs
 One burst when the scene starts	behavior Particles
 One-way (jump through from below) (0/1)	behavior Solid
+Only between columns	MainWindow.TerrainBlocks.cs
 Only breaks when	behavior Terrain, behavior Tilemap
+Only grass, dirt, stone and ore — add clouds, a deeper ore, a sand biome…	MainWindow.TerrainBlocks.cs
 Only once (0/1)	behavior Area, behavior Cutscene, behavior Interact
 Only run if… (optional)	BlockEditorWindow.cs
 Only works while standing on the ground. Bigger = higher.	BlockEditorWindow.cs
@@ -663,6 +690,7 @@ Pick a color	SpriteEditorWindow.cs
 Pickaxe	ToolArt.cs
 Picked up by	behavior AbilityPickup, behavior Collectible
 Picture of the item	LookPicker.cs
+Platform (stand on it, jump up through it)	MainWindow.TerrainBlocks.cs
 Platformer (gravity + jumps)	MainWindow.xaml.cs
 Platformer (side view, sun + moon)	behavior DayNight
 Platformer Character	behavior Platformer
@@ -690,6 +718,7 @@ Pulse	behavior Label
 Pushable Block	behavior Pushable
 Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'); hold the button to keep using it, one swing per cooldown. Each use: the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe, or your own (shovel…). Far away = a miss; wrong tool = refused; something solid in between (wall, water, a block) = blocked, the swing only hits what is in front. 'itemDamage' = damage per item (e.g. sword=2,axe=1), 'tools' = only these items swing (comma list, empty = all), 'toolLook' = look of the fixed tool. Everything shows in the F1 console.	behavior ToolUse
 Radius	behavior LightSource
+Rare	MainWindow.TerrainBlocks.cs
 Reach (px from the player)	behavior ToolUse
 Ready	MainWindow.xaml, MainWindow.xaml.cs
 Recalc interval (s)	behavior PathChase
@@ -700,6 +729,7 @@ Refused sound	behavior ToolUse
 Remove	MainWindow.xaml.cs
 Remove an item	BlockEditorWindow.cs
 Remove prefab "{0}" from the palette?\n(objects already placed in scenes are NOT affected)	MainWindow.xaml.cs
+Remove this block	MainWindow.TerrainBlocks.cs
 Remove this item from the hotbar	MainWindow.Params.cs
 Remove this step	SequenceEditorWindow.cs
 Remove this tile	MainWindow.xaml.cs
@@ -728,6 +758,7 @@ Rows	MainWindow.xaml.cs
 Rules (JSON)	behavior Custom
 SCENE	MainWindow.xaml, MainWindow.xaml.cs
 SCENE LAYERS	MainWindow.xaml
+Sand	MainWindow.TerrainBlocks.cs
 Save	App.xaml.cs, MainWindow.xaml
 Save as Prefab	MainWindow.xaml.cs
 Save as prefab	MainWindow.xaml.cs
@@ -745,6 +776,7 @@ Scene	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.cs,
 Scene name:	MainWindow.xaml.cs
 Scene {0}	MainWindow.xaml.cs
 Seconds	BlockEditorWindow.cs, step camera, step cameraback, step dash, step fadein, step fadeout, step invulnerable, step move, step moveto, step shake, step telegraph, step title, step wait, step walk
+See-through (decoration)	MainWindow.TerrainBlocks.cs
 Select	ColorPickerPopup.cs
 Select all	Styles.xaml
 Select an object in the scene to add its variables.	VariablesWindow.xaml.cs
@@ -799,6 +831,7 @@ Smooth (soft circles of light)	behavior DayNight
 Smooth stop at ends (0/1)	behavior Patrol
 Smoothing (0-1)	behavior FollowCamera
 Smoothly animates a property to a value. Loop repeats; yoyo bounces back and forth.	BlockEditorWindow.cs
+Solid	MainWindow.TerrainBlocks.cs
 Solid (collision)	MainWindow.xaml.cs
 Solid (ground/platform)	behavior Solid
 Solid blocks stop this light (0/1)	behavior LightSource
@@ -894,6 +927,7 @@ The scene starts	behavior BossAI, behavior Cutscene
 The steps run one after another, top to bottom. Steps like Say, Wait, Move or Camera wait until they're done.	SequenceEditorWindow.cs
 The target PC needs the free .NET 8 Desktop Runtime (couldn't find the SDK to make a self-contained build).	MainWindow.xaml.cs
 The update couldn't be downloaded:	UpdatePrompt.cs
+The world just ends (you can fall off)	behavior Terrain
 Theme updated	MainWindow.xaml.cs
 These steps play when its health reaches 0 (it can't be hurt and doesn't hurt anymore). Then its Custom 'death' rules run and it disappears. Leave it empty to make it disappear at once.	SequenceEditorWindow.cs
 This object (self)	SequenceEditorWindow.cs
@@ -909,6 +943,8 @@ Times	BlockEditorWindow.cs
 Tip: to make something need it, give that object a Harvestable and set its Tool to this name (e.g. a dirt mound that only the shovel digs).	NewItemDialog.cs
 Title	behavior Checklist
 To	BlockEditorWindow.cs, step camera, step move, step moveto, step setvar
+To column	MainWindow.TerrainBlocks.cs
+To height	MainWindow.TerrainBlocks.cs
 Toggles a variable between 0 and 1. mode=click (click it), touch (trigger touches it), or interact (trigger stands on it and presses the key). stayOn=1 makes it a one-time switch that can't turn back off.	behavior Switch
 Tool needed	behavior Harvestable
 Top left	behavior Checklist, behavior Minimap
@@ -936,6 +972,7 @@ Type	MainWindow.xaml.cs
 Typewriter (types out)	behavior Label
 UI	MainWindow.xaml.cs
 UI Button	behavior UIButton
+Underground (veins)	MainWindow.TerrainBlocks.cs
 Undo	MainWindow.xaml.cs
 Ungrouped	MainWindow.xaml.cs
 Unique id (keeps 'once' maps stable)	behavior Generator
@@ -984,6 +1021,7 @@ When the target touches it, it becomes the target's respawn point.	behavior Chec
 When the trigger is near and presses the key, fires an effect: say (show dialogue text, lines split by |), setvar, addvar or goscene. Use for NPCs, signs, chests, levers.	behavior Interact
 When this phase starts	SequenceEditorWindow.cs
 Where	behavior Spawner
+Where it grows	MainWindow.TerrainBlocks.cs
 Where to save the project	LauncherWindow.xaml.cs
 Which	BlockEditorWindow.cs
 Which AI to use	MainWindow.xaml
@@ -1008,7 +1046,6 @@ Width × height in pixels (4 to 256 each), for example 32x128:	SpriteEditorWindo
 Without a bullet object it fires small round bullets that hurt the target and vanish when they hit.	step shoot
 World depth (blocks)	behavior Terrain
 World seed (0 = a new world every game)	behavior Terrain
-World width (blocks)	behavior Terrain
 Write the size as width x height, for example 32x128 (each from 4 to 256).	SpriteEditorWindow.cs
 Write to the console	BlockEditorWindow.cs
 Write what you want first.	MainWindow.Sequences.cs
@@ -1086,6 +1123,7 @@ y	step camera, step move, step moveto, step spawn
 {0} attacks	SequenceModel.cs
 {0} error ({1}): {2}	CloudClient.cs
 {0} frame(s)	AnimationWindow.xaml.cs
+{0} hits	MainWindow.TerrainBlocks.cs
 {0} limit reached for now.	CloudClient.cs
 {0} phases	SequenceModel.cs
 {0} rate limit reached.	CloudClient.cs
@@ -1119,12 +1157,14 @@ y	step camera, step move, step moveto, step spawn
 ⌫ Eraser	SpriteEditorWindow.cs
 ① Get free key (opens the site)	MainWindow.xaml.cs
 ② Paste your key here:	MainWindow.xaml.cs
+▫ An empty block (underground)	MainWindow.TerrainBlocks.cs
 ▶  Test	MainWindow.xaml
 ▸ Advanced — paid keys, offline AI	MainWindow.xaml
 ◆ Shape	SpriteEditorWindow.cs
 ☁ Cloud selected — add a free API key below (any provider works).	MainWindow.xaml.cs
 ☁ Cloud · {0}. Keys set: {1}. Hitting one's daily limit auto-switches to the next.	MainWindow.xaml.cs
 ☁ Cloud — Auto (rotate free providers)	MainWindow.xaml
+☁ Clouds in the sky (platforms)	MainWindow.TerrainBlocks.cs
 ☁ Gemini (free)	MainWindow.xaml
 ☁ Groq 120B (free)	MainWindow.xaml
 ☁ Groq 20B (free, fast)	MainWindow.xaml
@@ -1162,15 +1202,19 @@ y	step camera, step move, step moveto, step spawn
 🌀 Jumble	SpriteEditorWindow.cs
 🌐  Language	SettingsWindow.cs
 🌫 Blur	SpriteEditorWindow.cs
+🌼 Flowers on the surface	MainWindow.TerrainBlocks.cs
+🍄 Moss around caves	MainWindow.TerrainBlocks.cs
 🎓 Learn	MainWindow.xaml
 🎞 Edit Animations…	MainWindow.xaml.cs
 🎨  Draw a sprite	AnimationWindow.xaml
 🎨  Theme	SettingsWindow.cs
 🎨 Draw frame	AnimationWindow.xaml
 🎬 Cutscene — Advanced Scratch	SequenceEditorWindow.cs
+🏜 A sand biome (an area of columns)	MainWindow.TerrainBlocks.cs
 👑 Boss — Advanced Scratch	SequenceEditorWindow.cs
 💀 When it dies	SequenceEditorWindow.cs
 💉 Pick	SpriteEditorWindow.cs
+💎 A deeper ore	MainWindow.TerrainBlocks.cs
 💡 Brainstorm	MainWindow.xaml
 💳 Claude / Anthropic (your API key)	MainWindow.xaml
 💳 Custom — any OpenAI-compatible (your API key)	MainWindow.xaml
@@ -1192,6 +1236,7 @@ y	step camera, step move, step moveto, step spawn
 ＋  ADD ANIMATION	AnimationWindow.xaml
 ＋  New Project	LauncherWindow.xaml
 ＋ Add	MainWindow.Minimap.cs
+＋ Add a block	MainWindow.TerrainBlocks.cs
 ＋ Add behavior…	MainWindow.xaml.cs
 ＋ Add frames	AnimationWindow.xaml
 ＋ Add step	SequenceEditorWindow.cs
