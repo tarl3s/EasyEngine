@@ -4,7 +4,8 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using static EasyEngine.DemoKit;
+using static EasyEngine.GameAssets;
 
 namespace EasyEngine
 {
@@ -62,8 +63,7 @@ namespace EasyEngine
             // ---- behind the gate: the crown and the end ----
             var crown = Rounded(Box("Crown", 1720, GroundY - 40, 36, 30, "#FFD24D"), 6);
             crown.Behaviors.Add(B(BehaviorKind.Collectible));
-            crown.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] =
-                "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"say\",\"text\":\"You took the Slime King's crown. THE END — thanks for playing!\"}]" } });
+            crown.Behaviors.Add(Script("[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"say\",\"text\":\"You took the Slime King's crown. THE END — thanks for playing!\"}]"));
             baseL.Objects.Add(Id(crown));
             baseL.Objects.Add(Id(Label("EndSign", 1640, GroundY - 120, "★ The swamp is free ★", "#FFE9A8", 16, 220)));
 
@@ -170,26 +170,11 @@ namespace EasyEngine
         }
 
         // ================================================================== objects
-        private static BehaviorData B(BehaviorKind k) => BehaviorCatalog.Info(k).CreateData();
-
-        private static GameObjectData Box(string name, double x, double y, double w, double h, string color)
-            => new() { Name = name, Type = "Object", X = x, Y = y, Width = w, Height = h, Color = color, Physics = new PhysicsData { Mode = PhysicsMode.None } };
-
-        private static GameObjectData Rounded(GameObjectData o, double r) { o.CornerRadius = r; return o; }
-
         private static GameObjectData Solid(string name, double x, double y, double w, double h, string color)
         {
             var o = Box(name, x, y, w, h, color);
             o.Physics.Mode = PhysicsMode.Static; o.CornerRadius = 0;
             o.Behaviors.Add(B(BehaviorKind.Solid));
-            return o;
-        }
-
-        private static GameObjectData Label(string name, double x, double y, string text, string color, double size, double width)
-        {
-            var o = Box(name, x, y, width, size + 10, "#00000000");
-            var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Texts["align"] = "left"; lb.Nums["fontSize"] = size;
-            o.Behaviors.Add(lb);
             return o;
         }
 
@@ -229,7 +214,7 @@ namespace EasyEngine
             ai.Texts["script"] = BossScriptJson();
             o.Behaviors.Add(ai);
             // the Custom 'death' rule runs after the death sequence: one last splash
-            o.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] = "[{\"when\":\"death\",\"do\":\"emit\",\"count\":40,\"color\":\"#B6FFC8\"}]" } });
+            o.Behaviors.Add(Script("[{\"when\":\"death\",\"do\":\"emit\",\"count\":40,\"color\":\"#B6FFC8\"}]"));
             return o;
         }
 
@@ -248,25 +233,12 @@ namespace EasyEngine
             var plat = B(BehaviorKind.Platformer); plat.Nums["controls"] = 0; o.Behaviors.Add(plat);
             var dmg = B(BehaviorKind.Damager); dmg.Texts["target"] = "Player"; dmg.Nums["damage"] = 1; dmg.Nums["knockback"] = 260; o.Behaviors.Add(dmg);
             var hp = B(BehaviorKind.Health); hp.Nums["max"] = 2; hp.Nums["respawn"] = 0; hp.Texts["var"] = "minionHP"; o.Behaviors.Add(hp);
-            o.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] =
-                "[{\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(Player.cx - self.cx) * 95\"}," +
-                "{\"when\":\"death\",\"do\":\"emit\",\"count\":16,\"color\":\"#7CFC9A\"}]" } });
+            o.Behaviors.Add(Script("[{\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(Player.cx - self.cx) * 95\"}," +
+                                   "{\"when\":\"death\",\"do\":\"emit\",\"count\":16,\"color\":\"#7CFC9A\"}]"));
             return o;
         }
 
         // ================================================================== art
-        private static BitmapSource Draw(int w, int h, Action<DrawingContext, int, int> draw)
-        {
-            var dv = new DrawingVisual();
-            using (var dc = dv.RenderOpen()) draw(dc, w, h);
-            var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
-            rtb.Render(dv);
-            rtb.Freeze();
-            return rtb;
-        }
-
-        private static SolidColorBrush Br(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
-
         // A slime blob: a dome on a flat base with a shine.
         private static void Slime(DrawingContext dc, double w, double h, double top, string body, string edge)
         {

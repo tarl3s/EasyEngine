@@ -4,6 +4,8 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using static EasyEngine.DemoKit;
+using static EasyEngine.GameAssets;
 
 namespace EasyEngine
 {
@@ -128,8 +130,6 @@ namespace EasyEngine
         // ============================================================
         //  OBJECT FACTORIES
         // ============================================================
-        private static BehaviorData B(BehaviorKind k) => BehaviorCatalog.Info(k).CreateData();
-
         private static GameObjectData Player(double x, double y, Sprites s)
         {
             var o = new GameObjectData { Name = "Player", Type = "Player", X = x, Y = y, Width = 36, Height = 52, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
@@ -138,11 +138,9 @@ namespace EasyEngine
             var hp = B(BehaviorKind.Health); hp.Nums["max"] = 3; hp.Nums["respawn"] = 1; hp.Texts["var"] = "health"; o.Behaviors.Add(hp);
             var sword = B(BehaviorKind.ToolUse); sword.Texts["tool"] = "sword"; sword.Nums["reach"] = 60; o.Behaviors.Add(sword); // click to attack
             // shop buy logic lives on the player (B = spend 15 coins for a lasting speed boost)
-            var cust = new BehaviorData { Kind = BehaviorKind.Custom };
-            cust.Texts["script"] = "[{\"when\":\"keypress\",\"key\":\"B\",\"cooldown\":1,\"if\":\"coins\",\"ifop\":\">=\",\"ifval\":15,\"do\":\"boost\",\"factor\":1.4}," +
-                                    "{\"when\":\"keypress\",\"key\":\"B\",\"cooldown\":1,\"if\":\"coins\",\"ifop\":\">=\",\"ifval\":15,\"do\":\"addvar\",\"var\":\"coins\",\"amount\":-15}," +
-                                    "{\"when\":\"keypress\",\"key\":\"B\",\"cooldown\":1,\"if\":\"coins\",\"ifop\":\">=\",\"ifval\":15,\"do\":\"say\",\"text\":\"Speed boost bought!\",\"speaker\":\"Shop\"}]";
-            o.Behaviors.Add(cust);
+            o.Behaviors.Add(Script("[{\"when\":\"keypress\",\"key\":\"B\",\"cooldown\":1,\"if\":\"coins\",\"ifop\":\">=\",\"ifval\":15,\"do\":\"boost\",\"factor\":1.4}," +
+                                   "{\"when\":\"keypress\",\"key\":\"B\",\"cooldown\":1,\"if\":\"coins\",\"ifop\":\">=\",\"ifval\":15,\"do\":\"addvar\",\"var\":\"coins\",\"amount\":-15}," +
+                                   "{\"when\":\"keypress\",\"key\":\"B\",\"cooldown\":1,\"if\":\"coins\",\"ifop\":\">=\",\"ifval\":15,\"do\":\"say\",\"text\":\"Speed boost bought!\",\"speaker\":\"Shop\"}]"));
             o.Animations.Add(new SpriteAnimation { Name = "idle", Fps = 3, Frames = new List<string>(s.HeroIdle) });
             o.Animations.Add(new SpriteAnimation { Name = "walk", Fps = 11, Frames = new List<string>(s.HeroWalk) });
             o.DefaultAnimation = "idle";
@@ -163,11 +161,9 @@ namespace EasyEngine
         private static GameObjectData Coin(double x, double y, Sprites s)
         {
             var o = new GameObjectData { Name = "Coin", Type = "Object", X = x, Y = y, Width = 26, Height = 26, Color = "#FFD86B", Physics = new PhysicsData { Mode = PhysicsMode.None } };
-            var cust = new BehaviorData { Kind = BehaviorKind.Custom };
-            cust.Texts["script"] = "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1}," +
-                                    "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"score\",\"amount\":10}," +
-                                    "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\"}]";
-            o.Behaviors.Add(cust);
+            o.Behaviors.Add(Script("[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1}," +
+                                   "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"score\",\"amount\":10}," +
+                                   "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\"}]"));
             o.Animations.Add(new SpriteAnimation { Name = "spin", Fps = 10, Frames = new List<string>(s.Coin) });
             o.DefaultAnimation = "spin";
             return o;
@@ -183,9 +179,7 @@ namespace EasyEngine
         private static GameObjectData Shopkeeper(double x, double y, Sprites s)
         {
             var o = new GameObjectData { Name = "Shop", Type = "Object", X = x, Y = y, Width = 40, Height = 56, Color = "#8B6FD6", SpritePath = s.Shop, Physics = new PhysicsData { Mode = PhysicsMode.None } };
-            var cust = new BehaviorData { Kind = BehaviorKind.Custom };
-            cust.Texts["script"] = "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"say\",\"text\":\"Welcome! Press B to buy a speed boost for 15 coins.\",\"speaker\":\"Shop\"}]";
-            o.Behaviors.Add(cust);
+            o.Behaviors.Add(Script("[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"say\",\"text\":\"Welcome! Press B to buy a speed boost for 15 coins.\",\"speaker\":\"Shop\"}]"));
             return o;
         }
 
@@ -241,17 +235,12 @@ namespace EasyEngine
 
         private static string Save(string dir, string name, int w, int h, Action<DrawingContext, int, int> draw)
         {
-            var dv = new DrawingVisual();
-            using (var dc = dv.RenderOpen()) draw(dc, w, h);
-            var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
-            rtb.Render(dv);
             var enc = new PngBitmapEncoder();
-            enc.Frames.Add(BitmapFrame.Create(rtb));
+            enc.Frames.Add(BitmapFrame.Create(Draw(w, h, draw)));
             using (var fs = File.Create(Path.Combine(dir, name))) enc.Save(fs);
             return "Assets/sprites/" + name;
         }
 
-        private static SolidColorBrush Br(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
         private static Pen P(string hex, double t) => new(Br(hex), t);
 
         private static void DrawHero(DrawingContext dc, int w, int h, int legFrame, int bob)

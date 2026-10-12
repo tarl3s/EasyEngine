@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using static EasyEngine.DemoKit;
 
 namespace EasyEngine
 {
@@ -74,9 +75,7 @@ namespace EasyEngine
             baseL.Objects.Add(Id(Slime(700, surfaceY - 44)));
             baseL.Objects.Add(Id(Slime(1400, surfaceY - 44)));
             var spawner = Box("NightSpawner", 1000, surfaceY - 60, 20, 20, "#00000000");
-            var sp = new BehaviorData { Kind = BehaviorKind.Custom };
-            sp.Texts["script"] = "[{\"when\":\"timer\",\"every\":6,\"do\":\"spawn\",\"object\":\"Slime\",\"cond\":\"isNight >= 1\"}]";
-            spawner.Behaviors.Add(sp);
+            spawner.Behaviors.Add(Script("[{\"when\":\"timer\",\"every\":6,\"do\":\"spawn\",\"object\":\"Slime\",\"cond\":\"isNight >= 1\"}]"));
             baseL.Objects.Add(Id(spawner));
 
             // ---- day / night controller + sun & moon (UI = screen space) ----
@@ -101,7 +100,8 @@ namespace EasyEngine
             project.Scenes.Add(scene);
 
             // ---- prefabs spawned at runtime ----
-            project.Prefabs.Add(new PrefabDef { Name = "Coin", Template = CoinTemplate() });
+            // Dynamic so scattered/dropped coins fall to the ground where the player can reach them
+            project.Prefabs.Add(new PrefabDef { Name = "Coin", Template = Coin(PhysicsMode.Dynamic) });
             project.Prefabs.Add(new PrefabDef { Name = "Slime", Template = Slime(0, 0) });
 
             ProjectIO.Save(project);
@@ -109,20 +109,6 @@ namespace EasyEngine
         }
 
         // ---------------- factories ----------------
-        private static BehaviorData B(BehaviorKind k) => BehaviorCatalog.Info(k).CreateData();
-
-        private static GameObjectData Box(string name, double x, double y, double w, double h, string color)
-            => new() { Name = name, Type = "Object", X = x, Y = y, Width = w, Height = h, Color = color, Physics = new PhysicsData { Mode = PhysicsMode.None } };
-
-        private static GameObjectData Label(string name, double x, double y, string text, string color, double size)
-        {
-            var o = Box(name, x, y, 900, size + 10, "#00000000");
-            // left-aligned: the text starts at (x, y) instead of floating in the middle of a wide box
-            var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Texts["align"] = "left"; lb.Nums["fontSize"] = size;
-            o.Behaviors.Add(lb);
-            return o;
-        }
-
         private static GameObjectData BreakTiles(string name, double x, double y, int cols, int rows, string color, string requires, string drop, int hits)
         {
             var o = Box(name, x, y, cols * TS, rows * TS, "#00000000");
@@ -150,9 +136,7 @@ namespace EasyEngine
             var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 240; torch.Texts["color"] = "#FFE6A0"; o.Behaviors.Add(torch);
             // mine/chop the tile under the cursor while the left mouse button is held, within reach
             // (the held tool gates WHAT breaks via each tilemap's 'requires' flag)
-            var cust = new BehaviorData { Kind = BehaviorKind.Custom };
-            cust.Texts["script"] = "[{\"when\":\"always\",\"do\":\"breaktile\",\"where\":\"atmouse\",\"cond\":\"mousedown >= 1 && dist(mousex, mousey, self.cx, self.cy) < 170\"}]";
-            o.Behaviors.Add(cust);
+            o.Behaviors.Add(Script("[{\"when\":\"always\",\"do\":\"breaktile\",\"where\":\"atmouse\",\"cond\":\"mousedown >= 1 && dist(mousex, mousey, self.cx, self.cy) < 170\"}]"));
             return o;
         }
 
@@ -163,24 +147,9 @@ namespace EasyEngine
             var dmg = B(BehaviorKind.Damager); dmg.Texts["target"] = "Player"; dmg.Nums["damage"] = 1; dmg.Nums["knockback"] = 300; o.Behaviors.Add(dmg);
             var hp = B(BehaviorKind.Health); hp.Nums["max"] = 2; hp.Nums["respawn"] = 0; o.Behaviors.Add(hp);
             // walk toward the player (gravity from Platformer keeps it on the ground); drop a coin on death
-            var cust = new BehaviorData { Kind = BehaviorKind.Custom };
-            cust.Texts["script"] = "[{\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(Player.cx - self.cx) * 70\"}," +
-                                    "{\"when\":\"death\",\"do\":\"spawn\",\"object\":\"Coin\"}," +
-                                    "{\"when\":\"death\",\"do\":\"emit\",\"count\":16,\"color\":\"#8E54E9\"}]";
-            o.Behaviors.Add(cust);
-            return o;
-        }
-
-        private static GameObjectData CoinTemplate()
-        {
-            // Dynamic so scattered/dropped coins fall to the ground where the player can reach them
-            var o = new GameObjectData { Name = "Coin", Type = "Object", X = 0, Y = 0, Width = 22, Height = 22, Color = "#FFD24D", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
-            o.CornerRadius = 11;
-            var cust = new BehaviorData { Kind = BehaviorKind.Custom };
-            cust.Texts["script"] = "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1}," +
-                                    "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"emit\",\"count\":8,\"color\":\"#FFD24D\"}," +
-                                    "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\"}]";
-            o.Behaviors.Add(cust);
+            o.Behaviors.Add(Script("[{\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(Player.cx - self.cx) * 70\"}," +
+                                   "{\"when\":\"death\",\"do\":\"spawn\",\"object\":\"Coin\"}," +
+                                   "{\"when\":\"death\",\"do\":\"emit\",\"count\":16,\"color\":\"#8E54E9\"}]"));
             return o;
         }
 

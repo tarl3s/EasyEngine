@@ -57,20 +57,13 @@ namespace EasyEngine
             Title = "Sprite editor";
             Width = 560; Height = 560;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            Background = TryBrush("Bg0", "#15151A");
+            Background = Theme.Brush("Bg0", "#15151A");
 
             _w = _h = Math.Clamp(size, 4, 256);
             BuildUi();
             NewCanvas(_w, _h);
             if (loadAbsolutePath != null) TryLoad(loadAbsolutePath);
         }
-
-        private Brush TryBrush(string key, string fallback)
-        {
-            if (Application.Current.TryFindResource(key) is Brush b) return b;
-            try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback)); } catch { return Brushes.Gray; }
-        }
-        private Style? TryStyle(string key) => Application.Current.TryFindResource(key) as Style;
 
         private void BuildUi()
         {
@@ -82,7 +75,7 @@ namespace EasyEngine
 
             Button ToolBtn(string label, Tool t)
             {
-                var b = new Button { Content = label, Height = 30, MinWidth = 40, Margin = new Thickness(0, 0, 6, 0), Padding = new Thickness(8, 0, 8, 0), Style = TryStyle("CardButton") };
+                var b = new Button { Content = label, Height = 30, MinWidth = 40, Margin = new Thickness(0, 0, 6, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("CardButton") };
                 b.Click += (s, e) => SelectTool(t);
                 _toolBtns[t] = b;
                 return b;
@@ -104,12 +97,12 @@ namespace EasyEngine
             shapeCombo.SelectedIndex = 0;
             shapeCombo.SelectionChanged += (s, e) => { _shape = (string)(shapeCombo.SelectedItem ?? "Rectangle"); SelectTool(Tool.Shape); };
             bar.Children.Add(shapeCombo);
-            var fillChk = new CheckBox { Content = "Fill", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), Foreground = TryBrush("Text", "#EEE"), ToolTip = "Fill shapes / polygon" };
+            var fillChk = new CheckBox { Content = "Fill", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), Foreground = Theme.Brush("Text", "#EEE"), ToolTip = "Fill shapes / polygon" };
             fillChk.Checked += (s, e) => _fillShapes = true;
             fillChk.Unchecked += (s, e) => _fillShapes = false;
             bar.Children.Add(fillChk);
 
-            _swatch = new Rectangle { Width = 30, Height = 30, Margin = new Thickness(10, 0, 6, 0), RadiusX = 4, RadiusY = 4, Stroke = TryBrush("Border", "#555"), StrokeThickness = 1, Cursor = Cursors.Hand, ToolTip = "Pick a color", Fill = new SolidColorBrush(Color.FromArgb(_ca, _cr, _cg, _cb)) };
+            _swatch = new Rectangle { Width = 30, Height = 30, Margin = new Thickness(10, 0, 6, 0), RadiusX = 4, RadiusY = 4, Stroke = Theme.Brush("Border", "#555"), StrokeThickness = 1, Cursor = Cursors.Hand, ToolTip = "Pick a color", Fill = new SolidColorBrush(Color.FromArgb(_ca, _cr, _cg, _cb)) };
             _swatch.MouseLeftButtonUp += (s, e) =>
                 ColorPickerPopup.Open(_swatch, ColorPickerPopup.ColorToHex(Color.FromRgb(_cr, _cg, _cb)), hex =>
                 {
@@ -118,25 +111,25 @@ namespace EasyEngine
             bar.Children.Add(_swatch);
 
             // brush size
-            bar.Children.Add(new TextBlock { Text = "Brush", VerticalAlignment = VerticalAlignment.Center, Foreground = TryBrush("TextDim", "#AAA"), FontSize = 12, Margin = new Thickness(6, 0, 4, 0) });
-            var brushVal = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = TryBrush("Text", "#EEE"), FontSize = 12, MinWidth = 16, TextAlignment = TextAlignment.Center };
+            bar.Children.Add(new TextBlock { Text = "Brush", VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 12, Margin = new Thickness(6, 0, 4, 0) });
+            var brushVal = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("Text", "#EEE"), FontSize = 12, MinWidth = 16, TextAlignment = TextAlignment.Center };
             var brushSlider = new Slider { Minimum = 1, Maximum = 10, Value = _brush, Width = 90, VerticalAlignment = VerticalAlignment.Center, IsSnapToTickEnabled = true, TickFrequency = 1, IsMoveToPointEnabled = true };
             brushVal.Text = _brush.ToString();
             brushSlider.ValueChanged += (s, e) => { _brush = Math.Max(1, (int)Math.Round(brushSlider.Value)); brushVal.Text = _brush.ToString(); };
             bar.Children.Add(brushSlider);
-            bar.Children.Add(new TextBlock { Text = "px", VerticalAlignment = VerticalAlignment.Center, Foreground = TryBrush("TextDim", "#AAA"), FontSize = 11, Margin = new Thickness(4, 0, 2, 0) });
+            bar.Children.Add(new TextBlock { Text = "px", VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 11, Margin = new Thickness(4, 0, 2, 0) });
             bar.Children.Add(brushVal);
 
-            _sizeLabel = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = TryBrush("TextDim", "#AAA"), FontSize = 12, Margin = new Thickness(12, 0, 10, 0) };
+            _sizeLabel = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 12, Margin = new Thickness(12, 0, 10, 0) };
             bar.Children.Add(_sizeLabel);
 
             foreach (var sz in new[] { 16, 32, 64 })
             {
-                var b = new Button { Content = $"{sz}²", Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = TryStyle("GhostButton"), ToolTip = $"New {sz}×{sz} canvas" };
+                var b = new Button { Content = $"{sz}²", Height = 30, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton"), ToolTip = $"New {sz}×{sz} canvas" };
                 int s2 = sz; b.Click += (s, e) => { if (Confirm("Start a new blank canvas? Current drawing will be lost.")) NewCanvas(s2, s2); };
                 bar.Children.Add(b);
             }
-            var clear = new Button { Content = "Clear", Height = 30, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0), Style = TryStyle("GhostButton") };
+            var clear = new Button { Content = "Clear", Height = 30, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0), Style = Theme.Style("GhostButton") };
             clear.Click += (s, e) => { if (Confirm("Clear the canvas?")) { DropSelection(); Array.Clear(_data, 0, _data.Length); Flush(); } };
             bar.Children.Add(clear);
 
@@ -145,9 +138,9 @@ namespace EasyEngine
             // --- bottom buttons ---
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
             DockPanel.SetDock(bottom, Dock.Bottom);
-            var cancel = new Button { Content = "Cancel", Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = TryStyle("GhostButton") };
+            var cancel = new Button { Content = "Cancel", Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
             cancel.Click += (s, e) => { DialogResult = false; Close(); };
-            var save = new Button { Content = "Save sprite", Height = 32, Padding = new Thickness(16, 0, 16, 0), Style = TryStyle("AccentButton") };
+            var save = new Button { Content = "Save sprite", Height = 32, Padding = new Thickness(16, 0, 16, 0), Style = Theme.Style("AccentButton") };
             save.Click += (s, e) => SaveAndClose();
             bottom.Children.Add(cancel); bottom.Children.Add(save);
             root.Children.Add(bottom);
@@ -167,7 +160,7 @@ namespace EasyEngine
             stage.Children.Add(_view);
             stage.Children.Add(_overlay);
 
-            _canvasHost = new Border { Background = Checker(), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, BorderBrush = TryBrush("Border", "#555"), BorderThickness = new Thickness(1), Child = stage };
+            _canvasHost = new Border { Background = Checker(), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, BorderBrush = Theme.Brush("Border", "#555"), BorderThickness = new Thickness(1), Child = stage };
             var center = new Grid();
             center.Children.Add(_canvasHost);
             root.Children.Add(center);
@@ -195,8 +188,8 @@ namespace EasyEngine
             _tool = t;
             foreach (var kv in _toolBtns)
             {
-                kv.Value.Background = kv.Key == t ? TryBrush("Accent", "#2bb673") : TryBrush("Bg2", "#2a2a30");
-                kv.Value.Foreground = kv.Key == t ? TryBrush("AccentText", "#062018") : TryBrush("Text", "#EEE");
+                kv.Value.Background = kv.Key == t ? Theme.Brush("Accent", "#2bb673") : Theme.Brush("Bg2", "#2a2a30");
+                kv.Value.Foreground = kv.Key == t ? Theme.Brush("AccentText", "#062018") : Theme.Brush("Text", "#EEE");
             }
         }
 

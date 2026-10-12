@@ -109,9 +109,7 @@ namespace EasyEngine
                     PickRow(tp.Label, panel, ParamSources.Objects(_scene).Select(n => (n, n)).ToList(), cur, tp.AllowNone, null, Set);
                     break;
                 case PickKind.ObjectOrPrefab:
-                    PickRow(tp.Label, panel, ParamSources.Objects(_scene).Select(n => (n, n))
-                        .Concat(ParamSources.Prefabs(_project).Where(p => !ParamSources.Objects(_scene).Contains(p)).Select(p => (p, p + "  (prefab)"))).ToList(),
-                        cur, tp.AllowNone, null, Set);
+                    PickRow(tp.Label, panel, ParamSources.ObjectOrPrefabOptions(_scene, _project), cur, tp.AllowNone, null, Set);
                     break;
                 case PickKind.Scene:
                     PickRow(tp.Label, panel, _project.Scenes.Select(s => (s.Name, s.Name)).ToList(), cur, true, null, Set);
@@ -208,36 +206,9 @@ namespace EasyEngine
                              Action<string> set, string noneLabel = "(none)")
         {
             var g = RowGrid(label, panel);
-            var cb = new ComboBox { Height = 30, VerticalAlignment = VerticalAlignment.Center, MaxDropDownHeight = 320 };
-            if (allowNone) cb.Items.Add(new ComboBoxItem { Content = noneLabel, Tag = "" });
-            foreach (var (v, l) in options)
-                if (!cb.Items.Cast<ComboBoxItem>().Any(i => ((string)i.Tag!).Equals(v, StringComparison.OrdinalIgnoreCase)))
-                    cb.Items.Add(new ComboBoxItem { Content = l, Tag = v });
-            if (!string.IsNullOrEmpty(current) && !cb.Items.Cast<ComboBoxItem>().Any(i => ((string)i.Tag!).Equals(current, StringComparison.OrdinalIgnoreCase)))
-                cb.Items.Add(new ComboBoxItem { Content = current, Tag = current });
-            if (newPrompt != null) cb.Items.Add(new ComboBoxItem { Content = "＋ New…", Tag = NewTag, FontStyle = FontStyles.Italic });
-
-            cb.SelectedItem = cb.Items.Cast<ComboBoxItem>().FirstOrDefault(i => ((string)i.Tag!).Equals(current ?? "", StringComparison.OrdinalIgnoreCase))
-                              ?? (cb.Items.Count > 0 ? cb.Items[0] : null);
-            object? last = cb.SelectedItem;
-            cb.SelectionChanged += (s, e) =>
-            {
-                if (cb.SelectedItem is not ComboBoxItem ci || ReferenceEquals(ci, last)) return;
-                var v = (string)ci.Tag!;
-                if (v == NewTag)
-                {
-                    var name = InputDialog.Prompt(this, "New", newPrompt!, "");
-                    if (name == null) { cb.SelectedItem = last; return; }
-                    name = name.Trim();
-                    var item = new ComboBoxItem { Content = name, Tag = name };
-                    cb.Items.Insert(cb.Items.Count - 1, item);
-                    last = item; cb.SelectedItem = item;
-                    PushUndo(); set(name);
-                    return;
-                }
-                last = ci;
-                PushUndo(); set(v);
-            };
+            var opts = allowNone ? options.Prepend(("", noneLabel)) : options;
+            var cb = Dropdown.Make(opts, current, v => { PushUndo(); set(v); }, newPrompt, this);
+            cb.Height = 30; cb.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetColumn(cb, 1); g.Children.Add(cb);
         }
 
@@ -296,25 +267,40 @@ namespace EasyEngine
 
                 var name = new TextBlock { Text = ToolArt.Title(items[i].name), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 4, 0), Foreground = (SolidColorBrush)FindResource("Text"), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = items[i].name };
 
-                var swatch = new Border { Width = 24, Height = 24, CornerRadius = new CornerRadius(4), Background = BrushFrom(items[i].color, "#CCCCCC"), BorderBrush = (Brush)FindResource("Border"), BorderThickness = new Thickness(1), Cursor = Cursors.Hand, ToolTip = "Colour of the metal part", VerticalAlignment = VerticalAlignment.Center };
-                swatch.MouseLeftButtonUp += (s, e) => ShowColorPicker(swatch, items[i].color, hex =>
-                {
-                    items[i] = (items[i].name, hex, items[i].look); swatch.Background = BrushFrom(hex, "#CCCCCC"); Redraw(); Save();
-                });
+                var swatch = SwatchButton(items[i].color, "#CCCCCC", 4, "Colour of the metal part", hex => { items[i] = (items[i].name, hex, items[i].look); Redraw(); Save(); });
 
                 var look = LookPicker.Make(_project, items[i].name, items[i].color, items[i].look, v => { PushUndo(); items[i] = (items[i].name, items[i].color, v); Redraw(); Save(); }, this);
                 look.Margin = new Thickness(4, 0, 4, 0);
 
-                var del = new Button { Content = "✕", Width = 26, Height = 26, Style = (Style)FindResource("CardButton"), Foreground = (SolidColorBrush)FindResource("Danger"), ToolTip = "Remove this item from the hotbar", HorizontalContentAlignment = HorizontalAlignment.Center };
-                del.Click += (s, e) => { PushUndo(); items.RemoveAt(i); Save(); RefreshAfterChoiceAlways(obj); };
+                var del = DeleteButton(obj, "Remove this item from the hotbar", () => { items.RemoveAt(i); Save(); });
 
                 Grid.SetColumn(iconHost, 0); Grid.SetColumn(name, 1); Grid.SetColumn(swatch, 2); Grid.SetColumn(look, 3); Grid.SetColumn(del, 4);
                 row.Children.Add(iconHost); row.Children.Add(name); row.Children.Add(swatch); row.Children.Add(look); row.Children.Add(del);
                 panel.Children.Add(row);
             }
-            if (items.Count == 0) panel.Children.Add(new TextBlock { Text = "No items yet — add one below.", Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 0, 0, 4) });
+            if (items.Count == 0) EmptyHint(panel, "No items yet — add one below.");
             NewItemButton(obj, bh, panel);
         }
+
+        // ---- pieces of the one-row-per-entry editors (hotbar items, minimap markers)
+        /// <summary>A colour swatch that opens the colour picker; an empty colour shows (and starts the picker at) <paramref name="fallback"/>.</summary>
+        private Border SwatchButton(string hex, string fallback, double corner, string tip, Action<string> onPick)
+        {
+            var swatch = new Border { Width = 24, Height = 24, CornerRadius = new CornerRadius(corner), Background = Theme.Hex(hex, fallback), BorderBrush = (Brush)FindResource("Border"), BorderThickness = new Thickness(1), Cursor = Cursors.Hand, ToolTip = tip, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            swatch.MouseLeftButtonUp += (s, e) => ShowColorPicker(swatch, hex.Length > 0 ? hex : fallback, picked => { hex = picked; swatch.Background = Theme.Hex(picked, fallback); onPick(picked); });
+            return swatch;
+        }
+
+        /// <summary>The red ✕ of a row: undo point, <paramref name="remove"/>, then the inspector is rebuilt.</summary>
+        private Button DeleteButton(GameObjectData obj, string tip, Action remove)
+        {
+            var del = new Button { Content = "✕", Width = 26, Height = 26, Style = (Style)FindResource("CardButton"), Foreground = (SolidColorBrush)FindResource("Danger"), ToolTip = tip, HorizontalContentAlignment = HorizontalAlignment.Center };
+            del.Click += (s, e) => { PushUndo(); remove(); RefreshAfterChoiceAlways(obj); };
+            return del;
+        }
+
+        private void EmptyHint(Panel panel, string text) =>
+            panel.Children.Add(new TextBlock { Text = text, Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 0, 0, 4) });
 
         private void RefreshAfterChoiceAlways(GameObjectData obj)
         {

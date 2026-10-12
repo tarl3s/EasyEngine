@@ -66,6 +66,20 @@ namespace EasyEngine
         public static List<string> Objects(Scene s) => s.Layers.SelectMany(l => l.Objects).Select(o => o.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
         public static List<string> Prefabs(Project p) => p.Prefabs.Select(pf => pf.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
 
+        /// <summary>The prefabs whose name isn't already one of <paramref name="objects"/> (case-insensitive).</summary>
+        public static List<string> PrefabsNotIn(Project p, IEnumerable<string> objects)
+        {
+            var taken = new HashSet<string>(objects, StringComparer.OrdinalIgnoreCase);
+            return Prefabs(p).Where(pf => !taken.Contains(pf)).ToList();
+        }
+
+        /// <summary>A "what to spawn / show" picker: the scene's objects, then the other prefabs labelled "(prefab)".</summary>
+        public static List<(string value, string label)> ObjectOrPrefabOptions(Scene s, Project p)
+        {
+            var objects = Objects(s);
+            return objects.Select(o => (o, o)).Concat(PrefabsNotIn(p, objects).Select(pf => (pf, pf + "  (prefab)"))).ToList();
+        }
+
         /// <summary>The project's sound files (Assetssounds), as the relative paths the game plays.</summary>
         public static List<string> Sounds(Project p)
         {

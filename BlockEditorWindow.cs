@@ -118,18 +118,11 @@ namespace EasyEngine
             Title = "Build behavior with blocks";
             Width = 720; Height = 620;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            Background = B("Bg0", "#15151A");
+            Background = Theme.Brush("Bg0", "#15151A");
             ParseJson(json);
             BuildUi();
             RenderRules();
         }
-
-        private Brush B(string key, string fallback)
-        {
-            if (Application.Current.TryFindResource(key) is Brush b) return b;
-            try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback)); } catch { return Brushes.Gray; }
-        }
-        private Style? St(string key) => Application.Current.TryFindResource(key) as Style;
 
         private void BuildUi()
         {
@@ -138,19 +131,19 @@ namespace EasyEngine
             root.Children.Add(Docked(new TextBlock
             {
                 Text = "Each block runs:  WHEN something happens  →  DO something.  Add as many as you like.",
-                Foreground = B("TextDim", "#AAA"), FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+                Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
             }, Dock.Top));
 
             // bottom buttons
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-            var cancel = new Button { Content = "Cancel", Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = St("GhostButton") };
+            var cancel = new Button { Content = "Cancel", Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
             cancel.Click += (s, e) => { DialogResult = false; Close(); };
-            var done = new Button { Content = "Done", Height = 32, Padding = new Thickness(20, 0, 20, 0), Style = St("AccentButton") };
+            var done = new Button { Content = "Done", Height = 32, Padding = new Thickness(20, 0, 20, 0), Style = Theme.Style("AccentButton") };
             done.Click += (s, e) => { ResultJson = Serialize(); DialogResult = true; Close(); };
             bottom.Children.Add(cancel); bottom.Children.Add(done);
             root.Children.Add(Docked(bottom, Dock.Bottom));
 
-            var add = new Button { Content = "➕  Add a block", Height = 34, Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 0, 14, 0), Style = St("CardButton") };
+            var add = new Button { Content = "➕  Add a block", Height = 34, Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 0, 14, 0), Style = Theme.Style("CardButton") };
             add.Click += (s, e) => { _rules.Add(new RuleModel()); RenderRules(); };
             root.Children.Add(Docked(add, Dock.Bottom));
 
@@ -166,7 +159,7 @@ namespace EasyEngine
         {
             _list.Children.Clear();
             if (_rules.Count == 0)
-                _list.Children.Add(new TextBlock { Text = "No blocks yet — click \"Add a block\" to start.", Foreground = B("TextDim", "#888"), FontSize = 12, Margin = new Thickness(2, 6, 0, 0) });
+                _list.Children.Add(new TextBlock { Text = "No blocks yet — click \"Add a block\" to start.", Foreground = Theme.Brush("TextDim", "#888"), FontSize = 12, Margin = new Thickness(2, 6, 0, 0) });
             for (int i = 0; i < _rules.Count; i++) _list.Children.Add(BuildCard(i));
         }
 
@@ -179,11 +172,11 @@ namespace EasyEngine
             var header = new Grid { Margin = new Thickness(0, 0, 0, 8) };
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            header.Children.Add(new TextBlock { Text = $"Block {index + 1}", Foreground = B("Text", "#EEE"), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+            header.Children.Add(new TextBlock { Text = $"Block {index + 1}", Foreground = Theme.Brush("Text", "#EEE"), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
             var hbtns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
             var up = Small("▲"); up.Click += (s, e) => { if (index > 0) { (_rules[index], _rules[index - 1]) = (_rules[index - 1], _rules[index]); RenderRules(); } };
             var dn = Small("▼"); dn.Click += (s, e) => { if (index < _rules.Count - 1) { (_rules[index], _rules[index + 1]) = (_rules[index + 1], _rules[index]); RenderRules(); } };
-            var del = Small("✕"); del.Foreground = B("Danger", "#E5534B"); del.Click += (s, e) => { _rules.RemoveAt(index); RenderRules(); };
+            var del = Small("✕"); del.Foreground = Theme.Brush("Danger", "#E5534B"); del.Click += (s, e) => { _rules.RemoveAt(index); RenderRules(); };
             hbtns.Children.Add(up); hbtns.Children.Add(dn); hbtns.Children.Add(del);
             Grid.SetColumn(hbtns, 1); header.Children.Add(hbtns);
             panel.Children.Add(header);
@@ -207,7 +200,7 @@ namespace EasyEngine
             // optional condition (guided builder)
             BuildCond(panel, rule);
 
-            return new Border { Background = B("Bg1", "#1E1E26"), BorderBrush = B("Border", "#333"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(12), Margin = new Thickness(0, 0, 0, 10), Child = panel };
+            return new Border { Background = Theme.Brush("Bg1", "#1E1E26"), BorderBrush = Theme.Brush("Border", "#333"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(12), Margin = new Thickness(0, 0, 0, 10), Child = panel };
         }
 
         private static readonly (string label, string sym)[] CondOps =
@@ -218,7 +211,7 @@ namespace EasyEngine
         private FrameworkElement Labeled(string label, FrameworkElement ctrl, double minW = 90)
         {
             var s = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
-            s.Children.Add(new TextBlock { Text = label, Foreground = B("TextDim", "#AAA"), FontSize = 10, Margin = new Thickness(2, 0, 0, 1) });
+            s.Children.Add(new TextBlock { Text = label, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 10, Margin = new Thickness(2, 0, 0, 1) });
             ctrl.MinWidth = minW;
             s.Children.Add(ctrl);
             return s;
@@ -226,7 +219,7 @@ namespace EasyEngine
 
         private void BuildCond(StackPanel panel, RuleModel rule)
         {
-            panel.Children.Add(new TextBlock { Text = "Only run if… (optional)", Foreground = B("TextDim", "#AAA"), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 3) });
+            panel.Children.Add(new TextBlock { Text = "Only run if… (optional)", Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 3) });
 
             var m = System.Text.RegularExpressions.Regex.Match(rule.Cond ?? "", @"^\s*([A-Za-z_][\w:.]*)\s*(>=|<=|==|!=|>|<)\s*(.+?)\s*$");
 
@@ -241,10 +234,10 @@ namespace EasyEngine
             row.Children.Add(Labeled("is…", opCb, 110));
             row.Children.Add(Labeled("value", valBox, 70));
             panel.Children.Add(row);
-            panel.Children.Add(new TextBlock { Text = "Leave empty to always run.  Example:  coins  is at least  15", Foreground = B("TextDim", "#8a8a93"), FontSize = 10.5, Margin = new Thickness(2, 1, 0, 0) });
+            panel.Children.Add(new TextBlock { Text = "Leave empty to always run.  Example:  coins  is at least  15", Foreground = Theme.Brush("TextDim", "#8a8a93"), FontSize = 10.5, Margin = new Thickness(2, 1, 0, 0) });
 
             var adv = new TextBox { Height = 26, Margin = new Thickness(0, 3, 0, 0), Text = m.Success ? "" : (rule.Cond ?? "") };
-            panel.Children.Add(new TextBlock { Text = "…or an advanced condition (expression — overrides the boxes above)", Foreground = B("TextDim", "#8a8a93"), FontSize = 10, Margin = new Thickness(0, 4, 0, 1) });
+            panel.Children.Add(new TextBlock { Text = "…or an advanced condition (expression — overrides the boxes above)", Foreground = Theme.Brush("TextDim", "#8a8a93"), FontSize = 10, Margin = new Thickness(0, 4, 0, 1) });
             panel.Children.Add(adv);
 
             void Rebuild()
@@ -265,10 +258,10 @@ namespace EasyEngine
         private void AddHint(Panel panel, string hint)
         {
             if (string.IsNullOrEmpty(hint)) return;
-            panel.Children.Add(new TextBlock { Text = hint, Foreground = B("TextDim", "#8a8a93"), FontSize = 10.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 2) });
+            panel.Children.Add(new TextBlock { Text = hint, Foreground = Theme.Brush("TextDim", "#8a8a93"), FontSize = 10.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 2) });
         }
 
-        private Button Small(string t) => new() { Content = t, Width = 26, Height = 24, FontSize = 11, Margin = new Thickness(3, 0, 0, 0), Padding = new Thickness(0), Style = St("GhostButton"), Foreground = B("Text", "#EEE") };
+        private Button Small(string t) => new() { Content = t, Width = 26, Height = 24, FontSize = 11, Margin = new Thickness(3, 0, 0, 0), Padding = new Thickness(0), Style = Theme.Style("GhostButton"), Foreground = Theme.Brush("Text", "#EEE") };
 
         private TextBlock Pill(string text, string color) => new() { Text = text, Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString(color)!, FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(0, 4, 0, 4) };
 
@@ -297,7 +290,7 @@ namespace EasyEngine
         private FrameworkElement FieldControl(Field f, Dictionary<string, string> rule)
         {
             var stack = new StackPanel { Margin = new Thickness(0, 0, 10, 4) };
-            stack.Children.Add(new TextBlock { Text = f.Label, Foreground = B("TextDim", "#AAA"), FontSize = 10, Margin = new Thickness(2, 0, 0, 1) });
+            stack.Children.Add(new TextBlock { Text = f.Label, Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 10, Margin = new Thickness(2, 0, 0, 1) });
             string cur = rule.TryGetValue(f.Key, out var v) ? v : f.Default;
             rule[f.Key] = cur; // ensure defaults are saved
 
