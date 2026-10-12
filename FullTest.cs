@@ -629,6 +629,7 @@ public partial class App
             Test("topdown: the shops sell the pickaxe and the axe; the bench crafts the sword from wood", () =>
             {
                 var pw = TopDown();
+                pw.TDestroyAll("Coin"); // scattered coins could be picked up on the way and spoil the count
                 pw.TSetVar("coins", 13);
                 pw.TPlace("Player", 475, 350); pw.TSteps(2); Press(pw, "E");
                 pw.TPlace("Player", 645, 350); pw.TSteps(2); Press(pw, "E");

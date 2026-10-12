@@ -363,7 +363,7 @@ namespace EasyEngine
         {
             _vars["stat:blocked"] = Var("stat:blocked") + 1;
             PlaySoundFile(bh.Text("deniedSound", ""), 0.5, "sfx", false, user.Data.Name);
-            string wallName = wall.Data.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap) ? $"a {wall.Data.Name} tile" : wall.Data.Name;
+            string wallName = wall.Data.Behaviors.Any(b => b.Kind is BehaviorKind.Tilemap or BehaviorKind.Terrain) ? $"a {wall.Data.Name} block" : wall.Data.Name;
             Info("Tool", user.Data.Name, $"Blocked — {wallName} is in the way of {what}", "Something solid between you and the target stops the swing. Walk around it.");
         }
 

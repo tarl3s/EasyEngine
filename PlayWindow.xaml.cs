@@ -648,6 +648,7 @@ namespace EasyEngine
             ApplySky();
             SizeDarkness();
 
+            _worldBackgroundEnd = 0;
             foreach (var layer in _scene.Layers)
             {
                 bool sky = layer.Kind == LayerKind.Sky;
@@ -657,6 +658,7 @@ namespace EasyEngine
                     var en = AddEntity(obj, screen);
                     if (sky) PutInSky(en); // the Sky layer is drawn behind every other layer
                 }
+                if (layer.Kind == LayerKind.Background && !screen) _worldBackgroundEnd = World.Children.Count; // a terrain goes right after these
             }
 
             // procedural generation: build the map before the first frame

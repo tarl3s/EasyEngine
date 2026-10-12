@@ -108,6 +108,7 @@ namespace EasyEngine
         public int TTiles(string name) { var e = TE(name); return e?.Tiles?.Count(c => !c.Broken) ?? -1; }
         public string TSolids() => string.Join(" ", _solids.Where(s => !s.Dead).Select(s => $"({s.X:0},{s.Y:0},{s.W:0}x{s.H:0})"));
         public void TPlace(string name, double x, double y) { var e = TE(name); if (e != null) { e.X = x; e.Y = y; } }
+        public void TDestroyAll(string name) { foreach (var e in _entities) if (e.Data.Name == name) e.Dead = true; }
 
         // Build a throwaway 1-scene project for a single Custom-script test.
         public static PlayWindow NewScriptSim(string script, out Project project,

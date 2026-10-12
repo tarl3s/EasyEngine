@@ -113,6 +113,13 @@ public partial class App
             return w.TTerrainChunks >= 9 && w.TTerrainChunkLoaded(0, 1) && w.TTerrainLayerIndex == 0
                    && w.TWorldIndexOf("A") > 0 && w.TWorldIndexOfTree() > 0 && w.TWorldIndexOfTree() < w.TWorldIndexOf("A");
         });
+        t.Test("terrain: a Background-layer picture stays behind the terrain, the player in front (even listed before 'Land')", () =>
+        {
+            var w = World(more: (p, s) =>
+                s.Layers.First(l => l.Kind == LayerKind.Background).Objects.Add(new GameObjectData { Id = 60, Name = "Hills", Width = 800, Height = 300, Color = "#557799" }));
+            int bg = w.TWorldIndexOf("Hills"), layer = w.TTerrainLayerIndex, player = w.TWorldIndexOf("A");
+            return bg >= 0 && bg < layer && layer < player;
+        });
         t.Test("terrain: colliders are only made for the blocks in the asked box", () =>
         {
             var w = World(tb => tb.Nums["hills"] = 0);

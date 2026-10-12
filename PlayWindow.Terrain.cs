@@ -32,7 +32,8 @@ namespace EasyEngine
 
         private const int ChunkSize = 16;    // blocks per chunk side
         private TerrainState? _terrain;      // the scene's terrain (one per scene)
-        private Canvas? _terrainLayer;       // World.Children[0]: one child canvas per loaded chunk, drawn behind everything
+        private Canvas? _terrainLayer;       // in World, right after the Background layer: one child canvas per loaded chunk
+        private int _worldBackgroundEnd;     // World.Children count after the Background layer's objects (set in LoadScene)
         private double _terrainBottom;       // world Y of the terrain's bottom (the fall-off-world line is below it)
         private double _terrainMs, _terrainMsMax; // streaming cost per tick (smoothed / worst)
         // per terrain ("scene/object"): blocks dug out + tree columns felled, kept for the whole play session
@@ -236,7 +237,8 @@ namespace EasyEngine
             en.TileTS = ts; en.TileX0 = t.X0; en.TileY0 = 0; // so the breakable-tile code (CellAt / BreakOverlap) addresses its cells
             en.Visual.Opacity = 0; _solids.Remove(en);      // the marker object itself is invisible and never collides
             _terrainLayer = new Canvas { IsHitTestVisible = false };
-            World.Children.Insert(0, _terrainLayer);        // behind everything else in the world
+            // right after the Background layer's pictures (sky, parallax hills): behind the player and every other object
+            World.Children.Insert(Math.Min(_worldBackgroundEnd, World.Children.Count), _terrainLayer);
             _endlessX = t.Cols == 0;
             _terrainSurfaceAt = x => t.InWorld(t.Column(x)) ? t.SurfaceRow(t.Column(x)) * t.Ts : null;
             _terrainBottom = t.Rows * ts;
