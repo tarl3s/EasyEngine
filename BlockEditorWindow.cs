@@ -336,15 +336,7 @@ namespace EasyEngine
         {
             if (type == "key") return CommonKeys;
             if (type == "scene") return _project.Scenes.Select(s => s.Name);
-            if (type == "sound") // the project's sound files, as the relative paths the runtime plays
-            {
-                if (string.IsNullOrEmpty(_project.FolderPath)) return Array.Empty<string>();
-                var dir = System.IO.Path.Combine(_project.FolderPath, "Assets", "sounds");
-                if (!System.IO.Directory.Exists(dir)) return Array.Empty<string>();
-                return System.IO.Directory.GetFiles(dir)
-                    .Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
-                    .Select(f => System.IO.Path.Combine("Assets", "sounds", System.IO.Path.GetFileName(f)));
-            }
+            if (type == "sound") return ParamSources.Sounds(_project); // the relative paths the runtime plays
             // obj: names of objects in the scene (+ "self" for the set action)
             var names = _scene.Layers.SelectMany(l => l.Objects).Select(o => o.Name).Distinct();
             return new[] { "self" }.Concat(names);
@@ -355,7 +347,7 @@ namespace EasyEngine
         {
             try
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(json, new System.Text.Json.JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = System.Text.Json.JsonCommentHandling.Skip });
+                using var doc = System.Text.Json.JsonDocument.Parse(json, LooseJson.Options);
                 if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array) return;
                 foreach (var el in doc.RootElement.EnumerateArray())
                 {

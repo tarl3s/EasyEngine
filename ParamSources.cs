@@ -66,6 +66,16 @@ namespace EasyEngine
         public static List<string> Objects(Scene s) => s.Layers.SelectMany(l => l.Objects).Select(o => o.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
         public static List<string> Prefabs(Project p) => p.Prefabs.Select(pf => pf.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
 
+        /// <summary>The project's sound files (Assetssounds), as the relative paths the game plays.</summary>
+        public static List<string> Sounds(Project p)
+        {
+            var dir = string.IsNullOrEmpty(p.FolderPath) ? null : System.IO.Path.Combine(p.FolderPath, "Assets", "sounds");
+            if (dir == null || !System.IO.Directory.Exists(dir)) return new List<string>();
+            return System.IO.Directory.GetFiles(dir)
+                .Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
+                .Select(f => System.IO.Path.Combine("Assets", "sounds", System.IO.Path.GetFileName(f))).ToList();
+        }
+
         /// <summary>Keys a key picker offers: (value, what the person sees).</summary>
         public static readonly (string value, string label)[] Keys =
             Enumerable.Range('A', 26).Select(c => (((char)c).ToString(), ((char)c).ToString()))

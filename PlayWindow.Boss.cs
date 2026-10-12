@@ -95,8 +95,7 @@ namespace EasyEngine
             };
             if (err != null) Warn("Boss", en.Data.Name, "Its script can't be read — it will just stand there", err);
             else if (notes.Count > 0) Warn("Boss", en.Data.Name, $"{notes.Count} part(s) of its script were ignored", string.Join("\n", notes));
-            if (b.Script.Phases.Count == 0 && b.Script.Attacks.Count > 0) // no phases written: one phase with every attack
-                b.Script.Phases.Add(new BossPhase { Name = "Phase 1", Attacks = b.Script.Attacks.Select(a => a.Name).ToList() });
+            b.Script.FillDefaultPhases(); // no phases written: one phase with every attack
             // it moves itself: physics on (walls stop it); a flyer has no gravity
             en.Data.Physics.Mode = PhysicsMode.Dynamic;
             if (b.Fly) en.Data.Physics.GravityScale = 0;

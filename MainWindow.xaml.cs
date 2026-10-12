@@ -35,7 +35,6 @@ namespace EasyEngine
         private string _cloudModelOverride = "";       // optional model override for the selected provider
 
         // tolerant JSON parsing — small models sometimes add // comments or trailing commas
-        private static readonly JsonDocumentOptions LenientJson = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
         private readonly List<string> _aiImages = new(); // relative paths of images the user gave the AI
         private readonly List<string> _aiSounds = new(); // relative paths of audio the user gave the AI
@@ -2657,7 +2656,7 @@ namespace EasyEngine
                     var data = existing ?? BehaviorCatalog.Info(kind).CreateData();
                     if (item.TryGetProperty("nums", out var nums) && nums.ValueKind == JsonValueKind.Object)
                         foreach (var p in nums.EnumerateObject())
-                            if (AsNum(p.Value, out var nv)) data.Nums[p.Name] = nv;
+                            if (LooseJson.TryNumber(p.Value, out var nv)) data.Nums[p.Name] = nv;
                     if (item.TryGetProperty("texts", out var texts) && texts.ValueKind == JsonValueKind.Object)
                         foreach (var p in texts.EnumerateObject())
                             if (p.Value.ValueKind == JsonValueKind.String) data.Texts[p.Name] = p.Value.GetString() ?? "";
@@ -2726,10 +2725,10 @@ namespace EasyEngine
         private bool ApplyBasics(GameObjectData obj, JsonElement spec)
         {
             bool changed = false;
-            if (spec.TryGetProperty("x", out var x) && AsNum(x, out var xv)) { obj.X = xv; changed = true; }
-            if (spec.TryGetProperty("y", out var y) && AsNum(y, out var yv)) { obj.Y = yv; changed = true; }
-            if (spec.TryGetProperty("width", out var w) && AsNum(w, out var wv)) { obj.Width = Math.Max(2, wv); changed = true; }
-            if (spec.TryGetProperty("height", out var h) && AsNum(h, out var hv)) { obj.Height = Math.Max(2, hv); changed = true; }
+            if (spec.TryGetProperty("x", out var x) && LooseJson.TryNumber(x, out var xv)) { obj.X = xv; changed = true; }
+            if (spec.TryGetProperty("y", out var y) && LooseJson.TryNumber(y, out var yv)) { obj.Y = yv; changed = true; }
+            if (spec.TryGetProperty("width", out var w) && LooseJson.TryNumber(w, out var wv)) { obj.Width = Math.Max(2, wv); changed = true; }
+            if (spec.TryGetProperty("height", out var h) && LooseJson.TryNumber(h, out var hv)) { obj.Height = Math.Max(2, hv); changed = true; }
             if (spec.TryGetProperty("color", out var c) && c.ValueKind == JsonValueKind.String) { obj.Color = c.GetString() ?? obj.Color; changed = true; }
             if (spec.TryGetProperty("sprite", out var sp) && sp.ValueKind == JsonValueKind.String)
             {
@@ -2742,10 +2741,10 @@ namespace EasyEngine
                 if (rel != null) { obj.SpritePath = rel; changed = true; }
             }
             // appearance / aesthetics
-            if (spec.TryGetProperty("opacity", out var op) && AsNum(op, out var opv)) { obj.Opacity = Math.Clamp(opv, 0, 1); changed = true; }
+            if (spec.TryGetProperty("opacity", out var op) && LooseJson.TryNumber(op, out var opv)) { obj.Opacity = Math.Clamp(opv, 0, 1); changed = true; }
             if (spec.TryGetProperty("borderColor", out var bc) && bc.ValueKind == JsonValueKind.String) { obj.BorderColor = bc.GetString(); changed = true; }
-            if (spec.TryGetProperty("borderWidth", out var bw) && AsNum(bw, out var bwv)) { obj.BorderWidth = Math.Max(0, bwv); changed = true; }
-            if (spec.TryGetProperty("cornerRadius", out var cr) && AsNum(cr, out var crv)) { obj.CornerRadius = Math.Max(0, crv); changed = true; }
+            if (spec.TryGetProperty("borderWidth", out var bw) && LooseJson.TryNumber(bw, out var bwv)) { obj.BorderWidth = Math.Max(0, bwv); changed = true; }
+            if (spec.TryGetProperty("cornerRadius", out var cr) && LooseJson.TryNumber(cr, out var crv)) { obj.CornerRadius = Math.Max(0, crv); changed = true; }
             if (spec.TryGetProperty("font", out var ff) && ff.ValueKind == JsonValueKind.String) { obj.FontFamily = ff.GetString(); changed = true; }
             if (spec.TryGetProperty("bold", out var bd) && AsBool(bd, out var bdv)) { obj.Bold = bdv; changed = true; }
             if (spec.TryGetProperty("group", out var gr) && gr.ValueKind == JsonValueKind.String) { obj.Group = gr.GetString() ?? ""; changed = true; }
@@ -2760,7 +2759,7 @@ namespace EasyEngine
             {
                 if (a.ValueKind != JsonValueKind.Object) continue;
                 var anim = new SpriteAnimation { Name = a.TryGetProperty("name", out var nm) ? (nm.GetString() ?? "anim") : "anim" };
-                if (a.TryGetProperty("fps", out var fps) && AsNum(fps, out var fpsv)) anim.Fps = Math.Clamp(fpsv, 1, 60);
+                if (a.TryGetProperty("fps", out var fps) && LooseJson.TryNumber(fps, out var fpsv)) anim.Fps = Math.Clamp(fpsv, 1, 60);
                 if (a.TryGetProperty("loop", out var lp) && AsBool(lp, out var lpv)) anim.Loop = lpv;
                 if (a.TryGetProperty("frames", out var fr) && fr.ValueKind == JsonValueKind.Array)
                     foreach (var f in fr.EnumerateArray())
@@ -2979,22 +2978,6 @@ namespace EasyEngine
             return null;
         }
 
-        private static string? ExtractJson(string reply)
-        {
-            int a = reply.IndexOf('{'), b = reply.LastIndexOf('}');
-            return (a >= 0 && b > a) ? reply.Substring(a, b - a + 1) : null;
-        }
-
-        // Accepts a JSON number OR a numeric string ("260") — small models often quote numbers.
-        private static bool AsNum(JsonElement e, out double val)
-        {
-            if (e.ValueKind == JsonValueKind.Number) { val = e.GetDouble(); return true; }
-            if (e.ValueKind == JsonValueKind.String &&
-                double.TryParse(e.GetString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out val))
-                return true;
-            val = 0; return false;
-        }
-
         // ---- headless test hooks (used by --aijsontest) ----
         public (bool ok, string summary) TestApplySpec(string reply) { bool r = ApplyProjectSpec(reply, "", out var s); return (r, s); }
         public GameObjectData? TestFindObject(string name) => _scene.Layers.SelectMany(l => l.Objects).FirstOrDefault(o => o.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -3016,7 +2999,7 @@ namespace EasyEngine
             void SetInto(JsonElement obj, Dictionary<string, double> dict, string label)
             {
                 foreach (var p in obj.EnumerateObject())
-                    if (AsNum(p.Value, out var nv)) { dict[p.Name] = nv; parts.Add($"{label} {p.Name}={nv:0.##}"); }
+                    if (LooseJson.TryNumber(p.Value, out var nv)) { dict[p.Name] = nv; parts.Add($"{label} {p.Name}={nv:0.##}"); }
             }
             void RemoveFrom(JsonElement arr, Dictionary<string, double> dict, string label)
             {
@@ -3043,7 +3026,7 @@ namespace EasyEngine
                 ensureUndo();
                 var t = _project.Theme ??= new GameTheme();
                 string S(string k, string d) => th.TryGetProperty(k, out var e) && e.ValueKind == JsonValueKind.String ? (e.GetString() ?? d) : d;
-                double N(string k, double d) => th.TryGetProperty(k, out var e) && AsNum(e, out var nv) ? nv : d;
+                double N(string k, double d) => th.TryGetProperty(k, out var e) && LooseJson.TryNumber(e, out var nv) ? nv : d;
                 t.FontFamily = S("font", t.FontFamily);
                 t.DialogBg = S("dialogBg", t.DialogBg);
                 t.DialogBorder = S("dialogBorder", t.DialogBorder);
@@ -3108,10 +3091,10 @@ namespace EasyEngine
         private bool ApplyProjectSpec(string reply, string userPrompt, out string summary)
         {
             summary = "";
-            var json = ExtractJson(reply);
+            var json = LooseJson.Extract(reply);
             if (json == null) return false;
             JsonDocument doc;
-            try { doc = JsonDocument.Parse(json, LenientJson); } catch { return false; }
+            try { doc = JsonDocument.Parse(json, LooseJson.Options); } catch { return false; }
 
             using (doc)
             {

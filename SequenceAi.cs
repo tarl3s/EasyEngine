@@ -59,9 +59,9 @@ namespace EasyEngine
             var prefabs = ParamSources.Prefabs(project).Where(p => !objects.Contains(p)).ToList();
             sb.AppendLine("OBJECTS in the scene: " + (objects.Count > 0 ? string.Join(", ", objects) : "(none)"));
             if (prefabs.Count > 0) sb.AppendLine("PREFABS (for spawn/summon/bullet): " + string.Join(", ", prefabs));
-            var sounds = new StepContext { Project = project, Scene = scene }.Sounds;
+            var sounds = ParamSources.Sounds(project);
             if (sounds.Count > 0) sb.AppendLine("SOUNDS (for playsound): " + string.Join(", ", sounds));
-            var vars = ParamSources.Variables(project).Where(v => !v.StartsWith("is") && v != "timeOfDay" && v != "dayness").ToList();
+            var vars = ParamSources.Variables(project).Where(v => !ParamSources.EngineVariables.Contains(v)).ToList();
             if (vars.Count > 0) sb.AppendLine("VARIABLES: " + string.Join(", ", vars));
 
             sb.AppendLine("Follow the REQUEST: the examples only show the format — invent names, attacks and numbers that fit what the user asked for.");
@@ -123,7 +123,7 @@ namespace EasyEngine
         /// Returns null with an error when it still isn't a usable boss/cutscene.</summary>
         public static string? Normalize(SeqMode mode, string reply, List<string> notes, out string? error)
         {
-            var json = ExtractJson(reply ?? "", mode);
+            var json = LooseJson.Extract(reply ?? "", allowArray: mode == SeqMode.Cutscene); // a bare [...] counts as a step list
             if (json == null) { error = "the answer had no JSON object in it"; return null; }
             if (mode == SeqMode.Cutscene)
             {
@@ -134,27 +134,9 @@ namespace EasyEngine
             }
             var b = SequenceJson.ParseBoss(json, out error, notes);
             if (error != null) return null;
-            if (b.Phases.Count == 0 && b.Attacks.Count > 0)
-            {
-                b.Phases.Add(new BossPhase { Name = "Phase 1", Attacks = b.Attacks.Select(a => a.Name).ToList() });
-                notes.Add("no phases were given — added one that uses every attack");
-            }
-            foreach (var p in b.Phases.Where(p => p.Attacks.Count == 0 && b.Attacks.Count > 0))
-            {
-                p.Attacks = b.Attacks.Select(a => a.Name).ToList();
-                notes.Add($"{p.Name} listed no attacks — it uses all of them");
-            }
+            b.FillDefaultPhases(notes);
             error = SequenceJson.Problem(b);
             return error == null ? SequenceJson.Serialize(b) : null;
-        }
-
-        // First '{' to last '}' (models wrap JSON in prose or ``` fences); a bare [...] counts as a step list.
-        private static string? ExtractJson(string reply, SeqMode mode)
-        {
-            int a = reply.IndexOf('{'), b = reply.LastIndexOf('}');
-            int sa = reply.IndexOf('['), sb = reply.LastIndexOf(']');
-            if (mode == SeqMode.Cutscene && sa >= 0 && sb > sa && (a < 0 || sa < a)) return reply.Substring(sa, sb - sa + 1);
-            return a >= 0 && b > a ? reply.Substring(a, b - a + 1) : null;
         }
 
         /// <summary>Asks the model (generate = (user prompt, system prompt) → reply), normalises the reply, and retries once

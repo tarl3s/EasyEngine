@@ -186,13 +186,30 @@ namespace EasyEngine
         public List<BossPhase> Phases = new();
         public List<SeqStep> Death = new();
         public BossAttack? Attack(string name) => Attacks.FirstOrDefault(a => a.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>A boss with attacks but no phases fights in one phase that uses every attack; a phase that lists
+        /// no attacks uses all of them. (The game, the editor and the AI all read a script this way.)</summary>
+        public void FillDefaultPhases(List<string>? notes = null)
+        {
+            if (Attacks.Count == 0) return;
+            var all = Attacks.Select(a => a.Name).ToList();
+            if (Phases.Count == 0)
+            {
+                Phases.Add(new BossPhase { Name = "Phase 1", Attacks = all });
+                notes?.Add("no phases were given — added one that uses every attack");
+            }
+            foreach (var p in Phases.Where(p => p.Attacks.Count == 0))
+            {
+                p.Attacks = all.ToList();
+                notes?.Add($"{p.Name} listed no attacks — it uses all of them");
+            }
+        }
     }
 
     /// <summary>Reads (tolerantly) and writes (stably) cutscene and boss scripts. The runtime, the editor, the inspector
     /// card and the AI all go through here, so they always agree on what a script means.</summary>
     public static class SequenceJson
     {
-        private static readonly JsonDocumentOptions Lenient = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
         private static readonly string[] IdKeys = { "do", "action", "type", "step", "attack", "id", "kind", "command" };
 
         // ------------------------------------------------------------------ parse
@@ -203,7 +220,7 @@ namespace EasyEngine
             error = null;
             try
             {
-                using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json, Lenient);
+                using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json, LooseJson.Options);
                 var root = doc.RootElement;
                 if (root.ValueKind == JsonValueKind.Object)
                 {
@@ -224,7 +241,7 @@ namespace EasyEngine
             error = null;
             try
             {
-                using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json, Lenient);
+                using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json, LooseJson.Options);
                 var root = doc.RootElement;
                 if (root.ValueKind == JsonValueKind.Object && Prop(root, "boss") is JsonElement b && b.ValueKind == JsonValueKind.Object) root = b;
                 if (root.ValueKind != JsonValueKind.Object) { error = "The boss must be a JSON object {\"attacks\":…, \"phases\":…, \"death\":…}"; return script; }
@@ -351,13 +368,7 @@ namespace EasyEngine
 
         private static string? Text(JsonElement? e) => e is JsonElement v ? v.ValueKind == JsonValueKind.String ? v.GetString() : v.ValueKind == JsonValueKind.Number ? v.GetRawText() : null : null;
 
-        private static double? Number(JsonElement? e)
-        {
-            if (e is not JsonElement v) return null;
-            if (v.ValueKind == JsonValueKind.Number) return v.GetDouble();
-            if (v.ValueKind == JsonValueKind.String && double.TryParse((v.GetString() ?? "").Replace("%", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) return d;
-            return null;
-        }
+        private static double? Number(JsonElement? e) => e is JsonElement v && LooseJson.TryNumber(v, out var d) ? d : null;
 
         private static string ValueText(JsonElement v) => v.ValueKind switch
         {

@@ -19,16 +19,7 @@ namespace EasyEngine
         public List<string> Objects => ParamSources.Objects(Scene);
         public List<string> Prefabs => ParamSources.Prefabs(Project);
         public List<string> Variables => ParamSources.Variables(Project);
-        public List<string> Sounds
-        {
-            get
-            {
-                var dir = string.IsNullOrEmpty(Project.FolderPath) ? null : System.IO.Path.Combine(Project.FolderPath, "Assets", "sounds");
-                if (dir == null || !System.IO.Directory.Exists(dir)) return new List<string>();
-                return System.IO.Directory.GetFiles(dir).Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
-                    .Select(f => System.IO.Path.Combine("Assets", "sounds", System.IO.Path.GetFileName(f))).ToList();
-            }
-        }
+        public List<string> Sounds => ParamSources.Sounds(Project);
 
         internal static Brush Res(string key, string fallback)
             => Application.Current?.TryFindResource(key) as Brush ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback));

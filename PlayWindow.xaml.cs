@@ -1774,7 +1774,7 @@ namespace EasyEngine
             var list = new List<CustomRule>();
             try
             {
-                using var doc = JsonDocument.Parse(json, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+                using var doc = JsonDocument.Parse(json, LooseJson.Options);
                 if (doc.RootElement.ValueKind != JsonValueKind.Array) return list;
                 foreach (var el in doc.RootElement.EnumerateArray())
                 {
