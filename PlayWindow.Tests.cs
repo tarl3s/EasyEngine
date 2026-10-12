@@ -64,6 +64,9 @@ namespace EasyEngine
         public double TGlow => Lights.Opacity;
         public string TSkyColor => (Root.Background as SolidColorBrush)?.Color.ToString() ?? "";
         public string TDarkColor => (Darkness.Fill as SolidColorBrush)?.Color.ToString() ?? "";
+        public bool TLightGridOn => _gridOn;
+        public bool TSmoothDarknessShown => Darkness.Visibility == Visibility.Visible;
+        public (byte r, byte g, byte b, byte a)? TLightGridAt(double wx, double wy) => LightGridAt(wx, wy);
         public bool TVisible(string name) { var e = TE(name); return e != null && !e.Dead && e.Visual.Visibility == Visibility.Visible; }
 
         // tools / harvesting

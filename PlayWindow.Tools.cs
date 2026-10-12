@@ -212,14 +212,20 @@ namespace EasyEngine
         }
 
         // ================================================================== TOOL USE
+        private bool _toolHoldOk; // the current press began in the game (not on the HUD), so holding it keeps swinging
+
         private void UpdateToolUse(Entity en, BehaviorData bh, double dt)
         {
             if (en.ToolCd > 0) en.ToolCd -= dt;
             if (en.SwingT > 0) en.SwingT = Math.Max(0, en.SwingT - dt);
             if (en.ImpactPending) { en.ImpactIn -= dt; if (en.ImpactIn <= 0) { en.ImpactPending = false; ResolveImpact(en, bh); } }
 
-            if (!_mouseClicked || _dialogOpen) return;
-            if (UiHitAt(_mouseScreen) != null) return; // clicks on the HUD (hotbar, checklist, top bar) don't swing
+            // a fresh click swings; holding the button swings again each time the cooldown ends (if the press began in the game, not on the HUD)
+            bool fresh = _mouseClicked;
+            if (fresh) _toolHoldOk = UiHitAt(_mouseScreen) == null;
+            bool held = !fresh && _mouseDown && _toolHoldOk && en.ToolCd <= 0 && bh.Num("holdToUse", 1) >= 0.5;
+            if (!(fresh || held) || _dialogOpen) return;
+            if (fresh && !_toolHoldOk) return; // clicks on the HUD (hotbar, checklist, top bar) don't swing
 
             // what's in hand?
             string tool;
@@ -227,6 +233,7 @@ namespace EasyEngine
             {
                 if (!_heldOwned)
                 {
+                    if (!fresh) return; // refuse once per click, not every frame while held
                     Warn("Tool", en.Data.Name, $"Can't swing: slot {_heldSlot + 1} '{_heldSlotName}' is not owned (item:{_heldSlotName} = {Var("item:" + _heldSlotName):0})",
                          "Get the item first, or scroll / press a number to pick a slot you own.");
                     PlaySoundFile(bh.Text("deniedSound", ""), 0.6, "sfx", false, en.Data.Name);
@@ -237,6 +244,7 @@ namespace EasyEngine
             else tool = bh.Text("tool", "");
             if (tool.Length == 0)
             {
+                if (!fresh) return;
                 Warn("Tool", en.Data.Name, "Can't swing: nothing in hand", "Add a Hotbar with the tool, or set Tool Use's 'tool' parameter.");
                 return;
             }

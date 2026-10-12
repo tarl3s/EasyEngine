@@ -52,9 +52,10 @@ namespace EasyEngine
                 "1. Add it to ONE object (an empty controller object is fine): Inspector → ＋ Add behavior → 🌗 Day / Night cycle.\n" +
                 "2. Game view: Platformer creates a Sky layer behind everything with a Sun and a Moon already linked (give them your own pictures); Top-down only changes the light.\n" +
                 "3. Set Day length, Night length, the Dawn/dusk fade, and the brightness by day and at night.\n" +
-                "4. Turn on \"Darker under solid blocks (underground)\" to make caves dark.\n" +
+                "4. Turn on \"Darker under solid blocks (underground)\" to make caves dark. \"True black darkness\" makes the dark pure black (no night tint) and fully dark deep down.\n" +
                 "5. Add 💡 Light to torches/lamps so they glow at night. Put clouds or stars in the Sky layer.\n" +
-                "6. Read isDay / isNight / timeOfDay in blocks, e.g. spawn certain enemies only at night.",
+                "6. Lighting style: Smooth = soft circles of light; Blocks = light worked out block by block. With Blocks, pick the Light block size and turn on/off: Solid blocks stop the light, Light colours what it touches, Every light adds up.\n" +
+                "7. Read isDay / isNight / timeOfDay in blocks, e.g. spawn certain enemies only at night.",
 
             [BehaviorKind.Hotbar] =
                 "1. Put it on the player (or any object): Inspector → ＋ Add behavior → 🎒 Hotbar / Inventory.\n" +

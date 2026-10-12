@@ -84,6 +84,7 @@ namespace EasyEngine
             dnB.Nums["mode"] = 0; dnB.Nums["dayLength"] = 40; dnB.Nums["nightLength"] = 28; dnB.Nums["transition"] = 5;
             dnB.Nums["dayLight"] = 1; dnB.Nums["nightLight"] = 0.22; dnB.Nums["arcHeight"] = 170;
             dnB.Texts["sun"] = "Sun"; dnB.Texts["moon"] = "Moon";
+            dnB.Nums["lightStyle"] = 1; dnB.Nums["trueBlack"] = 1; // light: per block, stopped by blocks
             dn.Behaviors.Add(dnB);
             baseL.Objects.Add(Id(dn));
 
@@ -133,7 +134,7 @@ namespace EasyEngine
             var tool = B(BehaviorKind.ToolUse); tool.Texts["itemDamage"] = "sword=2,axe=1,pickaxe=1"; tool.Nums["reach"] = 80;
             tool.Texts["swingSound"] = swingSound; tool.Texts["deniedSound"] = deniedSound;
             o.Behaviors.Add(tool);
-            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 240; torch.Texts["color"] = "#FFE6A0"; o.Behaviors.Add(torch);
+            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 240; torch.Texts["color"] = "#FFA040"; o.Behaviors.Add(torch);
             // mine/chop the tile under the cursor while the left mouse button is held, within reach
             // (the held tool gates WHAT breaks via each tilemap's 'requires' flag)
             o.Behaviors.Add(Script("[{\"when\":\"always\",\"do\":\"breaktile\",\"where\":\"atmouse\",\"cond\":\"mousedown >= 1 && dist(mousex, mousey, self.cx, self.cy) < 170\"}]"));

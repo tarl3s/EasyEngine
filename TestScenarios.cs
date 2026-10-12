@@ -152,7 +152,7 @@ namespace EasyEngine
             var pl = new GameObjectData { Name = "Player", Type = "Player", X = 200, Y = 440, Width = 34, Height = 52, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
             var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 240; plat.Nums["jump"] = 620; pl.Behaviors.Add(plat);
             pl.Behaviors.Add(B(BehaviorKind.FollowCamera));
-            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 170; torch.Nums["intensity"] = 0.95; torch.Texts["color"] = "#FFE6A0";
+            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 170; torch.Nums["intensity"] = 0.95; torch.Texts["color"] = "#FFA040";
             pl.Behaviors.Add(torch);
             baseL.Objects.Add(Id(pl));
 

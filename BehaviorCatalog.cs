@@ -72,6 +72,7 @@ namespace EasyEngine
         private static readonly Func<ParamCtx, bool> NoHotbar =
             c => !c.Scene.Layers.SelectMany(l => l.Objects).Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Hotbar));
         private static readonly Func<ParamCtx, bool> CoverOn = c => IfOff("mode")(c) && IfOn("coverDark")(c); // Day/Night underground darkness
+        private static readonly Func<ParamCtx, bool> LightBlocks = IfOn("lightStyle"); // Day/Night "Blocks" lighting
 
         private static TextParam T(string k, string l, string d, PickKind p = PickKind.Text, params string[] o) => new(k, l, d, p, o);
         private static TextParam TNone(string k, string l, string d, PickKind p) => new(k, l, d, p) { AllowNone = true };
@@ -164,9 +165,9 @@ namespace EasyEngine
                 Texts = { T("asset","Sound file","", PickKind.Sound), T("channel","Channel","sfx", PickKind.Choice, "sfx|Sound effects", "music|Music") } },
 
             new BehaviorInfo { Kind = BehaviorKind.LightSource, Name = "Light", Icon = "💡",
-                Desc = "Lights up the darkness around it (a soft hole in the night, plus a light tint). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle).",
+                Desc = "Lights up the darkness around it (things near it show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle).",
                 Nums = { new("radius","Radius",200), new("intensity","Intensity (0-1)",0.9) },
-                Texts = { T("color","Color","#FFE9A8", PickKind.Color) } },
+                Texts = { T("color","Color","#FFA040", PickKind.Color) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Parallax, Name = "Parallax", Icon = "🏔",
                 Desc = "Background that scrolls slower than the camera.",
@@ -237,7 +238,7 @@ namespace EasyEngine
                           TNone("drop","Drops","", PickKind.Item) } },
 
             new BehaviorInfo { Kind = BehaviorKind.DayNight, Name = "Day / Night cycle", Icon = "🌗",
-                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). In Platformer mode, adding it creates a 'Sky' layer under all the others with a Sun and a Moon already linked (Top-down has no sky — just the light changes) — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Platformer: turn on 'coverDark' and it also gets darker the more solid blocks are above the player (caves, underground) — torches still light it up; it sets the variables cover (0 to 1) and underground (0 or 1). Works for Top-down and Platformer.",
+                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). In Platformer mode, adding it creates a 'Sky' layer under all the others with a Sun and a Moon already linked (Top-down has no sky — just the light changes) — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Platformer: turn on 'coverDark' and it also gets darker the more solid blocks are above the player (caves, underground) — torches still light it up; it sets the variables cover (0 to 1) and underground (0 or 1). 'True black darkness' makes the dark pure black (no night tint) and fully dark underground. Lighting style: Smooth = soft circles of light; Blocks = light computed block by block, with options: solid blocks stop the light, lights colour what they touch, overlapping lights add up. Works for Top-down and Platformer.",
                 Nums = { new("mode","Game view",0, "0|Platformer (side view, sun + moon)", "1|Top-down (seen from above)"),
                          new("dayLength","Day length (seconds)",60),
                          new("nightLength","Night length (seconds)",60),
@@ -248,7 +249,13 @@ namespace EasyEngine
                          NIf(new("arcHeight","Sun/Moon arc height (px)",120), IfOff("mode")),
                          NIf(new("coverDark","Darker under solid blocks (underground) (0/1)",0), IfOff("mode")),
                          NIf(new("coverDepth","Blocks above you until it's darkest",6), CoverOn),
-                         NIf(new("coverMax","How dark underground (0-1)",0.9), CoverOn) },
+                         NIf(new("coverMax","How dark underground (0-1)",0.9), CoverOn),
+                         new("trueBlack","True black darkness (0/1)",0),
+                         new("lightStyle","Lighting style",0, "0|Smooth (soft circles of light)", "1|Blocks (light per block)"),
+                         NIf(new("lightCell","Light block size",16, "16|Small (16 px)", "32|Big (32 px)"), LightBlocks),
+                         NIf(new("lightBlocked","Solid blocks stop the light (0/1)",1), LightBlocks),
+                         NIf(new("lightTint","Light colours what it touches (0/1)",1), LightBlocks),
+                         NIf(new("lightsAdd","Every light adds up (0/1)",1), LightBlocks) },
                 Texts = { TIf(TNone("sun","Sun","", PickKind.Object), IfOff("mode")), TIf(TNone("moon","Moon","", PickKind.Object), IfOff("mode")),
                           T("nightColor","Night tint","#0A1030", PickKind.Color),
                           TIf(T("coverWho","Whose light (usually the player)","Player", PickKind.Object), CoverOn) } },
@@ -287,9 +294,10 @@ namespace EasyEngine
                           T("player","Shown in the hand of","Player", PickKind.Object) } },
 
             new BehaviorInfo { Kind = BehaviorKind.ToolUse, Name = "Use Item (swing / attack)", Icon = "🗡",
-                Desc = "Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'): the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe, or your own (shovel…). Far away = a miss; wrong tool = refused; something solid in between (wall, water, a block) = blocked, the swing only hits what is in front. 'itemDamage' = damage per item (e.g. sword=2,axe=1), 'tools' = only these items swing (comma list, empty = all), 'toolLook' = look of the fixed tool. Everything shows in the F1 console.",
+                Desc = "Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'); hold the button to keep using it, one swing per cooldown. Each use: the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe, or your own (shovel…). Far away = a miss; wrong tool = refused; something solid in between (wall, water, a block) = blocked, the swing only hits what is in front. 'itemDamage' = damage per item (e.g. sword=2,axe=1), 'tools' = only these items swing (comma list, empty = all), 'toolLook' = look of the fixed tool. Everything shows in the F1 console.",
                 Nums = { new("reach","Reach (px from the player)",80), new("cooldown","Time between swings (s)",0.35), new("swingTime","Swing duration (s)",0.25),
-                         new("damage","Damage to enemies (default)",1), new("knockback","Knockback",260), new("blockedByWalls","Walls / water in between block the swing (0/1)",1) },
+                         new("damage","Damage to enemies (default)",1), new("knockback","Knockback",260), new("blockedByWalls","Walls / water in between block the swing (0/1)",1),
+                         new("holdToUse","Hold the button to keep using (0/1)",1) },
                 Texts = { TIf(T("tool","Item in hand (no Hotbar in this scene)","sword", PickKind.Item), NoHotbar),
                           TIf(T("toolLook","How it looks","", PickKind.Look), NoHotbar),
                           T("itemDamage","Damage per item","sword=2", PickKind.ItemDamage),

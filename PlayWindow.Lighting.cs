@@ -20,9 +20,12 @@ namespace EasyEngine
         // the scene's background colour is the sky (it used to be ignored → black sky)
         private void ApplySky()
         {
-            Root.Background = Brush(string.IsNullOrWhiteSpace(_scene.BackgroundColor) ? "#1A1A20" : _scene.BackgroundColor);
+            _skyBase = ParseColor(string.IsNullOrWhiteSpace(_scene.BackgroundColor) ? "#1A1A20" : _scene.BackgroundColor, Color.FromRgb(0x1A, 0x1A, 0x20));
+            _skyShownDark = -1;
+            ResetLightGrid();
             SetDarknessColor("#000000");
-            Lights.Opacity = Math.Clamp(Darkness.Opacity * 0.55, 0, 1); // no glow in daylight, from the very first frame
+            ShadeSky();
+            Lights.Opacity = Math.Clamp(Darkness.Opacity, 0, 1); // no glow in daylight, from the very first frame
         }
 
         private void SetDarknessColor(string hex)
@@ -71,8 +74,29 @@ namespace EasyEngine
                 mask.Center = mask.GradientOrigin = new Point(sx, sy);
                 mask.RadiusX = mask.RadiusY = r;
             }
-            // the coloured glow is a tint on top: only visible as much as it is dark (none in daylight)
-            Lights.Opacity = Math.Clamp(Darkness.Opacity * 0.55, 0, 1);
+            // the coloured glow is a light warm tint on top: only visible as much as it is dark (none in daylight)
+            Lights.Opacity = Math.Clamp(Darkness.Opacity, 0, 1);
+            ShadeSky();
+            UpdateLightGrid(); // Lighting style "Blocks" (PlayWindow.LightGrid.cs)
+        }
+
+        // The sky behind everything is darkened by the night itself, so a torch's hole shows a night sky, not a
+        // day-blue disc. Only rebuilt when the darkness changes visibly (no brush per frame).
+        private Color _skyBase;
+        private double _skyShownDark = -1;
+        private string _skyShownColor = "";
+
+        private void ShadeSky()
+        {
+            double d = Math.Clamp(Darkness.Opacity, 0, 1);
+            if (Math.Abs(d - _skyShownDark) < 0.01 && _skyShownColor == _darkColor) return;
+            _skyShownDark = d; _skyShownColor = _darkColor;
+            var dark = (Darkness.Fill as SolidColorBrush)?.Color ?? Colors.Black;
+            double k = 1 - (1 - d) * (1 - d); // as dark as the sky outside the light (which the darkness then covers again)
+            byte Mix(byte a, byte b) => (byte)Math.Round(a + (b - a) * k);
+            var sky = new SolidColorBrush(Color.FromRgb(Mix(_skyBase.R, dark.R), Mix(_skyBase.G, dark.G), Mix(_skyBase.B, dark.B)));
+            sky.Freeze();
+            Root.Background = sky;
         }
 
         private void RebuildDarkStack(List<Entity> lit)
@@ -97,11 +121,12 @@ namespace EasyEngine
                     mask.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0, 0, 0), 0.8));
                     mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 1));
                 }
-                else
+                else // a clear core (the world in its real colours, like daylight) and a short soft edge
                 {
-                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(A(1 - intensity), 0, 0, 0), 0));
-                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(A(1 - intensity * 0.75), 0, 0, 0), 0.45));
-                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(A(1 - intensity * 0.3), 0, 0, 0), 0.75));
+                    double core = Math.Max(0, 1 - intensity * 1.1); // intensity 0.9+ = no darkness left in the core
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(A(core), 0, 0, 0), 0));
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(A(core), 0, 0, 0), 0.68));
+                    mask.GradientStops.Add(new GradientStop(Color.FromArgb(A(1 - intensity * 0.5), 0, 0, 0), 0.85));
                     mask.GradientStops.Add(new GradientStop(Color.FromArgb(255, 0, 0, 0), 1));
                 }
                 chain = new Border { IsHitTestVisible = false, Child = chain, OpacityMask = mask };

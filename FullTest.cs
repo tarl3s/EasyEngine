@@ -459,11 +459,11 @@ public partial class App
                 return Math.Abs(p.TItem("wood") - 2) < 0.01 && p.TItem("sword") >= 1;
             });
             // ---- Use Item replaces Melee: the sword works like every other item (click → arm swings → hit) ----
-            Action<Project, Scene> SwordVsEnemy(double enemyX, string itemDamage = "sword=2") => (pr, sc) =>
+            Action<Project, Scene> SwordVsEnemy(double enemyX, string itemDamage = "sword=2", double holdToUse = 1) => (pr, sc) =>
             {
                 var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
                 var a = l.Objects.First(o => o.Name == "A"); // A: box at x 200..264
-                a.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.ToolUse, Nums = { ["reach"] = 60, ["knockback"] = 0 }, Texts = { ["tool"] = "sword", ["itemDamage"] = itemDamage } });
+                a.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.ToolUse, Nums = { ["reach"] = 60, ["knockback"] = 0, ["holdToUse"] = holdToUse }, Texts = { ["tool"] = "sword", ["itemDamage"] = itemDamage } });
                 l.Objects.Add(new GameObjectData { Id = 2, Name = "E", Type = "Object", X = enemyX, Y = 200, Width = 30, Height = 48, Color = "#E54", Physics = new PhysicsData { Mode = PhysicsMode.None }, Behaviors = { new BehaviorData { Kind = BehaviorKind.Health, Nums = { ["max"] = 5, ["respawn"] = 0 } } } });
             };
             Test("use item: a sword click hurts an enemy in reach (sword=2 damage)", () =>
@@ -477,6 +477,18 @@ public partial class App
                 var p = Sim("[]", extra: SwordVsEnemy(600));
                 p.TClick(610, 220); p.TSteps(20);
                 return Math.Abs(p.THp("E") - 5) < 0.01 && p.TVar("stat:swings") == 1;
+            });
+            Test("use item: holding the button keeps swinging, once per cooldown (0.35 s → 3 swings in 0.8 s)", () =>
+            {
+                var p = Sim("[]", extra: SwordVsEnemy(290));
+                p.TMouseAt(300, 220); p.TMouseDown(true); p.TSteps(50); p.TMouseDown(false); p.TSteps(30);
+                return p.TVar("stat:swings") == 3 && p.TVar("stat:enemyHits") >= 2;
+            });
+            Test("use item: with 'hold to keep using' off, holding swings only once", () =>
+            {
+                var p = Sim("[]", extra: SwordVsEnemy(600, holdToUse: 0));
+                p.TMouseAt(610, 220); p.TMouseDown(true); p.TSteps(50);
+                return p.TVar("stat:swings") == 1;
             });
             Test("use item: a breakable tile under the cursor breaks with clicks", () =>
             {
@@ -867,6 +879,19 @@ public partial class App
                 p.TClick(c.X, c.Y); p.TSteps(25);
                 return isUi && p.TVar("heldSlot") == 0 && p.THeld == "pickaxe" && p.TVar("stat:swings") == 0;
             });
+            Test("tool: holding a press that began on the hotbar never swings", () =>
+            {
+                var p = ToolSim(ToolScene());
+                var c = p.THotbarSlotCenter(0);
+                p.TMouseAt(c.X, c.Y); p.TMouseDown(true); p.TSteps(60);
+                return p.TVar("stat:swings") == 0;
+            });
+            Test("tool: holding on an unowned slot warns once, not every frame", () =>
+            {
+                var p = ToolSim(ToolScene(), ownAxe: false);
+                p.TMouseAt(310, 440); p.TMouseDown(true); p.TSteps(60);
+                return p.TVar("stat:swings") == 0 && p.TLogCount("Tool", "not owned") == 1;
+            });
             Test("tool: an unowned slot warns and does not swing", () =>
             {
                 var p = ToolSim(ToolScene(), ownAxe: false);
@@ -1023,6 +1048,7 @@ public partial class App
             FeatureTestsBoss(kit);
             FeatureTestsTerrain(kit);
             FeatureTestsFixes(kit);
+            FeatureTestsLightGrid(kit);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
@@ -1057,6 +1083,7 @@ public partial class App
     partial void FeatureTestsBoss(FullTestKit t);
     partial void FeatureTestsTerrain(FullTestKit t);
     partial void FeatureTestsFixes(FullTestKit t);
+    partial void FeatureTestsLightGrid(FullTestKit t);
 
     // Re-run a script and its block-editor round-trip; the measured outcome must match.
     private static bool SameOutcome(string script, int steps, Func<PlayWindow, double> read, Func<string, string> rt)

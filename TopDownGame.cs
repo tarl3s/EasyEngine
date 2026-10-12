@@ -170,7 +170,7 @@ namespace EasyEngine
             var tool = B(BehaviorKind.ToolUse); tool.Texts["itemDamage"] = "sword=2,axe=1,pickaxe=1"; tool.Nums["reach"] = 80;
             tool.Texts["swingSound"] = swingSound; tool.Texts["deniedSound"] = deniedSound;
             o.Behaviors.Add(tool);
-            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 230; torch.Texts["color"] = "#FFE6A0"; o.Behaviors.Add(torch);
+            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 230; torch.Texts["color"] = "#FFA040"; o.Behaviors.Add(torch);
             return o;
         }
 

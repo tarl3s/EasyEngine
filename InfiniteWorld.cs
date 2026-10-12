@@ -44,6 +44,7 @@ namespace EasyEngine
             dnB.Nums["mode"] = 0; dnB.Nums["dayLength"] = 90; dnB.Nums["nightLength"] = 60; dnB.Nums["transition"] = 5;
             dnB.Nums["dayLight"] = 1; dnB.Nums["nightLight"] = 0.22; dnB.Nums["arcHeight"] = 170;
             dnB.Nums["coverDark"] = 1; dnB.Nums["coverDepth"] = 6; dnB.Nums["coverMax"] = 0.92; dnB.Texts["coverWho"] = "Player"; // underground darkness
+            dnB.Nums["lightStyle"] = 1; dnB.Nums["trueBlack"] = 1; // light: per block, stopped by blocks, pitch black deep down
             dn.Behaviors.Add(dnB);
             baseL.Objects.Add(Id(dn));
 
@@ -53,7 +54,7 @@ namespace EasyEngine
             ui.Objects.Add(Id(hpBar));
             ui.Objects.Add(Id(Label("CoinsHUD", 16, 94, "Coins: {coins}", "#FFD86B", 16)));
             ui.Objects.Add(Id(Label("ResHUD", 16, 120, "Wood {item:wood}  ·  Dirt {item:dirt}  ·  Stone {item:stone}  ·  Ore {item:ore}", "#CFE8FF", 14)));
-            ui.Objects.Add(Id(Label("Hint", 16, 146, "A/D move · Space jump · 1-3 tools · click to use · M big map · F1 console", "#E6ECF5", 13)));
+            ui.Objects.Add(Id(Label("Hint", 16, 146, "A/D move · Space jump · 1-3 tools · click or hold to use · M big map · F1 console", "#E6ECF5", 13)));
             var map = Box("Minimap", 0, 0, 220, 120, "#00000000");
             var mm = B(BehaviorKind.Minimap);
             mm.Nums["size"] = 220; mm.Texts["corner"] = "tr"; mm.Texts["player"] = "Player";
@@ -88,7 +89,7 @@ namespace EasyEngine
             var tool = B(BehaviorKind.ToolUse); tool.Texts["itemDamage"] = "sword=2,axe=1,pickaxe=1"; tool.Nums["reach"] = 100;
             tool.Texts["swingSound"] = snd.swing; tool.Texts["deniedSound"] = snd.denied;
             o.Behaviors.Add(tool);
-            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 260; torch.Texts["color"] = "#FFE6A0"; o.Behaviors.Add(torch);
+            var torch = B(BehaviorKind.LightSource); torch.Nums["radius"] = 260; torch.Texts["color"] = "#FFA040"; o.Behaviors.Add(torch);
             // at night a slime comes out near the player every 8 s, at most 4 at a time ('slimes' is recounted every frame:
             // reset here, then each slime adds itself — the timer reads last frame's count)
             o.Behaviors.Add(Script("[{\"when\":\"timer\",\"every\":8,\"do\":\"spawn\",\"object\":\"Slime\",\"at\":\"near\",\"cond\":\"isNight >= 1 && slimes < 4\"}," +

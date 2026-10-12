@@ -934,10 +934,13 @@ namespace EasyEngine
         {
             double r = light.Num("radius", 200);
             double intensity = Math.Clamp(light.Num("intensity", 0.9), 0, 1);
-            var color = ParseColor(light.Text("color", "#FFE9A8"), Colors.White);
-            var center = Color.FromArgb((byte)(intensity * 220), color.R, color.G, color.B);
-            var edge = Color.FromArgb(0, color.R, color.G, color.B);
-            var brush = new RadialGradientBrush { GradientStops = { new GradientStop(center, 0), new GradientStop(edge, 1) } };
+            var color = ParseColor(light.Text("color", "#FFA040"), Colors.White);
+            // a warm tint (strongest at the source) in a deeper shade of the light's colour: it colours what the light
+            // reveals without lifting it into a grey haze (normal blending can't multiply, so a bright tint would wash out)
+            byte Deep(byte c) => (byte)(c * 0.62);
+            Color At(double a) => Color.FromArgb((byte)(intensity * a * 255), Deep(color.R), Deep(color.G), Deep(color.B));
+            var brush = new RadialGradientBrush { GradientStops = { new GradientStop(At(0.45), 0), new GradientStop(At(0.34), 0.6), new GradientStop(At(0.2), 0.88), new GradientStop(At(0), 1) } };
+            brush.Freeze();
             return new Ellipse { Width = r * 2, Height = r * 2, Fill = brush, IsHitTestVisible = false };
         }
 
@@ -2697,7 +2700,9 @@ namespace EasyEngine
                 Info("DayNight", en.Data.Name, night ? "Night falls" : "Day breaks", $"cycle time {t:0.0}s");
             }
             en.Locals["__wasNight"] = night ? 1 : 0;
-            SetDarknessColor(bh.Text("nightColor", "#0A1030")); // the night is deep blue, not pure black
+            bool trueBlack = bh.Num("trueBlack", 0) >= 0.5;
+            SetDarknessColor(trueBlack ? "#000000" : bh.Text("nightColor", "#0A1030")); // the night is deep blue, unless 'true black'
+            ConfigureLightGrid(bh); // Lighting style: Smooth / Blocks (PlayWindow.LightGrid.cs)
 
             // "dayness" 0..1 drives the light: ramps up at dawn, flat by day, ramps down at dusk, flat (0) at night
             double dayness;
@@ -2713,7 +2718,7 @@ namespace EasyEngine
             if (!topdown && bh.Num("coverDark", 0) >= 0.5)
             {
                 double cover = UpdateCover(en, bh, dt);
-                light *= 1 - Math.Clamp(bh.Num("coverMax", 0.9), 0, 1) * cover;
+                light *= 1 - (trueBlack ? 1 : Math.Clamp(bh.Num("coverMax", 0.9), 0, 1)) * cover; // true black: no light left deep down
                 covered = cover > 0.35; // the sun/moon (and their crisp light holes) don't shine underground
             }
 
