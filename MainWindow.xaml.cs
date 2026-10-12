@@ -1565,6 +1565,7 @@ namespace EasyEngine
                     else if (bh.Kind == BehaviorKind.AdvancedPatrol && tp.Key == "path") AdvancedPatrolRow(obj, bh, panel);
                     else TextRow(tp.Label, bh.Text(tp.Key, tp.Default), v => { bh.Texts[tp.Key] = v; Dirty(); }, panel);
                 }
+                if (bh.Kind == BehaviorKind.Hotbar) NewItemButton(obj, bh, panel);
             }
 
             InspectorRoot.Children.Add(new Border
@@ -1574,6 +1575,22 @@ namespace EasyEngine
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 8), Child = panel
             });
+        }
+
+        // "＋ New item": make a custom tool/weapon (shovel, hammer, your own picture…) and put it in this hotbar
+        private void NewItemButton(GameObjectData obj, BehaviorData hotbar, Panel panel)
+        {
+            var btn = new Button { Content = "＋ New item (tool / weapon)…", Height = 28, Margin = new Thickness(0, 8, 0, 0), Style = (Style)FindResource("CardButton") };
+            btn.Click += (s, e) =>
+            {
+                var dlg = new NewItemDialog(_project) { Owner = this };
+                if (dlg.ShowDialog() != true || dlg.Result == null) return;
+                PushUndo();
+                var msg = ItemMaker.Add(_project, _scene, obj, hotbar, dlg.Result);
+                BuildInspector(obj); RenderScene(); Dirty();
+                Status(msg);
+            };
+            panel.Children.Add(btn);
         }
 
         private void AddBehaviorControl(GameObjectData obj)

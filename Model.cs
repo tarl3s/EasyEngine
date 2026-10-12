@@ -41,7 +41,8 @@ namespace EasyEngine
             var dnObj = all.FirstOrDefault(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.DayNight));
             if (dnObj == null) return null;
             var dn = dnObj.Behaviors.First(b => b.Kind == BehaviorKind.DayNight);
-            bool topdown = dn.Num("mode", 0) >= 0.5; // the moon only shows in Platformer mode
+            bool topdown = dn.Num("mode", 0) >= 0.5; // Top-down: the ground covers the sky, so no sun/moon is created
+            if (topdown) createMissing = false;
 
             GameObjectData? Find(string key, string defName)
             {

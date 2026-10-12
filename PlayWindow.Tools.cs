@@ -16,23 +16,32 @@ namespace EasyEngine
         private string _heldItem = "";      // owned + selected item, or "" if the selected slot isn't owned
         private string _heldSlotName = "";  // the selected slot's item name, owned or not
         private string _heldColor = "#CCCCCC";
+        private string _heldLook = "";      // built-in look or picture of the item in hand ("" = guess from its name)
         private bool _heldOwned;
         private int _heldSlot;
         private Entity? _hotbarOwner, _hotbarPlayer;
 
         // ================================================================== HOTBAR
-        private static List<(string name, string color)> ParseHotbarItems(string spec)
+        // Slots: "name:#color" or "name:#color:look" — look = a built-in drawing (shovel, hammer…) or a picture file.
+        internal static List<(string name, string color, string look)> ParseHotbarItems(string spec)
         {
-            var list = new List<(string, string)>();
+            var list = new List<(string, string, string)>();
             foreach (var part in (spec ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                var bits = part.Split(':', 2);
+                var bits = part.Split(':');
                 string name = bits[0].Trim();
                 if (name.Length == 0) continue;
-                list.Add((name, bits.Length > 1 ? bits[1].Trim() : "#CCCCCC"));
+                string color = "#CCCCCC", look = "";
+                foreach (var b in bits.Skip(1).Select(x => x.Trim()).Where(x => x.Length > 0))
+                    if (b.StartsWith('#')) color = b; else look = b;
+                list.Add((name, color, look));
             }
             return list;
         }
+
+        // An item drawn from its own picture (when its look is an image file), else its built-in drawing.
+        private Canvas ItemArt(string name, string color, string look, double size, out Point grip)
+            => ToolArt.Make(name, color, size, out grip, ToolArt.IsPicture(look) ? null : look, ToolArt.IsPicture(look) ? Load(look) : null);
 
         // Slot rectangles in screen space — shared by drawing, click-to-select and the "click on HUD" test.
         private List<Rect> HotbarSlotRects(BehaviorData bh, int count)
@@ -63,13 +72,13 @@ namespace EasyEngine
             en.Locals["__slot"] = sel;
 
             // "holding:<name>" = 1 only for the selected, owned slot (cleared first: duplicate names are fine)
-            var (name, color) = items[sel];
+            var (name, color, look) = items[sel];
             bool owned = Var("item:" + name) >= 1;
             foreach (var it in items) _vars["holding:" + it.name] = 0;
             if (owned) _vars["holding:" + name] = 1;
             _vars["heldSlot"] = sel;
 
-            _heldItem = owned ? name : ""; _heldSlotName = name; _heldOwned = owned; _heldSlot = sel; _heldColor = color;
+            _heldItem = owned ? name : ""; _heldSlotName = name; _heldOwned = owned; _heldSlot = sel; _heldColor = color; _heldLook = look;
             _hotbarOwner = en;
             _hotbarPlayer = _entities.FirstOrDefault(z => !z.Dead && z.Data.Name.Equals(bh.Text("player", "Player"), StringComparison.OrdinalIgnoreCase));
 
@@ -90,7 +99,7 @@ namespace EasyEngine
             if (renderSig != en.HotbarRenderSig) { RenderHotbar(en.HotbarCanvas, items, sel, rects); en.HotbarRenderSig = renderSig; }
         }
 
-        private void RenderHotbar(Canvas canvas, List<(string name, string color)> items, int sel, List<Rect> rects)
+        private void RenderHotbar(Canvas canvas, List<(string name, string color, string look)> items, int sel, List<Rect> rects)
         {
             canvas.Children.Clear();
             for (int i = 0; i < items.Count; i++)
@@ -106,7 +115,7 @@ namespace EasyEngine
                 };
                 Canvas.SetLeft(slot, r.X); Canvas.SetTop(slot, r.Y); canvas.Children.Add(slot);
 
-                var icon = ToolArt.Make(items[i].name, items[i].color, r.Width * 0.7, out _);
+                var icon = ItemArt(items[i].name, items[i].color, items[i].look, r.Width * 0.7, out _);
                 icon.Opacity = owned ? 1 : 0.28;
                 Canvas.SetLeft(icon, r.X + r.Width * 0.15); Canvas.SetTop(icon, r.Y + r.Height * 0.15); canvas.Children.Add(icon);
 
@@ -137,16 +146,16 @@ namespace EasyEngine
         }
 
         // Who holds what this frame: the hotbar's player + selected item, or (no hotbar) a Tool Use entity with a fixed tool.
-        private (Entity owner, Entity player, string item, string color)? HeldInfo()
+        private (Entity owner, Entity player, string item, string color, string look)? HeldInfo()
         {
             if (_hotbarOwner != null && !_hotbarOwner.Dead)
-                return _hotbarPlayer == null || _hotbarPlayer.Dead || _heldItem.Length == 0 ? (_hotbarOwner, _hotbarOwner, "", _heldColor)
-                     : (_hotbarOwner, _hotbarPlayer, _heldItem, _heldColor);
+                return _hotbarPlayer == null || _hotbarPlayer.Dead || _heldItem.Length == 0 ? (_hotbarOwner, _hotbarOwner, "", _heldColor, "")
+                     : (_hotbarOwner, _hotbarPlayer, _heldItem, _heldColor, _heldLook);
             foreach (var e in _entities)
             {
                 if (e.Dead) continue;
                 var tu = e.Beh(BehaviorKind.ToolUse);
-                if (tu != null && tu.Text("tool", "").Length > 0) return (e, e, tu.Text("tool", ""), tu.Text("toolColor", "#DDEBFF"));
+                if (tu != null && tu.Text("tool", "").Length > 0) return (e, e, tu.Text("tool", ""), tu.Text("toolColor", "#DDEBFF"), tu.Text("toolLook", ""));
             }
             return null;
         }
@@ -157,7 +166,7 @@ namespace EasyEngine
         {
             var info = HeldInfo();
             if (info == null) return;
-            var (owner, player, item, color) = info.Value;
+            var (owner, player, item, color, look) = info.Value;
             if (item.Length == 0)
             {
                 if (owner.HeldVisual != null) owner.HeldVisual.Visibility = Visibility.Collapsed;
@@ -171,11 +180,11 @@ namespace EasyEngine
                                              Background = Brush("#E8B88A"), BorderBrush = Brush("#A97C55"), BorderThickness = new Thickness(1) };
                 host.Children.Add(owner.HeldArm); // added after the player → drawn on top
             }
-            if (owner.HeldVisual == null || owner.HeldName != item)
+            if (owner.HeldVisual == null || owner.HeldName != item + "|" + look)
             {
                 if (owner.HeldVisual != null) { World.Children.Remove(owner.HeldVisual); Hud.Children.Remove(owner.HeldVisual); }
-                owner.HeldVisual = ToolArt.Make(item, color, 30, out owner.HeldGrip);
-                owner.HeldName = item;
+                owner.HeldVisual = ItemArt(item, color, look, 30, out owner.HeldGrip);
+                owner.HeldName = item + "|" + look;
                 host.Children.Add(owner.HeldVisual);
             }
             owner.HeldVisual.Visibility = Visibility.Visible; owner.HeldArm.Visibility = Visibility.Visible;
@@ -265,7 +274,8 @@ namespace EasyEngine
         {
             double reach = bh.Num("reach", 80);
             string tool = user.ImpactTool;
-            Entity? best = null, wrongTool = null, nearestOk = null;
+            bool walls = bh.Num("blockedByWalls", 1) >= 0.5;
+            Entity? best = null, wrongTool = null, nearestOk = null, blocked = null, blocker = null;
             double bestScore = double.MaxValue, nearestOkGap = double.MaxValue;
             foreach (var t in _entities)
             {
@@ -281,6 +291,12 @@ namespace EasyEngine
                 bool under = user.ImpactAt.X >= t.X && user.ImpactAt.X <= t.X + t.W && user.ImpactAt.Y >= t.Y && user.ImpactAt.Y <= t.Y + t.H;
                 // wrong tool: only refuse when you actually aimed at it (mining dirt next to a tree must not complain)
                 if (!accepts) { if (under) wrongTool ??= t; continue; }
+                // something solid in between (wall, water, a block…) stops the swing from reaching it
+                if (walls && SolidBetween(user, ClosestPoint(t, user.CX, user.CY), t) is Entity wall)
+                {
+                    if (blocked == null || under) { blocked = t; blocker = wall; }
+                    continue;
+                }
                 // prefer the one under the cursor, then the one on the clicked side, then the nearest
                 bool sameSide = Math.Sign(t.CX - user.CX) == Math.Sign(user.ImpactAt.X - user.CX) || Math.Abs(t.CX - user.CX) < 1;
                 double score = gap + (under ? -10000 : 0) + (sameSide ? 0 : 1000);
@@ -292,7 +308,8 @@ namespace EasyEngine
                 else HitEnemy(best, user, bh, tool);
                 return;
             }
-            if (BreakTileWithTool(user, bh, tool, reach)) return;
+            if (BreakTileWithTool(user, bh, tool, reach, walls)) return;
+            if (blocked != null && blocker != null) { Blocked(user, bh, blocked.Data.Name, blocker); return; }
             if (wrongTool != null)
             {
                 var need = wrongTool.Beh(BehaviorKind.Harvestable)!.Text("tool", "");
@@ -320,7 +337,7 @@ namespace EasyEngine
         }
 
         // Nothing else in reach: break the breakable tile under the cursor (if the cursor is within reach).
-        private bool BreakTileWithTool(Entity user, BehaviorData bh, string tool, double reach)
+        private bool BreakTileWithTool(Entity user, BehaviorData bh, string tool, double reach, bool walls)
         {
             var p = user.ImpactAt;
             double dx = Math.Max(0, Math.Max(user.X - p.X, p.X - (user.X + user.W)));
@@ -333,10 +350,52 @@ namespace EasyEngine
                 if (mb == null || mb.Num("byMelee", 1) < 0.5) continue; // "Break with tool clicks"
                 var cell = CellAt(map, p.X, p.Y);
                 if (cell == null) continue;
+                // only the front tile can be hit: a tile behind another solid is out of the swing's way
+                var to = new Point(Math.Clamp(user.CX, cell.X, cell.X + cell.W), Math.Clamp(user.CY, cell.Y, cell.Y + cell.H));
+                if (walls && SolidBetween(user, to, cell.Collider) is Entity wall) { Blocked(user, bh, $"tile ({cell.C},{cell.R})", wall); return true; }
                 DamageCell(map, mb, cell, 1); // logs the break, or why it can't break (e.g. needs holding:pickaxe)
                 return true;
             }
             return false;
+        }
+
+        private void Blocked(Entity user, BehaviorData bh, string what, Entity wall)
+        {
+            _vars["stat:blocked"] = Var("stat:blocked") + 1;
+            PlaySoundFile(bh.Text("deniedSound", ""), 0.5, "sfx", false, user.Data.Name);
+            string wallName = wall.Data.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap) ? $"a {wall.Data.Name} tile" : wall.Data.Name;
+            Info("Tool", user.Data.Name, $"Blocked — {wallName} is in the way of {what}", "Something solid between you and the target stops the swing. Walk around it.");
+        }
+
+        private static Point ClosestPoint(Entity t, double x, double y) => new(Math.Clamp(x, t.X, t.X + t.W), Math.Clamp(y, t.Y, t.Y + t.H));
+
+        // The first solid (wall, water, solid tile…) crossed by the straight line from the user's centre to a point.
+        private Entity? SolidBetween(Entity user, Point to, Entity? target)
+        {
+            double x0 = user.CX, y0 = user.CY;
+            foreach (var s in _solids)
+            {
+                if (s.Dead || s.SolidDisabled || s.OneWay || s == user || s == target) continue;
+                if (x0 > s.X && x0 < s.X + s.W && y0 > s.Y && y0 < s.Y + s.H) continue; // standing inside it: not "in front"
+                if (SegmentHitsRect(x0, y0, to.X, to.Y, s.X + 0.5, s.Y + 0.5, s.W - 1, s.H - 1)) return s; // shrunk: touching an edge is fine
+            }
+            return null;
+        }
+
+        // Liang–Barsky: does the segment (x0,y0)→(x1,y1) pass through the rectangle?
+        private static bool SegmentHitsRect(double x0, double y0, double x1, double y1, double rx, double ry, double rw, double rh)
+        {
+            if (rw <= 0 || rh <= 0) return false;
+            double t0 = 0, t1 = 1, dx = x1 - x0, dy = y1 - y0;
+            bool Clip(double p, double q)
+            {
+                if (Math.Abs(p) < 1e-9) return q >= 0;
+                double r = q / p;
+                if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+                else { if (r < t0) return false; if (r < t1) t1 = r; }
+                return true;
+            }
+            return Clip(-dx, x0 - rx) && Clip(dx, rx + rw - x0) && Clip(-dy, y0 - ry) && Clip(dy, ry + rh - y0) && t0 <= t1;
         }
 
         private static string A(string word) => (word.Length > 0 && "aeiouAEIOU".IndexOf(word[0]) >= 0 ? "an " : "a ") + word;

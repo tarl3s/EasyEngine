@@ -182,7 +182,7 @@ namespace EasyEngine
                           new("drop","Resource dropped when broken (item name)","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.DayNight, Name = "Day / Night cycle", Icon = "🌗",
-                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). Adding it creates a 'Sky' layer under all the others with a Sun and a Moon (Platformer only) already linked — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Works for Top-down and Platformer.",
+                Desc = "A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). In Platformer mode, adding it creates a 'Sky' layer under all the others with a Sun and a Moon already linked (Top-down has no sky — just the light changes) — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Works for Top-down and Platformer.",
                 Nums = { new("mode","0 = Platformer, 1 = Top-down",0),
                          new("dayLength","Day length (seconds)",60),
                          new("nightLength","Night length (seconds)",60),
@@ -194,17 +194,17 @@ namespace EasyEngine
                 Texts = { new("sun","Sun sprite (object name)",""), new("moon","Moon sprite (object name)",""), new("nightColor","Night tint (hex)","#0A1030") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Hotbar, Name = "Hotbar / Inventory", Icon = "🎒",
-                Desc = "A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.",
+                Desc = "A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). ANY name is an item — make your own (shovel, hammer, magic wand…) with the '＋ New item' button, or add ':look' to a slot: a built-in drawing (pickaxe, axe, sword, shovel, hammer, hoe, tile) or a picture file (e.g. wand:#FFFFFF:Assets/sprites/wand.png). A Harvestable whose 'tool' is that name only accepts it. You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.",
                 Nums = { new("slot","Starting slot",0), new("size","Slot size (px)",46) },
-                Texts = { new("items","Slots (name:#color, comma-separated)","pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF"),
+                Texts = { new("items","Slots (name:#color[:look], comma-separated)","pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF"),
                           new("player","Player object (shows the held tool)","Player") } },
 
             new BehaviorInfo { Kind = BehaviorKind.ToolUse, Name = "Use Item (swing / attack)", Icon = "🗡",
-                Desc = "Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'): the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe… Far away = a miss; wrong tool = refused. Everything shows in the F1 console.",
+                Desc = "Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'): the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe, or your own (shovel…). Far away = a miss; wrong tool = refused; something solid in between (wall, water, a block) = blocked, the swing only hits what is in front. Everything shows in the F1 console.",
                 Nums = { new("reach","Reach (px from the player)",80), new("cooldown","Time between swings (s)",0.35), new("swingTime","Swing duration (s)",0.25),
-                         new("damage","Damage to enemies",1), new("knockback","Knockback",260) },
+                         new("damage","Damage to enemies",1), new("knockback","Knockback",260), new("blockedByWalls","Solids in between block the swing (0/1)",1) },
                 Texts = { new("tool","Item in hand when there is no Hotbar (e.g. sword)","sword"), new("itemDamage","Damage per item (e.g. sword=2,axe=1)","sword=2"),
-                          new("tools","Only these items swing (comma list, empty = all)",""),
+                          new("tools","Only these items swing (comma list, empty = all)",""), new("toolLook","Look of the fixed item (shovel, hammer… or a picture)",""),
                           new("swingSound","Swing sound",""), new("hitSound","Hit-an-enemy sound",""), new("deniedSound","Refused sound","") } },
 
             new BehaviorInfo { Kind = BehaviorKind.Harvestable, Name = "Harvestable (tree / rock)", Icon = "🌳",

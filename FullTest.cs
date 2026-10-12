@@ -364,7 +364,7 @@ public partial class App
                 return sc.Layers.SelectMany(l => l.Objects).Count(o => o.Name == "Sun") == 1 && sc.Layers[0].Objects.Any(o => o.Name == "Sun" && o.Width == 40)
                        && !sc.Layers.First(l => l.Kind == LayerKind.UI).Objects.Any();
             });
-            Test("sky: top-down mode gets a sun but no moon", () => { var sc = SkyScene(mode: 1); SkySetup.Ensure(sc); return sc.Layers[0].Objects.Count == 1 && DN(sc).Text("moon", "") == ""; });
+            Test("sky: top-down mode creates no sky (the ground covers it)", () => { var sc = SkyScene(mode: 1); return SkySetup.Ensure(sc) == null && sc.Layers.Count == 3 && DN(sc).Text("sun", "") == ""; });
             Test("sky: loading an old project only moves the linked sun (creates nothing)", () =>
             {
                 var sc = SkyScene(sunOnUi: true); DN(sc).Texts["sun"] = "Sun";
@@ -538,6 +538,108 @@ public partial class App
                 pw.TSetVar("item:pickaxe", 1); pw.TSteps(2);
                 pw.TMouseAt(1500, 760); pw.TMouseDown(true); pw.TSteps(5); // far from the player
                 return pw.TItem("dirt") < 0.5;
+            });
+
+            // ========================= T) TOP-DOWN DEMO (same loop as Mining, seen from above) =========================
+            PlayWindow TopDown()
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "EE_FullTopDown_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+                Directory.CreateDirectory(tmp);
+                var proj = ProjectIO.Load(TopDownGame.Build(tmp));
+                var pw = new PlayWindow(proj, proj.StartScene ?? proj.Scenes[0].Name); sims.Add(pw);
+                pw.TLoad(); pw.TSteps(5);
+                return pw;
+            }
+            void Press(PlayWindow pw, string k) { pw.TKey(k, true); pw.TStep(); pw.TKey(k, false); pw.TSteps(3); }
+            Test("topdown: loads; trees, rocks and coins were scattered; starts in daylight with no slimes", () =>
+            {
+                var pw = TopDown();
+                return pw.TExists("Player") && pw.TAlive("Tree") >= 10 && pw.TAlive("Rock") >= 5 && pw.TAlive("Coin") >= 10
+                       && pw.TVar("isDay") == 1 && pw.TAlive("Slime") == 0;
+            });
+            Test("topdown: WASD moves in 8 directions with no gravity, and the water stops the player", () =>
+            {
+                var pw = TopDown();
+                double x0 = pw.TX("Player"), y0 = pw.TY("Player");
+                pw.TKey("D", true); pw.TSteps(20); pw.TKey("D", false); pw.TStep();
+                bool moved = pw.TX("Player") > x0 + 40 && Math.Abs(pw.TY("Player") - y0) < 0.5;
+                pw.TKey("S", true); pw.TSteps(20); pw.TKey("S", false); pw.TStep();
+                bool down = pw.TY("Player") > y0 + 40;
+                pw.TPlace("Player", 90, 600); pw.TKey("A", true); pw.TSteps(40); pw.TKey("A", false);
+                return moved && down && pw.TX("Player") >= 69.9;
+            });
+            Test("topdown: the shops sell the pickaxe and the axe; the bench crafts the sword from wood", () =>
+            {
+                var pw = TopDown();
+                pw.TSetVar("coins", 13);
+                pw.TPlace("Player", 475, 350); pw.TSteps(2); Press(pw, "E");
+                pw.TPlace("Player", 645, 350); pw.TSteps(2); Press(pw, "E");
+                pw.TSetVar("item:wood", 8);
+                pw.TPlace("Player", 815, 350); pw.TSteps(2); Press(pw, "C");
+                return pw.TItem("pickaxe") == 1 && pw.TItem("axe") == 1 && pw.TItem("sword") == 1 && pw.TVar("coins") == 0 && pw.TItem("wood") == 0;
+            });
+            Test("topdown: the axe fells a tree (4 clicks) → +5 wood", () =>
+            {
+                var pw = TopDown();
+                pw.TSetVar("item:axe", 1); Press(pw, "D2");
+                pw.TPlace("Player", 520, 640); pw.TSteps(3);
+                for (int k = 0; k < 4; k++) { pw.TClick(596, 670); pw.TSteps(25); }
+                return pw.THeld == "axe" && pw.TFelled("Tree1") && Math.Abs(pw.TItem("wood") - 5) < 0.01;
+            });
+            Test("topdown: the pickaxe breaks a rock (3 clicks) → +3 stone and a coin pops out; the axe is refused", () =>
+            {
+                var pw = TopDown();
+                pw.TSetVar("item:axe", 1); pw.TSetVar("item:pickaxe", 1); Press(pw, "D2");
+                pw.TPlace("Player", 470, 820); pw.TSteps(3);
+                pw.TClick(552, 844); pw.TSteps(25);
+                bool refused = pw.TLogHas("needs a pickaxe") && pw.TItem("stone") == 0;
+                int coins = pw.TAlive("Coin");
+                Press(pw, "D1");
+                for (int k = 0; k < 3; k++) { pw.TClick(552, 844); pw.TSteps(25); }
+                return refused && pw.TDead("Rock1") && Math.Abs(pw.TItem("stone") - 3) < 0.01 && pw.TAlive("Coin") == coins + 1;
+            });
+            Test("topdown: at night slimes come out, chase a close player, die to the sword (coin) and melt at sunrise", () =>
+            {
+                var pw = TopDown();
+                pw.TSetTimeNow("night"); pw.TSteps(470); // ~7.5 s → each den spawns one
+                int night = pw.TAlive("Slime");
+                pw.TPlace("Player", pw.TX("Slime") + 200, pw.TY("Slime")); pw.TSteps(2);
+                double d0 = pw.TX("Player") - pw.TX("Slime");
+                pw.TSteps(30);
+                bool chases = pw.TX("Player") - pw.TX("Slime") < d0 - 20;
+                pw.TSetVar("item:sword", 1); Press(pw, "D3");
+                pw.TPlace("Player", pw.TX("Slime") + 44, pw.TY("Slime")); pw.TSteps(1);
+                int coins = pw.TAlive("Coin");
+                pw.TClick(pw.TX("Slime") + 20, pw.TY("Slime") + 16); pw.TSteps(20);
+                bool killed = pw.TAlive("Slime") == night - 1 && pw.TAlive("Coin") == coins + 1 && pw.TVar("stat:enemyHits") >= 1;
+                pw.TSetTimeNow("day"); pw.TSteps(3);
+                return night >= 2 && chases && killed && pw.TAlive("Slime") == 0 && pw.TVar("isDay") == 1;
+            });
+            Test("topdown: the shovel (a custom item, sold for 3 coins) digs a treasure mound → +3 coins", () =>
+            {
+                var pw = TopDown();
+                pw.TSetVar("coins", 3);
+                pw.TPlace("Player", 985, 350); pw.TSteps(2); Press(pw, "E");
+                bool bought = pw.TItem("shovel") == 1 && pw.TVar("coins") == 0;
+                Press(pw, "D4");
+                pw.TPlace("Player", 300, 760); pw.TSteps(3);   // Mound1 is at x 350
+                for (int k = 0; k < 2; k++) { pw.TClick(372, 780); pw.TSteps(25); }
+                return bought && pw.THeld == "shovel" && pw.TDead("Mound1") && pw.TVar("coins") == 3;
+            });
+            Test("topdown: you can't chop a tree from across the water", () =>
+            {
+                var pw = TopDown();
+                pw.TSetVar("item:axe", 1); Press(pw, "D2");
+                pw.TPlace("Player", 960, 720); pw.TSteps(3);   // west bank of the stream (x 1000..1030); Tree3 stands on the east bank
+                pw.TClick(1070, 760); pw.TSteps(25);
+                return pw.TVar("stat:hits") == 0 && pw.TVar("stat:blocked") == 1 && pw.TLogHas("Stream is in the way of Tree3");
+            });
+            Test("topdown: night darkens the island and the player's torch lights it; no sun/moon in top-down", () =>
+            {
+                var pw = TopDown();
+                pw.TUpdateLighting(); double day = pw.TDarkness;
+                pw.TSetTimeNow("night"); pw.TSteps(3); pw.TUpdateLighting();
+                return day < 0.01 && pw.TDarkness >= 0.75 && pw.TLightHoles == 1 && !pw.TExists("Sun") && !pw.TExists("Moon");
             });
 
             // ========================= N) ENGINE REGRESSIONS (v0.4.0 foundations) =========================
@@ -721,6 +823,88 @@ public partial class App
                 bool swingNow = p.TSounds.Contains("swing.wav") && !p.TSounds.Contains("chop.wav");
                 p.TSteps(25);
                 return swingNow && p.TSounds.ToList().IndexOf("swing.wav") < p.TSounds.ToList().IndexOf("chop.wav");
+            });
+            Action<Project, Scene> WithWall(Action<Project, Scene> sceneSetup, double blockedByWalls = 1) => (pr, sc) =>
+            {
+                sceneSetup(pr, sc);
+                var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
+                l.Objects.Add(new GameObjectData { Id = 48, Name = "Wall", X = 252, Y = 380, Width = 20, Height = 120, Physics = new PhysicsData { Mode = PhysicsMode.Static }, Behaviors = { new BehaviorData { Kind = BehaviorKind.Solid } } });
+                l.Objects.First(o => o.Name == "Player").Behaviors.First(b => b.Kind == BehaviorKind.ToolUse).Nums["blockedByWalls"] = blockedByWalls;
+            };
+            Test("tool: a wall between the player and the tree blocks the swing (only what is in front gets hit)", () =>
+            {
+                var p = ToolSim(WithWall(ToolScene(farTree: false)));
+                p.TClick(310, 440); p.TSteps(25);
+                return p.TVar("stat:swings") == 1 && p.TVar("stat:hits") == 0 && p.TVar("stat:blocked") == 1 && p.TLogHas("Blocked — Wall is in the way of Tree1");
+            });
+            Test("tool: with 'Solids in between block the swing' off, it hits through the wall", () =>
+            {
+                var p = ToolSim(WithWall(ToolScene(farTree: false), blockedByWalls: 0));
+                p.TClick(310, 440); p.TSteps(25);
+                return p.TVar("stat:hits") == 1 && p.TVar("stat:blocked") == 0;
+            });
+            Test("tool: only the front tile breaks — a tile behind another solid tile is blocked", () =>
+            {
+                var p = ToolSim((pr, sc) =>
+                {
+                    ToolScene(nearTree: false, farTree: false, slot: 0)(pr, sc);
+                    var l = sc.Layers.First(z => z.Kind == LayerKind.Base);
+                    var tm = new BehaviorData { Kind = BehaviorKind.Tilemap };   // two tiles in a row right of the player: x 240..280 and 280..320
+                    tm.Texts["palette"] = "[{\"color\":\"#7A5230\",\"solid\":true}]";
+                    tm.Texts["data"] = "{\"cols\":2,\"rows\":1,\"cells\":[1,1]}";
+                    tm.Nums["tileSize"] = 40; tm.Nums["breakable"] = 1; tm.Nums["breakHits"] = 1; tm.Nums["byMelee"] = 1;
+                    l.Objects.Add(new GameObjectData { Id = 49, Name = "Dirt", X = 240, Y = 440, Width = 80, Height = 40, Behaviors = { tm } });
+                });
+                p.TClick(300, 460); p.TSteps(25);           // the back tile: the front one is in the way
+                bool blocked = p.TTiles("Dirt") == 2 && p.TVar("stat:blocked") == 1;
+                p.TClick(260, 460); p.TSteps(25);           // the front tile breaks
+                p.TClick(300, 460); p.TSteps(25);           // now the back one is in front
+                return blocked && p.TTiles("Dirt") == 0;
+            });
+
+            // custom items (shovel, hammer, your own picture) — the "＋ New item" button runs ItemMaker.Add
+            Test("item: slots accept a look — a built-in drawing or a picture file", () =>
+            {
+                var s = PlayWindow.ParseHotbarItems("wand:#FFFFFF:Assets/sprites/w.png, pá:#888888:shovel, rope");
+                return s.Count == 3 && s[0] == ("wand", "#FFFFFF", "Assets/sprites/w.png") && s[1] == ("pá", "#888888", "shovel") && s[2] == ("rope", "#CCCCCC", "")
+                       && ToolArt.IsPicture(s[0].look) && !ToolArt.IsPicture(s[1].look);
+            });
+            Test("item: names pick their drawing in English or Portuguese", () =>
+                ToolArt.Shape("pá") == "shovel" && ToolArt.Shape("Shovel") == "shovel" && ToolArt.Shape("machado") == "axe" && ToolArt.Shape("picareta") == "pickaxe"
+                && ToolArt.Shape("espada de fogo") == "sword" && ToolArt.Shape("martelo") == "hammer" && ToolArt.Shape("enxada") == "hoe" && ToolArt.Shape("wand") == "tile");
+            Test("item: a custom 'shovel' works like any tool and digs what needs a shovel", () =>
+            {
+                var p = ToolSim((pr, sc) =>
+                {
+                    ToolScene(items: "pickaxe:#B5651D,axe:#9AA0A0,shovel:#AAAAAA", slot: 2, nearTree: false)(pr, sc);
+                    sc.Layers.First(z => z.Kind == LayerKind.Base).Objects.Add(new GameObjectData { Id = 47, Name = "Mound", X = 260, Y = 470, Width = 40, Height = 30,
+                        Behaviors = { new BehaviorData { Kind = BehaviorKind.Harvestable, Nums = { ["hits"] = 2, ["amount"] = 1 }, Texts = { ["tool"] = "shovel", ["drop"] = "clay" } } } });
+                });
+                p.TSetVar("item:shovel", 1); p.TSteps(2);
+                for (int k = 0; k < 2; k++) { p.TClick(280, 485); p.TSteps(25); }
+                return p.THeld == "shovel" && p.TFelled("Mound") && p.TItem("clay") == 1;
+            });
+            Test("item: '＋ New item' adds the slot, its damage and (optionally) ownership; again = replaced, not duplicated", () =>
+            {
+                var pr = new Project();
+                var sc = new Scene(); var l = new Layer(); sc.Layers.Add(l);
+                var hb = new BehaviorData { Kind = BehaviorKind.Hotbar, Texts = { ["items"] = "axe:#9AA0A0", ["player"] = "Player" } };
+                var pl = new GameObjectData { Name = "Player", Behaviors = { hb, new BehaviorData { Kind = BehaviorKind.ToolUse, Texts = { ["itemDamage"] = "axe=1" } } } };
+                l.Objects.Add(pl);
+                ItemMaker.Add(pr, sc, pl, hb, new ItemSpec("hammer", "hammer", "#E05A5A", 3, true));
+                ItemMaker.Add(pr, sc, pl, hb, new ItemSpec("hammer", "hammer", "#FFD24D", 4, false));
+                var tu = pl.Behaviors.First(b => b.Kind == BehaviorKind.ToolUse);
+                return hb.Text("items", "") == "axe:#9AA0A0,hammer:#FFD24D:hammer" && tu.Text("itemDamage", "") == "axe=1,hammer=4" && pr.Variables["item:hammer"] == 1;
+            });
+            Test("item: '＋ New item' gives Use Item to a player that has none", () =>
+            {
+                var pr = new Project(); var sc = new Scene(); var l = new Layer(); sc.Layers.Add(l);
+                var hb = new BehaviorData { Kind = BehaviorKind.Hotbar, Texts = { ["items"] = "", ["player"] = "Hero" } };
+                l.Objects.Add(new GameObjectData { Name = "Bar", Behaviors = { hb } });
+                var hero = new GameObjectData { Name = "Hero" }; l.Objects.Add(hero);
+                var msg = ItemMaker.Add(pr, sc, l.Objects[0], hb, new ItemSpec("pá", "shovel", "#B0B0B0", 1, false));
+                return hero.Behaviors.Any(b => b.Kind == BehaviorKind.ToolUse && b.Text("itemDamage", "") == "pá=1") && hb.Text("items", "") == "pá:#B0B0B0:shovel"
+                       && !pr.Variables.ContainsKey("item:pá") && msg.Contains("Use Item added to Hero");
             });
 
             // ========================= R) CHECKLIST =========================

@@ -43,6 +43,8 @@ public partial class App : Application
 
         if (e.Args.Contains("--mining")) { RunMining(); return; }
 
+        if (e.Args.Contains("--topdown")) { RunTopDown(); return; }
+
         if (e.Args.Contains("--e2e")) { RunE2E(); return; }
 
         if (e.Args.Contains("--scenarios")) { RunScenarios(); return; }
@@ -356,6 +358,23 @@ public partial class App : Application
         Shutdown();
     }
 
+    private void RunTopDown()
+    {
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        var log = Path.Combine(Path.GetTempPath(), "easyengine_topdown.log");
+        try
+        {
+            var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Jogos");
+            Directory.CreateDirectory(parent);
+            var existing = Path.Combine(parent, TopDownGame.ProjectName);
+            if (Directory.Exists(existing)) Directory.Delete(existing, true);
+            var file = TopDownGame.Build(parent);
+            File.WriteAllText(log, "TOPDOWN BUILT: " + file + Environment.NewLine);
+        }
+        catch (Exception ex) { try { File.WriteAllText(log, "ERROR: " + ex + Environment.NewLine); } catch { } }
+        Shutdown();
+    }
+
     private void RunMakeGame()
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -477,6 +496,9 @@ public partial class App : Application
 
             var vars = new VariablesWindow(project, project.GetStartScene(), anyObj) { Owner = editor };
             vars.Show(); Write("variables window shown OK");
+
+            var newItem = new NewItemDialog(project) { Owner = editor };
+            newItem.Show(); newItem.UpdateLayout(); Write("new item dialog shown OK"); newItem.Close();
 
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
             timer.Tick += (s, ev) =>
