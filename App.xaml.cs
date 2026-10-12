@@ -500,6 +500,24 @@ public partial class App : Application
             var newItem = new NewItemDialog(project) { Owner = editor };
             newItem.Show(); newItem.UpdateLayout(); Write("new item dialog shown OK"); newItem.Close();
 
+            // the inspector picks everything: the Top-Down Demo's player (Hotbar + Use Item) has design pickers, no "a=1"/"a:#b" boxes
+            var tdDir = Path.Combine(Path.GetTempPath(), "EE_SelfTest_td_" + Guid.NewGuid().ToString("N").Substring(0, 6));
+            Directory.CreateDirectory(tdDir);
+            var td = ProjectIO.Load(TopDownGame.Build(tdDir));
+            var tdEditor = new MainWindow(td);
+            tdEditor.Show();
+            var insp = tdEditor.TestInspect(tdEditor.TestFindObject("Player")!);
+            Write($"inspector (Player): {insp.combos} dropdowns, {insp.lookPickers} design pickers, text boxes: [{string.Join(" | ", insp.textBoxes)}]");
+            if (insp.lookPickers < 4 || insp.textBoxes.Any(t => t.Contains('=') || t.Contains(':')))
+                throw new Exception("the Player's behavior cards still have raw text formats, or no design pickers");
+            // every behavior card builds without an error (one object carrying all of them)
+            var all = new GameObjectData { Name = "AllBehaviors" };
+            foreach (var info in BehaviorCatalog.All.Where(i => !i.Hidden && i.Kind != BehaviorKind.Tilemap)) all.Behaviors.Add(info.CreateData());
+            td.GetStartScene().Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(all);
+            var inspAll = tdEditor.TestInspect(all);
+            Write($"inspector (all {all.Behaviors.Count} behaviors): {inspAll.combos} dropdowns, {inspAll.textBoxes.Count} text boxes");
+            tdEditor.Close();
+
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
             timer.Tick += (s, ev) =>
             {

@@ -1551,21 +1551,10 @@ namespace EasyEngine
                         if (np.Key == "pathfind" && m != 1) continue;                       // pathfinding only in top-down
                         if ((np.Key == "jump" || np.Key == "autoJump") && m != 0) continue;  // jumping only in platformer
                     }
-                    if (np.Label.Contains("(0/1)"))
-                        CheckRow(np.Label.Replace("(0/1)", "").Trim(), bh.Num(np.Key, np.Default) >= 0.5, v => { bh.Nums[np.Key] = v ? 1 : 0; Dirty(); }, panel);
-                    else
-                        NumRow(np.Label, bh.Num(np.Key, np.Default), v => { bh.Nums[np.Key] = v; Dirty(); }, panel);
+                    NumParamRow(obj, bh, info, np, panel);
                 }
                 foreach (var tp in info.Texts)
-                {
-                    if (bh.Kind == BehaviorKind.SoundEmitter && tp.Key == "asset") SoundRow(obj, bh, panel);
-                    else if (tp.Key.EndsWith("Sound", StringComparison.OrdinalIgnoreCase)) SoundRow(obj, bh, panel, tp.Key, tp.Label);
-                    else if (bh.Kind == BehaviorKind.GoToScene && tp.Key == "scene") ScenePickerRow(bh, panel);
-                    else if (bh.Kind == BehaviorKind.Custom && tp.Key == "script") ScriptRow(bh, panel);
-                    else if (bh.Kind == BehaviorKind.AdvancedPatrol && tp.Key == "path") AdvancedPatrolRow(obj, bh, panel);
-                    else TextRow(tp.Label, bh.Text(tp.Key, tp.Default), v => { bh.Texts[tp.Key] = v; Dirty(); }, panel);
-                }
-                if (bh.Kind == BehaviorKind.Hotbar) NewItemButton(obj, bh, panel);
+                    ParamRow(obj, bh, info, tp, panel); // every parameter is picked (dropdowns, pickers, item editor) — see MainWindow.Params.cs
             }
 
             InspectorRoot.Children.Add(new Border
@@ -1823,22 +1812,6 @@ namespace EasyEngine
             return b;
         }
 
-        private void ScenePickerRow(BehaviorData bh, Panel target)
-        {
-            var grid = RowGrid("Target scene", target);
-            var combo = new ComboBox();
-            combo.Items.Add(new ComboBoxItem { Content = "(none)", Tag = "" });
-            foreach (var s in _project.Scenes)
-                combo.Items.Add(new ComboBoxItem { Content = s.Name, Tag = s.Name });
-            var cur = bh.Text("scene", "");
-            combo.SelectedIndex = 0;
-            for (int i = 0; i < combo.Items.Count; i++)
-                if ((string)((ComboBoxItem)combo.Items[i]).Tag! == cur) { combo.SelectedIndex = i; break; }
-            combo.SelectionChanged += (s, e) => { if (combo.SelectedItem is ComboBoxItem ci) { bh.Texts["scene"] = (string)ci.Tag!; Dirty(); } };
-            Grid.SetColumn(combo, 1);
-            grid.Children.Add(combo);
-        }
-
         // ---- UI builders ----
         private void Section(string title) => InspectorRoot.Children.Add(new TextBlock { Text = title, Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 8) });
 
@@ -1966,20 +1939,15 @@ namespace EasyEngine
 
         private void ColorRow(string label, string value, Action<string> onChange, Panel? target = null)
         {
+            // a button showing the colour: click → the colour picker (which also accepts a hex code)
             var grid = RowGrid(label, target);
-            var inner = new Grid();
-            inner.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            inner.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var tb = new TextBox { Text = value, Height = 30 };
-            var swatch = new Rectangle { Width = 26, Height = 26, Margin = new Thickness(6, 0, 0, 0), RadiusX = 4, RadiusY = 4, Fill = BrushFrom(value, "#000"), Stroke = (Brush)FindResource("Border"), StrokeThickness = 1, Cursor = Cursors.Hand, ToolTip = "Click to pick a color" };
-            void Commit() { PushUndo(); onChange(tb.Text); swatch.Fill = BrushFrom(tb.Text, "#000"); }
-            tb.LostFocus += (s, e) => Commit();
-            tb.KeyDown += (s, e) => { if (e.Key == Key.Enter) Commit(); };
-            swatch.MouseLeftButtonUp += (s, e) =>
-                ShowColorPicker(swatch, tb.Text, hex => { tb.Text = hex; swatch.Fill = BrushFrom(hex, "#000"); onChange(hex); });
-            Grid.SetColumn(tb, 0); Grid.SetColumn(swatch, 1);
-            inner.Children.Add(tb); inner.Children.Add(swatch);
-            Grid.SetColumn(inner, 1); grid.Children.Add(inner);
+            var swatch = new Rectangle { Width = 22, Height = 22, RadiusX = 4, RadiusY = 4, Fill = BrushFrom(value, "#000"), Stroke = (Brush)FindResource("Border"), StrokeThickness = 1 };
+            var hexText = new TextBlock { Text = value, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var content = new StackPanel { Orientation = Orientation.Horizontal };
+            content.Children.Add(swatch); content.Children.Add(hexText);
+            var btn = new Button { Content = content, Height = 30, Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(6, 0, 6, 0), ToolTip = "Click to pick a color" };
+            btn.Click += (s, e) => ShowColorPicker(btn, hexText.Text, hex => { hexText.Text = hex; swatch.Fill = BrushFrom(hex, "#000"); onChange(hex); });
+            Grid.SetColumn(btn, 1); grid.Children.Add(btn);
         }
 
         private void ShowColorPicker(FrameworkElement anchor, string initial, Action<string> onPick)

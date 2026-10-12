@@ -109,6 +109,13 @@ namespace EasyEngine
             return c;
         }
 
+        /// <summary>Friendly name of a built-in look, for pickers.</summary>
+        public static string LookTitle(string look) => look switch
+        {
+            "pickaxe" => "Pickaxe", "axe" => "Axe", "sword" => "Sword", "shovel" => "Shovel",
+            "hammer" => "Hammer", "hoe" => "Hoe", "tile" => "Square with a letter", _ => look
+        };
+
         /// <summary>"pickaxe" → "Pickaxe" (for labels and console lines).</summary>
         public static string Title(string name) => string.IsNullOrEmpty(name) ? name : char.ToUpperInvariant(name[0]) + name.Substring(1);
 

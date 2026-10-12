@@ -540,6 +540,56 @@ public partial class App
                 return pw.TItem("dirt") < 0.5;
             });
 
+            // ========================= U) PARAMETERS ARE PICKED, NOT TYPED =========================
+            var freeText = new HashSet<string> { "Label.text", "Checklist.title", "Checklist.items", "Interact.text", "Interact.speaker", "Area.text", "UIButton.text", "Generator.id" };
+            Test("params: every behavior parameter is a picker, except real free text (messages, titles)", () =>
+            {
+                var typed = BehaviorCatalog.All.Where(i => !i.Hidden).SelectMany(i => i.Texts.Where(t => (t.Pick == PickKind.Text || t.Pick == PickKind.LongText) && !freeText.Contains($"{i.Kind}.{t.Key}")).Select(t => $"{i.Kind}.{t.Key}")).ToList();
+                if (typed.Count > 0) Console.WriteLine("typed: " + string.Join(", ", typed));
+                return typed.Count == 0;
+            });
+            Test("params: every choice has options and its default is one of them", () =>
+                BehaviorCatalog.All.SelectMany(i => i.Texts).Where(t => t.Pick == PickKind.Choice).All(t => t.Options != null && t.Options.Select(o => ParamSources.Option(o).value).Contains(t.Default))
+                && BehaviorCatalog.All.SelectMany(i => i.Nums).Where(n => n.Options != null).All(n => n.Options!.Any(o => Math.Abs(double.Parse(ParamSources.Option(o).value, System.Globalization.CultureInfo.InvariantCulture) - n.Default) < 1e-9)));
+            bool Shows(BehaviorKind k, string key, BehaviorData bh, Scene? sc = null) =>
+                BehaviorCatalog.Info(k).Texts.Concat<object>(BehaviorCatalog.Info(k).Nums).Any(p => p switch
+                {
+                    TextParam t when t.Key == key => t.ShowIf == null || t.ShowIf(new ParamCtx(bh, new GameObjectData(), sc ?? new Scene())),
+                    NumParam n when n.Key == key => n.ShowIf == null || n.ShowIf(new ParamCtx(bh, new GameObjectData(), sc ?? new Scene())),
+                    _ => false
+                });
+            Test("params: fields that don't apply are hidden (Interact 'say' shows the message, not the scene)", () =>
+            {
+                var say = BehaviorCatalog.Info(BehaviorKind.Interact).CreateData();
+                var go = BehaviorCatalog.Info(BehaviorKind.Interact).CreateData(); go.Texts["action"] = "goscene";
+                return Shows(BehaviorKind.Interact, "text", say) && !Shows(BehaviorKind.Interact, "scene", say) && !Shows(BehaviorKind.Interact, "amount", say)
+                       && Shows(BehaviorKind.Interact, "scene", go) && !Shows(BehaviorKind.Interact, "text", go);
+            });
+            Test("params: Use Item's fixed item + design only show when the scene has no Hotbar; Day/Night top-down hides sun/moon", () =>
+            {
+                var tu = BehaviorCatalog.Info(BehaviorKind.ToolUse).CreateData();
+                var withHotbar = new Scene(); withHotbar.Layers.Add(new Layer { Objects = { new GameObjectData { Behaviors = { new BehaviorData { Kind = BehaviorKind.Hotbar } } } } });
+                var dn = BehaviorCatalog.Info(BehaviorKind.DayNight).CreateData(); dn.Nums["mode"] = 1;
+                return Shows(BehaviorKind.ToolUse, "toolLook", tu) && !Shows(BehaviorKind.ToolUse, "toolLook", tu, withHotbar) && !Shows(BehaviorKind.ToolUse, "tool", tu, withHotbar)
+                       && !Shows(BehaviorKind.DayNight, "sun", dn) && !Shows(BehaviorKind.DayNight, "arcHeight", dn) && Shows(BehaviorKind.DayNight, "nightColor", dn);
+            });
+            Test("params: the item list offers every item the project uses (hotbar, shop, harvestable, item: variables)", () =>
+            {
+                var pr = new Project(); var sc = new Scene(); var l = new Layer(); sc.Layers.Add(l); pr.Scenes.Add(sc);
+                l.Objects.Add(new GameObjectData { Behaviors = { new BehaviorData { Kind = BehaviorKind.Hotbar, Texts = { ["items"] = "pá:#888888:shovel,axe:#999999" } },
+                                                                 new BehaviorData { Kind = BehaviorKind.Shop, Texts = { ["item"] = "lantern", ["currency"] = "item:gem" } },
+                                                                 new BehaviorData { Kind = BehaviorKind.Harvestable, Texts = { ["tool"] = "axe", ["drop"] = "wood" } } } });
+                pr.Variables["item:key"] = 0; pr.Variables["coins"] = 0;
+                var items = ParamSources.Items(pr); var vars = ParamSources.Variables(pr);
+                return items.Take(2).SequenceEqual(new[] { "pá", "axe" }) && new[] { "lantern", "gem", "wood", "key" }.All(items.Contains) && items.Count == 6
+                       && vars.Contains("coins") && vars.Contains("isNight") && !vars.Any(v => v.Contains(':'));
+            });
+            Test("params: damage per item is edited one item at a time (same 'a=1,b=2' text underneath)", () =>
+                ParamSources.SetDamage("sword=2,axe=1", "axe", 3) == "sword=2,axe=3" && ParamSources.SetDamage("sword=2", "shovel", 1.5) == "sword=2,shovel=1.5"
+                && ParamSources.ParseDamage("sword=2, bad, axe=x").Count == 1);
+            Test("params: every key in the key picker is a real key the game understands", () =>
+                ParamSources.Keys.All(k => Enum.TryParse<System.Windows.Input.Key>(k.value, true, out _)));
+
             // ========================= T) TOP-DOWN DEMO (same loop as Mining, seen from above) =========================
             PlayWindow TopDown()
             {
