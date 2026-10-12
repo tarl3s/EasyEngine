@@ -47,7 +47,7 @@ namespace EasyEngine
             baseL.Objects.Add(Id(Solid("Ground", 0, GroundY, scene.Width, 80, "#3E3550")));
             baseL.Objects.Add(Id(Solid("WallL", 0, 0, 40, GroundY, "#4A3F60")));
             baseL.Objects.Add(Id(Solid("WallR", 1860, 0, 40, GroundY, "#4A3F60")));
-            foreach (var (n, x, y) in new[] { ("Ledge1", 300.0, 480.0), ("Ledge2", 760, 400), ("Ledge3", 1200, 480) })
+            foreach (var (n, x, y) in new[] { ("Ledge1", 300.0, 525.0), ("Ledge2", 740, 420), ("Ledge3", 1180, 525) })
             {
                 var p = Solid(n, x, y, 180, 18, "#6B5A80");
                 p.Behaviors.First(b => b.Kind == BehaviorKind.Solid).Nums["oneWay"] = 1;
@@ -86,7 +86,7 @@ namespace EasyEngine
             var barB = B(BehaviorKind.Bar); barB.Texts["var"] = "hp"; barB.Nums["max"] = 5; barB.Texts["color"] = "#E5484D";
             hpBar.Behaviors.Add(barB);
             ui.Objects.Add(Id(hpBar));
-            ui.Objects.Add(Id(Label("Hint", 16, 88, "A/D move · Space jump · click near the boss to swing your sword · Enter: next line · Esc: skip a cutscene · watch for the glow before each attack!", "#D8DEEA", 13, 900)));
+            ui.Objects.Add(Id(Label("Hint", 16, 116, "A/D move · Space jump · click near the boss to swing your sword · Enter: next line · Esc: skip a cutscene · watch for the glow before each attack!", "#D8DEEA", 13, 900)));
 
             scene.Layers.Add(bg); scene.Layers.Add(baseL); scene.Layers.Add(ui);
             project.Scenes.Add(scene);
@@ -206,7 +206,7 @@ namespace EasyEngine
         private static GameObjectData Player(double x, double y, (string swing, string chop, string fall, string denied) snd)
         {
             var o = new GameObjectData { Name = "Player", Type = "Player", X = x, Y = y, Width = 34, Height = 50, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
-            var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 270; plat.Nums["jump"] = 660; o.Behaviors.Add(plat);
+            var plat = B(BehaviorKind.Platformer); plat.Nums["speed"] = 280; plat.Nums["jump"] = 720; o.Behaviors.Add(plat); // jumps higher than the boss (96 px)
             o.Behaviors.Add(B(BehaviorKind.FollowCamera));
             var hp = B(BehaviorKind.Health); hp.Nums["max"] = 5; hp.Nums["respawn"] = 1; hp.Nums["invincible"] = 1; hp.Texts["var"] = "hp"; o.Behaviors.Add(hp);
             var tool = B(BehaviorKind.ToolUse);
@@ -221,7 +221,7 @@ namespace EasyEngine
         {
             var o = new GameObjectData { Name = "SlimeKing", Type = "Enemy", X = x, Y = y, Width = 120, Height = 96, Color = "#4CC26A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
             o.SpritePath = ProjectIO.SaveSprite(project, Draw(120, 96, DrawSlimeKing), "slime_king");
-            var hp = B(BehaviorKind.Health); hp.Nums["max"] = 30; hp.Nums["respawn"] = 0; hp.Nums["invincible"] = 0.25; hp.Texts["var"] = "bossHP"; o.Behaviors.Add(hp);
+            var hp = B(BehaviorKind.Health); hp.Nums["max"] = 36; hp.Nums["respawn"] = 0; hp.Nums["invincible"] = 0.5; hp.Texts["var"] = "bossHP"; o.Behaviors.Add(hp);
             var dmg = B(BehaviorKind.Damager); dmg.Texts["target"] = "Player"; dmg.Nums["damage"] = 1; dmg.Nums["knockback"] = 380; o.Behaviors.Add(dmg);
             var ai = B(BehaviorKind.BossAI);
             ai.Texts["moves"] = "ground"; ai.Texts["starts"] = "var"; ai.Texts["var"] = "bossAwake"; ai.Texts["target"] = "Player";

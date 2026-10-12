@@ -31,6 +31,24 @@ namespace EasyEngine
 
         private partial class Entity { public BossState? Boss; }
 
+        // The Boss AI moves its boss itself: other movement behaviors on it would fight it (a Platformer zeroes its speed
+        // every frame), so the running copy drops them. A boss never respawns, and it needs its own health variable.
+        partial void SequencesEntityAdded(Entity en)
+        {
+            if (!en.Has(BehaviorKind.BossAI)) return;
+            int dropped = en.Data.Behaviors.RemoveAll(b => b.Kind is BehaviorKind.Platformer or BehaviorKind.TopDown or BehaviorKind.Patrol
+                                                       or BehaviorKind.Chase or BehaviorKind.PathChase or BehaviorKind.AdvancedPatrol);
+            if (dropped > 0) Info("Boss", en.Data.Name, $"{dropped} movement behavior(s) ignored — the Boss AI moves it");
+            var hp = en.Beh(BehaviorKind.Health);
+            if (hp == null) return;
+            hp.Nums["respawn"] = 0;
+            if (hp.Text("var", "health").Equals("health", StringComparison.OrdinalIgnoreCase))
+            {
+                hp.Texts["var"] = "bossHP";
+                Info("Boss", en.Data.Name, "Its health is shown in the variable bossHP", "'health' is the player's — pick another variable in its Health behavior to change this.");
+            }
+        }
+
         partial void UpdateBoss(Entity en, BehaviorData bh, double dt)
         {
             var b = en.Boss ??= InitBoss(en, bh);

@@ -211,6 +211,7 @@ namespace EasyEngine
 
         private void TickRunner(SeqRunner r)
         {
+            if (r.Mode == SeqMode.Boss && r.Owner.Dead) { AbortRunner(r); return; } // its boss is gone
             for (int guard = 0; guard < 200 && !r.Finished; guard++) // instant steps run back to back until one waits
             {
                 if (r.Until != null) { if (!r.Until()) return; EndWait(r); }

@@ -95,13 +95,13 @@ public partial class App
             {
                 double hp0 = pw.THp(Boss);
                 for (int i = 0; i < 80 && pw.TBossPhase(Boss) != "Phase 2"; i++) Swing();
-                return pw.THp(Boss) < hp0 && pw.TBossPhase(Boss) == "Phase 2" && pw.THp(Boss) <= 18 && pw.TVar("stat:enemyHits") >= 6;
+                return pw.THp(Boss) < hp0 && pw.TBossPhase(Boss) == "Phase 2" && pw.THp(Boss) <= 36 * 0.6 && pw.TVar("stat:enemyHits") >= 6;
             });
 
             Step("Phase 2 brings jump slams and aimed fireballs", () =>
             {
                 for (int i = 0; i < 60 && !(pw.TLogHas("Attack: Jump slam") || pw.TLogHas("Attack: Fireballs")); i++)
-                    if (pw.THp(Boss) > 10) Swing(); else Frames(22); // keep it above 25% for the next step
+                    if (pw.THp(Boss) > 12) Swing(); else Frames(22); // keep it above 25% (9) for the next step
                 return pw.TLogHas("Attack: Jump slam") || pw.TLogHas("Attack: Fireballs");
             });
 

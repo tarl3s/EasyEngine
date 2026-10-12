@@ -120,6 +120,20 @@ public partial class App
             p.TSteps(3); double x0 = p.TX("Boss"); p.TSteps(20);
             return p.TX("Boss") < x0 - 40;
         });
+        t.Test("boss: a Platformer/Chase on it is ignored (its dash still moves it); Health 'health' becomes bossHP and never respawns", () =>
+        {
+            var p = Boss(OneAttack("{'do':'dash','speed':500,'time':0.4}"), more: (pr, sc, l) =>
+            {
+                var b = l.Objects.First(o => o.Name == "Boss");
+                b.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Platformer).CreateData());
+                b.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Chase).CreateData());
+                var h = b.Behaviors.First(x => x.Kind == BehaviorKind.Health); h.Texts["var"] = "health"; h.Nums["respawn"] = 1;
+            });
+            p.TSteps(3); double x0 = p.TX("Boss"); p.TSteps(15);
+            bool moved = p.TX("Boss") < x0 - 80;
+            p.TSetHp("Boss", 0); p.TSteps(2);
+            return moved && p.TLogHas("movement behavior(s) ignored") && p.TDead("Boss") && p.TVar("health") == 0 && p.TLogHas("variable bossHP");
+        });
         t.Test("boss jump: leaves the ground, lands, and the shockwave sends 2 waves + shakes the screen", () =>
         {
             var p = Boss(OneAttack("{'do':'jump','height':200,'toward':0,'shockwave':1}"));

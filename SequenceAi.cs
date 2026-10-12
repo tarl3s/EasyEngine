@@ -31,6 +31,7 @@ namespace EasyEngine
                 sb.AppendLine("- An attack is a list of steps run in order. Give each attack a short name. A good attack warns first (telegraph) then strikes.");
                 sb.AppendLine("- Phases: the first has \"when\":{\"type\":\"start\"}; the next ones start when health is at or below \"value\" percent (decreasing: e.g. 60 then 25). \"attacks\" lists attack names used in that phase. \"order\": \"random\" or \"inorder\". \"pause\": seconds of rest between attacks. \"enter\": steps played once when the phase starts (optional).");
                 sb.AppendLine("- \"death\": steps played when the boss is defeated (shake, particles, a last line, set a variable…).");
+                sb.AppendLine("- Put every attack you make in at least one phase. Later phases should be harder (more attacks, shorter pauses).");
                 sb.AppendLine("- In steps, \"self\" = the boss and \"player\" = the player.");
             }
             else
@@ -63,6 +64,7 @@ namespace EasyEngine
             var vars = ParamSources.Variables(project).Where(v => !v.StartsWith("is") && v != "timeOfDay" && v != "dayness").ToList();
             if (vars.Count > 0) sb.AppendLine("VARIABLES: " + string.Join(", ", vars));
 
+            sb.AppendLine("Follow the REQUEST: the examples only show the format — invent names, attacks and numbers that fit what the user asked for.");
             sb.AppendLine("EXAMPLE:");
             sb.AppendLine(boss ? BossExample : CutsceneExample);
             if (!compact) sb.AppendLine("EXAMPLE 2:\n" + (boss ? BossExample2 : CutsceneExample2));
