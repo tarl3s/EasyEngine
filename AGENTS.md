@@ -1,0 +1,156 @@
+# AGENTS.md — EasyEngine
+
+Context for AI coding assistants (Codex, Claude Code, Cursor, Copilot, Gemini…). Read this before changing anything.
+`README.md` is the user-facing description (in Portuguese); this file is the working knowledge behind it.
+
+## The project in one paragraph
+
+EasyEngine is "the easiest 2D game engine": a **Windows-only C# / WPF / .NET 8** desktop editor. The user brings the
+art, builds scenes by drag-and-drop, describes in plain language what each thing does, and an **AI turns that into
+real behaviors** (never free C# code — it answers JSON that the editor applies defensively). Games run in the engine's
+own runtime (`PlayWindow`) and export as a self-contained `.exe`. Target audience: **people who don't like
+programming**. The owner's yardstick game is a mid-size **RPG + metroidvania + puzzle + hack-and-slash**; features
+that game needs come first (rotational physics/ragdolls/vehicles come last). Long-term goal: publish it free.
+
+- Repo: `github.com/tarl3s/EasyEngine` — **private**, branch `main`. Keep it private unless the owner says otherwise.
+- Version: `0.10.3` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
+- The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
+  this file are in **English** (the editor UI is 100% English by request; only `README.md` is Portuguese).
+
+## Build, run, test
+
+```bash
+dotnet build                      # 0 errors expected; no NuGet dependencies — keep it that way (no AvalonDock etc.)
+dotnet run                        # launcher (new/open/recent projects)
+dotnet run -- --editor            # force the launcher even next to an exported game
+dotnet run -- --play <proj.eeproj>  # play a project with no editor
+```
+
+Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run headless and log to `%TEMP%`:
+
+| Flag | What | Log |
+|---|---|---|
+| `--fulltest` | the big battery (≈438 checks: every script action/event, behaviors, Scratch round-trip, editor, E2E) | `%TEMP%\easyengine_fulltest.log` |
+| `--e2e` | plays the test scenarios step by step (Axe, Lighting, Boss, Infinite World; ≈41 steps) | `easyengine_e2e.log` |
+| `--behtest` (49) / `--exprtest` (26) / `--blocktest` (7) / `--aijsontest` (20) | behaviors / expression evaluator / block-editor round-trip / AI-JSON parsing robustness | `easyengine_<name>.log` |
+| `--selftest` | opens real windows (editor, play, dialogs), measures text contrast, renders PNG snapshots | `easyengine_selftest.log`, `easyengine_snap_*.png` |
+| `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
+| `--aitest [--model m]` | ~32 prompts through the real AI pipeline (needs a running AI) | `easyengine_aitest.log` |
+
+Last known green: fulltest 438/438, e2e 41/41, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS.
+**Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
+itself; read the log, don't trust the exit code alone.
+
+Demo/project builders (write into `Desktop\Jogos\<name>`, replacing the old copy): `--makegame` (Platformer Demo),
+`--mining`, `--topdown`, `--bossdemo`, `--infinite`, `--spritetest`, `--scenarios` (the *EasyEngine Tests* project,
+one scene per mechanic). `--restore-recent` re-adds projects under `Desktop\Jogos` to the Recent list.
+
+## Architecture map
+
+Flat folder, one namespace `EasyEngine`, big classes split into `partial` files by feature.
+
+| Area | Files |
+|---|---|
+| Data model (Project → Scenes → Layers → GameObjectData → BehaviorData; `BehaviorKind` enum, prefabs, theme, `SkySetup`) | `Model.cs` |
+| Save/load `.eeproj` (JSON), recent list, legacy migration (`MigrateLegacy`, e.g. Melee → Use Item) | `ProjectIO.cs` |
+| **Behavior catalog** — name, icon, description, every param with its default, picker kind and `ShowIf` | `BehaviorCatalog.cs` |
+| How-to guides used by the AI Learn mode | `BehaviorGuides.cs` |
+| Editor window (scene canvas, docking panels, inspector, AI panel, undo/redo, export) | `MainWindow.xaml(.cs)`, `MainWindow.Params.cs` (param pickers), `.Learn.cs`, `.Minimap.cs`, `.Sequences.cs` |
+| **Runtime** (game loop on `CompositionTarget.Rendering`, AABB physics, behaviors, Custom-rule interpreter, camera, HUD) | `PlayWindow.xaml(.cs)` + `PlayWindow.<Feature>.cs`: Boss, Sequences (cutscene step runner), Terrain, Lighting (smooth darkness + glow), LightGrid (Day/Night "Blocks" lighting: per-block light map, block-by-block), Minimap, Tools (Use Item/Hotbar/Harvestable), Sound, Console, Checklist, `Tests*` (test hooks) |
+| Custom behavior mini-language (`when → do` rules) + expressions | runtime in `PlayWindow.xaml.cs` (`RunCustom`/`DoCustom`/`RuleValue`), `Expr.cs` (recursive evaluator, never throws) |
+| Scratch-style editors | `BlockEditorWindow.cs` (Custom rules), `SequenceEditorWindow.cs` ("Advanced Scratch" for Boss AI / Cutscene) |
+| Boss/Cutscene step palette, script model, tolerant JSON (shared by runtime, editor and AI) | `SequenceModel.cs` (`StepCatalog`, `SeqStep`, `BossScript`, `SequenceJson`), `SequenceAi.cs` |
+| AI clients | `OllamaClient.cs` + `OllamaManager.cs` (local, `localhost:11434`), `CloudClient.cs` (OpenAI-compatible free tiers Groq/Gemini/OpenRouter with auto-fallback on 429, BYO paid keys incl. native Anthropic; `AiSettings`) |
+| Shared helpers | `LooseJson.cs` (lenient JSON + number parsing), `Theme.cs`, `Dropdown.cs`, `ParamSources.cs` (lists for pickers), `Contrast.cs`, `DemoKit.cs`, `ToolArt.cs`, `LookPicker.cs`, `ColorPickerPopup.cs`, `SoundSynth.cs` (generated WAVs) |
+| Other windows | `LauncherWindow`, `AnimationWindow`, `SpriteEditorWindow.cs` (pixel art), `VariablesWindow`, `NewItemDialog.cs` (`ItemMaker`), `InputDialog`, `DebugConsoleView.cs` + `DebugLog.cs` (F1 console) |
+| Demos / scenarios | `DemoGame.cs`, `MiningGame.cs`, `TopDownGame.cs`, `BossDemo.cs`, `InfiniteWorld.cs`, `SpriteTestGame.cs`, `TestScenarios.cs` (+ `GameAssets`) |
+| Tests | `FullTest*.cs`, `E2ETests*.cs`, `App.SelfTest.*.cs`, `SelfTestContext.cs`, `App.Review.cs` (all `partial class App`) |
+
+### Extension points (use these instead of growing the big files)
+
+- **Runtime feature hooks**: `partial void` methods declared in `PlayWindow.xaml.cs` (search "feature hooks") — e.g.
+  `SequencesBeforeLogic/AfterLogic`, `TerrainBeforeLogic`, `MinimapLogic`, `UpdateBoss`, `UpdateCutscene`,
+  `*SceneReset`, `TerrainSceneLoaded`, `*EntityAdded/Removed`, `SequencesRender`, `CameraTargetOverride`,
+  `CameraClampOverride`, `CameraShakeOffset`. Per-feature entity state goes in a `private partial class Entity` inside
+  the feature file.
+- **Collision** always asks through `SolidsNear(x, y, w, h)` (allocation-free struct enumerator over static solids
+  *and* terrain cells). Don't iterate `_solids` directly.
+- **Tests**: add a `partial void FeatureTests<Name>(FullTestKit t)` in a `FullTest.<Name>.cs` and call it where the
+  others are called in `FullTest.cs`; E2E scenarios via `AddE2EScenarios*`; selftest via `SelfTestContext`
+  (`Snapshot(window, name)` renders a window to PNG).
+- **Demo builders** go through `App.RunDemoBuild(mode, folder, build)` and use `DemoKit`.
+- Live and headless play share one `StepLogic`, so headless tests exercise the real game code.
+
+### Adding or changing a behavior (checklist)
+
+1. Add the `BehaviorKind` (projects save kinds **by name** — never rename one) and a `BehaviorInfo` in
+   `BehaviorCatalog`.
+2. **Every parameter is picked, not typed** (standing owner rule): give each `TextParam` a `PickKind` (Object, Item,
+   Key, Color, Choice, Look, Variable, Sound…), give fixed numeric values `Options`, hide irrelevant fields with
+   `ShowIf`. Typing is only for genuinely free text (labels, dialogue, scripts, a *new* name via "＋ New…"). Never
+   expose internal string formats like `name:#color:look` or `a=1,b=2` — structured lists get a visual editor.
+3. Implement it in the runtime (`UpdateBehaviors` switch or a feature file + hook).
+4. Teach the AI: the build prompt reads the catalog; add a how-to in `BehaviorGuides` for Learn mode; Boss/Cutscene
+   steps live in `StepCatalog` (one palette shared by runtime, editor and AI prompt).
+5. Old projects must keep loading: never rename persisted keys; retire a kind with `Hidden = true` + a migration in
+   `ProjectIO`; missing keys get catalog defaults.
+6. Tests in `--fulltest` (and an E2E scenario if it is a mechanic the owner will test by hand — see below).
+
+## AI integration rules
+
+- The model never writes C#. It gets the behavior catalog + the scene inventory and answers JSON
+  (`{create, edit, layers, variables, theme, …}`), applied by `ApplyProjectSpec`/`TryApplyBehaviorSpec` in
+  `MainWindow`. The parser must stay **tolerant** (comments, trailing commas, numbers in quotes, `"0,5"` decimals —
+  use `LooseJson`). Small local models (qwen2.5-coder 1.5b) are the worst case the owner tests against on purpose;
+  improvements belong in the shared pipeline so every model benefits.
+- Platformer/TopDown read the *player's* keyboard; non-player objects get `controls = 0`. "When X happens, do Y" is
+  always a Custom rule, never a static parameter.
+- Modes: 🔨 Build (edits), 💡 Brainstorm (chat only), 🎓 Learn (explains from catalog + guides, never edits).
+  Boss/Cutscene cards have their own "✨ Ask the AI" (dedicated prompt, validated by the runtime's parser, one retry).
+- API keys live in `%APPDATA%\EasyEngine\settings.json` (with panel layout and recent list). Never commit keys,
+  never print them. Cloud model ids change over time — on a 404, list the provider's models.
+
+## Conventions and hard rules
+
+- **Versioning X.Y.Z**: X = big structural change, Y = a genuinely new behavior/editor/system, Z = fixes AND improvements to something that already exists, even when it gains new options (bump Y resets Z). When unsure, ask the owner before bumping Y. Bump **both**
+  `<Version>` in `EasyEngine.csproj` and the fallback `Text="vX.Y.Z"` of `VersionText` in `LauncherWindow.xaml`.
+  Each release commit is titled `vX.Y.Z: …` and gets an **annotated tag pushed to GitHub**
+  (`git tag -a vX.Y.Z -m "…" && git push origin main --tags`). Tags must always match the real version.
+- **Encoding**: sources are UTF-8 *without* BOM, mixed LF/CRLF, full of emoji (🎓 ✨ ＋ —). **Never** rewrite files
+  with Windows PowerShell `Get-Content | Set-Content` / `-replace` — it double-encodes UTF-8 (this broke the launcher
+  once: `ðŸ§ª`, `â€”`). Use a proper edit tool or `sed`/`perl` (handle `\r?\n`). After bulk edits, grep for mojibake:
+  `â€|Ã©|ðŸ|ï¼`.
+- **UI contrast**: text colour comes from the window (no app-wide TextBlock foreground). Popups, menus, tooltips and
+  buttons use the dark styles in `App.xaml`; green accent buttons use dark text. Contrast ≥ 4.5:1 is tested.
+- Game-loop code must not allocate per frame (cached brushes are frozen, lists reused, no LINQ in hot paths).
+- Prefer shared helpers (`LooseJson`, `Theme`, `Dropdown.Make`, `ParamSources`, `DemoKit`) over new copies.
+- Commit messages: imperative summary + a body explaining *what changed for the user* and the test totals.
+
+## Testing the way the owner wants
+
+- Every new or complained-about mechanic becomes **a scene in the "EasyEngine Tests" project** (`TestScenarios.cs`,
+  launcher button "🧪 Test scenarios"): on-screen `Checklist` that ticks itself, console open on start, instructions,
+  **R** restarts — plus a headless E2E in `E2ETests*.cs`. One project for all scenarios.
+- The F1 debug console logs everything; when a game closes it writes `%TEMP%\easyengine_play.log`. **Read that file**
+  when the owner reports a problem from a manual test.
+- Visual review: use `--selftest`/`--review` PNGs (the engine renders its own windows). **Never capture the owner's
+  screen** (it once grabbed their private chat).
+
+## Files and folders you must respect
+
+- `C:\Users\tarle\OneDrive\Área de Trabalho\Jogos\` is the owner's real workspace (their games, FNAF folders, music…).
+  Don't touch anything there except regenerating demos **when asked**. Projects to keep: Platformer Demo, Sprite
+  Test, Mining Demo, Top-Down Demo, Boss Demo, Infinite World, EasyEngine Tests, My Game. Regenerating a demo
+  overwrites its folder — only if the owner hasn't edited it or asked for it.
+- Delete the throwaway projects *you* create while testing: `%TEMP%\EE_*` (`EE_SelfTest_*`, `EE_BehTest_*`,
+  `EE_Full*`, `EE_AiTest_*`…). The suites mostly clean up, but check.
+- `C:\Users\tarle\learn` is an old, unrelated Unity project — ignore it completely.
+- `bin/`, `obj/`, `publish/`, `*.exe` are git-ignored.
+
+## Known gaps / deferred ideas
+
+Export icon is the default one; lights are stylised (no occlusion); undo is per scene (scene add/delete and the
+prefab library aren't undoable); no rotational physics/joints (would need Box2D/Aether); no scene thumbnails;
+missing behavior keys are filled from the catalog only when the editor opens a project (not on `--play`);
+deferred refactors: unify per-behavior AI keyword tables into the catalog, flag Boss-AI-incompatible behaviors at
+authoring time, generic Esc handling, lazy `Entity.Locals`, compute terrain contract fields instead of storing them.
