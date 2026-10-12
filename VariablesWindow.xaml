@@ -8,7 +8,7 @@
         <Border DockPanel.Dock="Top" Background="{StaticResource Bg1}" Padding="18,12">
             <StackPanel>
                 <TextBlock Text="Variables" Foreground="{StaticResource Text}" FontSize="18" FontWeight="SemiBold"/>
-                <TextBlock Text="Give variables a starting value. A variable is a Number, a Yes/No or a Text. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object; settext/toggle/iftext for texts and Yes/No) and show them in a Label with {name}." Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                <TextBlock Text="Give variables a starting value. A variable is a Number, a Yes/No, a Text, a Colour or a List. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object; settext/toggle/iftext for texts and Yes/No; setcolor for colours; listadd/listremove/iflist for lists) and show them in a Label with {name}." Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
         <Border DockPanel.Dock="Bottom" Background="{StaticResource Bg1}" Padding="18,10">

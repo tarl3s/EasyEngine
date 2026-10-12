@@ -65,6 +65,10 @@ namespace EasyEngine
             if (vars.Count > 0) sb.AppendLine("VARIABLES: " + string.Join(", ", vars));
             var texts = ParamSources.TextVariables(project);
             if (texts.Count > 0) sb.AppendLine("TEXT VARIABLES (for settext; {name} in a text shows a variable): " + string.Join(", ", texts));
+            var colors = ParamSources.ColorVariables(project);
+            if (colors.Count > 0) sb.AppendLine("COLOUR VARIABLES (for setcolor; \"{name}\" in a colour field uses one): " + string.Join(", ", colors));
+            var lists = ParamSources.ListVariables(project);
+            if (lists.Count > 0) sb.AppendLine("LIST VARIABLES (for listadd): " + string.Join(", ", lists));
 
             sb.AppendLine("Follow the REQUEST: the examples only show the format — invent names, attacks and numbers that fit what the user asked for.");
             sb.AppendLine("EXAMPLE:");

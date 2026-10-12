@@ -37,7 +37,7 @@ public partial class App
         var launcher = Open(new LauncherWindow());
         var settings = Open(new SettingsWindow { Owner = editor });
         var blocks = Open(new BlockEditorWindow(project, scene,
-            "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1},{\"when\":\"keypress\",\"key\":\"B\",\"cond\":\"coins >= 15\",\"do\":\"say\",\"text\":\"Boost!\"},{\"when\":\"iftext\",\"var\":\"playerName\",\"op\":\"is\",\"value\":\"Ana\",\"do\":\"settext\",\"var\":\"greet\",\"to\":\"Hi {playerName}!\",\"local\":true}]") { Owner = editor });
+            "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1},{\"when\":\"keypress\",\"key\":\"B\",\"cond\":\"coins >= 15\",\"do\":\"say\",\"text\":\"Boost!\"},{\"when\":\"iftext\",\"var\":\"playerName\",\"op\":\"is\",\"value\":\"Ana\",\"do\":\"settext\",\"var\":\"greet\",\"to\":\"Hi {playerName}!\",\"local\":true},{\"when\":\"start\",\"do\":\"setcolor\",\"var\":\"teamColor\",\"to\":\"#FF8800\"},{\"when\":\"keypress\",\"key\":\"Q\",\"do\":\"listadd\",\"var\":\"quests\",\"value\":\"Find the key\"},{\"when\":\"iflist\",\"var\":\"quests\",\"op\":\"countatleast\",\"value\":\"2\",\"do\":\"tint\",\"target\":\"self\",\"color\":\"{teamColor}\"}]") { Owner = editor });
         var sprite = Open(new SpriteEditorWindow(project, 16) { Owner = editor });
         var newItem = Open(new NewItemDialog(project) { Owner = editor });
         var input = Open(new InputDialog("Rename project", "New name:", "My Game") { Owner = editor });
@@ -58,6 +58,9 @@ public partial class App
             editor.InspectorScroll.ScrollToVerticalOffset(cards?.TransformToAncestor(editor.InspectorRoot).Transform(new Point()).Y ?? editor.InspectorScroll.ScrollableHeight / 2);
             editor.UpdateLayout();
             c.Snapshot(editor, "editor_behaviors");
+            // and the blocks scrolled to the end (colour and list blocks); the readability check below then measures them
+            foreach (var sv in Descendants(blocks).OfType<System.Windows.Controls.ScrollViewer>().Take(1)) { sv.ScrollToEnd(); blocks.UpdateLayout(); }
+            c.Snapshot(blocks, "block_editor_end");
 
             // every editor window open right now (the game windows are the game's own look)
             int texts = 0, faint = 0;

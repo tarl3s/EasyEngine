@@ -334,7 +334,7 @@ namespace EasyEngine
                     if (s.On("wait", true)) r.WaitUntil = _gameTime + _titleDur;
                     break;
                 case "fadeout":
-                    StartFade(s.Str("color", "#000000"), 1, WaitStepTime(r, s));
+                    StartFade(RuleColor(s.Str("color", "#000000"), self), 1, WaitStepTime(r, s));
                     r.FadeUsed = true;
                     break;
                 case "fadein":
@@ -393,6 +393,15 @@ namespace EasyEngine
                 {
                     var tr = new CustomRule { Do = "settext" };
                     tr.T["var"] = s.Str("var"); tr.T["to"] = s.Str("to") is { Length: > 0 } words ? words : s.Str("text", s.Str("value"));
+                    DoCustom(self, tr, 0);
+                    break;
+                }
+                case "setcolor": case "listadd": // the same: words stay words
+                {
+                    var tr = new CustomRule { Do = s.Do };
+                    tr.T["var"] = s.Str("var");
+                    if (s.Do == "setcolor") tr.T["to"] = s.Str("to", s.Str("color"));
+                    else tr.T["value"] = s.Str("value") is { Length: > 0 } item ? item : s.Str("to", s.Str("text"));
                     DoCustom(self, tr, 0);
                     break;
                 }

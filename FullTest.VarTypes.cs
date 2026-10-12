@@ -201,5 +201,244 @@ public partial class App
                    && s.KindOf("place") == VarKind.Text && s.Number("depth") == 2
                    && npc != null && n.KindOf("mood") == VarKind.Text && n.KindOf("met") == VarKind.YesNo && n.Number("hp") == 5;
         });
+
+        FeatureTestsColorAndList(t);
+    }
+
+    // Colour variables ("#RRGGBB" in Texts, named in Colors) and List variables (Lists), in every scope.
+    private static void FeatureTestsColorAndList(FullTestKit t)
+    {
+        // ---------------- model + old files + conversions
+        t.Test("colour/list: an old project without Colors/Lists loads with empty ones; a list saved as null becomes empty", () =>
+        {
+            var p = JsonSerializer.Deserialize<Project>(J("{'Name':'Old','Texts':{'a':'x'},'Scenes':[{'Name':'S','Lists':{'q':null},'Layers':[{'Name':'Base','Objects':[{'Name':'A'}]}]}]}"))!;
+            var o = p.Scenes[0].Layers[0].Objects[0];
+            return p.Colors.Count == 0 && p.Lists.Count == 0 && o.Colors.Count == 0 && o.Lists.Count == 0
+                   && p.Scenes[0].Lists["q"].Count == 0 && VarScope.Of(p).KindOf("a") == VarKind.Text;
+        });
+        t.Test("colour/list: Colour and List survive a save round-trip (game, scene and object)", () =>
+        {
+            var p = new Project();
+            VarScope.Of(p).SetColor("team", "#ff8800"); VarScope.Of(p).SetList("quests", new[] { "Find the key", "Open the door" });
+            var sc = new Scene(); VarScope.Of(sc).SetList("names", new[] { "Bo" });
+            var o = new GameObjectData(); VarScope.Of(o).SetColor("tint", "#11223344");
+            sc.Layers.Add(new Layer { Objects = { o } }); p.Scenes.Add(sc);
+            var back = JsonSerializer.Deserialize<Project>(JsonSerializer.Serialize(p))!;
+            var g = VarScope.Of(back); var bo = VarScope.Of(back.Scenes[0].Layers[0].Objects[0]);
+            return g.KindOf("team") == VarKind.Color && g.Text("team") == "#FF8800" && back.Colors.Contains("TEAM")
+                   && g.KindOf("quests") == VarKind.List && string.Join("|", back.Lists["quests"]) == "Find the key|Open the door"
+                   && VarScope.Of(back.Scenes[0]).KindOf("names") == VarKind.List && bo.KindOf("tint") == VarKind.Color && bo.Text("tint") == "#11223344";
+        });
+        t.Test("colour/list: changing a kind converts (text↔colour, colour↔text, list↔text, number/Yes-No ↔ list/colour)", () =>
+        {
+            var s = VarScope.Of(new Project());
+            s.SetText("a", " #00ff7f "); s.ChangeKind("a", VarKind.Color); bool a = s.KindOf("a") == VarKind.Color && s.Texts["a"] == "#00FF7F";
+            s.SetText("b", "red"); s.ChangeKind("b", VarKind.Color); bool b = s.Texts["b"] == "#FFFFFF";
+            s.ChangeKind("a", VarKind.Text); bool c = s.KindOf("a") == VarKind.Text && s.Texts["a"] == "#00FF7F" && !s.Colors.Contains("a");
+            s.SetList("l", new[] { "x", "y z" }); s.ChangeKind("l", VarKind.Text); bool d = s.Texts["l"] == "x, y z" && !s.Lists.ContainsKey("l");
+            s.SetText("t", "sword, shield ,, bow"); s.ChangeKind("t", VarKind.List); bool e = string.Join("|", s.Lists["t"]) == "sword|shield|bow" && !s.Texts.ContainsKey("t");
+            s.ChangeKind("t", VarKind.Number); bool f = s.Nums["t"] == 3; // how many items
+            s.SetNumber("n", 7); s.ChangeKind("n", VarKind.List); bool g = s.Lists["n"].Count == 0;
+            s.SetYesNo("y", true); s.ChangeKind("y", VarKind.Color); bool h = s.Texts["y"] == "#FFFFFF";
+            s.SetNumber("m", 5); s.ChangeKind("m", VarKind.Color); bool i = s.Texts["m"] == "#FFFFFF" && !s.Nums.ContainsKey("m");
+            s.ChangeKind("m", VarKind.Number); bool j = s.Nums["m"] == 0;
+            s.SetColor("k", "#ABCDEF"); s.ChangeKind("k", VarKind.List); bool k = string.Join("|", s.Lists["k"]) == "#ABCDEF";
+            s.ChangeKind("k", VarKind.Color); bool l = s.Texts["k"] == "#ABCDEF";
+            s.SetList("e", null); s.ChangeKind("e", VarKind.YesNo); bool m = s.Nums["e"] == 0 && s.KindOf("e") == VarKind.YesNo;
+            bool removed = s.Remove("k") && !s.Has("k") && !s.Colors.Contains("k");
+            return a && b && c && d && e && f && g && h && i && j && k && l && m && removed
+                   && VariablesWindow.KindFrom(VariablesWindow.KindId(VarKind.Color)) == VarKind.Color
+                   && VariablesWindow.KindFrom(VariablesWindow.KindId(VarKind.List)) == VarKind.List
+                   && VarScope.ColorHex("#12345") == null && VarScope.ColorHex("FF8800") == null && VarScope.ColorHex("#ff8800") == "#FF8800";
+        });
+        t.Test("colour/list: the Variables window shows a colour button and a list editor (one box + ✕ per item, ＋ Add item)", () =>
+        {
+            var project = ProjectIO.CreateNew("VT", Path.Combine(Path.GetTempPath(), "EE_Full_VT_" + Guid.NewGuid().ToString("N")[..6]));
+            var scene = project.GetStartScene();
+            VarScope.Of(project).SetColor("team", "#FF8800");
+            VarScope.Of(scene).SetList("quests", new[] { "Find the key", "Open the door" });
+            var w = new VariablesWindow(project, scene, null);
+            var all = Descendants(w).ToList();
+            bool color = all.OfType<Button>().Any(b => Descendants(b).OfType<TextBlock>().Any(x => x.Text == "#FF8800"));
+            bool items = all.OfType<TextBox>().Any(b => b.Text == "Find the key") && all.OfType<TextBox>().Any(b => b.Text == "Open the door");
+            var add = all.OfType<Button>().FirstOrDefault(b => b.Content as string == "＋ Add item");
+            add?.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            bool added = scene.Lists["quests"].Count == 3 && w.Changed;
+            var box = Descendants(w).OfType<TextBox>().First(b => b.Text == "Find the key");
+            var x = Descendants((System.Windows.DependencyObject)box.Parent).OfType<Button>().First();
+            x.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            bool removed = string.Join("|", scene.Lists["quests"]) == "Open the door|";
+            bool kinds = all.OfType<ComboBox>().Any(c => c.Items.OfType<ComboBoxItem>().Any(i => (string?)i.Tag == "list"));
+            w.Close();
+            return color && items && add != null && added && removed && kinds;
+        });
+
+        // ---------------- runtime: colours
+        t.Test("colour/list: setcolor stores a colour (game and its own); a word that isn't a colour is ignored", () =>
+        {
+            var p = t.Sim(J("[{'when':'start','do':'setcolor','var':'team','to':'#ff8800'},{'when':'start','do':'setcolor','var':'mine','to':'#00FF00','local':true}," +
+                            "{'when':'start','do':'setcolor','var':'bad','to':'banana'},{'when':'start','do':'setcolor','var':'copy','to':'{team}'}]"), PhysicsMode.None, null);
+            p.TSteps(2);
+            return p.TText("team") == "#FF8800" && p.TLocalText("A", "mine") == "#00FF00" && p.TText("mine") == "" && p.TText("bad") == "" && p.TText("copy") == "#FF8800";
+        });
+        t.Test("colour/list: {colourVar} works in colour fields — tint (self and a named object) and particles", () =>
+        {
+            var p = t.Sim(J("[{'when':'start','do':'setcolor','var':'team','to':'#336699'}," +
+                            "{'when':'always','do':'tint','target':'Lamp','color':'{team}'},{'when':'start','do':'tint','color':'#112233'}," +
+                            "{'when':'keypress','key':'E','do':'emit','count':3,'color':'{team}'}]"), PhysicsMode.None, (pr, sc) =>
+                sc.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(new GameObjectData { Id = 7, Name = "Lamp", X = 300, Y = 10, Width = 20, Height = 20, Color = "#444444" }));
+            p.TSteps(3);
+            bool tinted = p.TBackground("Lamp") == "#FF336699" && p.TBackground("A") == "#FF112233";
+            p.TKey("E", true); p.TStep(); p.TKey("E", false);
+            return tinted && p.TLastParticleColor == "#FF336699";
+        });
+        t.Test("colour/list: a Label shows a colour's hex and a list's items; {count:x} and {local.list} too", () =>
+        {
+            var p = t.Sim("[]", PhysicsMode.None, (pr, sc) =>
+            {
+                VarScope.Of(pr).SetColor("team", "#FF8800");
+                VarScope.Of(sc).SetList("quests", new[] { "Find the key", "Open the door" });
+                var lbl = new GameObjectData { Id = 5, Name = "Sign", X = 10, Y = 10, Width = 300, Height = 40 };
+                var b = BehaviorCatalog.Info(BehaviorKind.Label).CreateData();
+                b.Texts["text"] = "{team} | {quests} ({count:quests}) | {local.bag} {count:local.bag}";
+                lbl.Behaviors.Add(b);
+                VarScope.Of(lbl).SetList("bag", new[] { "apple" });
+                sc.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(lbl);
+            });
+            p.TStep();
+            return p.TLabel("Sign") == "#FF8800 | Find the key, Open the door (2) | apple 1";
+        });
+
+        // ---------------- runtime: lists
+        t.Test("colour/list: listadd (with {placeholders}) / listremove (first match, capital letters don't matter) / listclear", () =>
+        {
+            var p = t.Sim(J("[{'when':'start','do':'settext','var':'who','to':'Bo'},{'when':'start','do':'listadd','var':'q','value':'Find {who}'}," +
+                            "{'when':'start','do':'listadd','var':'q','value':'b'},{'when':'start','do':'listadd','var':'q','value':'B'},{'when':'start','do':'listadd','var':'q','value':'  '}," +
+                            "{'when':'start','do':'listremove','var':'q','value':'b'},{'when':'start','do':'listremove','var':'q','value':'nope'}," +
+                            "{'when':'start','do':'listadd','var':'gone','value':'x'},{'when':'start','do':'listclear','var':'gone'}]"), PhysicsMode.None, null);
+            p.TSteps(2);
+            return string.Join("|", p.TList("q")) == "Find Bo|B" && p.TList("gone").Count == 0;
+        });
+        t.Test("colour/list: the object's own lists (local) stay apart from the game's", () =>
+        {
+            var p = t.Sim(J("[{'when':'start','do':'listadd','var':'bag','value':'apple','local':true},{'when':'start','do':'listadd','var':'bag','value':'pear','local':true}," +
+                            "{'when':'start','do':'listremove','var':'bag','value':'APPLE','local':true},{'when':'start','do':'listadd','var':'bag','value':'global'}," +
+                            "{'when':'iflist','var':'bag','op':'contains','value':'pear','local':true,'do':'setvar','var':'ownHasPear','to':1}," +
+                            "{'when':'iflist','var':'bag','op':'contains','value':'pear','do':'setvar','var':'gameHasPear','to':1}," +
+                            "{'when':'keypress','key':'E','do':'listclear','var':'bag','local':true}]"), PhysicsMode.None, null);
+            p.TSteps(3);
+            bool before = string.Join("|", p.TLocalList("A", "bag")) == "pear" && string.Join("|", p.TList("bag")) == "global" && p.TVar("ownHasPear") == 1 && p.TVar("gameHasPear") == 0;
+            p.TKey("E", true); p.TStep(); p.TKey("E", false);
+            return before && p.TLocalList("A", "bag").Count == 0 && p.TList("bag").Count == 1;
+        });
+        t.Test("colour/list: iflist contains / notcontains / empty / notempty / countis / countatleast", () =>
+        {
+            var p = t.Sim(J("[{'when':'start','do':'listadd','var':'q','value':'Key'},{'when':'start','do':'listadd','var':'q','value':'Door'}," +
+                            "{'when':'iflist','var':'q','op':'contains','value':'key','do':'setvar','var':'has','to':1}," +
+                            "{'when':'iflist','var':'q','op':'notcontains','value':'Boss','do':'setvar','var':'lacks','to':1}," +
+                            "{'when':'iflist','var':'q','op':'notcontains','value':'Door','do':'setvar','var':'bad1','to':1}," +
+                            "{'when':'iflist','var':'none','op':'empty','do':'setvar','var':'emp','to':1}," +
+                            "{'when':'iflist','var':'q','op':'notempty','do':'setvar','var':'full','to':1}," +
+                            "{'when':'iflist','var':'q','op':'countis','value':2,'do':'setvar','var':'two','to':1}," +
+                            "{'when':'iflist','var':'q','op':'countis','value':'3','do':'setvar','var':'bad2','to':1}," +
+                            "{'when':'iflist','var':'q','op':'countatleast','value':'2','do':'setvar','var':'atleast','to':1}," +
+                            "{'when':'iflist','var':'q','value':'door','do':'setvar','var':'defaultContains','to':1}]"), PhysicsMode.None, null);
+            p.TSteps(3);
+            return p.TVar("has") == 1 && p.TVar("lacks") == 1 && p.TVar("bad1") == 0 && p.TVar("emp") == 1 && p.TVar("full") == 1
+                   && p.TVar("two") == 1 && p.TVar("bad2") == 0 && p.TVar("atleast") == 1 && p.TVar("defaultContains") == 1;
+        });
+        t.Test("colour/list: count:name reads a list's size in expressions (and count:local.name the object's own)", () =>
+        {
+            var p = t.Sim(J("[{'when':'start','do':'listadd','var':'q','value':'a'},{'when':'start','do':'listadd','var':'q','value':'b'}," +
+                            "{'when':'start','do':'listadd','var':'mine','value':'z','local':true}," +
+                            "{'when':'always','do':'setvar','var':'score','expr':'count:q * 10 + count:local.mine'}," +
+                            "{'when':'expr','expr':'count:q >= 2','do':'setvar','var':'ok','to':1}]"), PhysicsMode.None, null);
+            p.TSteps(3);
+            return p.TVar("score") == 21 && p.TVar("ok") == 1 && p.TEval("count:missing") == 0 && p.TEval("count:local.mine", "A") == 1 && p.TFill("{count:q}") == "2";
+        });
+        t.Test("colour/list: save/load keeps lists (and colours); an old save without lists still loads", () =>
+        {
+            Project? proj = null;
+            var p = t.Sim("[]", PhysicsMode.None, (pr, sc) => proj = pr);
+            p.TSetList("quests", "Find the key", "Open the door"); p.TSetText("team", "#FF8800");
+            p.TSaveGame();
+            p.TSetList("quests"); p.TSetText("team", "#000000");
+            bool loaded = p.TLoadGame() && string.Join("|", p.TList("quests")) == "Find the key|Open the door" && p.TText("team") == "#FF8800";
+            var save = Path.Combine(proj!.FolderPath!, "save.json");
+            File.WriteAllText(save, J("{'Scene':'','Vars':{'gold':9},'Texts':{'hero':'Zed'}}"));
+            bool old = p.TLoadGame() && p.TVar("gold") == 9 && p.TList("quests").Count == 2;
+            File.Delete(save);
+            return loaded && old;
+        });
+        t.Test("colour/list: the cutscene steps 'Set a colour' and 'Add to a list' run and round-trip", () =>
+        {
+            var p = t.Sim("[]", PhysicsMode.None, CutArena("{'steps':[{'do':'setcolor','var':'team','to':'#00aa00'},{'do':'settext','var':'who','to':'Bo'},{'do':'listadd','var':'q','value':'Meet {who}'}]}"));
+            p.TSteps(3);
+            var a = SequenceJson.StepJson(new SeqStep { Do = "setcolor", P = { ["var"] = "team", ["to"] = "#FF0000" } }, SeqMode.Cutscene);
+            var b = SequenceJson.StepJson(new SeqStep { Do = "listadd", P = { ["var"] = "q", ["value"] = "Hi" } }, SeqMode.Boss);
+            return p.TText("team") == "#00AA00" && string.Join("|", p.TList("q")) == "Meet Bo"
+                   && a == "{\"do\":\"setcolor\",\"var\":\"team\",\"to\":\"#FF0000\"}" && b == "{\"do\":\"listadd\",\"var\":\"q\",\"value\":\"Hi\"}";
+        });
+
+        // ---------------- block editor + pickers
+        t.Test("colour/list: the new blocks round-trip exactly (Set a colour, Change the colour, list blocks, While a list…)", () =>
+        {
+            string[] rules =
+            {
+                "[{\"when\":\"start\",\"do\":\"setcolor\",\"var\":\"team\",\"to\":\"#FF8800\"}]",
+                "[{\"when\":\"click\",\"do\":\"setcolor\",\"var\":\"mine\",\"to\":\"{team}\",\"local\":true}]",
+                "[{\"when\":\"always\",\"do\":\"tint\",\"target\":\"Lamp\",\"color\":\"{team}\"}]",
+                "[{\"when\":\"keypress\",\"key\":\"Q\",\"cooldown\":0.3,\"do\":\"listadd\",\"var\":\"quests\",\"value\":\"Find {item}\"}]",
+                "[{\"when\":\"start\",\"do\":\"listremove\",\"var\":\"bag\",\"value\":\"apple\",\"local\":true}]",
+                "[{\"when\":\"start\",\"do\":\"listclear\",\"var\":\"quests\"}]",
+                "[{\"when\":\"iflist\",\"var\":\"quests\",\"op\":\"countatleast\",\"value\":\"2\",\"local\":true,\"do\":\"toggle\",\"var\":\"done\"}]",
+                "[{\"when\":\"iflist\",\"var\":\"quests\",\"op\":\"empty\",\"do\":\"setvar\",\"var\":\"none\",\"to\":1}]",
+            };
+            return rules.All(r => t.RT(r) == r);
+        });
+        t.Test("colour/list: pickers — Colour and List variables have their own; numbers and texts never offer them", () =>
+        {
+            var pr = new Project();
+            VarScope.Of(pr).SetColor("team", "#FF0000"); VarScope.Of(pr).SetList("quests", null); VarScope.Of(pr).SetText("hero", "Ana"); VarScope.Of(pr).SetNumber("coins", 0);
+            var o = new GameObjectData();
+            o.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] = J("[{'when':'start','do':'setcolor','var':'glow','to':'#FFFFFF'},{'when':'iflist','var':'bag','op':'empty','do':'listadd','var':'log','value':'x'},{'when':'start','do':'listremove','var':'trash','value':'x'}]") } });
+            o.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Label, Texts = { ["text"] = "{quests} {team} {coins}" } });
+            pr.Scenes.Add(new Scene { Layers = { new Layer { Objects = { o } } } });
+            var nums = ParamSources.Variables(pr); var texts = ParamSources.TextVariables(pr);
+            var colors = ParamSources.ColorVariables(pr); var lists = ParamSources.ListVariables(pr);
+            return colors.SequenceEqual(new[] { "glow", "team" }) && lists.SequenceEqual(new[] { "bag", "log", "quests", "trash" })
+                   && texts.SequenceEqual(new[] { "hero" }) && nums.Contains("coins")
+                   && !nums.Contains("team") && !nums.Contains("quests") && !nums.Contains("glow") && !nums.Contains("bag");
+        });
+
+        // ---------------- AI
+        t.Test("colour/list: the AI's variables make Lists (arrays) and Colours (\"#RRGGBB\") — game, scene and object; other words stay Text", () =>
+        {
+            var temp = Path.Combine(Path.GetTempPath(), "EE_FullVT_" + Guid.NewGuid().ToString("N")[..6]);
+            Directory.CreateDirectory(temp);
+            var project = ProjectIO.CreateNew("VT", temp);
+            var ed = new MainWindow(project);
+            ed.TestApplySpec(J("{'variables':{'global':{'quests':['Find the key','Open the door',3,true],'team':'#ff8800','code':'123456','word':'blue',}," + // a trailing comma, as small models write
+                               "'scene':{'names':[]}},'create':[{'name':'Npc','variables':{'bag':['apple'],'eyes':'#00FF00'}}]}"));
+            var g = VarScope.Of(project); var s = VarScope.Of(project.GetStartScene());
+            var npc = ed.TestFindObject("Npc");
+            var n = npc != null ? VarScope.Of(npc) : default;
+            ed.TestApplySpec(J("{'variables':{'global':{'quests':'a, b'}}}")); // a string for a List: its comma-separated items
+            bool split = string.Join("|", project.Lists["quests"]) == "a|b";
+            var summary = g.Describe();
+            ed.Close();
+            return g.KindOf("quests") == VarKind.List && split
+                   && g.KindOf("team") == VarKind.Color && g.Text("team") == "#FF8800"
+                   && g.KindOf("code") == VarKind.Number && g.KindOf("word") == VarKind.Text
+                   && s.KindOf("names") == VarKind.List && s.Lists["names"].Count == 0
+                   && npc != null && n.KindOf("bag") == VarKind.List && n.KindOf("eyes") == VarKind.Color
+                   && summary.Contains("quests=[\"a\",\"b\"]") && summary.Contains("team=#FF8800");
+        });
+        t.Test("colour/list: an AI array keeps numbers and yes/no as words", () =>
+        {
+            var s = VarScope.Of(new Project());
+            using var doc = JsonDocument.Parse("[\"x\", 2.5, true]");
+            return s.SetFromJson("l", doc.RootElement, out var shown) && string.Join("|", s.Lists["l"]) == "x|2.5|Yes" && shown == "l=[x, 2.5, Yes]";
+        });
     }
 }

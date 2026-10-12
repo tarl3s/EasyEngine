@@ -194,7 +194,7 @@ namespace EasyEngine
             switch (s.Do)
             {
                 case "telegraph":
-                    b.TelegraphUntil = _gameTime + Math.Max(0, s.Num("time", 0.6)); b.TelegraphColor = s.Str("color", "#FF4040");
+                    b.TelegraphUntil = _gameTime + Math.Max(0, s.Num("time", 0.6)); b.TelegraphColor = RuleColor(s.Str("color", "#FF4040"), en);
                     r.WaitUntil = b.TelegraphUntil;
                     return true;
                 case "dash":

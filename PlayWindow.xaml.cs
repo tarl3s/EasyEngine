@@ -200,6 +200,7 @@ namespace EasyEngine
                 ["ifvar"] = new[] { "var", "op", "value" }, ["iflocal"] = new[] { "var", "op", "value" },
                 ["hasitem"] = new[] { "item" }, ["expr"] = new[] { "expr" },
                 ["iftext"] = new[] { "var", "op", "value", "local" },
+                ["iflist"] = new[] { "var", "op", "value", "local" },
             };
             private static bool TriggerConsumes(string when, string key)
                 => TriggerKeys.TryGetValue(when, out var ks) && System.Array.Exists(ks, x => string.Equals(x, key, System.StringComparison.OrdinalIgnoreCase));
@@ -1751,7 +1752,7 @@ namespace EasyEngine
             if (path == null) return;
             try
             {
-                var data = new SaveData { Scene = _sceneName, Vars = new Dictionary<string, double>(_vars), Texts = new Dictionary<string, string>(_texts) };
+                var data = new SaveData { Scene = _sceneName, Vars = new Dictionary<string, double>(_vars), Texts = new Dictionary<string, string>(_texts), Lists = new Dictionary<string, List<string>>(_lists) };
                 System.IO.File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(data));
             }
             catch { }
@@ -1768,6 +1769,7 @@ namespace EasyEngine
                 if (data == null) return false;
                 if (data.Vars != null) foreach (var kv in data.Vars) _vars[kv.Key] = kv.Value;
                 if (data.Texts != null) foreach (var kv in data.Texts) _texts[kv.Key] = kv.Value; // older saves have no texts
+                if (data.Lists != null) foreach (var kv in data.Lists) _lists[kv.Key] = kv.Value != null ? new List<string>(kv.Value) : new(); // nor lists
                 if (!string.IsNullOrEmpty(data.Scene) && _project.FindScene(data.Scene) != null) _pendingScene = data.Scene;
                 return true;
             }
@@ -1780,7 +1782,7 @@ namespace EasyEngine
             if (!string.IsNullOrEmpty(id)) _vars["got:" + id] = 1;
         }
 
-        private class SaveData { public string Scene { get; set; } = ""; public Dictionary<string, double>? Vars { get; set; } public Dictionary<string, string>? Texts { get; set; } }
+        private class SaveData { public string Scene { get; set; } = ""; public Dictionary<string, double>? Vars { get; set; } public Dictionary<string, string>? Texts { get; set; } public Dictionary<string, List<string>>? Lists { get; set; } }
 
         // Would moving this block by dx collide with another solid (walls, other blocks)?
         private bool BlockedHoriz(Entity block, double dx)
@@ -1853,6 +1855,7 @@ namespace EasyEngine
                 "ifvar" or "iflocal" => $"{r.When} {r.WStr("var")} {r.WStr("op", ">=")} {r.WNum("value"):0.##}",
                 "hasitem" => $"hasitem {r.WStr("item")}",
                 "iftext" => $"iftext {r.WStr("var")} {r.WStr("op", "is")} \"{(r.WT.TryGetValue("value", out var tv) ? tv : "")}\"",
+                "iflist" => $"iflist {r.WStr("var")} {r.WStr("op", "contains")} {(r.WT.TryGetValue("value", out var lv) ? lv : r.WN.TryGetValue("value", out var ln) ? VarScope.NumberText(ln) : "")}",
                 "expr" => $"({r.WStr("expr")})",
                 _ => r.When
             };
@@ -1866,7 +1869,7 @@ namespace EasyEngine
         }
 
         // Triggers that stay true frame after frame: logged only when they START firing.
-        private static bool ContinuousWhen(string when) => when is "always" or "key" or "keydown" or "ifvar" or "iflocal" or "iftext" or "hasitem"
+        private static bool ContinuousWhen(string when) => when is "always" or "key" or "keydown" or "ifvar" or "iflocal" or "iftext" or "iflist" or "hasitem"
             or "expr" or "isnight" or "isday" or "mouseover" or "hover" or "mousedown";
 
         private void RunCustom(Entity en, double dt)
@@ -1905,6 +1908,7 @@ namespace EasyEngine
                         break;
                     case "hasitem": fire = Var("item:" + r.WStr("item")) >= 1; break;
                     case "iftext": fire = TextCondition(en, r); break;
+                    case "iflist": fire = ListCondition(en, r); break; // PlayWindow.Lists.cs
                     case "isnight": fire = Var("isNight") >= 0.5; break;
                     case "isday": fire = Var("isNight") < 0.5; break;
                     case "wheelup": fire = _wheelDelta > 0; break;
@@ -1984,7 +1988,9 @@ namespace EasyEngine
                 case "addvar": _vars[r.Str("var")] = Var(r.Str("var")) + RuleValue(en, r, 1, "amount"); break;
                 case "setlocal": en.Locals[r.Str("var")] = RuleValue(en, r, 0, "to", "value"); break;
                 case "addlocal": en.Locals[r.Str("var")] = (en.Locals.TryGetValue(r.Str("var"), out var cl) ? cl : 0) + RuleValue(en, r, 1, "amount"); break;
-                case "settext": case "addtext": case "toggle": DoTextAction(en, r); break; // PlayWindow.Texts.cs
+                case "settext": case "addtext": case "toggle": case "setcolor": DoTextAction(en, r); break; // PlayWindow.Texts.cs
+                case "tint": DoTint(en, r); break;
+                case "listadd": case "listremove": case "listclear": DoListAction(en, r); break; // PlayWindow.Lists.cs
                 case "set": // set a property of self (or a named object) to an expression/number
                 {
                     var who = r.Str("target", "self");
@@ -2002,7 +2008,7 @@ namespace EasyEngine
                 case "load": LoadGame(); break;
                 case "emit":
                     EmitParticles(en.CX, en.CY, (int)r.Num("count", 16), r.Num("speed", 180), r.Num("spread", 360),
-                        r.Num("angle", 0), r.Num("life", 0.8), r.Num("size", 8), r.Num("gravity", 400), r.Str("color", "#FFD24D"));
+                        r.Num("angle", 0), r.Num("life", 0.8), r.Num("size", 8), r.Num("gravity", 400), RuleColor(r.Str("color", "#FFD24D"), en));
                     break;
                 case "tween":
                 {
@@ -2090,6 +2096,7 @@ namespace EasyEngine
                 case "scenew": case "scenewidth": return _scene?.Width ?? 0;
                 case "sceneh": case "sceneheight": return _scene?.Height ?? 0;
             }
+            if (name.StartsWith(CountPrefix, StringComparison.OrdinalIgnoreCase)) return ListCount(name.Substring(CountPrefix.Length), self); // count:quests
 
             int dot = name.IndexOf('.');
             if (dot > 0)
@@ -2168,19 +2175,22 @@ namespace EasyEngine
             }
         }
 
-        // "{name}" in a text → that variable's value: a text variable wins, else the number ("{local.name}" = the object's own).
+        // "{name}" in a text → that variable's value: a text (or color) variable wins, then a list (its items joined with
+        // ", "), else the number ("{local.name}" = the object's own; "{count:name}" = how many items a list has).
         private string Substitute(string text, Entity? self = null)
         {
             if (string.IsNullOrEmpty(text) || !text.Contains('{')) return text;
             return System.Text.RegularExpressions.Regex.Replace(text, @"\{([^}]+)\}", m =>
             {
                 var key = m.Groups[1].Value.Trim();
+                if (key.StartsWith(CountPrefix, StringComparison.OrdinalIgnoreCase)) return VarScope.NumberText(ListCount(key.Substring(CountPrefix.Length), self));
                 if (self != null && key.StartsWith("local.", StringComparison.OrdinalIgnoreCase))
                 {
                     var lname = key.Substring(6);
-                    if ((self.LocalTexts != null && self.LocalTexts.ContainsKey(lname)) || self.Locals.ContainsKey(lname)) return LocalTextOf(self, lname);
+                    if (HasLocalText(self, lname)) return LocalTextOf(self, lname);
                 }
                 if (_texts.TryGetValue(key, out var t)) return t;
+                if (_lists.TryGetValue(key, out var list)) return VarScope.ListText(list);
                 var val = Var(key);
                 return (val == Math.Floor(val)) ? ((long)val).ToString() : val.ToString("0.##");
             });

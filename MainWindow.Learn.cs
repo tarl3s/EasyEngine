@@ -20,7 +20,7 @@ namespace EasyEngine
 
         private const string EditorBasics =
             "- Start: the launcher opens first — \"＋ New Project\", \"📂 Open Project…\" or a recent project.\n" +
-            "- Top bar: New / Open / Save, Variables (the game's variables — a Number, a Yes/No or a Text: score, coins, hasKey, playerName…), the Scene dropdown with Add Scene / Rename / Delete / Set as Start, Export (makes a game .exe you can share) and ▶ Test (plays the game).\n" +
+            "- Top bar: New / Open / Save, Variables (the game's variables — a Number, a Yes/No, a Text, a Colour or a List: score, coins, hasKey, playerName, teamColor, quests…), the Scene dropdown with Add Scene / Rename / Delete / Set as Start, Export (makes a game .exe you can share) and ▶ Test (plays the game).\n" +
             "- SCENE LAYERS panel: Background (drawn behind), Base (the level), UI (fixed on the screen: score, health bars, minimap) and Sky (behind everything, created by 🌗 Day / Night cycle). Click a layer to make it active — new objects go there; ＋ adds a layer.\n" +
             "- OBJECTS panel: every object in the scene; click one to select it. You can also click/drag objects on the scene.\n" +
             "- PREFABS panel: click a prefab to add it to the active layer; \"＋ Empty Object\"; \"Save selection as prefab\" turns a finished object into a reusable prefab.\n" +

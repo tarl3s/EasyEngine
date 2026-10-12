@@ -17,12 +17,14 @@ namespace EasyEngine
         public Window? Owner;
 
         // Scanned once per editor window (whole-project scans, a folder listing): the blocks are rebuilt on every change.
-        private List<string>? _objects, _variables, _textVariables, _sounds;
+        private List<string>? _objects, _variables, _textVariables, _colorVariables, _listVariables, _sounds;
         private List<(string value, string label)>? _objectsAndPrefabs;
         public List<string> Objects => _objects ??= ParamSources.Objects(Scene);
         public List<(string value, string label)> ObjectsAndPrefabs => _objectsAndPrefabs ??= ParamSources.ObjectOrPrefabOptions(Scene, Project);
         public List<string> Variables => _variables ??= ParamSources.Variables(Project);
         public List<string> TextVariables => _textVariables ??= ParamSources.TextVariables(Project);
+        public List<string> ColorVariables => _colorVariables ??= ParamSources.ColorVariables(Project);
+        public List<string> ListVariables => _listVariables ??= ParamSources.ListVariables(Project);
         public List<string> Sounds => _sounds ??= ParamSources.Sounds(Project);
     }
 
@@ -182,6 +184,12 @@ namespace EasyEngine
                     break;
                 case "textvar":
                     ctrl = Combo(_ctx.TextVariables.Select(v => (v, v)).ToList(), cur, Set, L.T("New text variable name:"), _ctx.Owner);
+                    break;
+                case "colorvar":
+                    ctrl = Combo(_ctx.ColorVariables.Select(v => (v, v)).ToList(), cur, Set, L.T("New colour variable name:"), _ctx.Owner);
+                    break;
+                case "listvar":
+                    ctrl = Combo(_ctx.ListVariables.Select(v => (v, v)).ToList(), cur, Set, L.T("New list name:"), _ctx.Owner);
                     break;
                 case "color":
                 {

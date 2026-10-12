@@ -60,14 +60,29 @@ namespace EasyEngine
                 }
             }
             foreach (var builtin in EngineVariables) set.Add(builtin);
-            // a Text variable is never offered where a number is needed (unless the same name is also a number somewhere)
+            // a Text, Colour or List variable is never offered where a number is needed (unless the same name is also a number somewhere)
             var numbers = new HashSet<string>(p.Variables.Keys.Concat(p.Scenes.SelectMany(s => s.Variables.Keys)).Concat(AllObjects(p).SelectMany(o => o.Variables.Keys)), StringComparer.OrdinalIgnoreCase);
-            foreach (var t in TextVariables(p)) if (!numbers.Contains(t)) set.Remove(t);
+            foreach (var t in TextVariables(p).Concat(ColorVariables(p)).Concat(ListVariables(p))) if (!numbers.Contains(t)) set.Remove(t);
             return set.ToList();
         }
 
-        /// <summary>Text variables (declared as Text in any scope, or written/read by a settext / addtext / iftext rule).</summary>
-        public static List<string> TextVariables(Project p) => Declared(p, s => s.Texts.Keys, "settext", "addtext", "iftext");
+        /// <summary>Text variables (declared as Text in any scope, or written/read by a settext / addtext / iftext rule) — not
+        /// the Colour ones (they have their own picker) nor lists.</summary>
+        public static List<string> TextVariables(Project p)
+        {
+            static IEnumerable<string> PlainTexts(VarScope s) => s.Texts.Keys.Where(k => !s.Colors.Contains(k));
+            var declared = new HashSet<string>(Declared(p, PlainTexts), StringComparer.OrdinalIgnoreCase);
+            var others = new HashSet<string>(ColorVariables(p).Concat(ListVariables(p)).Where(n => !declared.Contains(n)), StringComparer.OrdinalIgnoreCase);
+            var list = Declared(p, PlainTexts, "settext", "addtext", "iftext");
+            list.RemoveAll(others.Contains); // a colour or list that a text rule also reads stays out
+            return list;
+        }
+
+        /// <summary>Colour variables (declared as Colour in any scope, or set by a setcolor rule).</summary>
+        public static List<string> ColorVariables(Project p) => Declared(p, s => s.Colors, "setcolor");
+
+        /// <summary>List variables (declared as List in any scope, or used by a listadd / listremove / listclear / iflist rule).</summary>
+        public static List<string> ListVariables(Project p) => Declared(p, s => s.Lists.Keys, "listadd", "listremove", "listclear", "iflist");
 
         /// <summary>Yes/No variables (declared as Yes/No in any scope, or flipped by a toggle rule).</summary>
         public static List<string> YesNoVariables(Project p) => Declared(p, s => s.Flags, "toggle");
@@ -109,7 +124,7 @@ namespace EasyEngine
                         else if (key == "do") { act = val.ToLowerInvariant(); seenDo = true; }
                         else if (key == "var" && val.Length > 0) { if (seenDo) after = val; else before = val; }
                     }
-                    bool whenHasVar = when is "ifvar" or "iflocal" or "iftext";
+                    bool whenHasVar = when is "ifvar" or "iflocal" or "iftext" or "iflist";
                     if (ids.Contains(when) && before != null) list.Add(before);
                     if (ids.Contains(act) && (after ?? (whenHasVar ? null : before)) is string av) list.Add(av);
                 }

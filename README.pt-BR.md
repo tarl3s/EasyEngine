@@ -59,7 +59,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   machado, picareta, os seus), hotbar, lojas e crafting, coletáveis, portas entre cenas, molas, blocos de empurrar
   e muito mais. Toda opção é **escolhida numa lista** — nada de sintaxe pra decorar.
 - **🧩 Blocos pra lógica própria** — blocos no estilo Scratch (*quando → faça*), com variáveis globais, de cena e
-  por objeto (números, sim/não e texto), inventário e diálogos.
+  por objeto (números, sim/não, texto, cores e listas), inventário e diálogos.
 - **👑 Boss AI** — chefões com **fases pela vida**, ataques montados com passos (avisar, investida, pulo com onda de
   choque, tiros em anel/leque/mirados, invocar lacaios, invulnerável…), sequência de morte e barra de vida do chefe.
 - **🎬 Cinemáticas** — falas, câmera que viaja, títulos grandes, fades, barras de cinema, mover personagens, travar

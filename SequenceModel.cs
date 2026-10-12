@@ -12,7 +12,7 @@ namespace EasyEngine
     // parser (tolerant: synonyms, numbers as strings, missing fields → defaults) and the stable serializer.
 
     /// <summary>One field of a step. Types: num, val (number or expression), text, longtext, bool, choice,
-    /// object (scene object / self / player), spawn (scene object or prefab), sound, color, var, textvar (a text variable), key, scene.</summary>
+    /// object (scene object / self / player), spawn (scene object or prefab), sound, color, var, textvar / colorvar / listvar (a text / colour / list variable), key, scene.</summary>
     public record StepField(string Key, string Label, string Type, string Default = "", string[]? Options = null, string? OnlyIfEmpty = null);
 
     public record StepDef(string Id, string Label, string Category, StepField[] Fields, string Hint = "");
@@ -45,6 +45,10 @@ namespace EasyEngine
             new("addvar", "Add to a variable", "Story", new[] { F("var", "Variable", "var"), F("amount", "Amount", "val", "1") }),
             new("settext", "Set a text", "Story", new[] { F("var", "Text variable", "textvar"), F("to", "To", "text") },
                 "Puts words in a text variable. {name} inside is replaced by that variable's value."),
+            new("setcolor", "Set a colour", "Story", new[] { F("var", "Colour variable", "colorvar"), F("to", "Colour", "color", "#FFFFFF") },
+                "Puts a colour in a colour variable. {name} in a colour field (a tint, particles, a fade) uses it."),
+            new("listadd", "Add to a list", "Story", new[] { F("var", "List", "listvar"), F("value", "Item", "text") },
+                "Adds an item to the end of a list. {name} inside is replaced by that variable's value."),
             new("settime", "Set the time of day", "Story", new[] { F("time", "Time", "choice", "night", "day|Day", "noon|Noon", "dusk|Dusk", "night|Night", "midnight|Midnight") }),
             new("goscene", "Go to a scene", "Story", new[] { F("scene", "Scene", "scene") }),
             new("move", "Move an object", "Motion", new[] { F("object", "Object", "object", "player"), At("to", "To", ""), X("to"), Y("to"), Num("time", "Seconds", 1), Bool("wait", "Wait until it arrives", true) },

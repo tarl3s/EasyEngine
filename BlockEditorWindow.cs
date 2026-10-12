@@ -15,13 +15,15 @@ namespace EasyEngine
     /// </summary>
     public class BlockEditorWindow : Window
     {
-        // field types: num, text, choice, obj, scene, key, val (number OR expression), textvar / flagvar (a text / Yes-No
-        // variable, picked), bool (a checkbox, saved as true or left out)
+        // field types: num, text, choice, obj, scene, key, val (number OR expression), textvar / flagvar / colorvar / listvar
+        // (a text / Yes-No / colour / list variable, picked), color (a colour picker, or a colour variable as "{name}"),
+        // bool (a checkbox, saved as true or left out)
         private record Field(string Key, string Label, string Type, string Default = "", string[]? Options = null);
         private record BlockDef(string Id, string Label, Field[] Fields, string Hint = "");
 
         private static readonly string[] Ops = { ">=", ">", "<=", "<", "==", "!=" };
         private static readonly string[] TextOps = { "is", "isnot", "contains", "empty", "notempty" };
+        private static readonly string[] ListOps = { "contains", "notcontains", "empty", "notempty", "countis", "countatleast" };
         private static readonly string[] Props = { "x", "y", "vx", "vy", "rot", "facing", "health", "w", "h", "speed" };
         private static readonly string[] CommonKeys = { "Space", "Up", "Down", "Left", "Right", "W", "A", "S", "D", "E", "F", "J", "K", "Enter", "LeftShift" };
 
@@ -42,6 +44,8 @@ namespace EasyEngine
             new("hasitem",    L.T("While it has an item"), new[] { new Field("item", L.T("Item"), "text") }),
             new("iftext",     L.T("While a text variable…"), new[] { new Field("var", L.T("Text variable"), "textvar"), new Field("op", L.T("is"), "choice", "is", TextOps), new Field("value", L.T("Text"), "text"), new Field("local", L.T("Its own"), "bool") },
                 L.T("Compares words (capital letters don't matter). \"Its own\" reads this object's own text variable.")),
+            new("iflist",     L.T("While a list…"), new[] { new Field("var", L.T("List"), "listvar"), new Field("op", L.T("is"), "choice", "contains", ListOps), new Field("value", L.T("Item or number"), "text"), new Field("local", L.T("Its own"), "bool") },
+                L.T("Checks a list: has an item (capital letters don't matter), is empty, or has a number of items.")),
             new("isnight",    L.T("While it's night"), Array.Empty<Field>(), L.T("Needs a Day/Night cycle object in the scene. Great for enemies that only come out at night.")),
             new("isday",      L.T("While it's day"), Array.Empty<Field>(), L.T("Needs a Day/Night cycle object in the scene.")),
             new("wheelup",    L.T("When the mouse wheel scrolls up"), Array.Empty<Field>()),
@@ -84,7 +88,16 @@ namespace EasyEngine
                 L.T("Adds words to the end of a text variable.")),
             new("toggle",    L.T("Switch a Yes/No"), new[] { new Field("var", L.T("Yes/No variable"), "flagvar"), new Field("local", L.T("Its own"), "bool") },
                 L.T("Yes becomes No and No becomes Yes.")),
-            new("set",       L.T("Set a property"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self"), new Field("prop", L.T("Property"), "choice", "x", Props), new Field("to", L.T("To"), "val", "0") }),
+            new("setcolor",  L.T("Set a colour"), new[] { new Field("var", L.T("Colour variable"), "colorvar"), new Field("to", L.T("Colour"), "color", "#FFFFFF"), new Field("local", L.T("Its own"), "bool") },
+                L.T("Puts a colour in a colour variable. Use it in \"Change the colour\" or in particles.")),
+            new("tint",      L.T("Change the colour"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self"), new Field("color", L.T("Colour"), "color", "#FFFFFF") },
+                L.T("Paints this object (or another one) with a colour or a colour variable. An object drawn with a picture keeps its picture.")),
+            new("listadd",   L.T("Add to a list"), new[] { new Field("var", L.T("List"), "listvar"), new Field("value", L.T("Item"), "text"), new Field("local", L.T("Its own"), "bool") },
+                L.T("Adds an item to the end of a list. {name} inside is replaced by that variable's value.")),
+            new("listremove",L.T("Remove from a list"), new[] { new Field("var", L.T("List"), "listvar"), new Field("value", L.T("Item"), "text"), new Field("local", L.T("Its own"), "bool") },
+                L.T("Removes the first item equal to it (capital letters don't matter).")),
+            new("listclear", L.T("Empty a list"), new[] { new Field("var", L.T("List"), "listvar"), new Field("local", L.T("Its own"), "bool") }),
+            new("set",      L.T("Set a property"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self"), new Field("prop", L.T("Property"), "choice", "x", Props), new Field("to", L.T("To"), "val", "0") }),
             new("additem",   L.T("Give an item"), new[] { new Field("item", L.T("Item"), "text"), new Field("amount", L.T("Amount"), "num", "1") }),
             new("removeitem",L.T("Remove an item"), new[] { new Field("item", L.T("Item"), "text"), new Field("amount", L.T("Amount"), "num", "1") }),
             new("boost",     L.T("Multiply its speed"), new[] { new Field("factor", L.T("Times"), "num", "2") }, L.T("2 = twice as fast, 0.5 = half. Affects Platformer/Top-down speed.")),
@@ -314,13 +327,20 @@ namespace EasyEngine
                 return chk;
             }
 
+            if (f.Type == "color") { stack.Children.Add(ColorField(f, rule, cur)); return stack; }
+
             Control ctrl;
-            if (f.Type is "textvar" or "flagvar")
+            if (f.Type is "textvar" or "flagvar" or "colorvar" or "listvar")
             {
                 // variables of the right kind, plus "＋ New…"
-                var names = f.Type == "textvar" ? ParamSources.TextVariables(_project) : ParamSources.YesNoVariables(_project);
-                var cb = Dropdown.Make(names.Select(n => (n, n)), cur, v => rule[f.Key] = v,
-                                       f.Type == "textvar" ? L.T("New text variable name:") : L.T("New Yes/No variable name:"), this);
+                var (names, prompt) = f.Type switch
+                {
+                    "textvar" => (ParamSources.TextVariables(_project), L.T("New text variable name:")),
+                    "colorvar" => (ParamSources.ColorVariables(_project), L.T("New colour variable name:")),
+                    "listvar" => (ParamSources.ListVariables(_project), L.T("New list name:")),
+                    _ => (ParamSources.YesNoVariables(_project), L.T("New Yes/No variable name:")),
+                };
+                var cb = Dropdown.Make(names.Select(n => (n, n)), cur, v => rule[f.Key] = v, prompt, this);
                 cb.Height = 28; cb.MinWidth = 140;
                 ctrl = cb;
             }
@@ -357,6 +377,42 @@ namespace EasyEngine
             return stack;
         }
 
+        // a colour: a swatch button that opens the colour picker, and next to it the colour variables ("{name}" is saved)
+        private FrameworkElement ColorField(Field f, Dictionary<string, string> rule, string cur)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            var swatch = new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(3), BorderBrush = Theme.Brush("Border", "#35353F"), BorderThickness = new Thickness(1) };
+            var hex = L.Keep(new TextBlock { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+            var sp = new StackPanel { Orientation = Orientation.Horizontal }; sp.Children.Add(swatch); sp.Children.Add(hex);
+            var btn = new Button { Content = sp, Height = 28, Padding = new Thickness(6, 0, 8, 0), Style = Theme.Style("CardButton"), ToolTip = L.T("Click to pick a colour") };
+            var vars = new ComboBox { Height = 28, MinWidth = 110, Margin = new Thickness(6, 0, 0, 0), ToolTip = L.T("Or use a colour variable") };
+            vars.Items.Add(new ComboBoxItem { Content = L.T("(a colour)"), Tag = "" });
+            foreach (var n in ParamSources.ColorVariables(_project)) vars.Items.Add(L.Keep(new ComboBoxItem { Content = n, Tag = "{" + n + "}" })); // the person's own names
+            bool sync = false;
+            void Show(string v)
+            {
+                rule[f.Key] = v;
+                bool isVar = VarScope.ColorHex(v) == null;
+                swatch.Background = isVar ? Brushes.Transparent : Theme.Hex(v);
+                hex.Text = isVar ? "—" : v;
+                sync = true;
+                var item = vars.Items.Cast<ComboBoxItem>().FirstOrDefault(i => string.Equals((string)i.Tag, isVar ? v : "", StringComparison.OrdinalIgnoreCase));
+                if (item == null && isVar) vars.Items.Add(item = L.Keep(new ComboBoxItem { Content = v.Trim('{', '}'), Tag = v })); // a variable that isn't declared anywhere
+                vars.SelectedItem = item;
+                sync = false;
+            }
+            btn.Click += (s, e) => ColorPickerPopup.Open(btn, VarScope.ColorHex(rule[f.Key]) ?? VarScope.White, Show);
+            vars.SelectionChanged += (s, e) =>
+            {
+                if (sync || vars.SelectedItem is not ComboBoxItem ci) return;
+                var tag = (string)ci.Tag;
+                Show(tag.Length > 0 ? tag : (VarScope.ColorHex(hex.Text) ?? f.Default));
+            };
+            Show(cur);
+            row.Children.Add(btn); row.Children.Add(vars);
+            return row;
+        }
+
         private IEnumerable<string> SuggestionsFor(string type)
         {
             if (type == "key") return CommonKeys;
@@ -377,6 +433,7 @@ namespace EasyEngine
             "day" => L.T("day"), "noon" => L.T("noon"), "dusk" => L.T("dusk"), "night" => L.T("night"), "midnight" => L.T("midnight"),
             "info" => L.T("info"), "warn" => L.T("warn"), "error" => L.T("error"),
             "is" => L.T("is"), "isnot" => L.T("is not"), "contains" => L.T("contains"), "empty" => L.T("is empty"), "notempty" => L.T("is not empty"),
+            "notcontains" => L.T("doesn't contain"), "countis" => L.T("has exactly (items)"), "countatleast" => L.T("has at least (items)"),
             "linear" => L.T("linear"), "easein" => L.T("ease in"), "easeout" => L.T("ease out"), "easeinout" => L.T("ease in and out"),
             _ => o,
         };

@@ -28,9 +28,10 @@ namespace EasyEngine
         private SolidColorBrush B(string key) => (SolidColorBrush)FindResource(key);
 
         // the kind picker: shown in the editor's language, saved by its English id
-        internal static List<(string value, string label)> KindOptions() => new() { ("number", L.T("Number")), ("yesno", L.T("Yes/No")), ("text", L.T("Text")) };
-        internal static string KindId(VarKind k) => k switch { VarKind.YesNo => "yesno", VarKind.Text => "text", _ => "number" };
-        internal static VarKind KindFrom(string id) => id switch { "yesno" => VarKind.YesNo, "text" => VarKind.Text, _ => VarKind.Number };
+        internal static List<(string value, string label)> KindOptions() => new()
+            { ("number", L.T("Number")), ("yesno", L.T("Yes/No")), ("text", L.T("Text")), ("color", L.T("Colour")), ("list", L.T("List")) };
+        internal static string KindId(VarKind k) => k switch { VarKind.YesNo => "yesno", VarKind.Text => "text", VarKind.Color => "color", VarKind.List => "list", _ => "number" };
+        internal static VarKind KindFrom(string id) => id switch { "yesno" => VarKind.YesNo, "text" => VarKind.Text, "color" => VarKind.Color, "list" => VarKind.List, _ => VarKind.Number };
 
         private void Build()
         {
@@ -110,6 +111,22 @@ namespace EasyEngine
                     val = tb;
                     break;
                 }
+                case VarKind.Color:
+                    val = ColorButton(scope.ColorValue(name), hex => { scope.SetColor(name, hex); Changed = true; });
+                    break;
+                case VarKind.List:
+                {
+                    // the items go on their own lines under the row; the value column says how many there are
+                    var items = scope.Lists[name];
+                    var count = new TextBlock { Foreground = B("TextDim"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+                    void ShowCount() => count.Text = items.Count == 1 ? L.T("1 item") : L.F("{0} items", items.Count);
+                    ShowCount();
+                    Put(grid, lbl, 0); Put(grid, kindBox, 1); Put(grid, count, 2); Put(grid, DeleteButton(scope, name), 3);
+                    var box = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+                    box.Children.Add(grid);
+                    box.Children.Add(ListEditor(items, ShowCount));
+                    return box;
+                }
                 default:
                 {
                     var tb = new TextBox { Text = scope.Number(name).ToString("0.###", CultureInfo.InvariantCulture), Height = 28, Margin = new Thickness(6, 0, 0, 0), VerticalContentAlignment = VerticalAlignment.Center };
@@ -121,11 +138,59 @@ namespace EasyEngine
                 }
             }
 
-            var del = new Button { Content = "✕", Width = 28, Height = 28, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0), Style = (Style)FindResource("GhostButton"), Foreground = B("Danger") };
-            del.Click += (s, e) => { scope.Remove(name); Changed = true; Build(); };
-
-            Put(grid, lbl, 0); Put(grid, kindBox, 1); Put(grid, val, 2); Put(grid, del, 3);
+            Put(grid, lbl, 0); Put(grid, kindBox, 1); Put(grid, val, 2); Put(grid, DeleteButton(scope, name), 3);
             return grid;
+        }
+
+        private Button SmallX(string tip)
+            => new() { Content = "✕", Width = 28, Height = 28, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0), Style = (Style)FindResource("GhostButton"), Foreground = B("Danger"), ToolTip = tip };
+
+        private Button DeleteButton(VarScope scope, string name)
+        {
+            var del = SmallX(L.T("Delete this variable"));
+            del.Click += (s, e) => { scope.Remove(name); Changed = true; Build(); };
+            return del;
+        }
+
+        // a colour: a swatch + its hex; a click opens the colour picker
+        private Button ColorButton(string hex, Action<string> onPick)
+        {
+            var swatch = new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(3), Background = Theme.Hex(hex), BorderBrush = B("Border"), BorderThickness = new Thickness(1) };
+            var text = L.Keep(new TextBlock { Text = hex, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+            var sp = new StackPanel { Orientation = Orientation.Horizontal }; sp.Children.Add(swatch); sp.Children.Add(text);
+            var btn = new Button { Content = sp, Height = 28, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(6, 0, 8, 0), Style = (Style)FindResource("CardButton"),
+                                   HorizontalAlignment = HorizontalAlignment.Left, HorizontalContentAlignment = HorizontalAlignment.Left, ToolTip = L.T("Click to pick a colour") };
+            btn.Click += (s, e) => ColorPickerPopup.Open(btn, text.Text, v => { text.Text = v; swatch.Background = Theme.Hex(v); onPick(v); });
+            return btn;
+        }
+
+        // a list's items: one text box + ✕ per item, and "＋ Add item" (never a comma string to type)
+        private FrameworkElement ListEditor(List<string> items, Action changed)
+        {
+            var panel = new StackPanel { Margin = new Thickness(18, 4, 0, 0) };
+            void Fill(int focus)
+            {
+                panel.Children.Clear();
+                for (int i = 0; i < items.Count; i++)
+                {
+                    int at = i;
+                    var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+                    var tb = L.Keep(new TextBox { Text = items[at], Height = 28, VerticalContentAlignment = VerticalAlignment.Center }); // the person's own words
+                    tb.TextChanged += (s, e) => { items[at] = tb.Text; Changed = true; };
+                    var x = SmallX(L.T("Remove this item"));
+                    x.Click += (s, e) => { items.RemoveAt(at); Changed = true; changed(); Fill(-1); };
+                    Put(row, tb, 0); Put(row, x, 1);
+                    panel.Children.Add(row);
+                    if (at == focus) Dispatcher.BeginInvoke(new Action(() => tb.Focus()));
+                }
+                var add = new Button { Content = L.T("＋ Add item"), Height = 26, Padding = new Thickness(10, 0, 10, 0), Style = (Style)FindResource("CardButton"), HorizontalAlignment = HorizontalAlignment.Left };
+                add.Click += (s, e) => { items.Add(""); Changed = true; changed(); Fill(items.Count - 1); };
+                panel.Children.Add(add);
+            }
+            Fill(-1);
+            return panel;
         }
 
         private FrameworkElement AddRow(VarScope scope)
@@ -147,6 +212,8 @@ namespace EasyEngine
                 {
                     case VarKind.YesNo: scope.SetYesNo(n, false); break;
                     case VarKind.Text: scope.SetText(n, ""); break;
+                    case VarKind.Color: scope.SetColor(n, VarScope.White); break;
+                    case VarKind.List: scope.SetList(n, null); break;
                     default: scope.SetNumber(n, 0); break;
                 }
                 Changed = true; Build();

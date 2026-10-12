@@ -126,7 +126,8 @@ namespace EasyEngine
                 "3. Click \"➕ Add a block\": start with a \"When…\" block (When it spawns, When a key is pressed, When it touches an object, When clicked…) and add what it does under it (move, set a variable, play a sound, go to a scene…).\n" +
                 "4. Click Done; the rules are saved on the object.\n" +
                 "5. Or ask the AI in Build mode to write the rules for you. Press ▶ Test.\n" +
-                "Words and yes/no: in Variables (top bar) each variable has a type — Number, Yes/No or Text. The blocks \"Set a text\" (e.g. Hello {playerName}!), \"Add to a text\", \"Switch a Yes/No\" and \"While a text variable…\" (is / is not / contains / is empty) use them; tick \"Its own\" for the object's own variable.",
+                "Words and yes/no: in Variables (top bar) each variable has a type — Number, Yes/No, Text, Colour or List. The blocks \"Set a text\" (e.g. Hello {playerName}!), \"Add to a text\", \"Switch a Yes/No\" and \"While a text variable…\" (is / is not / contains / is empty) use them; tick \"Its own\" for the object's own variable.\n" +
+                "Colours and lists: \"Set a colour\" fills a Colour variable and \"Change the colour\" paints an object with a colour or a colour variable. \"Add to a list\", \"Remove from a list\", \"Empty a list\" and \"While a list…\" (contains / is empty / has at least N items) work on a List (quests, names you collected); a Label shows {quests} as \"a, b, c\" and {count:quests} as how many — count:quests also works in conditions.",
 
             [BehaviorKind.BossAI] =
                 "1. Select the boss → Inspector → ＋ Add behavior → 👑 Boss AI. Give it ❤ Health too (its own variable, e.g. bossHP).\n" +
@@ -200,7 +201,7 @@ namespace EasyEngine
 
             [BehaviorKind.Label] =
                 "1. Make an object on the UI layer (fixed on screen) → Inspector → ＋ Add behavior → 🔤 Label / HUD text.\n" +
-                "2. Type the Text; {variable} shows a value, e.g. \"Score: {score}\" or \"Coins: {coins}\"; a Text variable shows its words (\"Hello {playerName}\").\n" +
+                "2. Type the Text; {variable} shows a value, e.g. \"Score: {score}\" or \"Coins: {coins}\"; a Text variable shows its words (\"Hello {playerName}\"), a List its items (\"Quests: {quests}\") and {count:quests} how many.\n" +
                 "3. Set Font size, Color, Alignment and an Effect (typewriter, fade, blink, pulse).\n" +
                 "4. Press ▶ Test — the text updates when the variable changes.",
         };

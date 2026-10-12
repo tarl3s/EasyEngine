@@ -203,6 +203,11 @@ namespace EasyEngine
         public HashSet<string> Flags { get => _flags; set => _flags = VarScope.NewFlags(value); }
         private Dictionary<string, string> _texts = new();
         public Dictionary<string, string> Texts { get => _texts; set => _texts = value ?? new(); } // text variables
+        // Color variables keep their "#RRGGBB" in Texts (so {name} and iftext read them); Colors names them.
+        private HashSet<string> _colors = VarScope.NewFlags(null);
+        public HashSet<string> Colors { get => _colors; set => _colors = VarScope.NewFlags(value); }
+        private Dictionary<string, List<string>> _lists = new();
+        public Dictionary<string, List<string>> Lists { get => _lists; set => _lists = VarScope.NewLists(value); } // list variables (ordered words)
         public string Group { get; set; } = ""; // organization tag (groups objects in the scene list)
 
         public SpriteAnimation? ResolveDefaultAnimation()
@@ -234,6 +239,11 @@ namespace EasyEngine
         public HashSet<string> Flags { get => _flags; set => _flags = VarScope.NewFlags(value); }
         private Dictionary<string, string> _texts = new();
         public Dictionary<string, string> Texts { get => _texts; set => _texts = value ?? new(); } // text variables
+        // Color variables keep their "#RRGGBB" in Texts (so {name} and iftext read them); Colors names them.
+        private HashSet<string> _colors = VarScope.NewFlags(null);
+        public HashSet<string> Colors { get => _colors; set => _colors = VarScope.NewFlags(value); }
+        private Dictionary<string, List<string>> _lists = new();
+        public Dictionary<string, List<string>> Lists { get => _lists; set => _lists = VarScope.NewLists(value); } // list variables (ordered words)
         public List<Layer> Layers { get; set; } = new();
     }
 
@@ -303,6 +313,11 @@ namespace EasyEngine
         public HashSet<string> Flags { get => _flags; set => _flags = VarScope.NewFlags(value); }
         private Dictionary<string, string> _texts = new();
         public Dictionary<string, string> Texts { get => _texts; set => _texts = value ?? new(); } // text variables
+        // Color variables keep their "#RRGGBB" in Texts (so {name} and iftext read them); Colors names them.
+        private HashSet<string> _colors = VarScope.NewFlags(null);
+        public HashSet<string> Colors { get => _colors; set => _colors = VarScope.NewFlags(value); }
+        private Dictionary<string, List<string>> _lists = new();
+        public Dictionary<string, List<string>> Lists { get => _lists; set => _lists = VarScope.NewLists(value); } // list variables (ordered words)
         public GameTheme Theme { get; set; } = new();          // in-game look & feel
         public string? StartScene { get; set; } // scene the game starts on
         public bool ConsoleOnStart { get; set; } // open the F1 debug console when play starts (test scenarios)
