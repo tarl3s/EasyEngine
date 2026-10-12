@@ -116,7 +116,7 @@ namespace EasyEngine
                     PickRow(label, panel, _project.Scenes.Select(s => (s.Name, s.Name)).ToList(), cur, true, null, Set, names: true);
                     break;
                 case PickKind.Key:
-                    PickRow(label, panel, ParamSources.Keys.ToList(), cur, tp.AllowNone, null, Set);
+                    PickRow(label, panel, ParamSources.KeyOptions(), cur, tp.AllowNone, null, Set);
                     break;
                 case PickKind.Item:
                     PickRow(label, panel, ParamSources.Items(_project).Select(i => (i, ToolArt.Title(i))).ToList(), cur, tp.AllowNone, L.T("New item name (e.g. wood, key, shovel):"), Set, names: true);
