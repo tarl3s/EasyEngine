@@ -1,4 +1,5 @@
 using System.Linq;
+using static EasyEngine.DemoKit;
 
 namespace EasyEngine
 {
@@ -68,8 +69,7 @@ namespace EasyEngine
             foreach (var (n, x, y) in new[] { ("ForestDen", 1500.0, 420.0), ("QuarryDen", 560.0, 1220.0) })
             {
                 var den = Box(n, x, y, 20, 20, "#00000000");
-                den.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] =
-                    "[{\"when\":\"timer\",\"every\":7,\"do\":\"spawn\",\"object\":\"Slime\",\"cond\":\"isNight >= 1\"}]" } });
+                den.Behaviors.Add(Script("[{\"when\":\"timer\",\"every\":7,\"do\":\"spawn\",\"object\":\"Slime\",\"cond\":\"isNight >= 1\"}]"));
                 baseL.Objects.Add(Id(den));
             }
 
@@ -82,9 +82,8 @@ namespace EasyEngine
             dnB.Nums["mode"] = 1; dnB.Nums["dayLength"] = 50; dnB.Nums["nightLength"] = 35; dnB.Nums["transition"] = 5;
             dnB.Nums["dayLight"] = 1; dnB.Nums["nightLight"] = 0.2;
             dn.Behaviors.Add(dnB);
-            dn.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] =
-                "[{\"when\":\"keypress\",\"key\":\"N\",\"do\":\"settime\",\"time\":\"night\"}," +
-                "{\"when\":\"keypress\",\"key\":\"M\",\"do\":\"settime\",\"time\":\"day\"}]" } });
+            dn.Behaviors.Add(Script("[{\"when\":\"keypress\",\"key\":\"N\",\"do\":\"settime\",\"time\":\"night\"}," +
+                                    "{\"when\":\"keypress\",\"key\":\"M\",\"do\":\"settime\",\"time\":\"day\"}]"));
             baseL.Objects.Add(Id(dn));
 
             // ---- HUD ----
@@ -106,7 +105,7 @@ namespace EasyEngine
             project.Prefabs.Add(new PrefabDef { Name = "Tree", Template = Tree("Tree", 0, 0, treeSprite, snd) });
             project.Prefabs.Add(new PrefabDef { Name = "Rock", Template = Rock("Rock", 0, 0, rockSprite, snd) });
             project.Prefabs.Add(new PrefabDef { Name = "Mound", Template = Mound("Mound", 0, 0) });
-            project.Prefabs.Add(new PrefabDef { Name = "Coin", Template = Coin() });
+            project.Prefabs.Add(new PrefabDef { Name = "Coin", Template = Coin(PhysicsMode.None) });
             project.Prefabs.Add(new PrefabDef { Name = "Slime", Template = Slime() });
 
             ProjectIO.Save(project);
@@ -114,26 +113,11 @@ namespace EasyEngine
         }
 
         // ---------------- factories ----------------
-        private static BehaviorData B(BehaviorKind k) => BehaviorCatalog.Info(k).CreateData();
-
-        private static GameObjectData Box(string name, double x, double y, double w, double h, string color)
-            => new() { Name = name, Type = "Object", X = x, Y = y, Width = w, Height = h, Color = color, Physics = new PhysicsData { Mode = PhysicsMode.None } };
-
-        private static GameObjectData Rounded(GameObjectData o, double r) { o.CornerRadius = r; return o; }
-
         private static GameObjectData Water(string name, double x, double y, double w, double h)
         {
             var o = Box(name, x, y, w, h, "#3F7FBF");
             o.Physics.Mode = PhysicsMode.Static;
             o.Behaviors.Add(B(BehaviorKind.Solid));
-            return o;
-        }
-
-        private static GameObjectData Label(string name, double x, double y, string text, string color, double size)
-        {
-            var o = Box(name, x, y, 900, size + 10, "#00000000");
-            var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Texts["align"] = "left"; lb.Nums["fontSize"] = size;
-            o.Behaviors.Add(lb);
             return o;
         }
 
@@ -148,15 +132,7 @@ namespace EasyEngine
         }
 
         private static GameObjectData Tree(string name, double x, double y, string sprite, (string swing, string chop, string fall, string denied) snd)
-        {
-            var t = Box(name, x, y, 72, 144, "#00000000");
-            t.SpritePath = sprite;
-            var h = B(BehaviorKind.Harvestable);
-            h.Texts["tool"] = "axe"; h.Texts["drop"] = "wood"; h.Nums["hits"] = 4; h.Nums["amount"] = 5;
-            h.Texts["hitSound"] = snd.chop; h.Texts["fellSound"] = snd.fall;
-            t.Behaviors.Add(h);
-            return t;
-        }
+            => DemoKit.Tree(name, x, y, 72, 144, sprite, snd.chop, snd.fall);
 
         // a rock gives stone, and a coin pops out when it breaks
         private static GameObjectData Rock(string name, double x, double y, string sprite, (string swing, string chop, string fall, string denied) snd)
@@ -167,7 +143,7 @@ namespace EasyEngine
             h.Texts["tool"] = "pickaxe"; h.Texts["drop"] = "stone"; h.Nums["hits"] = 3; h.Nums["amount"] = 3; h.Nums["fall"] = 0;
             h.Texts["hitSound"] = snd.chop; h.Texts["fellSound"] = snd.fall;
             r.Behaviors.Add(h);
-            r.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] = "[{\"when\":\"death\",\"do\":\"spawn\",\"object\":\"Coin\"}]" } });
+            r.Behaviors.Add(Script("[{\"when\":\"death\",\"do\":\"spawn\",\"object\":\"Coin\"}]"));
             return r;
         }
 
@@ -179,9 +155,8 @@ namespace EasyEngine
             var h = B(BehaviorKind.Harvestable);
             h.Texts["tool"] = "shovel"; h.Texts["drop"] = ""; h.Nums["hits"] = 2; h.Nums["amount"] = 0; h.Nums["fall"] = 0;
             m.Behaviors.Add(h);
-            m.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] =
-                "[{\"when\":\"death\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":3}," +
-                "{\"when\":\"death\",\"do\":\"emit\",\"count\":14,\"color\":\"#FFD24D\"}]" } });
+            m.Behaviors.Add(Script("[{\"when\":\"death\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":3}," +
+                                   "{\"when\":\"death\",\"do\":\"emit\",\"count\":14,\"color\":\"#FFD24D\"}]"));
             return m;
         }
 
@@ -216,16 +191,6 @@ namespace EasyEngine
                 "{\"when\":\"death\",\"do\":\"spawn\",\"object\":\"Coin\"}," +
                 "{\"when\":\"death\",\"do\":\"emit\",\"count\":16,\"color\":\"#8E54E9\"}]";
             o.Behaviors.Add(cust);
-            return o;
-        }
-
-        private static GameObjectData Coin()
-        {
-            var o = new GameObjectData { Name = "Coin", Type = "Object", Width = 22, Height = 22, Color = "#FFD24D", CornerRadius = 11, Physics = new PhysicsData { Mode = PhysicsMode.None } };
-            o.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] =
-                "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1}," +
-                "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"emit\",\"count\":8,\"color\":\"#FFD24D\"}," +
-                "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\"}]" } });
             return o;
         }
 

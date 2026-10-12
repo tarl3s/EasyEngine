@@ -217,8 +217,8 @@
             <Setter Property="Foreground" Value="{StaticResource Danger}"/>
         </Style>
 
-        <!-- ============ BOTÃO PADRÃO (sem estilo nomeado): escuro também no hover ============ -->
-        <Style TargetType="Button">
+        <!-- ============ BASE dos botões padrão (Button e ToggleButton sem estilo nomeado) ============ -->
+        <Style x:Key="ButtonBaseDefaults" TargetType="ButtonBase">
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
             <Setter Property="Background" Value="{StaticResource Bg2}"/>
             <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
@@ -226,6 +226,10 @@
             <Setter Property="Padding" Value="8,2"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
+        <!-- ============ BOTÃO PADRÃO (sem estilo nomeado): escuro também no hover ============ -->
+        <Style TargetType="Button" BasedOn="{StaticResource ButtonBaseDefaults}">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -250,14 +254,7 @@
         </Style>
 
         <!-- ============ TOGGLEBUTTON (filtros do console etc.): marcado = verde, texto sempre legível ============ -->
-        <Style TargetType="ToggleButton">
-            <Setter Property="Foreground" Value="{StaticResource Text}"/>
-            <Setter Property="Background" Value="{StaticResource Bg2}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,2"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Style TargetType="ToggleButton" BasedOn="{StaticResource ButtonBaseDefaults}">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">

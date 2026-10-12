@@ -16,19 +16,13 @@ namespace EasyEngine
         public Scene Scene = null!;
         public Window? Owner;
 
-        public List<string> Objects => ParamSources.Objects(Scene);
-        public List<string> Prefabs => ParamSources.Prefabs(Project);
-        public List<string> Variables => ParamSources.Variables(Project);
-        public List<string> Sounds => ParamSources.Sounds(Project);
-
-        internal static Brush Res(string key, string fallback)
-            => Application.Current?.TryFindResource(key) as Brush ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback));
-        internal static Style? St(string key) => Application.Current?.TryFindResource(key) as Style;
-        internal static SolidColorBrush Hex(string hex, byte alpha = 255)
-        {
-            var c = (Color)ColorConverter.ConvertFromString(hex);
-            return new SolidColorBrush(Color.FromArgb(alpha, c.R, c.G, c.B));
-        }
+        // Scanned once per editor window (whole-project scans, a folder listing): the blocks are rebuilt on every change.
+        private List<string>? _objects, _variables, _sounds;
+        private List<(string value, string label)>? _objectsAndPrefabs;
+        public List<string> Objects => _objects ??= ParamSources.Objects(Scene);
+        public List<(string value, string label)> ObjectsAndPrefabs => _objectsAndPrefabs ??= ParamSources.ObjectOrPrefabOptions(Scene, Project);
+        public List<string> Variables => _variables ??= ParamSources.Variables(Project);
+        public List<string> Sounds => _sounds ??= ParamSources.Sounds(Project);
     }
 
     /// <summary>An ordered list of steps as coloured blocks (colour = category): each block shows its fields inline
@@ -52,9 +46,9 @@ namespace EasyEngine
         {
             Children.Clear();
             if (_steps.Count == 0)
-                Children.Add(new TextBlock { Text = "No steps yet — add one below.", Foreground = StepContext.Res("TextDim", "#8C8C97"), FontSize = 12, Margin = new Thickness(2, 2, 0, 6) });
+                Children.Add(new TextBlock { Text = "No steps yet — add one below.", Foreground = Theme.Brush("TextDim", "#8C8C97"), FontSize = 12, Margin = new Thickness(2, 2, 0, 6) });
             for (int i = 0; i < _steps.Count; i++) Children.Add(Block(i));
-            var add = new Button { Content = "＋ Add step", Height = 30, Padding = new Thickness(12, 0, 12, 0), HorizontalAlignment = HorizontalAlignment.Left, Style = StepContext.St("CardButton"), Margin = new Thickness(0, 2, 0, 4) };
+            var add = new Button { Content = "＋ Add step", Height = 30, Padding = new Thickness(12, 0, 12, 0), HorizontalAlignment = HorizontalAlignment.Left, Style = Theme.Style("CardButton"), Margin = new Thickness(0, 2, 0, 4) };
             add.Click += (s, e) => { var m = AddMenu(); m.PlacementTarget = add; m.IsOpen = true; };
             Children.Add(add);
         }
@@ -71,7 +65,7 @@ namespace EasyEngine
                 menu.Items.Add(new MenuItem { Header = cat.ToUpperInvariant(), IsEnabled = false, FontWeight = FontWeights.Bold, Tag = "category" });
                 foreach (var d in defs)
                 {
-                    var mi = new MenuItem { Header = d.Label, ToolTip = d.Hint.Length > 0 ? d.Hint : null, Icon = new Border { Width = 10, Height = 10, CornerRadius = new CornerRadius(2), Background = StepContext.Hex(color) } };
+                    var mi = new MenuItem { Header = d.Label, ToolTip = d.Hint.Length > 0 ? d.Hint : null, Icon = new Border { Width = 10, Height = 10, CornerRadius = new CornerRadius(2), Background = Theme.Hex(color) } };
                     mi.Click += (s, e) => { _steps.Add(NewStep(d)); Render(); };
                     menu.Items.Add(mi);
                 }
@@ -97,9 +91,9 @@ namespace EasyEngine
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             header.Children.Add(new TextBlock { Text = $"{index + 1}.  {def?.Label ?? step.Do}", FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, ToolTip = def?.Hint.Length > 0 ? def.Hint : null });
             var btns = new StackPanel { Orientation = Orientation.Horizontal };
-            var up = Small("↑", "Move up"); up.Click += (s, e) => { if (index > 0) { (_steps[index], _steps[index - 1]) = (_steps[index - 1], _steps[index]); Render(); } };
-            var dn = Small("↓", "Move down"); dn.Click += (s, e) => { if (index < _steps.Count - 1) { (_steps[index], _steps[index + 1]) = (_steps[index + 1], _steps[index]); Render(); } };
-            var del = Small("✕", "Remove this step"); del.Foreground = StepContext.Res("Danger", "#E5484D"); del.Click += (s, e) => { _steps.RemoveAt(index); Render(); };
+            var up = Small("↑", "Move up", () => { if (Swap(_steps, index, index - 1)) Render(); });
+            var dn = Small("↓", "Move down", () => { if (Swap(_steps, index, index + 1)) Render(); });
+            var del = Small("✕", "Remove this step", () => { _steps.RemoveAt(index); Render(); }); del.Foreground = Theme.Brush("Danger", "#E5484D");
             btns.Children.Add(up); btns.Children.Add(dn); btns.Children.Add(del);
             Grid.SetColumn(btns, 1); header.Children.Add(btns);
 
@@ -114,16 +108,30 @@ namespace EasyEngine
             }
             return new Border
             {
-                Background = StepContext.Hex(color, 0x30), BorderBrush = StepContext.Hex(color), BorderThickness = new Thickness(5, 1, 1, 1),
+                Background = Theme.Hex(color, alpha: 0x30), BorderBrush = Theme.Hex(color), BorderThickness = new Thickness(5, 1, 1, 1),
                 CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 6, 8, 6), Margin = new Thickness(0, 0, 0, 6), Child = body, Tag = "step"
             };
         }
 
-        private static Button Small(string t, string tip) => new()
+        /// <summary>A small ghost button (↑ ↓ ✕ on a block or a phase).</summary>
+        internal static Button Small(string t, string tip, Action onClick)
         {
-            Content = t, Width = 26, Height = 24, FontSize = 12, Margin = new Thickness(3, 0, 0, 0), Padding = new Thickness(0), ToolTip = tip,
-            Style = StepContext.St("GhostButton"), Foreground = StepContext.Res("Text", "#EEEEEE")
-        };
+            var b = new Button
+            {
+                Content = t, Width = 26, Height = 24, FontSize = 12, Margin = new Thickness(3, 0, 0, 0), Padding = new Thickness(0), ToolTip = tip,
+                Style = Theme.Style("GhostButton"), Foreground = Theme.Brush("Text", "#EEEEEE")
+            };
+            b.Click += (s, e) => onClick();
+            return b;
+        }
+
+        /// <summary>Swaps items i and j; false (nothing done) when j is outside the list.</summary>
+        internal static bool Swap<T>(List<T> list, int i, int j)
+        {
+            if (j < 0 || j >= list.Count) return false;
+            (list[i], list[j]) = (list[j], list[i]);
+            return true;
+        }
 
         private FrameworkElement FieldControl(SeqStep step, StepField f)
         {
@@ -155,8 +163,7 @@ namespace EasyEngine
                 case "spawn":
                 {
                     var opts = new List<(string, string)> { ("", f.Key == "bullet" ? "(a round bullet)" : f.Key == "wave" ? "(a ground wave)" : "(none)") };
-                    opts.AddRange(_ctx.Objects.Select(o => (o, o)));
-                    opts.AddRange(_ctx.Prefabs.Where(p => !_ctx.Objects.Contains(p)).Select(p => (p, p + "  (prefab)")));
+                    opts.AddRange(_ctx.ObjectsAndPrefabs);
                     ctrl = Combo(opts, cur, Set);
                     break;
                 }
@@ -170,27 +177,15 @@ namespace EasyEngine
                     ctrl = Combo(ParamSources.Keys.ToList(), cur, Set);
                     break;
                 case "var":
-                {
-                    var opts = _ctx.Variables.Select(v => (v, v)).ToList();
-                    opts.Add((NewVar, "＋ New…"));
-                    ComboBox? cb = null;
-                    cb = Combo(opts, cur, v =>
-                    {
-                        if (v != NewVar) { Set(v); return; }
-                        var name = _ctx.Owner != null ? InputDialog.Prompt(_ctx.Owner, "New", "New variable name:", "") : null;
-                        if (name == null) { cb!.SelectedItem = cb.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == step.Str(f.Key)); return; }
-                        Set(name.Trim()); Render();
-                    });
-                    ctrl = cb;
+                    ctrl = Combo(_ctx.Variables.Select(v => (v, v)).ToList(), cur, Set, "New variable name:", _ctx.Owner);
                     break;
-                }
                 case "color":
                 {
-                    var swatch = new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(3), Background = SafeHex(cur), BorderBrush = StepContext.Res("Border", "#35353F"), BorderThickness = new Thickness(1) };
+                    var swatch = new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(3), Background = Theme.Hex(cur), BorderBrush = Theme.Brush("Border", "#35353F"), BorderThickness = new Thickness(1) };
                     var hex = new TextBlock { Text = cur, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
                     var sp = new StackPanel { Orientation = Orientation.Horizontal }; sp.Children.Add(swatch); sp.Children.Add(hex);
-                    var btn = new Button { Content = sp, Height = 28, Padding = new Thickness(6, 0, 8, 0), Style = StepContext.St("CardButton"), ToolTip = "Click to pick a colour" };
-                    btn.Click += (s, e) => ColorPickerPopup.Open(btn, step.Str(f.Key, f.Default), v => { Set(v); hex.Text = v; swatch.Background = SafeHex(v); });
+                    var btn = new Button { Content = sp, Height = 28, Padding = new Thickness(6, 0, 8, 0), Style = Theme.Style("CardButton"), ToolTip = "Click to pick a colour" };
+                    btn.Click += (s, e) => ColorPickerPopup.Open(btn, step.Str(f.Key, f.Default), v => { Set(v); hex.Text = v; swatch.Background = Theme.Hex(v); });
                     ctrl = btn;
                     break;
                 }
@@ -205,24 +200,16 @@ namespace EasyEngine
                 }
             }
             var stack = new StackPanel { Margin = new Thickness(0, 0, 10, 4) };
-            stack.Children.Add(new TextBlock { Text = f.Label, Foreground = StepContext.Res("TextDim", "#8C8C97"), FontSize = 10.5, Margin = new Thickness(2, 0, 0, 1) });
+            stack.Children.Add(new TextBlock { Text = f.Label, Foreground = Theme.Brush("TextDim", "#8C8C97"), FontSize = 10.5, Margin = new Thickness(2, 0, 0, 1) });
             stack.Children.Add(ctrl);
             return stack;
         }
 
-        private static Brush SafeHex(string hex) { try { return StepContext.Hex(hex); } catch { return Brushes.Gray; } }
-
-        /// <summary>A dropdown of (value, label); a current value that isn't in the list is kept and shown.</summary>
-        internal static ComboBox Combo(List<(string value, string label)> options, string current, Action<string> set)
+        /// <summary>A <see cref="Dropdown"/> sized for the blocks.</summary>
+        internal static ComboBox Combo(List<(string value, string label)> options, string current, Action<string> set, string? newPrompt = null, Window? owner = null)
         {
-            var cb = new ComboBox { Height = 28, MinWidth = 110, MaxDropDownHeight = 320 };
-            foreach (var (v, l) in options)
-                if (!cb.Items.Cast<ComboBoxItem>().Any(i => ((string)i.Tag).Equals(v, StringComparison.OrdinalIgnoreCase)))
-                    cb.Items.Add(new ComboBoxItem { Content = l, Tag = v });
-            if (!cb.Items.Cast<ComboBoxItem>().Any(i => ((string)i.Tag).Equals(current, StringComparison.OrdinalIgnoreCase)))
-                cb.Items.Insert(0, new ComboBoxItem { Content = current.Length > 0 ? current : "(none)", Tag = current });
-            cb.SelectedItem = cb.Items.Cast<ComboBoxItem>().First(i => ((string)i.Tag).Equals(current, StringComparison.OrdinalIgnoreCase));
-            cb.SelectionChanged += (s, e) => { if (cb.SelectedItem is ComboBoxItem it) set((string)it.Tag); };
+            var cb = Dropdown.Make(options, current, set, newPrompt, owner);
+            cb.Height = 28; cb.MinWidth = 110;
             return cb;
         }
     }
@@ -249,7 +236,7 @@ namespace EasyEngine
             Title = (mode == SeqMode.Boss ? "👑 Boss — Advanced Scratch" : "🎬 Cutscene — Advanced Scratch") + (objectName.Length > 0 ? $" · {objectName}" : "");
             Width = 900; Height = 700;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            Background = StepContext.Res("Bg0", "#141418");
+            Background = Theme.Brush("Bg0", "#141418");
             BuildUi(err);
         }
 
@@ -267,14 +254,14 @@ namespace EasyEngine
             var intro = _mode == SeqMode.Boss
                 ? "ATTACKS are lists of steps. PHASES choose which attacks the boss uses — the next phase starts when its health drops to a percentage. WHEN IT DIES plays at 0 health."
                 : "The steps run one after another, top to bottom. Steps like Say, Wait, Move or Camera wait until they're done.";
-            root.Children.Add(Docked(new TextBlock { Text = intro, Foreground = StepContext.Res("TextDim", "#8C8C97"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) }, Dock.Top));
+            root.Children.Add(Docked(new TextBlock { Text = intro, Foreground = Theme.Brush("TextDim", "#8C8C97"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) }, Dock.Top));
             if (error != null)
-                root.Children.Add(Docked(new TextBlock { Text = "⚠ The JSON couldn't be read (" + error + "). Saving here replaces it.", Foreground = StepContext.Res("Danger", "#E5484D"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) }, Dock.Top));
+                root.Children.Add(Docked(new TextBlock { Text = "⚠ The JSON couldn't be read (" + error + "). Saving here replaces it.", Foreground = Theme.Brush("Danger", "#E5484D"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) }, Dock.Top));
 
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
-            var cancel = new Button { Content = "Cancel", Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = StepContext.St("GhostButton") };
+            var cancel = new Button { Content = "Cancel", Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
             cancel.Click += (s, e) => { DialogResult = false; Close(); };
-            var ok = new Button { Content = "OK", Height = 32, Padding = new Thickness(24, 0, 24, 0), Style = StepContext.St("AccentButton") };
+            var ok = new Button { Content = "OK", Height = 32, Padding = new Thickness(24, 0, 24, 0), Style = Theme.Style("AccentButton") };
             ok.Click += (s, e) => { ResultJson = Serialize(); DialogResult = true; Close(); };
             bottom.Children.Add(cancel); bottom.Children.Add(ok);
             root.Children.Add(Docked(bottom, Dock.Bottom));
@@ -284,7 +271,7 @@ namespace EasyEngine
                 var strip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
                 foreach (var (title, i) in new[] { ("⚔ Attacks", 0), ("📈 Phases", 1), ("💀 When it dies", 2) })
                 {
-                    var b = new Button { Content = title, Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 6, 0), Style = StepContext.St("CardButton") };
+                    var b = new Button { Content = title, Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 6, 0), Style = Theme.Style("CardButton") };
                     b.Click += (s, e) => ShowTab(i);
                     _tabs.Add(b); strip.Children.Add(b);
                 }
@@ -302,8 +289,8 @@ namespace EasyEngine
         {
             for (int k = 0; k < _tabs.Count; k++)
             {
-                _tabs[k].Background = k == i ? StepContext.Res("Accent", "#18B98A") : StepContext.Res("Bg2", "#24242B");
-                _tabs[k].Foreground = k == i ? StepContext.Res("AccentText", "#08130F") : StepContext.Res("Text", "#EEEEEE");
+                _tabs[k].Background = k == i ? Theme.Brush("Accent", "#18B98A") : Theme.Brush("Bg2", "#24242B");
+                _tabs[k].Foreground = k == i ? Theme.Brush("AccentText", "#08130F") : Theme.Brush("Text", "#EEEEEE");
             }
             _page.Content = _mode == SeqMode.Cutscene ? new StepListControl(_cut.Steps, SeqMode.Cutscene, _ctx)
                           : i == 0 ? AttacksPage() : i == 1 ? PhasesPage() : DeathPage();
@@ -316,10 +303,10 @@ namespace EasyEngine
             {
                 var card = new StackPanel();
                 var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-                var del = new Button { Content = "✕ Delete attack", Height = 28, Padding = new Thickness(10, 0, 10, 0), Style = StepContext.St("DangerButton") };
+                var del = new Button { Content = "✕ Delete attack", Height = 28, Padding = new Thickness(10, 0, 10, 0), Style = Theme.Style("DangerButton") };
                 del.Click += (s, e) => { _boss.Attacks.Remove(atk); foreach (var p in _boss.Phases) p.Attacks.RemoveAll(n => n == atk.Name); ShowTab(0); };
                 DockPanel.SetDock(del, Dock.Right); head.Children.Add(del);
-                head.Children.Add(new TextBlock { Text = "Attack", Foreground = StepContext.Res("TextDim", "#8C8C97"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+                head.Children.Add(new TextBlock { Text = "Attack", Foreground = Theme.Brush("TextDim", "#8C8C97"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
                 var name = new TextBox { Text = atk.Name, Width = 220, Height = 28, HorizontalAlignment = HorizontalAlignment.Left, VerticalContentAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold };
                 name.TextChanged += (s, e) => Rename(atk, name.Text.Trim());
                 head.Children.Add(name);
@@ -328,7 +315,7 @@ namespace EasyEngine
                 panel.Children.Add(Card(card));
             }
             if (_boss.Attacks.Count == 0) panel.Children.Add(Hint("No attacks yet."));
-            var add = new Button { Content = "＋ New attack", Height = 32, Padding = new Thickness(14, 0, 14, 0), HorizontalAlignment = HorizontalAlignment.Left, Style = StepContext.St("AccentButton") };
+            var add = new Button { Content = "＋ New attack", Height = 32, Padding = new Thickness(14, 0, 14, 0), HorizontalAlignment = HorizontalAlignment.Left, Style = Theme.Style("AccentButton") };
             add.Click += (s, e) =>
             {
                 int n = _boss.Attacks.Count + 1;
@@ -359,11 +346,9 @@ namespace EasyEngine
 
                 var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
                 var btns = new StackPanel { Orientation = Orientation.Horizontal };
-                var up = new Button { Content = "↑", Width = 28, Height = 28, Style = StepContext.St("GhostButton"), ToolTip = "Earlier" };
-                up.Click += (s, e) => { if (i > 0) { (_boss.Phases[i], _boss.Phases[i - 1]) = (_boss.Phases[i - 1], _boss.Phases[i]); ShowTab(1); } };
-                var dn = new Button { Content = "↓", Width = 28, Height = 28, Style = StepContext.St("GhostButton"), ToolTip = "Later" };
-                dn.Click += (s, e) => { if (i < _boss.Phases.Count - 1) { (_boss.Phases[i], _boss.Phases[i + 1]) = (_boss.Phases[i + 1], _boss.Phases[i]); ShowTab(1); } };
-                var del = new Button { Content = "✕ Delete phase", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6, 0, 0, 0), Style = StepContext.St("DangerButton") };
+                var up = StepListControl.Small("↑", "Earlier", () => { if (StepListControl.Swap(_boss.Phases, i, i - 1)) ShowTab(1); });
+                var dn = StepListControl.Small("↓", "Later", () => { if (StepListControl.Swap(_boss.Phases, i, i + 1)) ShowTab(1); });
+                var del = new Button { Content = "✕ Delete phase", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(6, 0, 0, 0), Style = Theme.Style("DangerButton") };
                 del.Click += (s, e) => { _boss.Phases.RemoveAt(i); ShowTab(1); };
                 btns.Children.Add(up); btns.Children.Add(dn); btns.Children.Add(del);
                 DockPanel.SetDock(btns, Dock.Right); head.Children.Add(btns);
@@ -404,12 +389,12 @@ namespace EasyEngine
                 pause.HorizontalAlignment = HorizontalAlignment.Left;
                 card.Children.Add(Row("Pause between attacks (s)", pause));
 
-                card.Children.Add(new TextBlock { Text = "When this phase starts", Foreground = StepContext.Res("TextDim", "#8C8C97"), Margin = new Thickness(0, 8, 0, 4) });
+                card.Children.Add(new TextBlock { Text = "When this phase starts", Foreground = Theme.Brush("TextDim", "#8C8C97"), Margin = new Thickness(0, 8, 0, 4) });
                 card.Children.Add(new StepListControl(ph.Enter, SeqMode.Boss, _ctx));
                 panel.Children.Add(Card(card));
             }
             if (_boss.Phases.Count == 0) panel.Children.Add(Hint("No phases yet — without one, the boss uses every attack at random."));
-            var add = new Button { Content = "＋ New phase", Height = 32, Padding = new Thickness(14, 0, 14, 0), HorizontalAlignment = HorizontalAlignment.Left, Style = StepContext.St("AccentButton") };
+            var add = new Button { Content = "＋ New phase", Height = 32, Padding = new Thickness(14, 0, 14, 0), HorizontalAlignment = HorizontalAlignment.Left, Style = Theme.Style("AccentButton") };
             add.Click += (s, e) =>
             {
                 var last = _boss.Phases.LastOrDefault();
@@ -431,18 +416,18 @@ namespace EasyEngine
 
         private static Border Card(UIElement child) => new()
         {
-            Background = StepContext.Res("Bg1", "#1C1C22"), BorderBrush = StepContext.Res("Border", "#35353F"), BorderThickness = new Thickness(1),
+            Background = Theme.Brush("Bg1", "#1C1C22"), BorderBrush = Theme.Brush("Border", "#35353F"), BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8), Padding = new Thickness(12), Margin = new Thickness(0, 0, 0, 10), Child = child
         };
 
-        private static TextBlock Hint(string text) => new() { Text = text, Foreground = StepContext.Res("TextDim", "#8C8C97"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 8) };
+        private static TextBlock Hint(string text) => new() { Text = text, Foreground = Theme.Brush("TextDim", "#8C8C97"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 8) };
 
         private static FrameworkElement Row(string label, UIElement content)
         {
             var g = new Grid { Margin = new Thickness(0, 2, 0, 4) };
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            var l = new TextBlock { Text = label, Foreground = StepContext.Res("TextDim", "#8C8C97"), VerticalAlignment = VerticalAlignment.Center };
+            var l = new TextBlock { Text = label, Foreground = Theme.Brush("TextDim", "#8C8C97"), VerticalAlignment = VerticalAlignment.Center };
             g.Children.Add(l);
             Grid.SetColumn(content, 1); g.Children.Add(content);
             return g;

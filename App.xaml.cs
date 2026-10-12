@@ -17,26 +17,17 @@ public partial class App : Application
     partial void SelfTestSequences(SelfTestContext c);
     partial void SelfTestTerrain(SelfTestContext c);
 
-    /// <summary>The light text colour of the dark theme (App.xaml "Text").</summary>
-    internal static System.Windows.Media.Brush ThemeText
-    {
-        get
-        {
-            var b = Current?.TryFindResource("Text") as System.Windows.Media.Brush;
-            return b ?? System.Windows.Media.Brushes.Gainsboro;
-        }
-    }
-
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         // Every window gets the theme's light text colour, and everything inside inherits it. (It used to be forced on
         // every TextBlock app-wide, which also hit the text WPF puts inside menus, tooltips and buttons → light on light.)
+        // (A local value set on Loaded: an OverrideMetadata default would not do — WPF only passes non-default values down.)
         EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((s, _) =>
         {
             if (s is Window w && w.ReadLocalValue(System.Windows.Controls.Control.ForegroundProperty) == DependencyProperty.UnsetValue)
-                w.Foreground = ThemeText;
+                w.Foreground = Theme.Brush("Text", "#DCDCDC");
         }));
 
         // exported game: EasyEngine.exe --play <project.eeproj>

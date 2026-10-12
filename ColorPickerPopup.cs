@@ -40,13 +40,11 @@ namespace EasyEngine
 
         public static string ColorToHex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
 
-        private static object Res(string key) => Application.Current.TryFindResource(key) ?? Brushes.Gray;
-
         /// <param name="onOpen">Called once when the picker opens (e.g. push an undo snapshot).</param>
         public static void Open(FrameworkElement anchor, string initial, Action<string> onPick, Action? onOpen = null)
         {
             const double Sz = 180;
-            Color start; try { start = (Color)ColorConverter.ConvertFromString(initial); } catch { start = Colors.Gray; }
+            var start = Theme.ParseColor(initial);
             ColorToHsv(start, out double H, out double S, out double V);
 
             var hueBg = new SolidColorBrush(HsvToColor(H, 1, 1));
@@ -66,14 +64,14 @@ namespace EasyEngine
             top.Children.Add(sv); top.Children.Add(hue);
 
             var hexBox = new TextBox { Width = 120, Height = 28, VerticalContentAlignment = VerticalAlignment.Center };
-            var ok = new Button { Content = "Select", Height = 28, Padding = new Thickness(14, 0, 14, 0), Margin = new Thickness(8, 0, 0, 0), Style = Res("AccentButton") as Style };
+            var ok = new Button { Content = "Select", Height = 28, Padding = new Thickness(14, 0, 14, 0), Margin = new Thickness(8, 0, 0, 0), Style = Theme.Style("AccentButton") };
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
             bottom.Children.Add(hexBox); bottom.Children.Add(ok);
 
             var panel = new StackPanel();
             panel.Children.Add(top); panel.Children.Add(bottom);
-            var rootBorder = new Border { Background = Res("Bg1") as Brush, BorderBrush = Res("Border") as Brush, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(10), Child = panel };
-            System.Windows.Documents.TextElement.SetForeground(rootBorder, (Res("Text") as Brush) ?? Brushes.Gainsboro); // a popup isn't inside the window: give it the theme text colour
+            var rootBorder = new Border { Background = Theme.Brush("Bg1", "#808080"), BorderBrush = Theme.Brush("Border", "#808080"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(10), Child = panel };
+            System.Windows.Documents.TextElement.SetForeground(rootBorder, Theme.Brush("Text", "#DCDCDC")); // a popup isn't inside the window: give it the theme text colour
             var pop = new System.Windows.Controls.Primitives.Popup { PlacementTarget = anchor, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true, Child = rootBorder };
 
             bool syncing = false;

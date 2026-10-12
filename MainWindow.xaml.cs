@@ -539,7 +539,7 @@ namespace EasyEngine
             _visuals.Clear();
             _handles.Clear();
             _tmCellRects.Clear();
-            SceneFrame.Background = BrushFrom(_scene.BackgroundColor, "#1A1A20");
+            SceneFrame.Background = Theme.Hex(_scene.BackgroundColor, "#1A1A20");
 
             if (_snap) DrawGrid();
 
@@ -680,9 +680,9 @@ namespace EasyEngine
                     border.Background = MakeImageBrush(bmp, obj);
                     RenderOptions.SetBitmapScalingMode(border, BitmapScalingMode.NearestNeighbor);
                 }
-                catch { border.Background = BrushFrom(obj.Color, "#9A9AA0"); }
+                catch { border.Background = Theme.Hex(obj.Color, "#9A9AA0"); }
             }
-            else border.Background = BrushFrom(obj.Color, "#9A9AA0");
+            else border.Background = Theme.Hex(obj.Color, "#9A9AA0");
 
             Canvas.SetLeft(border, obj.X);
             Canvas.SetTop(border, obj.Y);
@@ -1705,7 +1705,7 @@ namespace EasyEngine
                 {
                     int val = cells[r * cols + c];
                     if (val <= 0 || val > pal.Count) continue;
-                    var rect = new Rectangle { Width = ts, Height = ts, Fill = BrushFrom(pal[val - 1].color, "#888"), IsHitTestVisible = false };
+                    var rect = new Rectangle { Width = ts, Height = ts, Fill = Theme.Hex(pal[val - 1].color, "#888"), IsHitTestVisible = false };
                     Canvas.SetLeft(rect, obj.X + c * ts); Canvas.SetTop(rect, obj.Y + r * ts);
                     SceneCanvas.Children.Add(rect);
                     if (active) _tmCellRects[r * cols + c] = rect;
@@ -1739,7 +1739,7 @@ namespace EasyEngine
             int val = _tmCells[idx];
             if (val > 0 && val <= _tmPalette.Count)
             {
-                var rect = new Rectangle { Width = _tmSize, Height = _tmSize, Fill = BrushFrom(_tmPalette[val - 1].color, "#888"), IsHitTestVisible = false };
+                var rect = new Rectangle { Width = _tmSize, Height = _tmSize, Fill = Theme.Hex(_tmPalette[val - 1].color, "#888"), IsHitTestVisible = false };
                 Canvas.SetLeft(rect, _tmObj.X + c * _tmSize); Canvas.SetTop(rect, _tmObj.Y + r * _tmSize);
                 SceneCanvas.Children.Add(rect);
                 _tmCellRects[idx] = rect;
@@ -1795,7 +1795,7 @@ namespace EasyEngine
                 Width = 34, Height = 34, Margin = new Thickness(0, 0, 6, 6), Cursor = Cursors.Hand, CornerRadius = new CornerRadius(4),
                 BorderThickness = new Thickness(_tmActive == index ? 2.5 : 1),
                 BorderBrush = (SolidColorBrush)FindResource(_tmActive == index ? "Accent" : "Border"),
-                Background = index == 0 ? (SolidColorBrush)FindResource("Bg2") : BrushFrom(_tmPalette[index - 1].color, "#888")
+                Background = index == 0 ? (SolidColorBrush)FindResource("Bg2") : Theme.Hex(_tmPalette[index - 1].color, "#888")
             };
             if (index == 0) b.Child = new TextBlock { Text = "⌫", Foreground = (SolidColorBrush)FindResource("Text"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             b.ToolTip = index == 0 ? "Eraser" : (_tmPalette[index - 1].solid ? "Solid tile" : "Decoration");
@@ -1932,12 +1932,12 @@ namespace EasyEngine
         {
             // a button showing the colour: click → the colour picker (which also accepts a hex code)
             var grid = RowGrid(label, target);
-            var swatch = new Rectangle { Width = 22, Height = 22, RadiusX = 4, RadiusY = 4, Fill = BrushFrom(value, "#000"), Stroke = (Brush)FindResource("Border"), StrokeThickness = 1 };
+            var swatch = new Rectangle { Width = 22, Height = 22, RadiusX = 4, RadiusY = 4, Fill = Theme.Hex(value, "#000"), Stroke = (Brush)FindResource("Border"), StrokeThickness = 1 };
             var hexText = new TextBlock { Text = value, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             var content = new StackPanel { Orientation = Orientation.Horizontal };
             content.Children.Add(swatch); content.Children.Add(hexText);
             var btn = new Button { Content = content, Height = 30, Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(6, 0, 6, 0), ToolTip = "Click to pick a color" };
-            btn.Click += (s, e) => ShowColorPicker(btn, hexText.Text, hex => { hexText.Text = hex; swatch.Fill = BrushFrom(hex, "#000"); onChange(hex); });
+            btn.Click += (s, e) => ShowColorPicker(btn, hexText.Text, hex => { hexText.Text = hex; swatch.Fill = Theme.Hex(hex, "#000"); onChange(hex); });
             Grid.SetColumn(btn, 1); grid.Children.Add(btn);
         }
 
@@ -2044,6 +2044,11 @@ namespace EasyEngine
 
         // ---- cloud provider keys (one masked row per free provider) ----
         private bool AnyCloudKey() => CloudClient.Providers.Any(p => !string.IsNullOrWhiteSpace(AiSettings.Key(p.Id)));
+
+        /// <summary>Why the AI can't be asked right now (no cloud key / no local model chosen), or null when it's ready.</summary>
+        private string? AiNotReadyReason() =>
+            _useCloud ? (AnyCloudKey() ? null : "Add a free cloud API key first (⚙ AI settings)")
+                      : (string.IsNullOrWhiteSpace(_model) ? "Choose an AI model first (AI panel)" : null);
 
         // one-line friendly blurb shown on each free provider's card
         private static string FreeBlurb(string id) => id switch
@@ -2222,8 +2227,8 @@ namespace EasyEngine
             if (_useCloud)
             {
                 bool hasKey = AnyCloudKey();
-                OllamaDot.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : BrushFrom("#F4C03B", "#F4C03B");
-                OllamaStatus.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : BrushFrom("#F4C03B", "#F4C03B");
+                OllamaDot.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : Theme.Hex("#F4C03B", "#F4C03B");
+                OllamaStatus.Foreground = hasKey ? (SolidColorBrush)FindResource("Accent") : Theme.Hex("#F4C03B", "#F4C03B");
                 if (!hasKey)
                     OllamaStatus.Text = "☁ Cloud selected — add a free API key below (any provider works).";
                 else
@@ -2236,8 +2241,8 @@ namespace EasyEngine
 
             if (!await _ollama.IsRunningAsync())
             {
-                OllamaDot.Foreground = BrushFrom("#F4C03B", "#F4C03B");
-                OllamaStatus.Foreground = BrushFrom("#F4C03B", "#F4C03B");
+                OllamaDot.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
+                OllamaStatus.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
                 OllamaStatus.Text = "⚠ Ollama not found. The engine tries to start it automatically on launch.";
                 return;
             }
@@ -2250,8 +2255,8 @@ namespace EasyEngine
             }
             else
             {
-                OllamaDot.Foreground = BrushFrom("#F4C03B", "#F4C03B");
-                OllamaStatus.Foreground = BrushFrom("#F4C03B", "#F4C03B");
+                OllamaDot.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
+                OllamaStatus.Foreground = Theme.Hex("#F4C03B", "#F4C03B");
                 OllamaStatus.Text = $"Ollama ok, but the model isn't downloaded:\n    ollama pull {_model}";
             }
         }
@@ -2296,8 +2301,7 @@ namespace EasyEngine
         {
             var prompt = AiInput.Text.Trim();
             if (prompt.Length == 0) return;
-            if (_useCloud && !AnyCloudKey()) { Status("Add a free cloud API key first (⚙ AI settings)"); return; }
-            if (!_useCloud && string.IsNullOrWhiteSpace(_model)) { Status("Choose an AI model"); return; }
+            if (AiNotReadyReason() is string notReady) { Status(notReady); return; }
 
             if (_aiMode != AiMode.Build) // Brainstorm / Learn: just chat, never change the project
             {
@@ -3425,12 +3429,6 @@ namespace EasyEngine
         // ============================================================
         //  UTIL
         // ============================================================
-        private SolidColorBrush BrushFrom(string hex, string fallback)
-        {
-            try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); }
-            catch { try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback)); } catch { return Brushes.Gray; } }
-        }
-
         private void ShowLastAiChange()
         {
             if (string.IsNullOrEmpty(_aiLastSummary))

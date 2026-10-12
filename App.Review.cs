@@ -72,7 +72,7 @@ public partial class App
                 Shot(w, "inf_3_night", 60);
                 // underground: the first cave below the player's column, in daylight (the darkness comes from the cover)
                 w.TSetTimeNow("noon");
-                int col = w.TTerrainColumn(w.TX("Player")), surf = w.TTerrainSurfaceRow(col);
+                int col = w.TTerrainColumn(w.TX("Player"));
                 for (int c = col; c < col + 400; c++)
                 {
                     int s = w.TTerrainSurfaceRow(c), r = Enumerable.Range(s + 8, 30).FirstOrDefault(rr => w.TTerrainBlock(c, rr) == 0 && w.TTerrainBlock(c, rr - 1) == 0 && w.TTerrainBlock(c, rr + 1) != 0);

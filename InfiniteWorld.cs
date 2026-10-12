@@ -1,3 +1,5 @@
+using static EasyEngine.DemoKit;
+
 namespace EasyEngine
 {
     /// <summary>
@@ -65,30 +67,16 @@ namespace EasyEngine
             project.Scenes.Add(scene);
 
             // ---- prefabs: planted by the terrain / spawned at night / dropped ----
-            project.Prefabs.Add(new PrefabDef { Name = "Tree", Template = Tree(GameAssets.TreeSprite(project), snd) });
+            project.Prefabs.Add(new PrefabDef { Name = "Tree", Template = Tree("Tree", 0, 0, 96, 192, GameAssets.TreeSprite(project), snd.chop, snd.fall) });
             project.Prefabs.Add(new PrefabDef { Name = "Slime", Template = Slime() });
-            project.Prefabs.Add(new PrefabDef { Name = "Coin", Template = Coin() });
+            // Dynamic so a dropped coin falls to the ground where the player can reach it
+            project.Prefabs.Add(new PrefabDef { Name = "Coin", Template = Coin(PhysicsMode.Dynamic) });
 
             ProjectIO.Save(project);
             return project.FilePath!;
         }
 
         // ---------------- factories ----------------
-        private static BehaviorData B(BehaviorKind k) => BehaviorCatalog.Info(k).CreateData();
-
-        private static BehaviorData Script(string json) { var c = new BehaviorData { Kind = BehaviorKind.Custom }; c.Texts["script"] = json; return c; }
-
-        private static GameObjectData Box(string name, double x, double y, double w, double h, string color)
-            => new() { Name = name, Type = "Object", X = x, Y = y, Width = w, Height = h, Color = color, Physics = new PhysicsData { Mode = PhysicsMode.None } };
-
-        private static GameObjectData Label(string name, double x, double y, string text, string color, double size)
-        {
-            var o = Box(name, x, y, 900, size + 10, "#00000000");
-            var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Texts["align"] = "left"; lb.Nums["fontSize"] = size;
-            o.Behaviors.Add(lb);
-            return o;
-        }
-
         private static GameObjectData Player(double x, double y, (string swing, string chop, string fall, string denied) snd)
         {
             var o = new GameObjectData { Name = "Player", Type = "Player", X = x, Y = y, Width = 28, Height = 46, Color = "#3BC97A", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
@@ -108,17 +96,6 @@ namespace EasyEngine
             return o;
         }
 
-        private static GameObjectData Tree(string sprite, (string swing, string chop, string fall, string denied) snd)
-        {
-            var t = Box("Tree", 0, 0, 96, 192, "#00000000");
-            t.SpritePath = sprite;
-            var h = B(BehaviorKind.Harvestable);
-            h.Texts["tool"] = "axe"; h.Texts["drop"] = "wood"; h.Nums["hits"] = 4; h.Nums["amount"] = 5;
-            h.Texts["hitSound"] = snd.chop; h.Texts["fellSound"] = snd.fall;
-            t.Behaviors.Add(h);
-            return t;
-        }
-
         private static GameObjectData Slime()
         {
             var o = new GameObjectData { Name = "Slime", Type = "Enemy", Width = 40, Height = 30, Color = "#9B59F0", CornerRadius = 12, Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
@@ -133,16 +110,6 @@ namespace EasyEngine
                                    "{\"when\":\"timer\",\"every\":1,\"do\":\"destroy\",\"cond\":\"isDay >= 1\"}," +
                                    "{\"when\":\"death\",\"do\":\"spawn\",\"object\":\"Coin\"}," +
                                    "{\"when\":\"death\",\"do\":\"emit\",\"count\":16,\"color\":\"#9B59F0\"}]"));
-            return o;
-        }
-
-        private static GameObjectData Coin()
-        {
-            // Dynamic so a dropped coin falls to the ground where the player can reach it
-            var o = new GameObjectData { Name = "Coin", Type = "Object", Width = 22, Height = 22, Color = "#FFD24D", CornerRadius = 11, Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
-            o.Behaviors.Add(Script("[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1}," +
-                                   "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"emit\",\"count\":8,\"color\":\"#FFD24D\"}," +
-                                   "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\"}]"));
             return o;
         }
     }

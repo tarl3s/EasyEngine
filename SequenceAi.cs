@@ -56,7 +56,7 @@ namespace EasyEngine
                 sb.AppendLine("Positions: camera/move/moveto/spawn take an object name, or \"\" and then x, y (pixels, top-left of the scene). shoot pattern: ring = all around, spread = a fan toward the player's side, aimed = a fan pointed at the player; spread = the fan's angle in degrees; volleys/every/turn repeat it (turn rotates each volley: spirals). Leave \"bullet\" empty for the boss's own bullets.");
 
             var objects = ParamSources.Objects(scene);
-            var prefabs = ParamSources.Prefabs(project).Where(p => !objects.Contains(p)).ToList();
+            var prefabs = ParamSources.PrefabsNotIn(project, objects);
             sb.AppendLine("OBJECTS in the scene: " + (objects.Count > 0 ? string.Join(", ", objects) : "(none)"));
             if (prefabs.Count > 0) sb.AppendLine("PREFABS (for spawn/summon/bullet): " + string.Join(", ", prefabs));
             var sounds = ParamSources.Sounds(project);
@@ -109,13 +109,15 @@ namespace EasyEngine
             return sb.ToString();
         }
 
+        private static readonly Lazy<string> StarterBoss =
+            new(() => SequenceJson.Serialize(SequenceJson.ParseBoss(BehaviorCatalog.Info(BehaviorKind.BossAI).CreateData().Text("script"), out _)));
+
         private static bool HasContent(SeqMode mode, string json)
         {
             if (string.IsNullOrWhiteSpace(json)) return false;
             if (mode == SeqMode.Cutscene) return SequenceJson.ParseCutscene(json, out var e).Steps.Count > 0 && e == null;
             var b = SequenceJson.ParseBoss(json, out var err);
-            var starter = SequenceJson.Serialize(SequenceJson.ParseBoss(BehaviorCatalog.Info(BehaviorKind.BossAI).CreateData().Text("script"), out _));
-            return err == null && (b.Attacks.Count > 0 || b.Death.Count > 0) && SequenceJson.Serialize(b) != starter; // the starter boss counts as empty
+            return err == null && (b.Attacks.Count > 0 || b.Death.Count > 0) && SequenceJson.Serialize(b) != StarterBoss.Value; // the starter boss counts as empty
         }
 
         /// <summary>Turns a model reply into a canonical script: finds the JSON, accepts {"boss":…} or the bare object,

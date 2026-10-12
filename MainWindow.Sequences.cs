@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -12,12 +13,13 @@ namespace EasyEngine
     // (checked with the same parser the game uses), and "✨ Ask the AI" to make or change it from a description.
     public partial class MainWindow
     {
-        private readonly Dictionary<BehaviorData, string> _seqAiStatus = new(); // survives the card being rebuilt
+        private readonly ConditionalWeakTable<BehaviorData, string> _seqAiStatus = new(); // survives the card being rebuilt, not the behavior
 
         partial void SequenceCard(GameObjectData obj, BehaviorData bh, Panel panel)
         {
             var mode = bh.Kind == BehaviorKind.BossAI ? SeqMode.Boss : SeqMode.Cutscene;
-            string Script() => bh.Text("script", BehaviorCatalog.Info(bh.Kind).CreateData().Text("script"));
+            var starter = BehaviorCatalog.Info(bh.Kind).CreateData().Text("script");
+            string Script() => bh.Text("script", starter);
 
             var summary = new TextBlock { FontSize = 12, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 6), Tag = "seq-summary" };
             void ShowSummary()
@@ -73,8 +75,7 @@ namespace EasyEngine
             {
                 var request = ask.Text.Trim();
                 if (request.Length == 0) { status.Text = "Write what you want first."; return; }
-                if (_useCloud && !AnyCloudKey()) { status.Text = "Add a free cloud API key first (⚙ AI settings)."; return; }
-                if (!_useCloud && string.IsNullOrWhiteSpace(_model)) { status.Text = "Choose an AI model first (AI panel)."; return; }
+                if (AiNotReadyReason() is string notReady) { status.Text = notReady + "."; return; }
                 make.IsEnabled = false; ask.IsEnabled = false;
                 status.Text = $"Asking {ActiveModelLabel}…";
                 try
@@ -83,8 +84,8 @@ namespace EasyEngine
                                                             mode, request, Script(), _project, _scene, compact: !_useCloud);
                     if (!result.Ok) { status.Text = "⚠ The AI's answer couldn't be used: " + result.Error + ". Try describing it differently."; return; }
                     PushUndo(); bh.Texts["script"] = result.Json; Dirty();
-                    _seqAiStatus[bh] = "✓ Done — " + SequenceJson.Summary(mode, result.Json, out _).TrimStart('✓', ' ')
-                                       + (result.Notes.Count > 0 ? "\nFixed up: " + string.Join("; ", result.Notes.Take(4)) : "");
+                    _seqAiStatus.AddOrUpdate(bh, "✓ Done — " + SequenceJson.Summary(mode, result.Json, out _).TrimStart('✓', ' ')
+                                       + (result.Notes.Count > 0 ? "\nFixed up: " + string.Join("; ", result.Notes.Take(4)) : ""));
                     RefreshAfterChoiceAlways(obj);
                 }
                 catch (AiException ex) { status.Text = "⚠ " + ex.Message; }

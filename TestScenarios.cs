@@ -5,6 +5,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using static EasyEngine.DemoKit;
 
 namespace EasyEngine
 {
@@ -63,13 +64,7 @@ namespace EasyEngine
             // trees (before the player, so the player and the tool draw on top)
             foreach (var (name, x) in new[] { ("Tree1", 420.0), ("Tree2", 760.0), ("Tree3", 1100.0) })
             {
-                var t = Box(name, x, 500 - 192, 96, 192, "#00000000");
-                t.SpritePath = tree;
-                var h = B(BehaviorKind.Harvestable);
-                h.Texts["tool"] = "axe"; h.Texts["drop"] = "wood"; h.Nums["hits"] = 4; h.Nums["amount"] = 5;
-                h.Texts["hitSound"] = chop; h.Texts["fellSound"] = fall;
-                t.Behaviors.Add(h);
-                baseL.Objects.Add(Id(t));
+                baseL.Objects.Add(Id(Tree(name, x, 500 - 192, 96, 192, tree, chop, fall)));
             }
             // a rock that only the pickaxe can break (proves the axe is refused)
             var r = Box("Rock", 1380, 500 - 48, 64, 48, "#00000000");
@@ -98,7 +93,7 @@ namespace EasyEngine
 
             // R restarts the scene (resets every counter)
             var restart = Box("Restart", 0, 0, 4, 4, "#00000000");
-            restart.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] = "[{\"when\":\"keypress\",\"key\":\"R\",\"do\":\"goscene\",\"scene\":\"Axe Test\"}]" } });
+            restart.Behaviors.Add(Script("[{\"when\":\"keypress\",\"key\":\"R\",\"do\":\"goscene\",\"scene\":\"Axe Test\"}]"));
             baseL.Objects.Add(Id(restart));
 
             // HUD: instructions + live counters (left), checklist (right)
@@ -167,11 +162,10 @@ namespace EasyEngine
             dnB.Nums["dayLength"] = 20; dnB.Nums["nightLength"] = 15; dnB.Nums["transition"] = 3; dnB.Nums["nightLight"] = 0.12; dnB.Nums["arcHeight"] = 150;
             dnB.Texts["sun"] = "Sun"; dnB.Texts["moon"] = "Moon";
             dn.Behaviors.Add(dnB);
-            dn.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] =
-                "[{\"when\":\"keypress\",\"key\":\"N\",\"do\":\"settime\",\"time\":\"night\"}," +
-                "{\"when\":\"keypress\",\"key\":\"M\",\"do\":\"settime\",\"time\":\"day\"}," +
-                "{\"when\":\"keypress\",\"key\":\"Y\",\"do\":\"setvar\",\"var\":\"confirmLook\",\"to\":1}," +
-                "{\"when\":\"keypress\",\"key\":\"R\",\"do\":\"goscene\",\"scene\":\"Lighting Test\"}]" } });
+            dn.Behaviors.Add(Script("[{\"when\":\"keypress\",\"key\":\"N\",\"do\":\"settime\",\"time\":\"night\"}," +
+                                    "{\"when\":\"keypress\",\"key\":\"M\",\"do\":\"settime\",\"time\":\"day\"}," +
+                                    "{\"when\":\"keypress\",\"key\":\"Y\",\"do\":\"setvar\",\"var\":\"confirmLook\",\"to\":1}," +
+                                    "{\"when\":\"keypress\",\"key\":\"R\",\"do\":\"goscene\",\"scene\":\"Lighting Test\"}]"));
             baseL.Objects.Add(Id(dn));
 
             var panel = Box("HelpPanel", 12, 62, 600, 104, "#B0101018"); panel.CornerRadius = 8;
@@ -200,18 +194,8 @@ namespace EasyEngine
         }
 
         // ============================================================ helpers
-        private static BehaviorData B(BehaviorKind k) => BehaviorCatalog.Info(k).CreateData();
-
-        private static GameObjectData Box(string name, double x, double y, double w, double h, string color)
-            => new() { Name = name, Type = "Object", X = x, Y = y, Width = w, Height = h, Color = color, Physics = new PhysicsData { Mode = PhysicsMode.None } };
-
         private static GameObjectData Label(string name, double x, double y, string text, string color, double size)
-        {
-            var o = Box(name, x, y, 900, size + 8, "#00000000");
-            var lb = B(BehaviorKind.Label); lb.Texts["text"] = text; lb.Texts["color"] = color; lb.Texts["align"] = "left"; lb.Nums["fontSize"] = size;
-            o.Behaviors.Add(lb);
-            return o;
-        }
+            => DemoKit.Label(name, x, y, text, color, size, pad: 8); // a little tighter than the demos' HUD lines
 
         // OneDrive can briefly lock files: retry, then fail with a clear message.
         internal static void TryDeleteDir(string dir)
@@ -238,7 +222,7 @@ namespace EasyEngine
         public static string TreeSprite(Project p) => ProjectIO.SaveSprite(p, Draw(96, 192, DrawTree), "tree");
         public static string RockSprite(Project p) => ProjectIO.SaveSprite(p, Draw(64, 48, DrawRock), "rock");
 
-        private static BitmapSource Draw(int w, int h, Action<DrawingContext, int, int> draw)
+        public static BitmapSource Draw(int w, int h, Action<DrawingContext, int, int> draw)
         {
             var dv = new DrawingVisual();
             using (var dc = dv.RenderOpen()) draw(dc, w, h);
@@ -248,7 +232,7 @@ namespace EasyEngine
             return rtb;
         }
 
-        private static SolidColorBrush Br(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
+        public static SolidColorBrush Br(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
 
         private static void DrawTree(DrawingContext dc, int w, int h)
         {

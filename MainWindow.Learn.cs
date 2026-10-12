@@ -76,18 +76,23 @@ namespace EasyEngine
             return sb.ToString();
         }
 
+        // Every phrase that names behaviors — the synonyms, then each behavior's kind and the parts of its name — as a
+        // whole-word pattern (plural allowed), built once.
+        private static readonly Lazy<List<(Regex phrase, BehaviorKind[] kinds)>> LearnPhrases = new(() =>
+            LearnSynonyms.SelectMany(s => s.words.Select(w => (w, s.kinds)))
+                .Concat(BehaviorCatalog.All.SelectMany(info => info.Name.Split('(', ')', '/').Select(p => p.Trim()).Where(p => p.Length >= 3)
+                    .Prepend(info.Kind.ToString()).Select(p => (p, new[] { info.Kind }))))
+                .Select(x => (new Regex($@"\b{Regex.Escape(Fold(x.Item1))}(s|es)?\b"), x.Item2)).ToList());
+
         /// <summary>The behaviors a question is about: synonyms (PT/EN), behavior names and kinds, and ResolveKind's words.</summary>
         private static List<BehaviorKind> MatchBehaviors(string question)
         {
             var q = Fold(question);
             var found = new List<BehaviorKind>();
             void Add(BehaviorKind k) { if (!found.Contains(k)) found.Add(k); }
-            bool Has(string phrase) => Regex.IsMatch(q, $@"\b{Regex.Escape(Fold(phrase))}(s|es)?\b");
 
-            foreach (var (words, kinds) in LearnSynonyms)
-                if (words.Any(Has)) foreach (var k in kinds) Add(k);
-            foreach (var info in BehaviorCatalog.All)
-                if (Has(info.Kind.ToString()) || info.Name.Split('(', ')', '/').Select(p => p.Trim()).Any(p => p.Length >= 3 && Has(p))) Add(info.Kind);
+            foreach (var (phrase, kinds) in LearnPhrases.Value)
+                if (phrase.IsMatch(q)) foreach (var k in kinds) Add(k);
             foreach (var word in Regex.Split(q, "[^a-z]+").Where(w => w.Length >= 3))
                 if (ResolveKind(word) is BehaviorKind k) Add(k);
             return found;
