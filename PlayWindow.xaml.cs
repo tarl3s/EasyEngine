@@ -116,7 +116,7 @@ namespace EasyEngine
 
         private readonly List<Entity> _entities = new();
         private readonly List<Entity> _solids = new();
-        private readonly HashSet<Key> _keys = new();
+        private HashSet<Key> _keys = new(); // swapped for an empty set while a cutscene locks the player (PlayWindow.Sequences.cs)
         private readonly List<MediaPlayer> _players = new();
         private readonly Dictionary<string, BitmapImage> _imgCache = new();
 
@@ -208,7 +208,7 @@ namespace EasyEngine
             PreviewKeyDown += (s, e) =>
             {
                 if (e.Key == Key.F1) { if (DevTools) ToggleConsole(); e.Handled = true; return; }
-                if (e.Key == Key.Escape) { if (Typing) { FocusGame(); e.Handled = true; } else Close(); return; }
+                if (e.Key == Key.Escape && !CutsceneTakesEscape) { if (Typing) { FocusGame(); e.Handled = true; } else Close(); return; } // Esc skips a skippable cutscene
                 if (Typing) return;
                 bool fresh = _keys.Add(e.Key);
                 if (fresh && !MovementKeys.Contains(e.Key)) Info("Input", "", $"Key {e.Key}");
@@ -1047,6 +1047,7 @@ namespace EasyEngine
                             _vars[bh.Text("var", "health")] = en.CurHealth;
                             if (en.CurHealth <= 0)
                             {
+                                if (BossDying(en)) break; // a boss with a death sequence plays it first (PlayWindow.Boss.cs)
                                 if (bh.Num("respawn", 1) >= 0.5)
                                 {
                                     en.CurHealth = en.MaxHealth;
@@ -1060,9 +1061,14 @@ namespace EasyEngine
                         }
                         case BehaviorKind.Damager:
                         {
+                            if (BossIsDying(en)) break; // a dying boss no longer hurts
                             var t = _entities.FirstOrDefault(x => !x.Dead && x != en && x.Has(BehaviorKind.Health) && x.Data.Name == bh.Text("target", "Player"));
                             if (t != null && Overlap(en, t))
+                            {
+                                bool hits = t.InvTimer <= 0;
                                 DamageEntity(t, bh.Num("damage", 1), bh.Num("knockback", 320), en.CX);
+                                if (hits && bh.Num("vanish", 0) >= 0.5) en.Dead = true; // a bullet/wave is used up by its hit
+                            }
                             break;
                         }
                         case BehaviorKind.DayNight: UpdateDayNight(en, bh, dt); break;
@@ -2650,6 +2656,7 @@ namespace EasyEngine
             if (t.InvTimer > 0) return;
             t.CurHealth -= amount;
             t.InvTimer = Math.Max(0.3, t.Beh(BehaviorKind.Health)?.Num("invincible", 1) ?? 0.5);
+            if (BossIsHeavy(t)) return; // a heavy boss isn't pushed around
             double dir = t.CX < fromCX ? -1 : 1;
             t.VX = dir * kb; t.VY = -kb * 0.6;
         }
@@ -2677,12 +2684,13 @@ namespace EasyEngine
             AddEntity(clone);
         }
 
-        private void SpawnBullet(Entity shooter, double angleDeg, double speed, double life, string bulletName)
+        // fallback = what to fire when no prefab has that name (default: a plain yellow bullet)
+        private Entity SpawnBullet(Entity shooter, double angleDeg, double speed, double life, string bulletName, GameObjectData? fallback = null)
         {
             GameObjectData data;
             var prefab = _project.Prefabs.FirstOrDefault(p => p.Name.Equals(bulletName, StringComparison.OrdinalIgnoreCase));
             if (prefab != null) data = JsonClone(prefab.Template);
-            else data = new GameObjectData { Type = "Bullet", Color = "#F4C03B", Width = 14, Height = 14 };
+            else data = fallback ?? new GameObjectData { Type = "Bullet", Color = "#F4C03B", Width = 14, Height = 14 };
 
             var proj = data.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Projectile);
             if (proj == null) { proj = BehaviorCatalog.Info(BehaviorKind.Projectile).CreateData(); data.Behaviors.Add(proj); }
@@ -2691,7 +2699,7 @@ namespace EasyEngine
             data.X = shooter.CX - data.Width / 2;
             data.Y = shooter.CY - data.Height / 2;
             data.Name = "bullet";
-            AddEntity(data);
+            return AddEntity(data);
         }
 
         private static Key ParseKey(string s)
