@@ -4,7 +4,7 @@ using static EasyEngine.DemoKit;
 namespace EasyEngine
 {
     /// <summary>
-    /// The Mining demo's loop, seen from above: walk in 8 directions, pick up coins, buy a pickaxe and an axe,
+    /// The Mining Demo's loop, seen from above: walk in 8 directions, pick up coins, buy a pickaxe and an axe,
     /// chop trees (wood) and break rocks (stone + a coin), craft a sword at the bench from wood, and survive the
     /// night, when slimes come out of the forest and the quarry (they melt at sunrise). No ground breaking.
     /// </summary>

@@ -64,7 +64,7 @@ old version and opens again. Your projects are never touched. The sample games a
 - **✨ Ask the AI** inside the Boss and Cutscene editors: describe it, the AI writes the steps.
 - **World** — AABB physics, one-way and moving platforms, tilemaps (breakable), **procedural generation**, and an
   **endless terrain generator** (hills, caves, ores, trees) you can mine.
-- **Day & night and lighting** — sun and moon, torches and lamps, darker underground, and a **block-by-block
+- **Day & night and lighting** — sun and moon, torches and lamps, darker underground, and **pixel-style
   block lighting** where walls stop the light and torches colour what they touch. **Minimap** with a big map on a key.
 - **Look and feel** — sprite animations, a built-in **pixel-art editor**, particles, tweens with easing, bars,
   text effects, dialogue box styles, sound with volume channels.

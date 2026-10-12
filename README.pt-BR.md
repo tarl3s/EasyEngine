@@ -68,7 +68,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 - **Mundo** — física AABB, plataformas de um sentido e móveis, tilemaps (quebráveis), **geração procedural** e um
   **gerador de terreno infinito** (morros, cavernas, minérios, árvores) que dá pra minerar.
 - **Dia, noite e iluminação** — sol e lua, tochas e lâmpadas, escuridão no subterrâneo, e uma **iluminação por
-  blocos no estilo Mining**, em que paredes bloqueiam a luz e as tochas colorem o que tocam. **Minimapa** com mapa
+  blocos**, em que paredes bloqueiam a luz e as tochas colorem o que tocam. **Minimapa** com mapa
   grande numa tecla.
 - **Visual** — animações de sprite, **editor de pixel art** embutido, partículas, tweens com easing, barras, efeitos
   de texto, estilos de caixa de diálogo, som com canais de volume.

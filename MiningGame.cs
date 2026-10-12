@@ -5,7 +5,7 @@ using static EasyEngine.DemoKit;
 namespace EasyEngine
 {
     /// <summary>
-    /// Builds a Mining demo entirely from engine features: procedural coins (once),
+    /// Builds the Mining Demo entirely from engine features: procedural coins (once),
     /// breakable ground/stone/trees mined with the right tool, a hotbar (mouse wheel) that shows
     /// the held tool in hand, shops + a crafting bench, a health bar, enemies that drop coins,
     /// a day/night cycle with a sun & moon, particles and light.
