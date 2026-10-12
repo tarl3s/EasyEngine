@@ -126,7 +126,7 @@ public partial class App
         });
 
         // ---------------- a Light's block options ----------------
-        t.Test("light: its block options show only in Blocks lighting; otherwise one click switches the Day/Night to Blocks", () =>
+        t.Test("light: its block options show only in Blocks lighting; the Light card switches the scene between Smooth and Blocks, both ways", () =>
         {
             var scene = new Scene { Name = "S" };
             var layer = new Layer { Name = "Base" }; scene.Layers.Add(layer);
@@ -134,12 +134,14 @@ public partial class App
             layer.Objects.Add(lamp);
             var info = BehaviorCatalog.Info(BehaviorKind.LightSource);
             bool Shown(string key) => info.Nums.First(n => n.Key == key) is var n && (n.ShowIf == null || n.ShowIf(new ParamCtx(light, lamp, scene)));
-            bool noDayNight = !Shown("stopByBlocks") && !EasyEngine.MainWindow.UseBlockLighting(scene) && Shown("radius");
+            bool noDayNight = !Shown("stopByBlocks") && !EasyEngine.MainWindow.SetBlockLighting(scene, true) && Shown("radius");
             var sky = new GameObjectData { Name = "Sky" }; var dn = BehaviorCatalog.Info(BehaviorKind.DayNight).CreateData(); dn.Nums["lightStyle"] = 0; sky.Behaviors.Add(dn);
             layer.Objects.Add(sky);
             bool smooth = !BehaviorCatalog.BlockLighting(scene) && !Shown("tint") && !Shown("addUp");
-            bool switched = EasyEngine.MainWindow.UseBlockLighting(scene) && dn.Num("lightStyle", 0) == 1;
-            return noDayNight && smooth && switched && BehaviorCatalog.BlockLighting(scene) && Shown("stopByBlocks") && Shown("tint") && Shown("addUp");
+            bool switched = EasyEngine.MainWindow.SetBlockLighting(scene, true) && dn.Num("lightStyle", 0) == 1;
+            bool blocks = BehaviorCatalog.BlockLighting(scene) && Shown("stopByBlocks") && Shown("tint") && Shown("addUp");
+            bool back = EasyEngine.MainWindow.SetBlockLighting(scene, false) && dn.Num("lightStyle", 1) == 0 && !Shown("stopByBlocks"); // and back to Smooth
+            return noDayNight && smooth && switched && blocks && back;
         });
 
         // ---------------- temporary files ----------------

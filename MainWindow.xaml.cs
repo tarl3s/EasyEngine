@@ -1586,6 +1586,7 @@ namespace EasyEngine
             }
             else
             {
+                if (bh.Kind == BehaviorKind.LightSource) LightStyleRow(obj, info, panel);
                 foreach (var np in info.Nums)
                 {
                     if (bh.Kind == BehaviorKind.AdvancedPatrol && np.Key == "mode")
@@ -1612,7 +1613,6 @@ namespace EasyEngine
                 }
                 foreach (var tp in info.Texts)
                     ParamRow(obj, bh, info, tp, panel); // every parameter is picked (dropdowns, pickers, item editor) — see MainWindow.Params.cs
-                if (bh.Kind == BehaviorKind.LightSource && !BehaviorCatalog.BlockLighting(_scene)) LightStyleHint(obj, panel);
             }
 
             InspectorRoot.Children.Add(new Border
@@ -1624,30 +1624,41 @@ namespace EasyEngine
             });
         }
 
-        // A Light in "Smooth" lighting (or with no Day/Night): its block options don't exist there, so say how to get them.
-        private void LightStyleHint(GameObjectData obj, Panel panel)
+        // On a Light: the scene's lighting style (it lives on the Day/Night, but this is where it matters), both ways —
+        // a Light's block options only exist in Blocks; in Smooth the card says so. With no Day/Night, how lights work.
+        private void LightStyleRow(GameObjectData obj, BehaviorInfo info, Panel panel)
         {
-            bool hasDayNight = UseBlockLighting(_scene, dryRun: true);
+            var dn = DayNightOf(_scene);
+            if (dn != null)
+            {
+                var styles = CatalogOptions(BehaviorCatalog.Info(BehaviorKind.DayNight).Nums.First(n => n.Key == "lightStyle").Options);
+                PickRow(L.T("Lighting style (the scene's Day/Night)"), panel, styles, dn.Num("lightStyle", 0) >= 0.5 ? "1" : "0", false, null, v =>
+                {
+                    SetBlockLighting(_scene, v == "1");
+                    Dirty(); RefreshAfterChoice(obj, info);
+                    Status(v == "1" ? L.T("Day/Night now lights the scene block by block.") : L.T("Day/Night now lights the scene with soft circles."));
+                });
+                if (dn.Num("lightStyle", 0) >= 0.5) return;
+            }
             panel.Children.Add(new TextBlock
             {
-                Text = hasDayNight
+                Text = dn != null
                     ? L.T("Blocks stopping this light, colouring what it touches and adding up with other lights need Day/Night → Lighting style: Blocks.")
                     : L.T("Lights shine in the dark of a Day/Night cycle. Add Day/Night to an object, with Lighting style: Blocks, for light that blocks stop and that colours what it touches."),
-                TextWrapping = TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 8, 0, 0), Foreground = (SolidColorBrush)FindResource("TextDim")
+                TextWrapping = TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 4, 0, 6), Foreground = (SolidColorBrush)FindResource("TextDim")
             });
-            if (!hasDayNight) return;
-            var btn = new Button { Content = L.T("💡 Use Blocks lighting"), Height = 28, Margin = new Thickness(0, 6, 0, 0), Style = (Style)FindResource("CardButton") };
-            btn.Click += (s, e) => { PushUndo(); UseBlockLighting(_scene); BuildInspector(obj); Dirty(); Status(L.T("Day/Night now lights the scene block by block.")); };
-            panel.Children.Add(btn);
         }
 
-        /// <summary>Switches the scene's Day/Night to "Blocks" lighting; false if the scene has no Day/Night. With
-        /// <paramref name="dryRun"/> it only answers whether there is one.</summary>
-        public static bool UseBlockLighting(Scene scene, bool dryRun = false)
+        private static BehaviorData? DayNightOf(Scene scene) =>
+            scene.Layers.SelectMany(l => l.Objects).SelectMany(o => o.Behaviors).FirstOrDefault(b => b.Kind == BehaviorKind.DayNight);
+
+        /// <summary>Sets the scene's Day/Night lighting to Blocks (<paramref name="blocks"/>) or Smooth; false if the scene
+        /// has no Day/Night.</summary>
+        public static bool SetBlockLighting(Scene scene, bool blocks)
         {
-            var dn = scene.Layers.SelectMany(l => l.Objects).SelectMany(o => o.Behaviors).FirstOrDefault(b => b.Kind == BehaviorKind.DayNight);
+            var dn = DayNightOf(scene);
             if (dn == null) return false;
-            if (!dryRun) dn.Nums["lightStyle"] = 1;
+            dn.Nums["lightStyle"] = blocks ? 1 : 0;
             return true;
         }
 

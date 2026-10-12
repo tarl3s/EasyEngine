@@ -244,6 +244,7 @@ Day	step settime
 Day / Night cycle	behavior DayNight
 Day length (seconds)	behavior DayNight
 Day/Night now lights the scene block by block.	MainWindow.xaml.cs
+Day/Night now lights the scene with soft circles.	MainWindow.xaml.cs
 Day/Night: {0}	Model.cs
 Decoration	MainWindow.xaml.cs
 Default controls (WASD / arrows) (0/1)	behavior TopDown
@@ -497,6 +498,7 @@ Light	behavior LightSource
 Light block size	behavior DayNight
 Light mode	SettingsWindow.cs
 Lighting style	behavior DayNight
+Lighting style (the scene's Day/Night)	MainWindow.xaml.cs
 Lights shine in the dark of a Day/Night cycle. Add Day/Night to an object, with Lighting style: Blocks, for light that blocks stop and that colours what it touches.	MainWindow.xaml.cs
 Lights up the darkness around it (things near it show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).	behavior LightSource
 Lines (Text => condition)	behavior Checklist
@@ -1170,7 +1172,6 @@ y	step camera, step move, step moveto, step spawn
 💀 When it dies	SequenceEditorWindow.cs
 💉 Pick	SpriteEditorWindow.cs
 💡 Brainstorm	MainWindow.xaml
-💡 Use Blocks lighting	MainWindow.xaml.cs
 💳 Claude / Anthropic (your API key)	MainWindow.xaml
 💳 Custom — any OpenAI-compatible (your API key)	MainWindow.xaml
 💳 DeepSeek (your API key)	MainWindow.xaml
