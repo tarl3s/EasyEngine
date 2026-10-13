@@ -126,12 +126,12 @@ namespace EasyEngine
             sb.AppendLine();
 
             var visible = BehaviorCatalog.All.Where(i => !i.Hidden).ToList();
+            var matched = MatchBehaviors(question).Select(k => visible.Find(i => i.Kind == k)).OfType<BehaviorInfo>().Take(6).ToList();
             sb.AppendLine("BEHAVIORS (added with Inspector → ＋ Add behavior…)");
             IEnumerable<BehaviorInfo> detailed = visible;
             if (compact) // small local models: the names of all, details only for what the question is about
             {
                 sb.AppendLine("All behaviors: " + string.Join(", ", visible.Select(i => $"{i.Icon} {i.Name}")));
-                var matched = MatchBehaviors(question).Select(k => visible.Find(i => i.Kind == k)).OfType<BehaviorInfo>().Take(6).ToList();
                 detailed = matched.Count > 0 ? matched : CommonBehaviors.Select(BehaviorCatalog.Info);
                 sb.AppendLine();
             }
@@ -141,6 +141,7 @@ namespace EasyEngine
             if (_selected != null)
                 sb.AppendLine($"Selected object: \"{_selected.Name}\" with behaviors: " +
                               (_selected.Behaviors.Count > 0 ? string.Join(", ", _selected.Behaviors.Select(b => { var i = BehaviorCatalog.Info(b.Kind); return $"{i.Icon} {i.Name}"; })) : "(none)") + ".");
+            if (matched.Count > 0) sb.AppendLine("This question is about: " + string.Join(", ", matched.Select(i => $"{i.Icon} {i.Name}")) + " (described above) — build the answer on them.");
             sb.AppendLine();
             sb.AppendLine("HOW TO REPLY");
             sb.AppendLine("- Answer in the same language the user writes in.");

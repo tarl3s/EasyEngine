@@ -237,6 +237,35 @@ namespace EasyEngine
             }
         }
 
+        /// <summary>
+        /// Clean-ups that need the request and the object the rules belong to (both AI paths: the Build panel and the block
+        /// editor), for what small models write but don't mean: a touch of the object itself (the other one is the player),
+        /// "addvar score * 2" for doubling (= setvar), "keypress" for "while I hold", a loop/yoyo copied from the blink hint
+        /// onto a one-time change. Takes and returns a rule array as JSON; never throws.
+        /// </summary>
+        public static string ForRequest(string rulesJson, string request, string ownName)
+        {
+            try
+            {
+                if (JsonNode.Parse(rulesJson, null, LooseJson.Options) is not JsonArray rules) return rulesJson;
+                var p = (request ?? "").ToLowerInvariant();
+                bool hold = System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(hold|holds|holding|held|keep pressing|segur|mantén|mantener|pressionad)");
+                bool repeat = System.Text.RegularExpressions.Regex.IsMatch(p, @"blink|pisca|parpad|pulse|pulsa|loop|repeat|again|forever|back and forth|vai e volta|sempre|siempre|keeps|non-stop");
+                foreach (var r in rules.OfType<JsonObject>())
+                {
+                    var when = Str(r["when"]); var act = Str(r["do"]);
+                    if (when == "touch" && ownName.Length > 0 && Str(r["name"]).Equals(ownName, StringComparison.OrdinalIgnoreCase)) r["name"] = "Player";
+                    if (act is "addvar" or "addlocal" && r["amount"] == null && Str(r["expr"] ?? r["to"]) is { Length: > 0 } f
+                        && System.Text.RegularExpressions.Regex.IsMatch(f, $@"\b{System.Text.RegularExpressions.Regex.Escape(Str(r["var"]))}\b"))
+                    { r["do"] = act == "addvar" ? "setvar" : "setlocal"; if (r["to"] == null) { r["to"] = f; r.Remove("expr"); } }
+                    if (hold && when == "keypress") { r["when"] = "key"; r.Remove("cooldown"); }
+                    if (!repeat && act == "tween") { r.Remove("loop"); r.Remove("yoyo"); }
+                }
+                return rules.ToJsonString();
+            }
+            catch (Exception) { return rulesJson; }
+        }
+
         // actions a model sometimes adds as a key to a rule that already does something else, and the param their value is
         private static readonly (string action, string? param)[] SecondActions =
             { ("additem", "item"), ("removeitem", "item"), ("goscene", "scene"), ("say", "text"), ("tint", "color"), ("destroy", null), ("emit", "count"), ("spawn", "object") };

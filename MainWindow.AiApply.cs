@@ -65,7 +65,7 @@ namespace EasyEngine
                 if (spec.TryGetProperty(key, out var c)) { AiSpecFix.CollectRules(c, impliedRules); break; }
             if (impliedRules.Count > 0)
             {
-                using var rulesDoc = JsonDocument.Parse(AiSpecFix.Rules(impliedRules, _aiNotes));
+                using var rulesDoc = JsonDocument.Parse(AiSpecFix.ForRequest(AiSpecFix.Rules(impliedRules, _aiNotes), userPrompt, target.Name));
                 var cust = rulesDoc.RootElement;
                 if (cust.GetArrayLength() > 0)
                 {

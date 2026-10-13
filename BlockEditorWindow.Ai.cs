@@ -77,7 +77,7 @@ namespace EasyEngine
                 if (got.Count == 0) // one firmer try
                     got = ReadAiReply(await _generate("Make blocks for: " + request + "\nYour last answer had no usable rule. Answer ONLY with JSON like "
                         + "{\"rules\":[{\"when\":\"timer\",\"every\":2,\"do\":\"jump\",\"force\":600}]} using ONLY the event and action ids listed.", system));
-                int added = AddRules(got.Json);
+                int added = AddRules(AiSpecFix.ForRequest(got.Json, request, _obj?.Name ?? ""));
                 var left = got.Dropped.Count > 0 ? "\n" + L.F("Left out (not a block): {0}", string.Join("; ", got.Dropped.Take(4))) : "";
                 _aiStatus.Text = (added > 0 ? L.F("✓ Added {0} block(s) at the end — check them and change anything you like.", added)
                                             : L.T("⚠ The AI's answer had no usable blocks. Try describing it differently.")) + left;

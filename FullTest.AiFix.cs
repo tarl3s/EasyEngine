@@ -359,5 +359,15 @@ public partial class App
             return all.Count(o => o.Name.StartsWith("Coin")) == 3 && !all.Any(o => o.Name.StartsWith("Spike")) && !all.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.GoToScene))
                    && !all.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Patrol && o.Name.StartsWith("Enemy")));
         });
+        t.Test("ai fix (request-aware): touching itself means the player, addvar 'score * 2' doubles, 'hold' is key, no loop unless asked", () =>
+        {
+            var fixedJson = AiSpecFix.ForRequest("[{\"when\":\"touch\",\"name\":\"Sign\",\"do\":\"say\",\"text\":\"Hi\"},{\"when\":\"touch\",\"name\":\"Star\",\"do\":\"addvar\",\"var\":\"score\",\"expr\":\"score * 2\"}," +
+                "{\"when\":\"keypress\",\"key\":\"R\",\"cooldown\":0.3,\"do\":\"rotate\",\"speed\":180},{\"when\":\"after\",\"seconds\":3,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"loop\":true,\"yoyo\":true}]",
+                "rotate while I hold R; double the score; fade after 3 seconds", "Sign");
+            var r = App.AiEvalKit.RulesOf(fixedJson);
+            var blink = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest("[{\"when\":\"start\",\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"loop\":1,\"yoyo\":1}]", "make the Box blink", "Box"));
+            return r.Count == 4 && Is(r[0], "name", "Player") && Is(r[1], "do", "setvar") && Is(r[1], "to", "score * 2") && Is(r[2], "when", "key") && !r[2].ContainsKey("cooldown")
+                   && !r[3].ContainsKey("loop") && !r[3].ContainsKey("yoyo") && blink.Count == 1 && blink[0].ContainsKey("loop");
+        });
     }
 }
