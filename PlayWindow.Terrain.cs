@@ -589,6 +589,7 @@ namespace EasyEngine
         // (at the spawner's feet level when there is no terrain).
         private void SpawnNear(Entity spawner, string name)
         {
+            if (TooManyToSpawn(spawner)) return;
             var template = FindTemplateOrPrefab(name);
             if (template == null) return;
             double side = _rng.Next(2) == 0 ? -1 : 1, d = 300 + _rng.NextDouble() * 200;

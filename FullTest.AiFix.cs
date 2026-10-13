@@ -378,5 +378,18 @@ public partial class App
             bool onStars = new[] { "Star", "Star2" }.All(n => App.AiEvalKit.Rules(ed.TestFindObject(n)).Any(r => Is(r, "when", "touch") && Is(r, "name", "Player") && Is(r, "do", "destroy")));
             return onStars && mine.Count == 1 && Is(mine[0], "do", "setvar");
         });
+        t.Test("safety: a spawner that spawns copies of itself every frame stops at the live-object cap and says why once", () =>
+        {
+            var pw = PlayWindow.NewScriptSim("[]", out _, extra: (p, s) =>
+            {
+                var a = s.Layers.SelectMany(l => l.Objects).First(o => o.Name == "A");
+                var sp = BehaviorCatalog.Info(BehaviorKind.Spawner).CreateData();
+                sp.Texts["target"] = "A"; sp.Texts["key"] = ""; sp.Nums["interval"] = 0; sp.Nums["max"] = 0;
+                a.Behaviors.Add(sp);
+            });
+            t.Sims.Add(pw);
+            pw.TSteps(240);
+            return pw.TLiveCount <= 3000 && pw.TLiveCount > 100 && pw.TLogCount("Spawn", "Too many") == 1;
+        });
     }
 }

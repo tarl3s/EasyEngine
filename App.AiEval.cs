@@ -97,6 +97,12 @@ namespace EasyEngine
                 catch (CloudException ex) when (ex.RateLimited || ex.Message.Contains("quota")) { verdict = "SKIP"; skipped++; detail = "  (no AI answer: " + ex.Message + ")"; } // free tier used up — not the AI's fault
                 catch (Exception ex) { verdict = "ERROR"; fails.Add(c.Id); detail = "  " + ex.GetType().Name + ": " + ex.Message; }
                 finally { kit.Dispose(); }
+                // memory after each case (a run once grew to 15 GB and slowed the owner's computer): logged, and the eval
+                // stops itself before it can take the machine down
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                long mb = Process.GetCurrentProcess().WorkingSet64 / (1024 * 1024);
+                detail += $"\n  MEM {mb} MB";
+                if (mb > 6000) { try { File.AppendAllText(log, $"\nSTOPPED: the eval used {mb} MB after [{c.Id}] — look at that case\n"); } catch { } break; }
                 var line = $"{verdict}  [{c.Id}] {c.Prompt}  ({sw.Elapsed.TotalSeconds:0.0}s)\n{detail}\n";
                 if (shownPrompt.Length > 0) line += "  PROMPT:\n" + shownPrompt + "\n";
                 try { File.AppendAllText(log, line); } catch { }

@@ -1370,7 +1370,7 @@ namespace EasyEngine
                             else
                             {
                                 en.SpawnTimer += dt;
-                                if (en.SpawnTimer >= bh.Num("interval", 1.5) && (max <= 0 || en.Spawned < max))
+                                if (en.SpawnTimer >= Math.Max(0.05, bh.Num("interval", 1.5)) && (max <= 0 || en.Spawned < max))
                                 { en.SpawnTimer = 0; SpawnFrom(en, bh.Text("target", "Enemy"), atTop); en.Spawned++; }
                             }
                             break;
@@ -2984,8 +2984,20 @@ namespace EasyEngine
 
         private Random _rng = new(); // tests seed it (TSeed) so random layouts and boss attacks repeat
 
+        // A safety net for runaway spawning (an interval of 0, a spawned copy that spawns copies of itself…): past this many
+        // live objects nothing more appears, and the console says why once. A real game never gets near it.
+        private const int MaxLiveObjects = 3000;
+        private bool _warnedTooMany;
+        private bool TooManyToSpawn(Entity spawner)
+        {
+            if (_entities.Count < MaxLiveObjects) return false;
+            if (!_warnedTooMany) { _warnedTooMany = true; Warn("Spawn", spawner.Data.Name, $"Too many objects ({MaxLiveObjects}): nothing more is spawned", "Something keeps spawning without a limit: give its Spawner a Max or a longer Interval, and make sure what it spawns doesn't spawn copies of itself."); }
+            return true;
+        }
+
         private void SpawnFrom(Entity spawner, string targetName, bool atTop = false)
         {
+            if (TooManyToSpawn(spawner)) return;
             // find the thing to spawn: an object in the scene, OR a prefab from the library
             var template = FindTemplateOrPrefab(targetName);
             if (template == null) return;
