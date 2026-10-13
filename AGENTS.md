@@ -15,7 +15,7 @@ that game needs come first (rotational physics/ragdolls/vehicles come last). Lon
 - Repo: `github.com/tarl3s/EasyEngine` — **public** (MIT, since v0.11.0), branch `main`. Everything you push is public:
   no secrets, no personal paths in docs meant for players. `README.md` (English) and `README.pt-BR.md` are the public
   face — keep both in sync when features change.
-- Version: `0.12.0` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
+- Version: `0.12.1` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
 - The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
   this file are in **English** (the editor UI is 100% English by request; only `README.md` is Portuguese).
 
@@ -46,7 +46,7 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
 | `--aitest [--model m \| --cloud [auto\|groq…]] [--compact] [--only id,id]` | **graded** AI eval (`App.AiEval.cs`): ~75 real requests (moves, timers, enemies, bosses, HUD, whole levels, edits, Portuguese, the Boss/Cutscene cards' ✨ Ask the AI), each checked on the resulting project and by playing it headless. Needs a running AI; the cloud free tiers have daily quotas — rerun failures with `--only` | `easyengine_aitest.log` |
 
-Last known green: fulltest 586/586, e2e 67/67, behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest cloud 75/78 answered, local qwen2.5-coder 1.5b 43/82.
+Last known green: fulltest 591/591, e2e 67/67, behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest cloud 75/78 answered, local qwen2.5-coder 1.5b 52/82.
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 
