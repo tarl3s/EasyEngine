@@ -62,7 +62,8 @@ old version and opens again. Your projects are never touched. The sample games a
 - **🎬 Cutscenes** — dialogue, camera moves, big titles, fades, cinema bars, moving characters, locking the controls;
   triggered on start, entering an area, a variable or a key.
 - **✨ Ask the AI** inside the Boss and Cutscene editors: describe it, the AI writes the steps.
-- **World** — AABB physics, one-way and moving platforms, tilemaps (breakable), **procedural generation**, and a
+- **World** — AABB physics (hitboxes can fit the drawing, ignoring a sprite's empty margins), one-way and moving
+  platforms, tilemaps (breakable), **procedural generation**, and a
   **terrain generator** (hills, caves, ores, trees, plus your own blocks — clouds, deeper ores, biomes) you can mine,
   endless or with a size you choose.
 - **Day & night and lighting** — sun and moon, torches and lamps, darker underground, and **pixel-style

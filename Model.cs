@@ -162,6 +162,8 @@ namespace EasyEngine
         public PhysicsMode Mode { get; set; } = PhysicsMode.None;
         public double GravityScale { get; set; } = 1.0;
         public double Bounciness { get; set; } = 0.0;
+        // true = collide with the picture's visible pixels, not the whole box (HitboxFit.cs); the picture still fills the box
+        public bool FitHitbox { get; set; } = false;
     }
 
     /// <summary>A named animation: an ordered set of frames (relative image paths).</summary>

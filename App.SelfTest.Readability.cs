@@ -28,7 +28,10 @@ public partial class App
             return w;
         }
 
-        // an inspector with behavior cards (the Top-Down player: Hotbar, Use Item, Health…)
+        // an inspector with behavior cards (the Top-Down player: Hotbar, Use Item, Health…) — drawn with wide empty margins
+        // and "Hitbox: fit to the drawing" on, so the PHYSICS rows and the scene's dashed hitbox outline are checked too
+        var hero = scene.Layers.SelectMany(l => l.Objects).First(o => o.Name == "Player");
+        hero.SpritePath = TestScenarios.HitboxHeroSprite(project); hero.Width = hero.Height = 64; hero.Physics.FitHitbox = true;
         var editor = Open(new MainWindow(project));
         editor.TestInspect(editor.TestFindObject("Player")!);
         // the editors other checks opened inspect something too: show their Inspector tab (the first editor keeps the AI tab)
@@ -53,6 +56,10 @@ public partial class App
             foreach (var w in Windows.OfType<VariablesWindow>().Take(1)) shots.Add((w, "variables"));
             foreach (var w in Windows.OfType<SequenceEditorWindow>().Take(1)) shots.Add((w, "advanced_scratch_cutscene"));
             foreach (var (w, name) in shots) c.Snapshot(w, name);
+            // the inspector scrolled to PHYSICS ("Hitbox: fit to the drawing", "✂ Trim box to drawing")
+            var physics = editor.InspectorRoot.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault(t => t.Text == L.T("PHYSICS"));
+            if (physics != null) { editor.InspectorScroll.ScrollToVerticalOffset(physics.TransformToAncestor(editor.InspectorRoot).Transform(new Point()).Y); editor.UpdateLayout(); }
+            c.Snapshot(editor, "editor_physics");
             // and the inspector scrolled down to its behavior cards
             var cards = editor.InspectorRoot.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault(t => t.Text == L.T("BEHAVIORS"));
             editor.InspectorScroll.ScrollToVerticalOffset(cards?.TransformToAncestor(editor.InspectorRoot).Transform(new Point()).Y ?? editor.InspectorScroll.ScrollableHeight / 2);

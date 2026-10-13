@@ -32,12 +32,15 @@ A lot	MainWindow.TerrainBlocks.cs
 A new version of EasyEngine is out: v{0} (you have v{1}).	UpdatePrompt.cs
 A one-off puff of particles (sparks, dust, explosions).	BlockEditorWindow.cs
 A project needs at least one scene.	MainWindow.xaml.cs
+A repeating (tiled) image can't be trimmed.	MainWindow.Hitbox.cs
+A repeating (tiled) image isn't trimmed: the whole box collides.	MainWindow.Hitbox.cs
 A row	behavior Generator
 A scene needs at least one layer.	MainWindow.xaml.cs
 A scene with that name already exists.	MainWindow.xaml.cs
 A scripted scene: its steps run one after another — dialogue that waits for Enter, camera moves, screen shake, fades, cinema bars, a big title, moving/showing/hiding objects, setting variables. It plays when the scene starts, when the player walks into this object's area, when a variable turns on, or when a key is pressed. Build the steps with 🧩 Advanced Scratch or ask the AI. The player can skip it with the skip key.	behavior Cutscene
 A solid barrier that blocks the way until it opens. It opens when its variable meets the condition (e.g. var 'hasRedKey' >= 1), or needs an item. When open it stops colliding and fades out. Perfect for metroidvania ability-gates and locked doors.	behavior Gate
 A solid block the player (or 'pusher') can push around. Great for sokoban-style puzzles and block-and-switch puzzles. Give it physics Dynamic if it should also fall.	behavior Pushable
+A tilemap collides with its own tiles.	MainWindow.Hitbox.cs
 A variable turns on	behavior BossAI, behavior Cutscene
 A variable with that name already exists.	VariablesWindow.xaml.cs
 AI	MainWindow.xaml, MainWindow.xaml.cs
@@ -142,6 +145,7 @@ Bottom	MainWindow.xaml.cs
 Bottom left	behavior Minimap
 Bottom right	behavior Minimap
 Bounciness	MainWindow.xaml.cs
+Box trimmed to the drawing: {0}×{1} → {2}×{3}.	MainWindow.Hitbox.cs
 Brainstorming…	MainWindow.xaml.cs
 Break a tile	BlockEditorWindow.cs
 Break by landing on top (0/1)	behavior Tilemap
@@ -217,6 +221,7 @@ Close	SettingsWindow.cs, VariablesWindow.xaml
 Cloud	MainWindow.TerrainBlocks.cs
 Cloud · {0}	MainWindow.xaml.cs
 Collectible	behavior Collectible
+Collide with the visible pixels of the picture, not its transparent margins. The picture stays the same size.	MainWindow.Hitbox.cs
 Collide with walls (0/1)	behavior AdvancedPatrol, behavior Platformer, behavior TopDown
 Collision	MainWindow.TerrainBlocks.cs
 Color	behavior Label, behavior LightSource, behavior Particles, BlockEditorWindow.cs, MainWindow.xaml.cs, SpriteEditorWindow.cs
@@ -433,6 +438,7 @@ Gate / Locked Door	behavior Gate
 Generation failed	MainWindow.xaml.cs
 Gentle	behavior Terrain
 Give an item	BlockEditorWindow.cs
+Give it an image first: the hitbox follows the picture's visible pixels.	MainWindow.Hitbox.cs
 Give the item a name.	NewItemDialog.cs
 Give the project a name.	LauncherWindow.xaml.cs
 Give this object the look you copied (its size, behaviors and name stay)	MainWindow.xaml.cs
@@ -468,6 +474,7 @@ Hit an enemy	MainWindow.Params.cs
 Hit sound	behavior Harvestable
 Hit sounds per item	behavior ToolUse
 Hit-an-enemy sound (default)	behavior ToolUse
+Hitbox: fit to the drawing	MainWindow.Hitbox.cs
 Hits to break each tile	behavior Tilemap
 Hits to fell	behavior Harvestable
 Hoe	ToolArt.cs
@@ -874,6 +881,7 @@ Shows a dialogue line and waits until the player presses Enter.	step say
 Shows a line in the debug console (F1 while playing). Use {variable} to print a value, e.g. Coins: {coins}.	BlockEditorWindow.cs
 Shows text on the object. Use {variableName} to show a variable, e.g. "Score: {score}". Put it on a UI layer to keep it fixed on screen. effect animates the text: typewriter (types out), fade (fades in/out), blink, or pulse.	behavior Label
 Shows variable	behavior Bar
+Shrinks the object's own box to its drawing once (the images are cropped to match). Undo with Ctrl+Z.	MainWindow.Hitbox.cs
 Size	BlockEditorWindow.cs
 Skip key	behavior Cutscene
 Sky	MainWindow.xaml.cs
@@ -966,12 +974,16 @@ That project file no longer exists.	LauncherWindow.xaml.cs
 The answer took too long and was cancelled.	OllamaClient.cs
 The boss (self)	SequenceEditorWindow.cs
 The boss glows and shakes so the player sees the attack coming.	step telegraph
+The box already fits the drawing.	MainWindow.Hitbox.cs
 The camera follows this object. 'clamp' keeps the view inside the scene bounds.	behavior FollowCamera
 The canvas is empty — draw something first.	SpriteEditorWindow.cs
+The dashed outline in the scene is what collides.	MainWindow.Hitbox.cs
 The download doesn't contain EasyEngine.exe.	Updater.cs
+The drawing already fills the box.	MainWindow.Hitbox.cs
 The easiest 2D game engine — you bring the art, the AI writes the code.	LauncherWindow.xaml
 The editor's language. The AI also answers you in it. Your games keep their own texts.	SettingsWindow.cs
 The image file is missing.	ProjectIO.cs
+The image is fully transparent.	MainWindow.Hitbox.cs
 The item needs a name.	NewItemDialog.cs
 The model "{0}" isn't downloaded. Run this in a terminal:	OllamaClient.cs
 The name is empty.	ProjectIO.cs
@@ -990,6 +1002,7 @@ The world just ends (you can fall off)	behavior Terrain
 Theme updated	MainWindow.xaml.cs
 These steps play when its health reaches 0 (it can't be hurt and doesn't hurt anymore). Then its Custom 'death' rules run and it disappears. Leave it empty to make it disappear at once.	SequenceEditorWindow.cs
 This object (self)	SequenceEditorWindow.cs
+This object has no image to trim to.	MainWindow.Hitbox.cs
 Tight platformer movement: run, jump (variable height), coyote time, jump buffer, optional double jump, wall jump and dash. 'controls' = respond to the default keys (arrows/A-D/Space). Turn it off for enemies so they don't copy the player — then set custom keys or move it with a script.	behavior Platformer
 Tile (repeat)	MainWindow.xaml.cs
 Tile color	MainWindow.xaml.cs
@@ -1259,6 +1272,7 @@ y	step camera, step move, step moveto, step spawn
 ⚠ The JSON couldn't be read ({0}). Saving here replaces it.	SequenceEditorWindow.cs
 ⚠ The scene changed while the AI was working — not applied.	MainWindow.Sequences.cs
 ⚡ Local — fastest (1.5b)	MainWindow.xaml
+✂ Trim box to drawing	MainWindow.Hitbox.cs
 ✎ Draw path	MainWindow.xaml.cs
 ✏ Pencil	SpriteEditorWindow.cs
 ✓ Connected · model "{0}" ready.	MainWindow.xaml.cs

@@ -807,6 +807,7 @@ namespace EasyEngine
                 Data = obj, X = obj.X, Y = obj.Y, W = obj.Width, H = obj.Height, Rot = obj.Rotation,
                 StartX = obj.X, StartY = obj.Y, ScreenSpace = screenSpace
             };
+            FitHitboxToDrawing(en); // "Hitbox: fit to the drawing" → X/Y/W/H become the drawing's part of the box (PlayWindow.Hitbox.cs)
             en.Visual = MakeVisual(obj, en);
             (screenSpace ? Hud : World).Children.Add(en.Visual);
 
@@ -840,7 +841,7 @@ namespace EasyEngine
             en.OneWay = solidB != null && solidB.Num("oneWay") >= 0.5;
 
             var hp = en.Beh(BehaviorKind.Health);
-            if (hp != null) { en.MaxHealth = Math.Max(1, hp.Num("max", 3)); en.CurHealth = en.MaxHealth; en.RespawnX = obj.X; en.RespawnY = obj.Y; }
+            if (hp != null) { en.MaxHealth = Math.Max(1, hp.Num("max", 3)); en.CurHealth = en.MaxHealth; en.RespawnX = en.X; en.RespawnY = en.Y; }
             var harv = en.Beh(BehaviorKind.Harvestable);
             if (harv != null) en.HarvestLeft = Math.Max(1, (int)Math.Round(harv.Num("hits", 4)));
 
@@ -1628,8 +1629,8 @@ namespace EasyEngine
                 case "y": e.Y = v; break;
                 case "opacity": e.Visual.Opacity = Math.Clamp(v, 0, 1); break;
                 case "rot": case "rotation": e.Rot = v; break;
-                case "w": case "width": e.W = Math.Max(1, v); e.Visual.Width = e.W; break;
-                case "h": case "height": e.H = Math.Max(1, v); e.Visual.Height = e.H; break;
+                case "w": case "width": e.W = Math.Max(1, v); e.Visual.Width = PictureW(e); break;
+                case "h": case "height": e.H = Math.Max(1, v); e.Visual.Height = PictureH(e); break;
                 case "scale": e.TweenScale = v; e.Visual.RenderTransformOrigin = new Point(0.5, 0.5); e.Visual.RenderTransform = new ScaleTransform(v, v); break;
             }
         }
@@ -3007,7 +3008,7 @@ namespace EasyEngine
                 var barB = en.Beh(BehaviorKind.Bar);
                 if (barB != null) UpdateBar(en, barB);
 
-                double px = en.X, py = en.Y;
+                var (px, py) = PictureAt(en); // = X, Y unless the hitbox is fitted to the drawing (PlayWindow.Hitbox.cs)
                 if (!en.ScreenSpace)
                 {
                     var par = en.Beh(BehaviorKind.Parallax);

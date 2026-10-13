@@ -733,6 +733,7 @@ namespace EasyEngine
                     bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.UriSource = new Uri(img); bmp.EndInit();
                     border.Background = MakeImageBrush(bmp, obj);
                     RenderOptions.SetBitmapScalingMode(border, BitmapScalingMode.NearestNeighbor);
+                    AddHitboxOutline(obj, border); // "Hitbox: fit to the drawing" → dashed outline (MainWindow.Hitbox.cs)
                 }
                 catch { border.Background = Theme.Hex(obj.Color, "#9A9AA0"); }
             }
@@ -1473,6 +1474,7 @@ namespace EasyEngine
             ComboRow(L.T("Mode"), new[] { L.T("None"), L.T("Static"), L.T("Dynamic") }, (int)obj.Physics.Mode, i => { obj.Physics.Mode = (PhysicsMode)i; Dirty(); });
             NumRow(L.T("Gravity ×"), obj.Physics.GravityScale, v => { obj.Physics.GravityScale = v; Dirty(); });
             NumRow(L.T("Bounciness"), obj.Physics.Bounciness, v => { obj.Physics.Bounciness = Math.Clamp(v, 0, 1); Dirty(); });
+            HitboxRows(obj); // MainWindow.Hitbox.cs
 
             Section(L.T("BEHAVIORS"));
             foreach (var bh in obj.Behaviors.ToList())
@@ -2680,7 +2682,7 @@ namespace EasyEngine
             if (compact)
             {
                 sb.AppendLine("For logic the kinds can't do, use a \"custom\" rule list: [{\"when\":<start|always|key|keypress|timer|touch|death|ifvar|iflocal|iftext|iflist|hasitem|expr|click|rightclick|mouseover|mousepress>,...params...,\"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|goscene|setvar|addvar|setlocal|addlocal|settext|toggle|setcolor|tint|listadd|listremove|listclear|set|additem|removeitem|boost|setspeed|say|save|load>,...params...}]. Params by name: key, every, name, var/op/value, force, speed, vx/vy, dx/dy, to, amount, factor, text, scene, item, directions, prop. Texts: settext(var,to:\"Hi {name}\"), toggle(var) flips a Yes/No, iftext(var,op:is|isnot|contains|empty,value). Colours: setcolor(var,to:\"#FF8800\"), tint(color,target) paints an object; any colour param can be \"{colourVar}\". Lists: listadd/listremove(var,value), listclear(var), iflist(var,op:contains|notcontains|empty|notempty|countis|countatleast,value); {quests} shows the items, count:quests is how many. ANY value can be an \"expr\" string (math; reads self.x/self.cx/self.health, OtherObj.cx, a variable, item:NAME, count:LIST, mousex, time, dist(x1,y1,x2,y2)). Guard any rule with \"cond\":\"<expr>\". 'WHEN X happens, effect' is ALWAYS a custom rule (condition→action), never a static param.");
-                sb.AppendLine("Player = Platformer, physics Dynamic, controls=1 (dash/doubleJump/wallJump are 0/1 nums). Enemies: controls=0; prefer Patrol/Chase/custom. Killable enemy = Health respawn=0; player = respawn=1. Moving platform = Solid+Patrol. To spawn during play: make it asPrefab:true, then a Spawner or a custom spawn rule. Per-object looks: opacity, cornerRadius, borderColor+borderWidth, color, font. Draw art: \"pixelArt\":{\"palette\":{\"X\":\"#RRGGBB\"},\"rows\":[\"..XX..\"]} ('.'=transparent, <=16px). Only touch the exact object(s)/layer(s) the user names.");
+                sb.AppendLine("Player = Platformer, physics Dynamic, controls=1 (dash/doubleJump/wallJump are 0/1 nums). Enemies: controls=0; prefer Patrol/Chase/custom. Killable enemy = Health respawn=0; player = respawn=1. Moving platform = Solid+Patrol. To spawn during play: make it asPrefab:true, then a Spawner or a custom spawn rule. Per-object looks: opacity, cornerRadius, borderColor+borderWidth, color, font. Draw art: \"pixelArt\":{\"palette\":{\"X\":\"#RRGGBB\"},\"rows\":[\"..XX..\"]} ('.'=transparent, <=16px). Image with empty space around the drawing: \"fitHitbox\":true (collides with the drawing, not the box). Only touch the exact object(s)/layer(s) the user names.");
             }
             else
             {
@@ -2692,7 +2694,7 @@ namespace EasyEngine
             sb.AppendLine("AESTHETICS (per object, in create/edit): \"opacity\"(0-1), \"cornerRadius\"(px, 0=square), \"borderColor\"(hex)+\"borderWidth\"(px outline), \"font\"(family name) + \"bold\"(true/false) for Label text, \"color\"(fill). Example rounded glowing box: {\"edit\":[{\"name\":\"Box\",\"cornerRadius\":16,\"borderColor\":\"#00E5FF\",\"borderWidth\":3,\"opacity\":0.9}]}.");
             sb.AppendLine("TEXT EFFECTS: a Label takes texts{effect: none|typewriter|fade|blink|pulse} + nums{effectSpeed}. e.g. a title that types out: {\"kind\":\"Label\",\"texts\":{\"text\":\"GAME OVER\",\"effect\":\"typewriter\"},\"nums\":{\"fontSize\":48}}.");
             sb.AppendLine("GAME THEME (top-level \"theme\" object, styles what the PLAYER sees): {\"theme\":{\"font\":\"Consolas\",\"dialogBg\":\"#101418\",\"dialogBorder\":\"#00E5FF\",\"dialogText\":\"#FFFFFF\",\"dialogSpeaker\":\"#F4C03B\",\"dialogFontSize\":18,\"dialogCorner\":10,\"dialogEffect\":\"typewriter\",\"dialogSpeed\":45}}. Use it when the user wants to restyle dialogue boxes or the game font.");
-            sb.AppendLine("Intent → kind (MORE): enemy that chases AROUND walls (not straight) = PathChase (best for top-down); trampoline/bounce pad/jump pad = Spring (nums{force},texts{dir:up/down/left/right}); minimap/radar = Minimap (put on a UI layer, texts{corner:tl/tr/bl/br,player,markers}). Bouncy objects: set the object's physics Bounciness (0-1) in \"physics\" — a ball with bounciness 0.7 bounces off floors/walls.");
+            sb.AppendLine("Intent → kind (MORE): enemy that chases AROUND walls (not straight) = PathChase (best for top-down); trampoline/bounce pad/jump pad = Spring (nums{force},texts{dir:up/down/left/right}); minimap/radar = Minimap (put on a UI layer, texts{corner:tl/tr/bl/br,player,markers}). Bouncy objects: set the object's physics Bounciness (0-1) in \"physics\" — a ball with bounciness 0.7 bounces off floors/walls. A character/enemy whose image has empty (transparent) space around the drawing: \"fitHitbox\":true in its create/edit — it then collides with the drawing, not the whole box.");
             sb.AppendLine("Intent → kind (FX/UI): explosion/sparks/smoke/trail = Particles (on=start bursts once, on=always is continuous at nums{rate}; nums{burst,life,speed,spread,angle,size,gravity}, texts{color}); clickable menu/HUD button = UIButton on a UI layer (same action params as Area: goscene/setvar/addvar/say/save/load) — add a Label for its text; health/mana/progress bar = Bar (texts{var,color,bg}, nums{max} or texts{maxVar}).");
             sb.AppendLine("ACTIONS (MORE): do:emit (particle burst — count,speed,spread,angle,life,size,gravity,color); do:tween (smoothly animate a property: prop=x|y|opacity|scale|rot|w|h, to, nums{duration,loop,yoyo}, ease=linear|in|out|inout) e.g. a pulsing title {\"when\":\"start\",\"do\":\"tween\",\"prop\":\"scale\",\"to\":1.2,\"duration\":0.6,\"loop\":1,\"yoyo\":1}; do:emit on death for explosions {\"when\":\"death\",\"do\":\"emit\",\"count\":24,\"color\":\"#E5484B\"}; do:setvolume (channel=music/sfx/master, to=0-1). SoundEmitter texts{channel:music|sfx}.");
             sb.AppendLine("Platformer/TopDown obey the default keys only when their num \"controls\"=1 (that's the PLAYER). If you give Platformer/TopDown to an enemy/boss, set controls=0 so it does NOT copy the player's keys (move it with a custom script or custom keys). For simple enemies prefer Patrol/Chase/custom (physics Dynamic if it should fall/jump).");
@@ -2883,6 +2885,7 @@ namespace EasyEngine
             if (spec.TryGetProperty("cornerRadius", out var cr) && LooseJson.TryNumber(cr, out var crv)) { obj.CornerRadius = Math.Max(0, crv); changed = true; }
             if (spec.TryGetProperty("font", out var ff) && ff.ValueKind == JsonValueKind.String) { obj.FontFamily = ff.GetString(); changed = true; }
             if (spec.TryGetProperty("bold", out var bd) && AsBool(bd, out var bdv)) { obj.Bold = bdv; changed = true; }
+            if (spec.TryGetProperty("fitHitbox", out var fh) && AsBool(fh, out var fhv)) { obj.Physics.FitHitbox = fhv; changed = true; } // collide with the drawing (HitboxFit.cs)
             if (spec.TryGetProperty("group", out var gr) && gr.ValueKind == JsonValueKind.String) { obj.Group = gr.GetString() ?? ""; changed = true; }
             return changed;
         }

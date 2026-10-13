@@ -30,6 +30,7 @@ namespace EasyEngine
             project.Scenes.Add(AxeTest(project));
             project.Scenes.Add(LightingTest());
             project.Scenes.Add(VariableTypesTest()); // TestScenarios.VarTypes.cs
+            project.Scenes.Add(HitboxTest(project)); // TestScenarios.Hitbox.cs
             project.StartScene = "Axe Test";
             ProjectIO.Save(project);
             return project.FilePath!;

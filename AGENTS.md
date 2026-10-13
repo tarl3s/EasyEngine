@@ -46,7 +46,7 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
 | `--aitest [--model m]` | ~32 prompts through the real AI pipeline (needs a running AI) | `easyengine_aitest.log` |
 
-Last known green: fulltest 519/519, e2e 54/54, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS (dark and light).
+Last known green: fulltest 529/529, e2e 60/60, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS (dark and light).
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 
@@ -65,7 +65,7 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 | **Behavior catalog** — name, icon, description, every param with its default, picker kind and `ShowIf` | `BehaviorCatalog.cs` |
 | How-to guides used by the AI Learn mode | `BehaviorGuides.cs` |
 | Editor window (scene canvas, docking panels, inspector, AI panel, undo/redo, export) | `MainWindow.xaml(.cs)`, `MainWindow.Params.cs` (param pickers), `.Learn.cs`, `.Minimap.cs`, `.Sequences.cs` |
-| **Runtime** (game loop on `CompositionTarget.Rendering`, AABB physics, behaviors, Custom-rule interpreter, camera, HUD) | `PlayWindow.xaml(.cs)` + `PlayWindow.<Feature>.cs`: Boss, Sequences (cutscene step runner), Terrain, Lighting (smooth darkness + glow), LightGrid (Day/Night "Blocks" lighting: per-block light map, block-by-block), Minimap, Tools (Use Item/Hotbar/Harvestable), Texts (Text/Yes-No/Colour variables, settext/toggle/setcolor/tint) and Lists (listadd/listremove/listclear/iflist, `count:name`), Sound, Console, Checklist, `Tests*` (test hooks); variable kinds and their conversions live in `VarScope.cs` |
+| **Runtime** (game loop on `CompositionTarget.Rendering`, AABB physics, behaviors, Custom-rule interpreter, camera, HUD) | `PlayWindow.xaml(.cs)` + `PlayWindow.<Feature>.cs`: Boss, Sequences (cutscene step runner), Terrain, Lighting (smooth darkness + glow), LightGrid (Day/Night "Blocks" lighting: per-block light map, block-by-block), Minimap, Tools (Use Item/Hotbar/Harvestable), Texts (Text/Yes-No/Colour variables, settext/toggle/setcolor/tint) and Lists (listadd/listremove/listclear/iflist, `count:name`), Sound, Console, Checklist, Hitbox ("fit to the drawing": X/Y/W/H are the sprite's visible part, the picture is drawn at the full box via `PictureAt`, mirrored when flipped; bounds in `HitboxFit.cs`, editor rows in `MainWindow.Hitbox.cs`), `Tests*` (test hooks); variable kinds and their conversions live in `VarScope.cs` |
 | Custom behavior mini-language (`when → do` rules) + expressions | runtime in `PlayWindow.xaml.cs` (`RunCustom`/`DoCustom`/`RuleValue`), `Expr.cs` (recursive evaluator, never throws) |
 | Scratch-style editors | `BlockEditorWindow.cs` (Custom rules), `SequenceEditorWindow.cs` ("Advanced Scratch" for Boss AI / Cutscene) |
 | Boss/Cutscene step palette, script model, tolerant JSON (shared by runtime, editor and AI) | `SequenceModel.cs` (`StepCatalog`, `SeqStep`, `BossScript`, `SequenceJson`), `SequenceAi.cs` |
