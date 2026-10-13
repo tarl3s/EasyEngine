@@ -19,6 +19,7 @@ namespace EasyEngine
     //   --aitest --model qwen2.5-coder:3b
     //   --aitest --cloud [auto|groq|gemini|openrouter[|model]]
     //   --only fade,boss                 run the cases whose id contains any of these
+    //   --delay 15000                    milliseconds between cloud requests (Gemini free: a few a minute)
     // Report: %TEMP%\easyengine_aitest.log (pass/fail per case, why, the AI's reply when it failed).
     public partial class App
     {
@@ -39,7 +40,8 @@ namespace EasyEngine
                 var editor = new MainWindow(ProjectIO.CreateNew("AiTest", temp)); // constructed, not shown
                 editor.EvalUseAi(choice);
                 var cases = AiEvalCases().Where(k => only.Length == 0 || only.Any(o => k.Id.Contains(o, StringComparison.OrdinalIgnoreCase))).ToList();
-                _ = RunAiEvalAsync(editor, cases, log, choice.StartsWith("cloud:")).ContinueWith(t => Dispatcher.Invoke(() =>
+                int gap = int.TryParse(Arg("--delay"), out var d) ? d : 6000;
+                _ = RunAiEvalAsync(editor, cases, log, choice.StartsWith("cloud:"), gap).ContinueWith(t => Dispatcher.Invoke(() =>
                 {
                     if (t.Exception != null) try { File.AppendAllText(log, "\nEVAL EXCEPTION: " + t.Exception); } catch { }
                     try { Directory.Delete(temp, true); } catch { }
@@ -49,7 +51,7 @@ namespace EasyEngine
             catch (Exception ex) { try { File.AppendAllText(log, "FATAL: " + ex); } catch { } if (temp != null) try { Directory.Delete(temp, true); } catch { } Shutdown(); }
         }
 
-        private static async Task RunAiEvalAsync(MainWindow ed, List<AiCase> cases, string log, bool cloud)
+        private static async Task RunAiEvalAsync(MainWindow ed, List<AiCase> cases, string log, bool cloud, int gap)
         {
             if (!cloud) await OllamaManager.EnsureRunningAsync();
             ed.EvalReset();
@@ -93,7 +95,7 @@ namespace EasyEngine
                 finally { kit.Dispose(); }
                 var line = $"{verdict}  [{c.Id}] {c.Prompt}  ({sw.Elapsed.TotalSeconds:0.0}s)\n{detail}\n";
                 try { File.AppendAllText(log, line); } catch { }
-                if (cloud) await Task.Delay(6000); // be gentle with the free tiers' per-minute limits (Groq: ~7k input tokens a minute)
+                if (cloud) await Task.Delay(gap); // --delay ms; be gentle with the free tiers' per-minute limits (Groq: ~7k input tokens a minute)
             }
             var total = $"\n{pass}/{n - skipped} passed" + (skipped > 0 ? $" ({skipped} skipped: no AI answer)" : "") + (fails.Count > 0 ? "  — failed: " + string.Join(", ", fails) : "  — ALL PASS") + "\n";
             try { File.AppendAllText(log, total); } catch { }

@@ -44,7 +44,7 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--behtest` (49) / `--exprtest` (26) / `--blocktest` (18) / `--aijsontest` (20) | behaviors / expression evaluator / block-editor round-trip / AI-JSON parsing robustness | `easyengine_<name>.log` |
 | `--selftest` | opens real windows (editor, play, every dialog), measures every visible text against what is drawn behind it (`ContrastAudit`, fails under 4.5:1), renders PNG snapshots; add `--theme light` for the light theme | `easyengine_selftest.log`, `easyengine_snap_*.png` (`*_light.png`) |
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
-| `--aitest [--model m | --cloud [auto|groq|gemini|openrouter|"provider|model"]] [--only id,id]` | **graded** AI eval (`App.AiEval.cs`): ~125 real requests (also through the block editor's Ask the AI, conversations, harder mechanics)\| --cloud [auto\|groq…]] [--compact] [--only id,id]` | **graded** AI eval (`App.AiEval.cs`): ~75 real requests (moves, timers, enemies, bosses, HUD, whole levels, edits, Portuguese, the Boss/Cutscene cards' ✨ Ask the AI), each checked on the resulting project and by playing it headless. Needs a running AI; the cloud free tiers have daily quotas — rerun failures with `--only` | `easyengine_aitest.log` |
+| `--aitest [--model m | --cloud [auto|groq|gemini|openrouter|"provider|model"]] [--only id,id] [--delay ms]` | **graded** AI eval (`App.AiEval.cs`): ~125 real requests (moves, timers, enemies, bosses, HUD, whole levels, edits, Portuguese, conversations, the Boss/Cutscene cards' and the block editor's ✨ Ask the AI), each checked on the resulting project and by playing it headless. Needs a running AI; the cloud free tiers have daily quotas — rerun failures with `--only` | `easyengine_aitest.log` |
 
 Last known green: fulltest 591/591, e2e 67/67, behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest cloud 75/78 answered, local qwen2.5-coder 1.5b 52/82.
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
@@ -70,7 +70,7 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 | Custom behavior mini-language (`when → do` rules) + expressions | runtime in `PlayWindow.xaml.cs` (`RunCustom`/`DoCustom`/`RuleValue`), `Expr.cs` (recursive evaluator, never throws) |
 | Scratch-style editors | `BlockEditorWindow.cs` (Custom rules; `.Palette.cs` = every event/action block and its fields — the one list the blocks, their AI prompt and `RuleDocs()` (the rule language for the Build prompt) come from; `.Ai.cs` = its "✨ Ask the AI": prompt built from the block palette, tolerant reply reader), `SequenceEditorWindow.cs` ("Advanced Scratch" for Boss AI / Cutscene). Blocks and AI must cover the same rule language: `FullTest.Parity.cs` plays every block while the game records each key it reads (`PlayWindow.RuleReads`) and fails, naming the gap, when a key has no block field (or `KeyAliases` entry) or a field is never read; it also round-trips AI-style rules through the blocks and compares how they play |
 | Boss/Cutscene step palette, script model, tolerant JSON (shared by runtime, editor and AI) | `SequenceModel.cs` (`StepCatalog`, `SeqStep`, `BossScript`, `SequenceJson`), `SequenceAi.cs` |
-| AI clients | `MainWindow.AiPrompt.cs` (the Build prompt), `MainWindow.AiApply.cs` (applies a reply: create/edit, behaviors, physics, intent guesses), `AiSpecFix.cs` (cleans up every model reply), `MainWindow.AiRules.cs` (rule merging, deletes, recipes, copy stripping), `MainWindow.AiLevel.cs` (the "level" layout), `OllamaClient.cs` + `OllamaManager.cs` (local, `localhost:11434`), `CloudClient.cs` (OpenAI-compatible free tiers Groq/Gemini/OpenRouter with auto-fallback on 429, BYO paid keys incl. native Anthropic; `AiSettings`) |
+| AI clients | `MainWindow.AiPrompt.cs` (the Build prompt), `MainWindow.AiApply.cs` (applies a reply: create/edit, behaviors, physics, intent guesses), `AiSpecFix.cs` (cleans up every model reply), `MainWindow.AiExamples.cs` (whole request→reply examples), `MainWindow.AiRules.cs` (rule merging, deletes, copied habits), `MainWindow.AiLevel.cs` (the "level" layout), `OllamaClient.cs` + `OllamaManager.cs` (local, `localhost:11434`), `CloudClient.cs` (OpenAI-compatible free tiers Groq/Gemini/OpenRouter with auto-fallback on 429, BYO paid keys incl. native Anthropic; `AiSettings`) |
 | Shared helpers | `LooseJson.cs` (lenient JSON + number parsing), `Theme.cs` (dark/light palettes, `Init`), `Loc.cs` (`L.T` languages, `Lang/*.json`), `CacheCleaner.cs` (clear temporary files), `Dropdown.cs`, `ParamSources.cs` (lists for pickers), `Contrast.cs`, `DemoKit.cs`, `ToolArt.cs`, `LookPicker.cs`, `ColorPickerPopup.cs`, `SoundSynth.cs` (generated WAVs) |
 | Other windows | `LauncherWindow`, `SettingsWindow.cs` (language, theme, size, updates, temp files), `AnimationWindow`, `SpriteEditorWindow.cs` (pixel art), `VariablesWindow`, `NewItemDialog.cs` (`ItemMaker`), `InputDialog`, `DebugConsoleView.cs` + `DebugLog.cs` (F1 console) |
 | Demos / scenarios | `DemoGame.cs`, `MiningGame.cs`, `TopDownGame.cs`, `BossDemo.cs`, `InfiniteWorld.cs`, `SpriteTestGame.cs`, `TestScenarios.cs` (+ `GameAssets`) |
@@ -123,16 +123,24 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 - `"level":{platforms,coins,enemies,spikes,stairs,door,checkpoint,enemyKind,style:"topdown"}` lets the model say WHAT a
   level has; `MainWindow.AiLevel.cs` lays it out (platforms within the ~100 px jump, coins on them, enemies on the
   ground, a door at the end, a score label). Small models can't place many objects; this way they can still build one.
-- What a small model pastes from the prompt's examples/recipes (unrelated to the request) is stripped before applying
-  (`StripCopies`); copied "habits" (a FollowCamera on a box, a Spawner key nobody asked for) are dropped.
-- The build prompt ends with **recipes** (`MainWindow.AiRules.cs`) — the exact shapes of the most common requests.
+- **The Build prompt is made per request** (`BuildProjectPrompt(request)`, ~3–5k chars, the same for cloud and local):
+  a short core (reply shape, rules, every behavior/event/action *name*), then only what the request needs — up to 6
+  `Hints` (tagged how-tos in `MainWindow.AiPrompt.cs`, picked by word overlap; `Words()` maps PT/ES stems to English),
+  the 2 closest whole examples (`MainWindow.AiExamples.cs`, `ExamplesFor`), the details of the behaviors involved, the
+  `PARAMS` of the rule ids they use (from the block palette's `RuleDocs()`), and the scene (rules budgeted). The block
+  editor's ✨ Ask the AI builds its prompt the same way (`AiSystemPrompt(request)`, examples converted to rules).
   When an --aitest case keeps failing, first ask whether the runtime should accept what the model wrote (a value as an
-  expression, a synonym), then whether a recipe is missing; only then special-case.
+  expression, a synonym), then whether a hint or an example is missing; only then special-case. Keep prompts small:
+  every hint/example costs tokens only when a request matches it.
+- Copied "habits" (a FollowCamera on a box, a Spawner key nobody asked for) are dropped (`StripCopiedHabits`).
+  `AiSpecFix.Shape` accepts `create`/`edit` written as one object and a bare rule (or list) as `{"custom":[…]}`.
 - Rule values: any numeric param may be an expression or a quoted number (`CustomRule.Num` evaluates it for that
-  object); `time` is game time. `timer` first fires after its interval.
+  object); `time` is game time. `timer` first fires after its interval. Object x/y/width/height may be formulas too.
+  Instant events (start, keypress, timer, after, touch, clicks, wheel) are decided for all rules before any rule runs
+  (so a key buys once even if an earlier rule changes the condition); continuous rules still chain in order. `touch`
+  counts edge contact (standing on something touches it). Any behavior can have an "Only while" formula (`cond`).
 - Local models: `OllamaClient` asks for a context window that fits the prompt (Ollama's default 4096 tokens silently
-  cut the build prompt) and caps the answer (`num_predict`). The full build prompt beats the compact one on local models
-  (measured). Cloud Auto: any failure moves to the next free provider, a retired model id is replaced from the
+  cut the build prompt) and caps the answer (`num_predict`). Cloud Auto: any failure moves to the next free provider, a retired model id is replaced from the
   provider's model list, a model used up for the day hands over to the same provider's next model (Groq/Gemini count
   free quota per model — `CloudClient.DailyFallbacks`), and when all are only busy for a minute it waits once. Free tiers
   are small (Groq 200k tokens/day/model and 8k tokens/minute, Gemini 20 requests/day/model): keep prompts lean — Learn
