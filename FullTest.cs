@@ -1084,6 +1084,7 @@ public partial class App
             FeatureTestsBlockAi(kit);
             FeatureTestsParity(kit);
             FeatureTestsAudioEdit(kit);
+            FeatureTestsMultiBlocks(kit);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
@@ -1126,6 +1127,7 @@ public partial class App
     partial void FeatureTestsBlockAi(FullTestKit t);
     partial void FeatureTestsParity(FullTestKit t);
     partial void FeatureTestsAudioEdit(FullTestKit t);
+    partial void FeatureTestsMultiBlocks(FullTestKit t);
 
     /// <summary>Deletes the throwaway project folders a test run left in %TEMP% (by name pattern).</summary>
     internal static void DeleteTempFolders(params string[] patterns)

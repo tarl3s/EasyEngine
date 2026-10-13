@@ -24,6 +24,9 @@ namespace EasyEngine
             // only an OLD rule can be retuned, and once: two new ones alike ("fade out at 2 s", "fade in at 4 s") both stay
             var oldKeys = rules.Select(RuleKeyOf).ToList();
             var retuned = new bool[oldKeys.Count];
+            // a block (rules sharing "block": n) the AI adds never joins one already at the end of the list
+            int lastBlock = 0;
+            foreach (var x in rules) try { using var d = JsonDocument.Parse(x, LooseJson.Options); lastBlock = Math.Max(lastBlock, BlockOf(d.RootElement)); } catch { }
 
             foreach (var r in added.EnumerateArray())
             {
@@ -32,9 +35,18 @@ namespace EasyEngine
                 if (rules.Any(x => Squash(x) == Squash(raw))) continue;
                 var key = RuleKey(r);
                 int at = Enumerable.Range(0, oldKeys.Count).FirstOrDefault(i => !retuned[i] && oldKeys[i] == key, -1);
-                if (at >= 0) { rules[at] = raw; retuned[at] = true; } else rules.Add(raw);
+                if (at >= 0) { rules[at] = raw; retuned[at] = true; }
+                else rules.Add(lastBlock > 0 && BlockOf(r) > 0 ? Reblocked(raw, BlockOf(r) + lastBlock) : raw);
             }
             return "[" + string.Join(",", rules) + "]";
+        }
+
+        private static int BlockOf(JsonElement r) => r.ValueKind == JsonValueKind.Object && r.TryGetProperty("block", out var b) && b.ValueKind == JsonValueKind.Number && b.TryGetInt32(out var n) ? n : 0;
+        private static string Reblocked(string raw, int block)
+        {
+            try { if (System.Text.Json.Nodes.JsonNode.Parse(raw, null, LooseJson.Options) is System.Text.Json.Nodes.JsonObject o) { o["block"] = block; return o.ToJsonString(); } }
+            catch (Exception) { } // a key written twice: as it is
+            return raw;
         }
 
         // top-level "delete":["Name", …] (also "remove"/"destroy" when they name objects) — removes those objects

@@ -35,13 +35,13 @@ public partial class App
                 == J("[{'when':'after','seconds':5,'do':'tween','prop':'opacity','to':0,'duration':1},{'when':'click','do':'addvar','var':'score','amount':1},"
                    + "{'when':'timer','every':0.5,'do':'rotate','speed':90},{'when':'touch','name':'Coin','do':'addvar','var':'coins','amount':2}]"));
 
-        t.Test("block AI: choices by value (alpha → opacity, Music → music), a Yes/No as true, cond kept, a list of actions = one rule each", () =>
+        t.Test("block AI: choices by value (alpha → opacity, Music → music), a Yes/No as true, cond kept, a list of actions = one rule each, one block", () =>
             Read(J("{'rules':[{'when':'key','key':'R','do':'tween','property':'alpha','to':0.5,'ease':'EaseOut','cond':'coins >= 3'},"
                  + "{'when':'start','do':'setvolume','channel':'Music','to':0.4},{'when':'start','do':'settext','var':'greet','to':'Hi','local':'yes'},"
                  + "{'when':'death','do':['particles',{'type':'destroy'}]}]}"))
                 == J("[{'when':'key','key':'R','do':'tween','prop':'opacity','to':0.5,'ease':'easeout','cond':'coins >= 3'},"
                    + "{'when':'start','do':'setvolume','channel':'music','to':0.4},{'when':'start','do':'settext','var':'greet','to':'Hi','local':true},"
-                   + "{'when':'death','do':'emit'},{'when':'death','do':'destroy'}]"));
+                   + "{'when':'death','do':'emit','block':1},{'when':'death','do':'destroy','block':1}]"));
 
         t.Test("block AI: rules that aren't blocks are left out and named; prose without JSON gives nothing", () =>
         {

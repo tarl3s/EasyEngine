@@ -20,7 +20,7 @@ namespace EasyEngine
         public static readonly HashSet<string> Events = new(StringComparer.OrdinalIgnoreCase)
         {
             "start", "always", "key", "keydown", "keypress", "timer", "after", "touch", "death", "ifvar", "iflocal", "hasitem", "iftext", "iflist",
-            "isnight", "isday", "wheelup", "wheeldown", "expr", "click", "rightclick", "mousedown", "mouseover", "hover", "mousepress",
+            "isnight", "isday", "wheelup", "wheeldown", "expr", "click", "rightclick", "mousedown", "mouseover", "hover", "mousepress", "landed", "hurt", "interact",
         };
 
         /// <summary>Every DO the runtime knows (PlayWindow.DoCustom).</summary>
@@ -29,6 +29,7 @@ namespace EasyEngine
             "velocity", "move", "accelerate", "accel", "jump", "rotate", "shoot", "spawn", "destroy", "hide", "show", "goscene", "setvar", "addvar",
             "setlocal", "addlocal", "settext", "addtext", "toggle", "setcolor", "tint", "listadd", "listremove", "listclear", "set", "additem",
             "removeitem", "boost", "setspeed", "say", "save", "load", "emit", "tween", "setvolume", "breaktile", "settime", "playsound", "log",
+            "controls", "ability", "setjump", "heal", "behavior",
         };
 
         internal static readonly Dictionary<string, string> WhenSynonyms = new(StringComparer.OrdinalIgnoreCase)
@@ -48,6 +49,9 @@ namespace EasyEngine
             ["variable"] = "ifvar", ["var"] = "ifvar", ["ifvariable"] = "ifvar", ["whenvar"] = "ifvar",
             ["timeout"] = "after", ["leftclick"] = "click", ["ready"] = "start", ["keyhold"] = "key",
             ["touching"] = "touch", ["touched"] = "touch", ["hover"] = "mouseover", ["mouseenter"] = "mouseover", ["night"] = "isnight", ["day"] = "isday",
+            ["land"] = "landed", ["lands"] = "landed", ["landing"] = "landed", ["touchground"] = "landed", ["hitground"] = "landed", ["onground"] = "landed",
+            ["hurts"] = "hurt", ["damaged"] = "hurt", ["takedamage"] = "hurt", ["takesdamage"] = "hurt", ["injured"] = "hurt", ["gethurt"] = "hurt", ["getshurt"] = "hurt",
+            ["interacted"] = "interact", ["interaction"] = "interact", ["used"] = "interact", ["activated"] = "interact",
         };
 
         internal static readonly Dictionary<string, string> DoSynonyms = new(StringComparer.OrdinalIgnoreCase)
@@ -75,6 +79,12 @@ namespace EasyEngine
             ["particle"] = "emit", ["sparks"] = "emit", ["emitparticles"] = "emit", ["rotation"] = "rotate", ["destroyself"] = "destroy",
             ["addvariable"] = "addvar", ["console"] = "log", ["debug"] = "log", ["sfx"] = "playsound", ["moveat"] = "velocity",
             ["projectile"] = "shoot", ["hop"] = "jump", ["volume"] = "setvolume", ["accel"] = "accelerate",
+            ["cure"] = "heal", ["heals"] = "heal", ["addhealth"] = "heal", ["gainhealth"] = "heal", ["restorehealth"] = "heal", ["regen"] = "heal", ["healself"] = "heal",
+            ["jumpheight"] = "setjump", ["setjumpheight"] = "setjump", ["jumppower"] = "setjump", ["setjumpforce"] = "setjump", ["changejump"] = "setjump",
+            ["control"] = "controls", ["setcontrols"] = "controls", ["togglecontrols"] = "controls", ["disablecontrols"] = "controls", ["enablecontrols"] = "controls",
+            ["freeze"] = "controls", ["lockcontrols"] = "controls", ["unlockcontrols"] = "controls",
+            ["giveability"] = "ability", ["setability"] = "ability", ["unlockability"] = "ability", ["enableability"] = "ability", ["disableability"] = "ability",
+            ["setbehavior"] = "behavior", ["togglebehavior"] = "behavior", ["enablebehavior"] = "behavior", ["disablebehavior"] = "behavior", ["behaviour"] = "behavior",
         };
 
         private static readonly Dictionary<string, string> OpSynonyms = new(StringComparer.OrdinalIgnoreCase)
@@ -108,6 +118,7 @@ namespace EasyEngine
             catch (Exception) { return json; } // a key written twice etc.: read as it is
         }
 
+        internal static bool IsOnOff(string s) => s.Trim().ToLowerInvariant() is "on" or "off" or "true" or "false" or "yes" or "no" or "1" or "0";
         private static string Squeeze(string s) => new string(s.Where(char.IsLetterOrDigit).ToArray());
         private static string Str(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s : n?.ToJsonString().Trim('"') ?? "";
 
@@ -147,7 +158,7 @@ namespace EasyEngine
             bool Has(string k) => props.Any(p => p.key == k);
             void Set(string k, JsonNode? v) { int i = props.FindIndex(p => p.key == k); if (i >= 0) props[i] = (k, v); else props.Add((k, v)); }
             void Rename(string from, string to) { int i = props.FindIndex(p => p.key == from); if (i >= 0 && !Has(to)) props[i] = (to, props[i].val); }
-            foreach (var (from, to) in new[] { ("event", "when"), ("trigger", "when"), ("on", "when"), ("action", "do"), ("then", "do") }) if (!Has(to)) Rename(from, to);
+            foreach (var (from, to) in new[] { ("event", "when"), ("trigger", "when"), ("on", "when"), ("action", "do"), ("then", "do") }) if (!Has(to) && !(from == "on" && IsOnOff(Get("on")))) Rename(from, to); // "on":"off" is a switch, not an event
 
             // the event
             var whenRaw = Get("when");
@@ -192,6 +203,11 @@ namespace EasyEngine
                 yield break;
             }
             Set("do", act);
+            if (act is "controls" or "ability" or "behavior" && !Has("on")) // "disable controls", "give ability"…: which way it switches
+            {
+                if (sq.StartsWith("enable") || sq.StartsWith("unlock") || sq.StartsWith("give")) Set("on", "on");
+                else if (sq.StartsWith("disable") || sq.StartsWith("lock") || sq == "freeze") Set("on", "off");
+            }
             if (act == "tween")
             {
                 if (!Has("prop")) Set("prop", sq is "grow" or "shrink" ? "scale" : "opacity");
