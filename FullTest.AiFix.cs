@@ -118,6 +118,15 @@ public partial class App
             && CloudClient.RetryAfterSeconds("try again in .s") == 0
             && CloudClient.PickModel("gemini", new[] { "gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.8-flash-tts", "gemini-flash-latest", "gemini-3.1-pro-preview" }) == "gemini-3.8-flash"
             && CloudClient.PickModel("openrouter", new[] { "x/paid", "google/gemma-4-31b-it:free", "nvidia/nemotron-3-super-120b-a12b:free" }) == "nvidia/nemotron-3-super-120b-a12b:free");
+        t.Test("rules: those started by the same key press decide first (pay 10 coins + get a Sword both happen); 'always' rules still chain", () =>
+        {
+            var s = t.Sim("[{\"when\":\"keypress\",\"key\":\"E\",\"cond\":\"coins >= 10\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":-10}," +
+                          "{\"when\":\"keypress\",\"key\":\"E\",\"cond\":\"coins >= 10\",\"do\":\"additem\",\"item\":\"Sword\"}]", PhysicsMode.None, null);
+            s.TSetVar("coins", 15); s.TSteps(2); s.TKey("E", true); s.TSteps(2); s.TKey("E", false); s.TSteps(25);
+            bool bought = s.TVar("coins") == 5 && s.TItem("Sword") == 1;
+            s.TKey("E", true); s.TSteps(2); s.TKey("E", false); s.TSteps(2);
+            return bought && s.TVar("coins") == 5 && s.TItem("Sword") == 1;
+        });
         t.Test("rules: \"local\":\"yes\" is a yes (a word in a number param is not a variable)", () =>
         {
             var s = t.Sim("[{\"when\":\"start\",\"do\":\"addlocal\",\"var\":\"k\",\"amount\":\"2\"},{\"when\":\"start\",\"do\":\"toggle\",\"var\":\"lit\",\"local\":\"yes\"}]", PhysicsMode.None, null);
@@ -196,12 +205,8 @@ public partial class App
             bool bar = ed.TestFindObject("PlayerHealthBar") != null && !ed.TestFindObject("Player")!.Behaviors.Any(b => b.Kind == BehaviorKind.Bar);
             return gun && scene2 && setvar && bar;
         });
-        t.Test("ai review 2: a recipe written in another language isn't stripped; level spikes hurt and its door works", () =>
+        t.Test("ai review 2: level spikes hurt and its door works", () =>
         {
-            var sys = NewEditor().TestBuildPrompt();
-            var coin = sys.Split('\n').First(l => l.StartsWith("- coin worth 10 points:"));
-            var json = coin[coin.IndexOf('{')..coin.IndexOf("]}]}") ] + "]}]}";
-            var kept = EasyEngine.MainWindow.StripCopies(sys, json, "coloque uma moeda que vale 10 pontos", out var none);
             var ed = NewEditor(s => { s.Layers.Add(new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true }); });
             ed.TestFindObject("Player")!.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Health).CreateData());
             ed.EvalProject.Scenes.Add(new Scene { Name = "Level2", Layers = { new Layer { Name = "Base", Kind = LayerKind.Base } } });
@@ -211,7 +216,7 @@ public partial class App
             pw.TSteps(20); double hp = pw.THp("Player"); pw.TPlace("Player", spike.X - 8, spike.Y - 50); pw.TSteps(10);
             bool hurt = pw.THp("Player") < hp;
             pw.TPlace("Player", door.X + 4, door.Y + 20); pw.TSteps(10);
-            return !none && kept == json && hurt && pw.TScene == "Level2";
+            return hurt && pw.TScene == "Level2";
         });
         t.Test("ai: the level a request describes is read from its words (EN/PT, numbers or words, stairs, rooms, a door)", () =>
         {
@@ -238,20 +243,6 @@ public partial class App
                               "make a level with 2 platforms and 2 coins");
             bool kept = ed2.TestFindObject("P1") != null && !ed2.TestAllObjects().Any(o => o.Name.StartsWith("Platform"));
             return built && kept;
-        });
-        t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
-        {
-            var sys = NewEditor().TestBuildPrompt();
-            var line = sys.Split('\n').SkipWhile(l => !l.StartsWith("User: \"make a player that walks")).Skip(1).First();
-            var copy = "Sure:\n" + line.Trim();
-            static bool Gone(string sys, string reply, string ask) { EasyEngine.MainWindow.StripCopies(sys, reply, ask, out var none); return none; }
-            // the countdown recipe pasted next to a real answer: the recipe goes, the answer stays
-            var mixed = EasyEngine.MainWindow.StripCopies(sys, "{\"variables\":{\"scene\":{\"timer\":60}},\"edit\":[{\"name\":\"Player\",\"custom\":[{\"when\":\"ifvar\",\"var\":\"score\",\"op\":\">=\",\"value\":10,\"do\":\"goscene\",\"scene\":\"Level2\"}]}]," +
-                "\"create\":[{\"name\":\"TimerText\",\"layer\":\"UI\",\"x\":20,\"y\":16,\"behaviors\":[{\"kind\":\"Label\",\"texts\":{\"text\":\"Time: {timer}\"}}],\"custom\":[{\"when\":\"timer\",\"every\":1,\"cond\":\"timer > 0\",\"do\":\"addvar\",\"var\":\"timer\",\"amount\":-1}]}]}",
-                "when the score reaches 10 go to Level2", out var mixedGone);
-            return Gone(sys, copy, "make the player blue") && !Gone(sys, copy, "make a player that walks, jumps, has health and can attack")
-                   && !Gone(sys, "{\"edit\":[{\"name\":\"Player\",\"color\":\"#3050FF\"}]}", "make the player blue")
-                   && !mixedGone && !mixed.Contains("TimerText") && !mixed.Contains("\"timer\":60") && mixed.Contains("Level2");
         });
         t.Test("rules: a value can be an expression or a quoted number; addvar takes \"value\"", () =>
         {

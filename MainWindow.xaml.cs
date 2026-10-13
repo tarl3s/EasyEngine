@@ -2565,18 +2565,13 @@ namespace EasyEngine
         // 🔨 Build: ask the AI for a project spec and apply it (one retry with a firmer nudge). Shared by the panel and --aieval.
         private async Task<(bool ok, string summary, string reply)> AiBuildAsync(string prompt)
         {
-            var sys = BuildProjectPrompt(compact: _useCloud || EvalCompact); // leaner prompt on the cloud (token limits); full detail on local
+            var sys = BuildProjectPrompt(prompt); // made for this request (MainWindow.AiPrompt.cs): small, fast, few tokens
             var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
-            var own = StripCopies(sys, reply, prompt, out bool copied); // what a small model pasted from the examples is left out
-            string summary = "";
-            if (!copied && SafeApply(own, prompt, out summary)) return (true, summary, reply);
+            if (SafeApply(reply, prompt, out var summary)) return (true, summary, reply);
 
-            var reply2 = await AiGenerateAsync(
-                prompt + (copied ? "\n\nYour last answer only copied an example from the instructions. Answer THIS request instead." : "") +
-                "\n\nReturn ONLY the JSON with \"create\"/\"edit\"/\"layers\". Use EXACT behavior kind names from the list. One object can have many behaviors.",
-                sys, json: true, temperature: copied ? 0.4 : 0.1);
-            var own2 = StripCopies(sys, reply2, prompt, out bool copied2);
-            bool ok = !copied2 && SafeApply(own2, prompt, out summary);
+            var reply2 = await AiGenerateAsync(prompt + "\n\nAnswer ONLY with the JSON object, using the exact behavior, event and action names listed.",
+                                               sys, json: true, temperature: 0.1);
+            bool ok = SafeApply(reply2, prompt, out summary);
             return (ok, summary, reply2);
         }
 

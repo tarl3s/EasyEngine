@@ -85,6 +85,26 @@ namespace EasyEngine
             ["gte"] = ">=", ["ge"] = ">=", ["atleast"] = ">=", ["=>"] = ">=", ["lte"] = "<=", ["le"] = "<=", ["atmost"] = "<=", ["=<"] = "<=",
         };
 
+        /// <summary>The reply's overall shape fixed: "create"/"edit" written as ONE object become a list of one; a bare rule
+        /// ({"when":…,"do":…}) or a bare list of rules becomes {"custom":[…]} (for the selected object or the player).</summary>
+        public static string Shape(string json)
+        {
+            try
+            {
+                var root = JsonNode.Parse(json, null, LooseJson.Options);
+                if (root is JsonArray arr && arr.Count > 0 && arr.All(r => r is JsonObject o && (o.ContainsKey("when") || o.ContainsKey("do"))))
+                    return new JsonObject { ["custom"] = arr.DeepClone() }.ToJsonString();
+                if (root is not JsonObject obj) return json;
+                if (!obj.ContainsKey("create") && !obj.ContainsKey("edit") && (obj.ContainsKey("when") || obj.ContainsKey("do")) && !obj.ContainsKey("custom"))
+                    return new JsonObject { ["custom"] = new JsonArray(obj.DeepClone()) }.ToJsonString();
+                bool changed = false;
+                foreach (var key in new[] { "create", "edit" })
+                    if (obj[key] is JsonObject one) { obj[key] = new JsonArray(one.DeepClone()); changed = true; }
+                return changed ? obj.ToJsonString() : json;
+            }
+            catch (Exception) { return json; } // a key written twice etc.: read as it is
+        }
+
         private static string Squeeze(string s) => new string(s.Where(char.IsLetterOrDigit).ToArray());
         private static string Str(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s : n?.ToJsonString().Trim('"') ?? "";
 

@@ -186,7 +186,7 @@ public partial class App
             var project = ProjectIO.CreateNew("HBA", dir);
             var ed = new MainWindow(project);
             var (ok, _) = ed.TestApplySpec("{\"create\":[{\"name\":\"Slime\",\"x\":100,\"y\":100,\"width\":64,\"height\":64,\"fitHitbox\":\"true\"}]}");
-            return ok && ed.TestFindObject("Slime")?.Physics.FitHitbox == true && ed.TestBuildPrompt().Contains("\"fitHitbox\":true") && ed.TestBuildPrompt(true).Contains("\"fitHitbox\":true");
+            return ok && ed.TestFindObject("Slime")?.Physics.FitHitbox == true && ed.TestBuildPrompt("its picture has empty space around it").Contains("\"fitHitbox\":true");
         });
     }
 }

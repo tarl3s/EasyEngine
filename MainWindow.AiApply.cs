@@ -506,10 +506,10 @@ namespace EasyEngine
             summary = "";
             _aiSpecObjects.Clear(); _aiSkippedLocked.Clear();
             _aiNotes.Clear();
-            var json = LooseJson.Extract(reply);
+            var json = LooseJson.Extract(reply, allowArray: true); // a bare list of rules is fine too (AiSpecFix.Shape)
             if (json == null) return false;
             JsonDocument doc;
-            try { doc = JsonDocument.Parse(json, LooseJson.Options); } catch { return false; }
+            try { doc = JsonDocument.Parse(AiSpecFix.Shape(json), LooseJson.Options); } catch { return false; }
 
             using (doc)
             {

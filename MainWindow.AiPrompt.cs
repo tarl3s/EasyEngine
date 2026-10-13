@@ -66,146 +66,177 @@ namespace EasyEngine
         private static string Compact(string s) => System.Text.RegularExpressions.Regex.Replace(s ?? "", @"\s+", " ").Trim();
 
 
-        private string BuildProjectPrompt(bool compact = false)
+        // ================================================================================================================
+        //  The 🔨 Build prompt, made for each request: a short fixed core (the JSON shape, the essential rules, every
+        //  behavior/event/action by name), then only what the request is about — the hints whose words it uses (each one a
+        //  line or two, most with the exact JSON to copy), the details of the behaviors involved, and the scene. Small and
+        //  local models read it fast and aren't distracted; free cloud tiers spend far fewer tokens.
+        // ================================================================================================================
+
+        private record PromptHint(string[] Tags, string Text, BehaviorKind[] Kinds);
+        private static PromptHint H(string tags, string text, params BehaviorKind[] kinds) => new(tags.Split(' ', StringSplitOptions.RemoveEmptyEntries), text, kinds);
+
+        // The words of a hint are compared as 5-letter stems with the request (MainWindow.AiRules.cs Words: "coins" = "coin",
+        // Portuguese/Spanish mapped to English), so "moedas" finds the coin hint.
+        private static readonly PromptHint[] Hints =
+        {
+            H("player jogador hero heroi faster rapido speed velocid jump pula pulo higher health vida hearts coraç dash double duplo wall bigger",
+              "The PLAYER is the object with Platformer (or TopDown): change it with \"edit\" by its name, never create another. Platformer nums: speed, jump, doubleJump/wallJump/dash (0 or 1). Hearts = Health nums.max.",
+              BehaviorKind.Platformer, BehaviorKind.Health),
+            H("enemy enemies inimigo monster monstro slime patrol patrulha walks anda back forth chase chases persegue follows segue flee foge away near perto",
+              "Enemy = physics Dynamic + Health (respawn 0) + Damager (target Player) + a mover: Patrol (back and forth) or Chase (target Player). Run away: {\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(self.cx - Player.cx) * 160\"}. Only when near: add \"cond\":\"dist(self.cx,self.cy,Player.cx,Player.cy) < 250\" (otherwise {\"when\":\"always\",\"cond\":\"…>= 250\",\"do\":\"set\",\"prop\":\"vx\",\"to\":0}).",
+              BehaviorKind.Health, BehaviorKind.Damager, BehaviorKind.Patrol, BehaviorKind.Chase),
+            H("shoot shoots atira atirar turret torre gun arma bullet bala fire dispara",
+              "Shooting by itself: Shooter texts{key:\"\",aim:\"Player\"} nums{directions:1,cooldown:2} (no key = fires on its own). Or a rule {\"when\":\"timer\",\"every\":1,\"do\":\"shoot\",\"directions\":1,\"at\":\"Player\"} (add a \"cond\" to limit it, e.g. \"Player.cx < self.cx\" = player on its left).",
+              BehaviorKind.Shooter),
+            H("spawn spawns appear aparec surge rain chuva fall falling cai caem drop rocks pedras every cada wave onda",
+              "To make things appear during play: create it with \"asPrefab\":true (it waits outside the scene), then a Spawner behavior (texts target, at:\"top\" = falls from a random x at the top; nums interval, max 0 = no limit) or a rule {\"do\":\"spawn\",\"object\":\"Rock\",\"at\":\"top\"}.",
+              BehaviorKind.Spawner),
+            H("every cada seconds segundos second after depois later wait espera timer countdown contagem time tempo",
+              "Timing: {\"when\":\"timer\",\"every\":2,…} repeats (the first time after 2 s); {\"when\":\"after\",\"seconds\":5,…} happens once. 60 s countdown: variables {\"scene\":{\"timer\":60}} + rule {\"when\":\"timer\",\"every\":1,\"cond\":\"timer > 0\",\"do\":\"addvar\",\"var\":\"timer\",\"amount\":-1} + a Label \"Time: {timer}\"."),
+            H("fade sumir some desaparec vanish glide desliz grow cresce shrink encolhe pulse pulsa blink pisca opacity invisible invisivel transpar slowly devagar smooth hide esconde show",
+              "Smooth change: {\"do\":\"tween\",\"prop\":\"opacity|scale|x|y|rot|w|h\",\"to\":0,\"duration\":2} (+ \"loop\":1,\"yoyo\":1 to repeat back and forth). Fade out after 5 s: {\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":3}. Blink: {\"when\":\"start\",\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":0.5,\"loop\":1,\"yoyo\":1}. Invisible at once: the object's \"opacity\":0, or do:hide / do:show."),
+            H("move moving moves mexe anda right left direita esquerda circle circulo follow follows segue mouse teleport teleporta position posição keeps",
+              "Movement rules: keeps moving right {\"when\":\"always\",\"do\":\"velocity\",\"vx\":150,\"vy\":0}; follow the mouse {\"when\":\"always\",\"do\":\"set\",\"prop\":\"x\",\"expr\":\"mousex - self.w/2\"} and the same for y; a circle {\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"-sin(time*2) * 200\"} plus vy with cos; teleport {\"do\":\"set\",\"prop\":\"x\",\"to\":600}."),
+            H("press presses key tecla aperta apertar hold holds segura near perto button",
+              "Keys: {\"when\":\"keypress\",\"key\":\"E\",…} once per press; {\"when\":\"key\",\"key\":\"R\",…} every moment while held. Only near something (on the player): \"cond\":\"dist(self.cx,self.cy,Shopkeeper.cx,Shopkeeper.cy) < 120\"."),
+            H("touch touches encosta encostar toca tocar collect collects coleta pega pegar hit bate collide step steps pisa pisar lands",
+              "{\"when\":\"touch\",\"name\":\"Coin\",…} fires once when it starts touching that object (standing on it counts). Put it on either of the two; \"name\" is the OTHER one."),
+            H("score pontos pontu points point coin coins moeda counter conta lives vidas variable variavel double dobra reaches chega",
+              "Variables: top-level \"variables\":{\"global\":{\"score\":0,\"lives\":3}}. Rules addvar/setvar (var; amount/to may be a formula like \"score * 2\"); {\"when\":\"ifvar\",\"var\":\"score\",\"op\":\">=\",\"value\":10,…}. Show it: a Label text \"Score: {score}\" on the UI layer. A coin worth 10: Collectible texts{var:\"score\"} nums{points:10}.",
+              BehaviorKind.Label, BehaviorKind.Collectible),
+            H("scene cena level fase gameover next proxima door porta exit saida go vai",
+              "Change scene: rule {\"do\":\"goscene\",\"scene\":\"Level2\"}; a door: GoToScene texts{scene}. Use a scene that exists (see SCENE).",
+              BehaviorKind.GoToScene),
+            H("die dies morre morrer death morte kill mata explode explodes dead runs out acabam",
+              "{\"when\":\"death\",…} runs when its health reaches 0 (also the player's, who then comes back). Explode: {\"when\":\"death\",\"do\":\"emit\",\"count\":30}. Lives that run out: a lives variable — {\"when\":\"ifvar\",\"var\":\"lives\",\"op\":\"<=\",\"value\":0,\"do\":\"goscene\",\"scene\":\"GameOver\"}; lose one: addvar lives -1, back to the start: set x/y."),
+            H("say says diz dizer fala message mensagem dialog dialogo talk conversa shows mostra hello ola",
+              "{\"do\":\"say\",\"text\":\"Hello!\",\"speaker\":\"Bob\"} shows a dialogue box (lines split by |)."),
+            H("item items sword espada buy compra shop loja inventory inventario pay paga",
+              "Items: {\"do\":\"additem\",\"item\":\"Sword\",\"amount\":1}, removeitem; check with \"cond\":\"item:Sword >= 1\". Pay 10 coins: two rules on the same key with \"cond\":\"coins >= 10\" — addvar coins -10 and additem (the item rule FIRST)."),
+            H("color colour cor red vermelho blue azul green verde yellow amarelo black preto white branco purple roxo",
+              "Colour: \"color\":\"#RRGGBB\" on the object; during play {\"do\":\"tint\",\"color\":\"#FF0000\"} (\"target\" for another object)."),
+            H("big bigger maior small smaller menor size tamanho twice dobro huge",
+              "Size: \"width\"/\"height\" in pixels on the object (twice as big = double both)."),
+            H("level fase stage room sala map mapa platforms plataformas stairs staircase escada build monte constroi coins moedas row fileira",
+              "A WHOLE LEVEL: {\"level\":{\"platforms\":3,\"coins\":5,\"enemies\":2,\"spikes\":1,\"door\":\"Level2\"}} — the engine lays it out (also \"stairs\":5, \"checkpoint\":true, \"enemyKind\":\"chase\", a walled top-down room \"style\":\"topdown\"). Use it for any level, stage, room or map."),
+            H("platform plataforma ledge moving elevator elevador lift wall parede ground chao floor piso oneway",
+              "Platform/wall = Solid with physics Static. Moving platform = Solid + Patrol (nums axis 1 = up and down, distance, speed). One-way = Solid nums oneWay 1.",
+              BehaviorKind.Solid, BehaviorKind.Patrol),
+            H("boss chefe chefao",
+              "Boss = Health (respawn 0) + Damager + BossAI (texts moves:ground|fly, starts:start|near; its attacks come from its card) — or Chase + Health + Damager for a simple one.",
+              BehaviorKind.BossAI, BehaviorKind.Health, BehaviorKind.Damager),
+            H("bounce bounces quica pula ball bola gravity gravidade float flutua",
+              "Physics: \"physics\":{\"mode\":\"Dynamic\",\"bounciness\":0.8,\"gravity\":1} (Dynamic falls; bounciness 0-1)."),
+            H("screen tela leave sai sair inside dentro edge borda wrap",
+              "Keep it inside the screen/scene: StayInside behavior.", BehaviorKind.StayInside),
+            H("delete deleta apaga apagar remove remova tira destroy",
+              "\"delete\":[\"Name\"] removes objects. In an edit, \"remove\":[\"Health\"] takes a behavior off. Stop a rule: send the object's full new \"custom\" list with \"replaceCustom\":true."),
+            H("stop para parar pare don't nao never",
+              "To STOP something an object does: edit it with \"replaceCustom\":true and its \"custom\" list without that rule (or \"remove\":[\"Spin\"] for a behavior)."),
+            H("button botao menu start iniciar click clique clicked",
+              "Clicked: {\"when\":\"click\",…}. A menu button: UIButton texts{action:\"goscene\",scene} on the UI layer, with a Label for its text.",
+              BehaviorKind.UIButton),
+            H("npc sign placa chest bau shopkeeper vendedor",
+              "Press E to talk/read/open: Interact behavior.", BehaviorKind.Interact),
+            H("lock locked tranca trancada key chave gate portao",
+              "Locked door + key: door = Gate texts{var:\"hasKey\"}; key = AbilityPickup texts{var:\"hasKey\"}. Or a rule on the player with \"cond\":\"hasKey >= 1\".",
+              BehaviorKind.Gate, BehaviorKind.AbilityPickup),
+            H("spike espinho trap armadilha lava hazard hurt hurts dano damage machuca",
+              "Hurts on touch: Damager (target Player, nums damage) on the hazard; the player needs Health.", BehaviorKind.Damager),
+            H("trampoline trampolim spring mola jump pad",
+              "Spring behavior (nums force).", BehaviorKind.Spring),
+            H("crate caixa push empurra",
+              "Pushable behavior.", BehaviorKind.Pushable),
+            H("checkpoint bandeira flag respawn",
+              "Checkpoint behavior.", BehaviorKind.Checkpoint),
+            H("night noite day dia sun sol moon lua",
+              "Day and night: a DayNight object. In rules: {\"when\":\"isnight\",…} or \"cond\":\"isNight >= 1\" (\"isNight < 1\" = day).",
+              BehaviorKind.DayNight),
+            H("particle particles particulas explosion explosao sparks faiscas smoke fumaca",
+              "Particles: a burst {\"do\":\"emit\",\"count\":24,\"color\":\"#FF8800\"}, or the Particles behavior.", BehaviorKind.Particles),
+            H("light luz glow brilho torch tocha lamp", "LightSource behavior.", BehaviorKind.LightSource),
+            H("bar barra healthbar progress", "A bar: Bar texts{var:\"health\"} on the UI layer.", BehaviorKind.Bar),
+            H("draw desenha desenhe pixel sprite art arte",
+              "Draw its look: \"pixelArt\":{\"palette\":{\"X\":\"#RRGGBB\"},\"rows\":[\"..XX..\",\".XXXX.\"]} ('.' = transparent, ≤16 px wide)."),
+            H("round arredond border borda font fonte bold style estilo look",
+              "Looks: \"opacity\" 0-1, \"cornerRadius\" px, \"borderColor\"+\"borderWidth\", \"font\", \"bold\"."),
+            H("hitbox transparent transparente empty vazio margin margem",
+              "Its picture has empty space around it: \"fitHitbox\":true (collides with the drawing)."),
+            H("front frente behind atras order ordem",
+              "Draw order: \"z\":n (higher = in front) on the object."),
+            H("procedural random aleatorio generate gera generator",
+              "Generator behavior: fills its area with prefabs when the scene loads.", BehaviorKind.Generator),
+        };
+
+        // the most relevant hints for the request (by shared word stems), at most 6, in library order
+        private static List<PromptHint> HintsFor(string request)
+        {
+            var asked = Words(request);
+            return Hints.Select((h, i) => (h, i, score: h.Tags.Count(t => Words(t).Overlaps(asked))))
+                        .Where(x => x.score > 0).OrderByDescending(x => x.score).ThenBy(x => x.i).Take(6).OrderBy(x => x.i).Select(x => x.h).ToList();
+        }
+
+        private string BuildProjectPrompt(string request)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("You are the game-builder AI of a 2D engine. Output ONLY a JSON object. Schema:");
-            sb.AppendLine("{");
-            sb.AppendLine("  \"create\": [ {\"name\",\"x\",\"y\",\"width\",\"height\",\"color\",\"layer\",\"physics\":\"None|Static|Dynamic\",\"behaviors\":[{\"kind\",\"nums\":{},\"texts\":{}}],\"custom\":[...],\"animations\":[{\"name\",\"frames\":[],\"fps\"}],\"sprite\":\"file.png\"} ],");
-            sb.AppendLine("  \"edit\":   [ {\"name\":\"<existing object>\",\"behaviors\":[...],\"remove\":[\"Kind\"],\"custom\":[...],\"animations\":[...],\"color\",\"width\",\"height\"} ],");
-            sb.AppendLine("  \"layers\": [ {\"name\",\"screenSpace\":true,\"visible\":true} ],");
-            sb.AppendLine("  \"delete\": [\"<existing object name>\"],");
-            sb.AppendLine("  \"variables\": {\"global\":{\"name\":value}, \"scene\":{\"name\":value}}, \"removeVariables\": {\"global\":[\"name\"], \"scene\":[\"name\"]}");
-            sb.AppendLine("}");
-            sb.AppendLine("Only include the fields/arrays you need. Omit empty ones.");
-            sb.AppendLine("ORDER: \"z\":n on a create/edit object draws it in front of (higher) or behind (lower) the others in its layer (default 0). Objects marked LOCKED can't be changed — leave them out.");
-            sb.AppendLine("VARIABLES: top-level \"variables\".global/.scene create or set the game's global/scene variables (initial values); \"removeVariables\" deletes them. Per-object variables go inside that object's edit/create as \"variables\":{\"name\":value} (and \"removeVariables\":[\"name\"]). You can change ANY variable this way. A value is a number, true/false (a Yes/No), \"words\" (a Text, e.g. \"playerName\":\"Hero\"), a colour \"#RRGGBB\" (a Colour, e.g. \"teamColor\":\"#FF8800\") or an array of words (a List, e.g. \"quests\":[\"Find the key\"]).");
-            sb.AppendLine();
-            sb.AppendLine("KEY RULES:");
-            sb.AppendLine("- To make a NEW thing (player, enemy, boss, coin, platform…), add it to \"create\" and it will be placed in the scene. ONE object can and should have MANY behaviors.");
-            sb.AppendLine("- To change an EXISTING object, add it to \"edit\" by its name. Behaviors are ADDED/UPDATED; keep existing ones unless you list them in \"remove\". Its \"custom\" rules are ADDED to the ones it has (a rule with the same event+action replaces the old one); to rewrite them all, send the full list with \"replaceCustom\":true. To delete objects: \"delete\":[\"Name\"].");
-            sb.AppendLine("- If the user talks about \"the player\" but there is an object with Platformer/TopDown, that IS the player — edit it by its name. Don't require it to be selected.");
-            sb.AppendLine("- If an object with that name ALREADY EXISTS in the scene, put it in \"edit\" (never create a duplicate).");
-            sb.AppendLine("- To SPAWN objects during play (rocks falling, enemies appearing on a key/timer): create the thing with \"asPrefab\":true (it stays OUT of the scene until spawned; give it physics Dynamic if it should fall), then spawn it with a Spawner behavior or a custom spawn rule.");
-            sb.AppendLine("- Use EXACT kind names from this list. Never invent kinds. One object, many behaviors.");
-            sb.AppendLine();
-            sb.AppendLine("EXAMPLES (the shape of an answer — never copy one unless it is exactly what was asked):");
-            sb.AppendLine("User: \"make a player that walks, jumps, has health and can attack\" =>");
-            sb.AppendLine("{\"create\":[{\"name\":\"Player\",\"x\":120,\"y\":300,\"width\":48,\"height\":64,\"color\":\"#3BC97A\",\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":260,\"jump\":640}},{\"kind\":\"FollowCamera\"},{\"kind\":\"Health\",\"nums\":{\"max\":5,\"respawn\":1}},{\"kind\":\"ToolUse\",\"texts\":{\"tool\":\"sword\"}}]}]}");
-            sb.AppendLine("User: \"give the player more health\" (player already exists) =>");
-            sb.AppendLine("{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Health\",\"nums\":{\"max\":8}}]}]}");
-            sb.AppendLine("User: \"create a global score at 0 and lives at 3, and set the scene timer to 60\" => {\"variables\":{\"global\":{\"score\":0,\"lives\":3},\"scene\":{\"timer\":60}}}");
-            if (_aiImages.Count > 0)
-                sb.AppendLine("User: \"with these images make a boss with full movement\" => {\"create\":[{\"name\":\"Boss\",\"x\":700,\"y\":200,\"width\":120,\"height\":120,\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":120,\"jump\":500}},{\"kind\":\"Health\",\"nums\":{\"max\":20,\"respawn\":0}},{\"kind\":\"Chase\",\"texts\":{\"target\":\"Player\"}},{\"kind\":\"Damager\",\"texts\":{\"target\":\"Player\"}}],\"animations\":[{\"name\":\"idle\",\"frames\":[\"<idle images>\"],\"fps\":6},{\"name\":\"walk\",\"frames\":[\"<walk images>\"],\"fps\":10}]}]}");
-            sb.AppendLine();
-            sb.AppendLine("Behavior kinds — nums(texts):");
-            foreach (var info in BehaviorCatalog.All)
-            {
-                if (info.Kind == BehaviorKind.Tilemap || info.Hidden) continue; // painted by hand / legacy — never via AI
-                var nums = string.Join(",", info.Nums.Select(n => n.Key));
-                var texts = string.Join(",", info.Texts.Select(t => t.Key));
-                sb.AppendLine($"  {info.Kind}: {nums}" + (texts.Length > 0 ? $" ({texts})" : ""));
-            }
-            // bosses and cutscenes keep their steps in texts.script (a JSON string); the card's "Ask the AI" writes them in detail
-            sb.AppendLine("BOSS = an object with BossAI + Health (respawn=0, texts.var its own variable e.g. bossHP) + Damager (target Player). BossAI texts: moves=ground|fly, starts=start|near|var (+var), target, title. Its texts.script may stay empty: a new BossAI already charges and shoots; the user designs the attacks/phases in its card (🧩 Advanced Scratch / ✨ Ask the AI).");
-            sb.AppendLine("CUTSCENE = an object with Cutscene: texts.trigger=start|enter|var|key (+var/key/who), nums once/lock/bars. Its texts.script is a JSON STRING {\"steps\":[{\"do\":\"say\",\"text\":\"...\",\"speaker\":\"...\"},...]} with step ids: " +
-                          string.Join(",", StepCatalog.Cutscene.Select(d => d.Id)) + ". Keep it short or leave it for the card's ✨ Ask the AI.");
-            sb.AppendLine();
-            if (compact)
-            {
-                sb.AppendLine("For logic the kinds can't do, use a \"custom\" rule list: [{\"when\":<start|always|key|keypress|timer|after|touch|death|ifvar|iflocal|iftext|iflist|hasitem|expr|click|rightclick|mouseover|mousepress>,...params...,\"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|hide|show|goscene|setvar|addvar|setlocal|addlocal|settext|toggle|setcolor|tint|listadd|listremove|listclear|set|additem|removeitem|boost|setspeed|say|save|load|tween|emit>,...params...}]. Params by name: key, every, name, var/op/value, force, speed, vx/vy, dx/dy, to, amount, factor, text, scene, item, directions, prop. Texts: settext(var,to:\"Hi {name}\"), toggle(var) flips a Yes/No, iftext(var,op:is|isnot|contains|empty,value). Colours: setcolor(var,to:\"#FF8800\"), tint(color,target) paints an object; any colour param can be \"{colourVar}\". Lists: listadd/listremove(var,value), listclear(var), iflist(var,op:contains|notcontains|empty|notempty|countis|countatleast,value); {quests} shows the items, count:quests is how many. ANY value can be an \"expr\" string (math; reads self.x/self.cx/self.health, OtherObj.cx, a variable, item:NAME, count:LIST, mousex, time, dist(x1,y1,x2,y2)). Guard any rule with \"cond\":\"<expr>\". timer repeats; after(seconds) fires once. Fade/grow/slide = do:tween(prop=opacity|scale|x|y, to, duration), e.g. {\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":3}. setcolor only sets a Colour variable. 'WHEN X happens, effect' is ALWAYS a custom rule (condition→action), never a static param.");
-                sb.AppendLine("Player = Platformer, physics Dynamic, controls=1 (dash/doubleJump/wallJump are 0/1 nums). Enemies: controls=0; prefer Patrol/Chase/custom. Killable enemy = Health respawn=0; player = respawn=1. Moving platform = Solid+Patrol. To spawn during play: make it asPrefab:true, then a Spawner or a custom spawn rule. Per-object looks: opacity, cornerRadius, borderColor+borderWidth, color, font. Draw art: \"pixelArt\":{\"palette\":{\"X\":\"#RRGGBB\"},\"rows\":[\"..XX..\"]} ('.'=transparent, <=16px). Image with empty space around the drawing: \"fitHitbox\":true (collides with the drawing, not the box). Only touch the exact object(s)/layer(s) the user names.");
-            }
-            else
-            {
-            sb.AppendLine("Intent → kind: walk+jump=Platformer; top-down/8-dir=TopDown; ground/wall/platform=Solid; camera=FollowCamera; patrol=Patrol; chase player=Chase; shoot on key=Shooter; melee/sword/attack/use an item by clicking=ToolUse (texts tool=sword, or a Hotbar for several items); hp/lives=Health; spike/hazard/contact damage=Damager; checkpoint=Checkpoint; coin/pickup=Collectible; door/next level=GoToScene; HUD/score text=Label; glow=LightSource; spinning=Spin; spawner=Spawner; parallax bg=Parallax.");
-            sb.AppendLine("Intent → kind (NEW): pushable crate/box/sokoban block=Pushable; lever/switch/toggle=Switch; locked gate/ability-gate/barrier that opens with a key=Gate (NOT GoToScene — Gate blocks the way, GoToScene changes scene); NPC/sign/chest/press-E-to-talk=Interact; pick up an ability or key that unlocks something=AbilityPickup; invisible trigger zone/region/level-exit area=Area.");
-            sb.AppendLine("Gate opens when its var meets the condition: {\"kind\":\"Gate\",\"texts\":{\"var\":\"hasRedKey\"},\"nums\":{\"value\":1}}. Give the key with AbilityPickup {\"kind\":\"AbilityPickup\",\"texts\":{\"var\":\"hasRedKey\"}}. Metroidvania ability+gate: AbilityPickup texts{var:hasDash,grant:dash} then Gate texts{var:hasDash}.");
-            sb.AppendLine("PROCEDURAL maps: put a Generator on an empty object sized to the region to fill (or scene-sized). It spawns prefab(s) when the scene loads. mode=once makes a STABLE map (same when you return); mode=regen RECREATES it on every visit (roguelike). Make the spawned things prefabs with asPrefab:true. e.g. {\"create\":[{\"name\":\"Coin\",\"asPrefab\":true,...}],\"edit\":[{\"name\":\"World\",\"behaviors\":[{\"kind\":\"Generator\",\"texts\":{\"prefab\":\"Coin,Enemy\",\"mode\":\"regen\",\"layout\":\"scatter\"},\"nums\":{\"count\":20,\"minGap\":80}}]}]}.");
-            sb.AppendLine("Persistence: a Collectible/AbilityPickup with a texts \"id\" stays gone after it's taken (survives revisits + save). Save/continue progress with the save/load actions (custom do:save / do:load, or Interact action:save) — saves all global vars + current scene. Collectible can also carry texts{item:NAME}+nums{amount} to add to an inventory count.");
-            sb.AppendLine("AESTHETICS (per object, in create/edit): \"opacity\"(0-1), \"cornerRadius\"(px, 0=square), \"borderColor\"(hex)+\"borderWidth\"(px outline), \"font\"(family name) + \"bold\"(true/false) for Label text, \"color\"(fill). Example rounded glowing box: {\"edit\":[{\"name\":\"Box\",\"cornerRadius\":16,\"borderColor\":\"#00E5FF\",\"borderWidth\":3,\"opacity\":0.9}]}.");
-            sb.AppendLine("TEXT EFFECTS: a Label takes texts{effect: none|typewriter|fade|blink|pulse} + nums{effectSpeed}. e.g. a title that types out: {\"kind\":\"Label\",\"texts\":{\"text\":\"GAME OVER\",\"effect\":\"typewriter\"},\"nums\":{\"fontSize\":48}}.");
-            sb.AppendLine("GAME THEME (top-level \"theme\" object, styles what the PLAYER sees): {\"theme\":{\"font\":\"Consolas\",\"dialogBg\":\"#101418\",\"dialogBorder\":\"#00E5FF\",\"dialogText\":\"#FFFFFF\",\"dialogSpeaker\":\"#F4C03B\",\"dialogFontSize\":18,\"dialogCorner\":10,\"dialogEffect\":\"typewriter\",\"dialogSpeed\":45}}. Use it when the user wants to restyle dialogue boxes or the game font.");
-            sb.AppendLine("Intent → kind (MORE): enemy that chases AROUND walls (not straight) = PathChase (best for top-down); trampoline/bounce pad/jump pad = Spring (nums{force},texts{dir:up/down/left/right}); minimap/radar = Minimap (put on a UI layer, texts{corner:tl/tr/bl/br,player,markers}). Bouncy objects: set the object's physics Bounciness (0-1) in \"physics\" — a ball with bounciness 0.7 bounces off floors/walls. A character/enemy whose image has empty (transparent) space around the drawing: \"fitHitbox\":true in its create/edit — it then collides with the drawing, not the whole box.");
-            sb.AppendLine("Intent → kind (FX/UI): explosion/sparks/smoke/trail = Particles (on=start bursts once, on=always is continuous at nums{rate}; nums{burst,life,speed,spread,angle,size,gravity}, texts{color}); clickable menu/HUD button = UIButton on a UI layer (same action params as Area: goscene/setvar/addvar/say/save/load) — add a Label for its text; health/mana/progress bar = Bar (texts{var,color,bg}, nums{max} or texts{maxVar}).");
-            sb.AppendLine("ACTIONS (MORE): do:emit (particle burst — count,speed,spread,angle,life,size,gravity,color); do:tween (smoothly animate a property: prop=x|y|opacity|scale|rot|w|h, to, nums{duration,loop,yoyo}, ease=linear|in|out|inout) e.g. a pulsing title {\"when\":\"start\",\"do\":\"tween\",\"prop\":\"scale\",\"to\":1.2,\"duration\":0.6,\"loop\":1,\"yoyo\":1}; do:emit on death for explosions {\"when\":\"death\",\"do\":\"emit\",\"count\":24,\"color\":\"#E5484B\"}; do:setvolume (channel=music/sfx/master, to=0-1). SoundEmitter texts{channel:music|sfx}.");
-            sb.AppendLine("Platformer/TopDown obey the default keys only when their num \"controls\"=1 (that's the PLAYER). If you give Platformer/TopDown to an enemy/boss, set controls=0 so it does NOT copy the player's keys (move it with a custom script or custom keys). For simple enemies prefer Patrol/Chase/custom (physics Dynamic if it should fall/jump).");
-            sb.AppendLine("Player uses Platformer physics=Dynamic (dash/doubleJump/wallJump are nums on it, each 0 or 1). Enemy you can kill = Health respawn=0. Player = Health respawn=1.");
-            sb.AppendLine();
-            sb.AppendLine("AVOID THESE MISTAKES:");
-            sb.AppendLine("- A new thing the user names (coin, platform, enemy, boss, NPC, door, spike, wall, obstacle, crystal…) is a NEW object → put it in \"create\" with that name. NEVER put Solid/Collectible/Patrol/Chase/GoToScene/Parallax/Projectile/DestroyOffscreen on the Player.");
-            sb.AppendLine("- An ability/stat for the player (health, speed, dash, jump, wall jump, attack, shoot, light) goes in \"edit\" of the existing player — do NOT create a new object for it, and do NOT invent a new player.");
-            sb.AppendLine("- 0/1 flags (controls,doubleJump,wallJump,dash,oneWay,respawn,onStart,loop) must be exactly 0 or 1.");
-            sb.AppendLine("- 'X times faster' / 'double speed' ON AN EVENT => custom boost(factor). NEVER use velocity for speed. A permanent speed change => set the Platformer \"speed\" num.");
-            sb.AppendLine("- To spawn on a timer you MUST add a Spawner behavior (or a custom timer→spawn rule); creating the prefab alone spawns nothing.");
-            sb.AppendLine("- An enemy that shoots AT the player => custom {\"when\":\"timer\",\"every\":2,\"do\":\"shoot\",\"directions\":1,\"speed\":400}. Projectile makes the object ITSELF fly, so don't put Projectile on a stationary shooter.");
-            sb.AppendLine("- When changing layers, ONLY change the exact layer(s) the user names.");
-            sb.AppendLine("- \"when it dies, do X\" (explode, drop item, spawn particles) => a custom rule with \"when\":\"death\".");
-            sb.AppendLine("- A MOVING platform = a new object with Solid + Patrol (NOT Platformer). A one-way platform = Solid oneWay=1 (keep physics Static).");
-            sb.AppendLine("- Patrol nums: speed, distance, axis (0=horizontal, 1=vertical), smooth (1=ease to a stop at the ends), slowSteps (how many times it slows near an end; 0=no slowing), pause (seconds stopped at each end; 0=none). E.g. vertical lift that waits: Patrol axis=1, smooth=1, pause=1.5.");
-            sb.AppendLine("- AdvancedPatrol = follows a free route the USER draws in the editor. You can ADD it but cannot draw the route — tell the user to select it and click 'Draw path'. Nums: mode (0=platformer gravity+jumps, 1=top-down free, 2=free/flying), speed, jump, autoJump, pathfind (route around walls; top-down only), repeat (0=back-and-forth, 1=loop, 2=once), pause, pauseStart, collide (1=has hitbox, 0=passes through walls).");
-            sb.AppendLine("- Platformer/TopDown/AdvancedPatrol have a 'collide' num (default 1). Set collide=0 to make a character ignore walls/tilemaps (no hitbox / ghost).");
-            sb.AppendLine();
-            sb.AppendLine("DRAW SPRITES (pixel art): you can DRAW an object's look. On a create/edit object add \"pixelArt\":{\"palette\":{\"X\":\"#RRGGBB\",...},\"rows\":[\"..XX..\",...]}. Each row is a string; each character is a palette key; '.' or space = transparent. Keep it small (<=16x16 is best, up to 32). Match the object's width/height to the art size for crisp pixels. Only do this when the user asks you to draw/make art, or when no image was given and art would help.");
-            sb.AppendLine("For animations with drawn frames: \"animations\":[{\"name\":\"walk\",\"fps\":8,\"loop\":true,\"frames\":[{\"palette\":{...},\"rows\":[...]},{\"palette\":{...},\"rows\":[...]}]}]. Name them idle/walk/jump/crouch so the engine auto-plays them. Example tiny coin: {\"pixelArt\":{\"palette\":{\"Y\":\"#ffd700\",\"o\":\"#b8860b\"},\"rows\":[\".YYY.\",\"YoYoY\",\"YoYoY\",\"YoYoY\",\".YYY.\"]}}.");
-            sb.AppendLine();
-            sb.AppendLine("CUSTOM behavior — for ANY special/unique logic the kinds can't do (enemy patterns, dialogue, variables, inventory, conditions). ALWAYS use \"custom\" for things like 'every N do X', timed attacks, phases:");
-            sb.AppendLine("CRUCIAL: 'WHEN <something> happens, <effect>' (e.g. 'when the player hits X, go 2x faster', 'when touch spike, lose a life') is ALWAYS a custom rule (condition → action). NEVER express it by changing a static param — a static param would apply from the start, not on the event.");
-            sb.AppendLine("\"custom\":[{\"when\":<start|always|key|keypress|timer|after|touch|death|ifvar|iflocal|iftext|iflist|hasitem|expr|click|rightclick|mousedown|mouseover|mousepress>, ...params, \"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|hide|show|goscene|setvar|addvar|setlocal|addlocal|settext|addtext|toggle|setcolor|tint|listadd|listremove|listclear|set|additem|removeitem|boost|setspeed|say|save|load|tween|emit>, ...params}]");
-            sb.AppendLine("Condition params: key(key); keypress(key,cooldown); timer(every); touch(name) [fires once when contact starts]; death [fires when this object's health hits 0]; ifvar/iflocal(var,op,value); iftext(var,op=is|isnot|contains|empty,value) [compares a Text variable]; iflist(var,op=contains|notcontains|empty|notempty|countis|countatleast,value) [checks a List: an item, or how many]; hasitem(item); expr(expr) [any expression truthy]; click/rightclick/mousedown/mouseover [mouse over THIS object]; mousepress [mouse clicked anywhere].");
-            sb.AppendLine("Action params: velocity(vx,vy); move(dx,dy); accelerate(ax,ay); jump(force); rotate(speed); shoot(directions,speed); spawn(object); goscene(scene); setvar/setlocal(var,to); addvar/addlocal(var,amount); settext/addtext(var,to) [to = words, {name} puts a variable in: \"Hello {playerName}!\"]; toggle(var) [flips a Yes/No]; setcolor(var,to) [to = \"#RRGGBB\": a Colour variable]; tint(color,[target]) [paints a plain-colour object, default target=self; color can be \"{teamColor}\" — so can emit's color]; listadd/listremove(var,value) [adds an item / removes the first equal one; value may hold {name}]; listclear(var); {quests} in a text shows a List's items, count:quests (in an expr or {count:quests}) is how many; settext/toggle/iftext/setcolor/list actions/iflist take \"local\":true for the object's own variable; set(prop,to,[target]) [prop=x|y|vx|vy|rot|facing|health|w|h — set a property, default target=self]; boost(factor); setspeed(factor); say(text,speaker). Timing: when:timer(every) REPEATS; when:after(seconds) fires ONCE that many seconds after the object appears. Gradual changes (fade, grow, slide) are do:tween(prop=opacity|scale|x|y|rot|w|h, to, duration) — e.g. fade out after 5 s over 3 s: {\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":3}. setcolor only stores a colour in a Colour VARIABLE; it never changes how an object looks (use tint or tween).");
-            sb.AppendLine("EXPRESSIONS (the big unlock): any set/add/compare value can be an \"expr\" string instead of a fixed number. Supports + - * / %, comparisons > < >= <= == !=, logic && || !, parentheses, functions abs min max floor ceil round sqrt sign sin cos atan2 clamp(x,lo,hi) rand(a,b) randi(a,b) dist(x1,y1,x2,y2). Read values: a variable name (score), item:NAME, self.x/self.y/self.vx/self.cx/self.health/self.facing/local.NAME, OtherObjectName.x/.cy/..., mousex/mousey (world), mousescreenx/y, time, scenew/sceneh.");
-            sb.AppendLine("Universal guard: add \"cond\":\"<expression>\" to ANY rule and it only fires when the expression is truthy. e.g. {\"when\":\"click\",\"cond\":\"coins >= 15\",\"do\":\"addvar\",\"var\":\"coins\",\"expr\":\"coins - 15\"}.");
-            sb.AppendLine("Expression examples: make an object follow the mouse => {\"when\":\"always\",\"do\":\"set\",\"prop\":\"x\",\"expr\":\"mousex - self.w/2\"}. Score from a formula => {\"when\":\"touch\",\"name\":\"Coin\",\"do\":\"setvar\",\"var\":\"score\",\"expr\":\"score + 10 * lives\"}. Enemy that charges only when the player is close => {\"when\":\"always\",\"cond\":\"dist(self.cx,self.cy,Player.cx,Player.cy) < 200\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(Player.cx - self.cx) * 180\"}. Click to buy/select => {\"when\":\"click\",\"do\":\"setvar\",\"var\":\"selected\",\"to\":1}.");
-            sb.AppendLine("Example — \"when the player hits the Orb, move 2x faster\": {\"edit\":[{\"name\":\"Player\",\"custom\":[{\"when\":\"touch\",\"name\":\"Orb\",\"do\":\"boost\",\"factor\":2}]}]}");
-            sb.AppendLine("IMPORTANT: a set action uses \"to\" (NOT \"value\") so it never clashes with a condition's \"value\". e.g. reset a counter with {\"when\":\"iflocal\",\"var\":\"jumps\",\"op\":\">=\",\"value\":3,\"do\":\"setlocal\",\"var\":\"jumps\",\"to\":0}.");
-            sb.AppendLine("LOCAL vars (setlocal/addlocal/iflocal) are PER-OBJECT counters — each enemy copy has its own. Use them for 'every N' patterns. GLOBAL vars (setvar/addvar/ifvar) are shared (score, lives).");
-            sb.AppendLine("'jump' needs physics Dynamic and some ground. vx right+, vy down+ (negative vy = up).");
-            sb.AppendLine("Show variables with a Label whose text uses {name} (e.g. \"HP: {health}\"). Dialogue: say with text lines split by |.");
-            sb.AppendLine("Example — \"enemy that jumps and every 3 jumps dashes forward\":");
-            sb.AppendLine("{\"create\":[{\"name\":\"Jumper\",\"x\":640,\"y\":300,\"width\":48,\"height\":48,\"color\":\"#E5484B\",\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Health\",\"nums\":{\"max\":3,\"respawn\":0}},{\"kind\":\"Damager\",\"texts\":{\"target\":\"Player\"}}],\"custom\":[{\"when\":\"timer\",\"every\":1.1,\"do\":\"jump\",\"force\":540},{\"when\":\"timer\",\"every\":1.1,\"do\":\"addlocal\",\"var\":\"jumps\",\"amount\":1},{\"when\":\"iflocal\",\"var\":\"jumps\",\"op\":\">=\",\"value\":3,\"do\":\"velocity\",\"vx\":-320,\"vy\":-200},{\"when\":\"iflocal\",\"var\":\"jumps\",\"op\":\">=\",\"value\":3,\"do\":\"setlocal\",\"var\":\"jumps\",\"to\":0}]}]}");
-            sb.AppendLine("Example — \"spawn rocks that fall from the sky when I press Y\":");
-            sb.AppendLine("{\"create\":[{\"name\":\"Rock\",\"width\":40,\"height\":40,\"color\":\"#8A7A6A\",\"physics\":\"Dynamic\",\"asPrefab\":true}],\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Spawner\",\"texts\":{\"target\":\"Rock\",\"key\":\"Y\",\"at\":\"top\"},\"nums\":{\"max\":0}}]}]}");
-            }
-            sb.Append(Recipes);
-            sb.AppendLine();
+            var kinds = BehaviorCatalog.All.Where(i => !i.Hidden && i.Kind != BehaviorKind.Tilemap).ToList();
+            sb.AppendLine("You build 2D games in EasyEngine. Answer ONLY one JSON object, using only the keys you need:");
+            sb.AppendLine("{\"create\":[OBJ],\"edit\":[OBJ],\"delete\":[\"Name\"],\"variables\":{\"global\":{\"score\":0}},\"level\":{…}}");
+            sb.AppendLine("OBJ = {\"name\",\"x\",\"y\",\"width\",\"height\",\"color\":\"#RRGGBB\",\"layer\",\"physics\":\"None|Static|Dynamic\",\"behaviors\":[{\"kind\",\"nums\":{},\"texts\":{}}],\"custom\":[RULE]}");
+            sb.AppendLine("RULE = {\"when\":EVENT, event params, \"do\":ACTION, action params, \"cond\":\"optional formula\"} — custom rules are ADDED to an object's rules.");
+            sb.AppendLine("- New thing → \"create\" (inside the scene). Existing object (SCENE below) → \"edit\" with its exact name. Change only what is asked.");
+            sb.AppendLine("- Any number may be a formula: \"Player.x - self.x\", \"rand(1,3)\", \"score * 2\" (self.cx/cy/w/h/health, Name.x, time, mousex). x grows right, y grows DOWN.");
+            sb.AppendLine("Shapes: change a behavior {\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":400}}]}]} · a new thing {\"create\":[{\"name\":\"Coin\",\"x\":500,\"y\":420,\"width\":24,\"height\":24,\"color\":\"#FFD700\",\"behaviors\":[{\"kind\":\"Collectible\"}]}]} · a rule {\"edit\":[{\"name\":\"Box\",\"custom\":[{\"when\":\"timer\",\"every\":2,\"do\":\"jump\",\"force\":600}]}]}");
+            sb.AppendLine("Behaviors: " + string.Join(", ", kinds.Select(i => i.Kind)));
+            sb.AppendLine("EVENTS: " + string.Join(", ", AiSpecFix.Events.Where(e => e is not ("keydown" or "hover"))));
+            sb.AppendLine("ACTIONS: " + string.Join(", ", AiSpecFix.Actions.Where(a => a != "accel")));
 
-            // scene inventory so the AI can target/avoid-dup
-            sb.AppendLine("CURRENT SCENE \"" + _scene.Name + "\":");
-            sb.AppendLine("Layers: " + string.Join(", ", _scene.Layers.Select(l => $"\"{l.Name}\"({l.Kind}{(l.ScreenSpace || l.Kind == LayerKind.UI ? ",fixed" : "")})")));
-            var allObjs = _scene.Layers.SelectMany(l => l.Objects).ToList();
-            if (allObjs.Count == 0) sb.AppendLine("Objects: (none yet)");
-            int ruleBudget = 3000; // the rules shown in all: a big project must not blow the free tiers' token limits
-            if (allObjs.Count > 0) foreach (var o in allObjs)
+            // what the request is about: hints, then the behaviors they (and the request) name
+            var hints = HintsFor(request);
+            if (hints.Count > 0) { sb.AppendLine("HOW TO (for this request):"); foreach (var h in hints) sb.AppendLine("- " + h.Text); }
+            var detail = hints.SelectMany(h => h.Kinds).Concat(MatchBehaviors(request)).Distinct().Take(7).ToList();
+            foreach (var k in detail) sb.AppendLine(BehaviorLine(BehaviorCatalog.Info(k)));
+
+            // the scene
+            sb.AppendLine($"SCENE \"{_scene.Name}\" {_scene.Width:0}x{_scene.Height:0}" + (GroundTop() is double g ? $", ground top y={g:0}" : "") +
+                          $". Layers: {string.Join(", ", _scene.Layers.Select(l => l.Name + (l.ScreenSpace || l.Kind == LayerKind.UI ? "(fixed UI)" : "")))}. Scenes: {string.Join(", ", _project.Scenes.Select(s => s.Name))}.");
+            int ruleBudget = 1200; // a big project must not blow the free tiers' token limits
+            foreach (var o in _scene.Layers.SelectMany(l => l.Objects))
             {
-                var ov = VarScope.Of(o).Count > 0 ? " vars{" + VarScope.Of(o).Describe() + "}" : "";
                 var script = Compact(o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom)?.Text("script", "") ?? "");
-                var shown = script.Length > 600 ? script[..600] + "…" : script;
+                var shown = script.Length > 400 ? script[..400] + "…" : script;
                 var rules = script.Length <= 2 ? "" : shown.Length <= ruleBudget ? " custom=" + shown : " custom=(has rules)"; // so a change can keep or retune them
                 if (script.Length > 2 && shown.Length <= ruleBudget) ruleBudget -= shown.Length;
-                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Select(b => b.Kind))}]{ov}{(o.Locked ? " LOCKED" : "")}{(o.Z != 0 ? $" z{o.Z}" : "")}{rules}");
+                var ov = VarScope.Of(o).Count > 0 ? " vars{" + VarScope.Of(o).Describe() + "}" : "";
+                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Where(b => b.Kind != BehaviorKind.Custom).Select(b => b.Kind))}] at {o.X:0},{o.Y:0}{ov}{(o.Locked ? " LOCKED" : "")}{(o.Z != 0 ? $" z{o.Z}" : "")}{rules}");
             }
             if (VarScope.Of(_project).Count > 0) sb.AppendLine("Global variables: " + VarScope.Of(_project).Describe());
             if (VarScope.Of(_scene).Count > 0) sb.AppendLine("Scene variables: " + VarScope.Of(_scene).Describe());
+            var prefabs = _project.Prefabs.Select(p => p.Name).Where(n => !PrefabFactory.Defaults().Any(d => d.Name == n)).ToList();
+            if (prefabs.Count > 0) sb.AppendLine("Prefabs (spawnable): " + string.Join(", ", prefabs));
             if (_selection.Count > 0)
-                sb.AppendLine($"The user SELECTED these object(s): {string.Join(", ", _selection.Select(o => o.Name))}. Apply the requested change ONLY to the selected object(s) via \"edit\" (one entry per selected object, by name). Do NOT create new objects or touch other objects.");
-            sb.AppendLine();
-
-            if (_aiImages.Count > 0)
-            {
-                sb.AppendLine("IMAGES the user provided (use them in \"animations\" frames or \"sprite\"): " + string.Join(", ", _aiImages.Select(Path.GetFileName)));
-                sb.AppendLine("Group frames by their names (e.g. idle*, walk*, attack*) into animations with those names.");
-            }
-            if (_aiSounds.Count > 0)
-            {
-                sb.AppendLine("SOUNDS the user provided: " + string.Join(", ", _aiSounds.Select(Path.GetFileName)));
-                sb.AppendLine("To play a sound, add a SoundEmitter behavior with texts.asset = the sound filename (nums onStart=1 to play at start, loop=1 to loop, volume 0-1).");
-            }
-            if (_aiImages.Count > 0 || _aiSounds.Count > 0) sb.AppendLine();
-
-            sb.AppendLine();
-            sb.AppendLine("Now answer ONLY the user's request below: change just what it asks, edit objects that already exist instead of re-creating them, and keep everything else as it is.");
+                sb.AppendLine($"SELECTED: {string.Join(", ", _selection.Select(o => o.Name))} — change ONLY these, with \"edit\".");
+            if (_aiImages.Count > 0) sb.AppendLine("IMAGES given (use in \"sprite\" or \"animations\" frames, grouped by name: idle*, walk*…): " + string.Join(", ", _aiImages.Select(Path.GetFileName)));
+            if (_aiSounds.Count > 0) sb.AppendLine("SOUNDS given (SoundEmitter texts.asset = file name; nums onStart, loop, volume): " + string.Join(", ", _aiSounds.Select(Path.GetFileName)));
             return sb.ToString();
         }
+
+        // one behavior in a line: "Patrol — Moves back and forth… nums speed=90 distance=200 axis=0(0 ↔|1 ↕); texts —"
+        private static string BehaviorLine(BehaviorInfo info)
+        {
+            static string Opts(string[]? o) => o == null ? "" : "(" + string.Join("|", o.Select(x => x.Split('|')[0])) + ")";
+            var desc = info.Desc.Split(new[] { ". " }, 2, StringSplitOptions.None)[0];
+            if (desc.Length > 110) desc = desc[..110] + "…";
+            var nums = string.Join(" ", info.Nums.Select(n => $"{n.Key}={n.Default:0.##}{Opts(n.Options)}"));
+            var texts = string.Join(" ", info.Texts.Where(t => t.Pick != PickKind.Special).Select(t => $"{t.Key}={(t.Default.Length > 0 ? t.Default : "\"\"")}{Opts(t.Options)}"));
+            return $"  {info.Kind} — {desc}." + (nums.Length > 0 ? " nums " + nums : "") + (texts.Length > 0 ? "; texts " + texts : "");
+        }
+
+        // the top of the widest solid near the bottom (where things stand), if there is one
+        private double? GroundTop() => _scene.Layers.SelectMany(l => l.Objects)
+            .Where(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Solid) && o.Width >= _scene.Width * 0.4 && o.Y > _scene.Height * 0.4)
+            .OrderByDescending(o => o.Width).Select(o => (double?)o.Y).FirstOrDefault();
+
     }
 }

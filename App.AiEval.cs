@@ -54,7 +54,7 @@ namespace EasyEngine
         {
             if (!cloud) await OllamaManager.EnsureRunningAsync();
             ed.EvalReset();
-            try { File.AppendAllText(log, $"system prompt: {ed.TestBuildPrompt(cloud).Length} chars\n\n"); } catch { }
+            try { File.AppendAllText(log, "prompt sizes: " + string.Join(", ", new[] { "make the player run faster", "build a level with 3 platforms and 5 coins", "the Enemy chases the player only when near" }.Select(q => $"{ed.TestBuildPrompt(q).Length}")) + " chars\n\n"); } catch { }
             int pass = 0, n = 0, skipped = 0;
             var fails = new List<string>();
             foreach (var c in cases)

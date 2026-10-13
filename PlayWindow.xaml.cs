@@ -44,6 +44,7 @@ namespace EasyEngine
             public double ShootTimer;
             public bool ScreenSpace;
             public List<CustomRule>? Custom;
+            public bool[]? Fired;                 // RunCustom: which rules fired this frame (decided before any of them runs)
             public TextBlock? LabelBlock;
             public string LabelText = "";
             public string LabelEffect = "none";
@@ -1914,79 +1915,95 @@ namespace EasyEngine
         private static bool ContinuousWhen(string when) => when is "always" or "key" or "keydown" or "ifvar" or "iflocal" or "iftext" or "iflist" or "hasitem"
             or "expr" or "isnight" or "isday" or "mouseover" or "hover" or "mousedown";
 
+        // The rules run in order, each seeing what the ones before it did ("add Key to the list" → "if the list has Key").
+        // But rules started by the same moment — a key press, a click, a touch, a timer — all decide first, as the game is at
+        // that moment: "on E: pay 10 coins" and "on E, if coins >= 10: get a Sword" both happen; the second isn't fooled by
+        // the first having already paid.
         private void RunCustom(Entity en, double dt)
         {
             if (en.Custom == null) return;
-            foreach (var r in en.Custom)
+            if (en.Fired == null || en.Fired.Length != en.Custom.Count) en.Fired = new bool[en.Custom.Count];
+            for (int ri = 0; ri < en.Custom.Count; ri++)
+                if (InstantWhen(en.Custom[ri].When)) en.Fired[ri] = RuleFires(en, en.Custom[ri], dt);
+            for (int ri = 0; ri < en.Custom.Count; ri++)
             {
-                bool fire = false;
-                switch (r.When)
-                {
-                    case "start": if (!r.Started) { fire = true; r.Started = true; } break;
-                    case "always": fire = true; break;
-                    case "key":
-                    case "keydown": fire = _keys.Contains(ParseKey(r.WStr("key", "Space"))); break;
-                    case "keypress":
-                        r.Timer -= dt;
-                        if (_keys.Contains(ParseKey(r.WStr("key", "Space"))) && r.Timer <= 0) { fire = true; r.Timer = Math.Max(0.05, r.WNum("cooldown", 0.3)); }
-                        break;
-                    case "timer": // every N seconds — the first time N seconds after it appears (a countdown shows its start value first)
-                        if (!r.Started) { r.Started = true; r.Timer = Math.Max(0.05, r.WNum("every", 1)); }
-                        r.Timer -= dt;
-                        if (r.Timer <= 0) { fire = true; r.Timer += Math.Max(0.05, r.WNum("every", 1)); }
-                        break;
-                    case "after": // once, N seconds after it appears
-                        if (!r.Started) { r.Timer += dt; if (r.Timer >= r.WNum("seconds", r.WNum("every", 1))) { fire = true; r.Started = true; } }
-                        break;
-                    case "touch":
-                    {
-                        var o = _entities.FirstOrDefault(x => x != en && !x.Dead && x.Data.Name.Equals(r.WStr("name"), StringComparison.OrdinalIgnoreCase) && Overlap(en, x));
-                        bool now = o != null;
-                        fire = now && !r.WasTouching; // only on the frame contact STARTS (not every frame)
-                        r.WasTouching = now;
-                        break;
-                    }
-                    case "ifvar":
-                        fire = CompareVar(Var(r.WStr("var")), r.WStr("op", ">="), r.WNum("value"));
-                        break;
-                    case "iflocal":
-                        fire = CompareVar(en.Locals.TryGetValue(r.WStr("var"), out var lv) ? lv : 0, r.WStr("op", ">="), r.WNum("value"));
-                        break;
-                    case "hasitem": fire = Var("item:" + r.WStr("item")) >= 1; break;
-                    case "iftext": fire = TextCondition(en, r); break;
-                    case "iflist": fire = ListCondition(en, r); break; // PlayWindow.Lists.cs
-                    case "isnight": fire = Var("isNight") >= 0.5; break;
-                    case "isday": fire = Var("isNight") < 0.5; break;
-                    case "wheelup": fire = _wheelDelta > 0; break;
-                    case "wheeldown": fire = _wheelDelta < 0; break;
-                    case "expr": fire = EvalExpr(r.WStr("expr"), en) != 0; break;
-                    case "click": fire = _mouseClicked && PointInEntity(en); break;
-                    case "rightclick": fire = _rmbClicked && PointInEntity(en); break;
-                    case "mousedown": fire = _mouseDown && PointInEntity(en); break;
-                    case "mouseover": case "hover": fire = PointInEntity(en); break;
-                    case "mousepress": fire = _mouseClicked; break; // anywhere on screen
-                }
-                // optional extra guard on any rule: "if"/"ifop"/"ifval" (checks a global variable)
-                if (fire && r.T.ContainsKey("if"))
-                    fire = CompareVar(Var(r.Str("if")), r.Str("ifop", ">="), r.Num("ifval"));
-                // universal guard: "cond" is a full expression that must be truthy for the rule to fire
-                if (fire && r.T.ContainsKey("cond"))
-                    fire = EvalExpr(r.Str("cond"), en) != 0;
-
-                // console: continuous triggers log when they start; discrete ones at most once per 0.2s per rule
-                if (fire)
-                {
-                    if (ContinuousWhen(r.When)) { if (!r.WasFiring) Info("Script", en.Data.Name, "rule started: " + r.Summary); }
-                    else if (_gameTime - r.LastLogT >= 0.2)
-                    {
-                        Info("Script", en.Data.Name, "rule fired: " + r.Summary, r.Skipped > 0 ? $"{r.Skipped} more fire(s) were rate-limited" : "");
-                        r.LastLogT = _gameTime; r.Skipped = 0;
-                    }
-                    else r.Skipped++;
-                }
-                r.WasFiring = fire;
-                if (fire) DoCustom(en, r, dt);
+                var r = en.Custom[ri];
+                if (InstantWhen(r.When) ? en.Fired[ri] : RuleFires(en, r, dt)) DoCustom(en, r, dt);
             }
+        }
+
+        private static bool InstantWhen(string when) => when is "start" or "keypress" or "timer" or "after" or "touch" or "click" or "rightclick" or "mousepress" or "wheelup" or "wheeldown";
+
+        // whether a rule fires this frame: its event, then its guards (and the console line when it starts/fires)
+        private bool RuleFires(Entity en, CustomRule r, double dt)
+        {
+            bool fire = false;
+            switch (r.When)
+            {
+                case "start": if (!r.Started) { fire = true; r.Started = true; } break;
+                case "always": fire = true; break;
+                case "key":
+                case "keydown": fire = _keys.Contains(ParseKey(r.WStr("key", "Space"))); break;
+                case "keypress":
+                    r.Timer -= dt;
+                    if (_keys.Contains(ParseKey(r.WStr("key", "Space"))) && r.Timer <= 0) { fire = true; r.Timer = Math.Max(0.05, r.WNum("cooldown", 0.3)); }
+                    break;
+                case "timer": // every N seconds — the first time N seconds after it appears (a countdown shows its start value first)
+                    if (!r.Started) { r.Started = true; r.Timer = Math.Max(0.05, r.WNum("every", 1)); }
+                    r.Timer -= dt;
+                    if (r.Timer <= 0) { fire = true; r.Timer += Math.Max(0.05, r.WNum("every", 1)); }
+                    break;
+                case "after": // once, N seconds after it appears
+                    if (!r.Started) { r.Timer += dt; if (r.Timer >= r.WNum("seconds", r.WNum("every", 1))) { fire = true; r.Started = true; } }
+                    break;
+                case "touch":
+                {
+                    var o = _entities.FirstOrDefault(x => x != en && !x.Dead && x.Data.Name.Equals(r.WStr("name"), StringComparison.OrdinalIgnoreCase) && Overlap(en, x));
+                    bool now = o != null;
+                    fire = now && !r.WasTouching; // only on the frame contact STARTS (not every frame)
+                    r.WasTouching = now;
+                    break;
+                }
+                case "ifvar":
+                    fire = CompareVar(Var(r.WStr("var")), r.WStr("op", ">="), r.WNum("value"));
+                    break;
+                case "iflocal":
+                    fire = CompareVar(en.Locals.TryGetValue(r.WStr("var"), out var lv) ? lv : 0, r.WStr("op", ">="), r.WNum("value"));
+                    break;
+                case "hasitem": fire = Var("item:" + r.WStr("item")) >= 1; break;
+                case "iftext": fire = TextCondition(en, r); break;
+                case "iflist": fire = ListCondition(en, r); break; // PlayWindow.Lists.cs
+                case "isnight": fire = Var("isNight") >= 0.5; break;
+                case "isday": fire = Var("isNight") < 0.5; break;
+                case "wheelup": fire = _wheelDelta > 0; break;
+                case "wheeldown": fire = _wheelDelta < 0; break;
+                case "expr": fire = EvalExpr(r.WStr("expr"), en) != 0; break;
+                case "click": fire = _mouseClicked && PointInEntity(en); break;
+                case "rightclick": fire = _rmbClicked && PointInEntity(en); break;
+                case "mousedown": fire = _mouseDown && PointInEntity(en); break;
+                case "mouseover": case "hover": fire = PointInEntity(en); break;
+                case "mousepress": fire = _mouseClicked; break; // anywhere on screen
+            }
+            // optional extra guard on any rule: "if"/"ifop"/"ifval" (checks a global variable)
+            if (fire && r.T.ContainsKey("if"))
+                fire = CompareVar(Var(r.Str("if")), r.Str("ifop", ">="), r.Num("ifval"));
+            // universal guard: "cond" is a full expression that must be truthy for the rule to fire
+            if (fire && r.T.ContainsKey("cond"))
+                fire = EvalExpr(r.Str("cond"), en) != 0;
+
+            // console: continuous triggers log when they start; discrete ones at most once per 0.2s per rule
+            if (fire)
+            {
+                if (ContinuousWhen(r.When)) { if (!r.WasFiring) Info("Script", en.Data.Name, "rule started: " + r.Summary); }
+                else if (_gameTime - r.LastLogT >= 0.2)
+                {
+                    Info("Script", en.Data.Name, "rule fired: " + r.Summary, r.Skipped > 0 ? $"{r.Skipped} more fire(s) were rate-limited" : "");
+                    r.LastLogT = _gameTime; r.Skipped = 0;
+                }
+                else r.Skipped++;
+            }
+            r.WasFiring = fire;
+            return fire;
         }
 
         private void RunDeathRules(Entity en, double dt)

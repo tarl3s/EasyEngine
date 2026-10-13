@@ -105,7 +105,7 @@ namespace EasyEngine
 
         // ---- test hooks (FullTest.Hitbox.cs)
         internal string TestTrim(GameObjectData o) => TrimBoxToDrawing(o);
-        internal string TestBuildPrompt(bool compact = false) => BuildProjectPrompt(compact);
+        internal string TestBuildPrompt(string request = "") => BuildProjectPrompt(request);
         internal bool TestHasHitboxOutline(GameObjectData o) => _visuals.TryGetValue(o, out var el) && el is Border b && b.Child is Grid g && (g.Tag as string) == "hitbox";
         internal IEnumerable<FrameworkElement> TestInspectorItems() => InspectorRoot.Children.OfType<FrameworkElement>();
     }
