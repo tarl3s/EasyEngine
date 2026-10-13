@@ -139,6 +139,11 @@ public partial class App
             return noCam && noKey && keptKey && ball?.Physics.Mode == PhysicsMode.Dynamic && ball.Physics.Bounciness == 0.8
                    && Is(tint[0], "do", "tint") && Is(tint[0], "color", "#0000FF") && !tint[0].ContainsKey("var");
         });
+        t.Test("blocks: a rule using the game's other names (hover, keydown, accel) opens as that block, not as the first one", () =>
+        {
+            var r = App.AiEvalKit.RulesOf(t.RT("[{\"when\":\"hover\",\"do\":\"accel\",\"ax\":100,\"ay\":0},{\"when\":\"keydown\",\"key\":\"R\",\"do\":\"rotate\",\"speed\":90}]"));
+            return r.Count == 2 && Is(r[0], "when", "mouseover") && Is(r[0], "do", "accelerate") && Is(r[0], "ax", "100") && Is(r[1], "when", "key") && Is(r[1], "key", "R");
+        });
         t.Test("blocks: every 📚 recipe survives the block editor, and they do what they say (blink, circle, countdown)", () =>
         {
             var recipes = BlockEditorWindow.Recipes().Select(r => r.json).ToArray();

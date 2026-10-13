@@ -534,8 +534,11 @@ namespace EasyEngine
                         if (name is "if" or "ifop" or "ifval") { guards[name] = val; continue; }
                         others.Add((name, val, !seenDo));
                     }
+                    // the runtime's other names for a block ("keydown", "hover", "accel"…) open as that block — never as the
+                    // first block of the list, which saving would then write over the rule
                     if (r.When == "keydown") r.When = "key";
-                    if (r.Do == "accel") r.Do = "accelerate";
+                    if (!Array.Exists(Events, d => d.Id == r.When) && AiSpecFix.WhenSynonyms.TryGetValue(r.When, out var ws) && Array.Exists(Events, d => d.Id == ws)) r.When = ws;
+                    if (!Array.Exists(Actions, d => d.Id == r.Do) && AiSpecFix.DoSynonyms.TryGetValue(r.Do, out var ds) && Array.Exists(Actions, d => d.Id == ds)) r.Do = ds;
 
                     // pass 2: bucket each param by WHICH block defines it (not just its side of "do"),
                     // so an action param written before "do" (or vice-versa) still lands in the right bucket.
