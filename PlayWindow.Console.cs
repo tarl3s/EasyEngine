@@ -19,6 +19,18 @@ namespace EasyEngine
         /// <summary>False in exported games: no F1 console and no play log file.</summary>
         public bool DevTools { get; set; } = true;
 
+        /// <summary>Shows or hides the bar on top of a test run (Stop, Console, hints). With <paramref name="remember"/>
+        /// the next test runs start the same way.</summary>
+        public void ShowTestBar(bool show, bool remember)
+        {
+            TopBar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (remember && !ProjectIO.SuppressRecent) { AiSettings.HideTestBar = !show; AiSettings.Save(); }
+            if (!show) Info("Input", "", "Top bar hidden — F2 shows it again");
+        }
+
+        private void HideBar_Click(object sender, RoutedEventArgs e) { ShowTestBar(false, remember: true); FocusGame(); }
+        public bool TTopBarVisible => TopBar.Visibility == Visibility.Visible;
+
         // ---------------- logging ----------------
         private void Log(LogLevel lvl, string cat, string src, string msg, string details = "") => _log.Add(_gameTime, _frameNo, lvl, cat, src, msg, details);
         private void Info(string cat, string src, string msg, string details = "") => Log(LogLevel.Info, cat, src, msg, details);

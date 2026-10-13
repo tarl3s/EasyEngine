@@ -216,6 +216,8 @@ namespace EasyEngine
             World.RenderTransform = _camTransform;
             Lights.RenderTransform = _lightTransform;
 
+            // the bar on top of a test run hides with F2 / its ✕, and stays as the person left it (not in tests: they see it)
+            Loaded += (s, e) => { if (DevTools && !ProjectIO.SuppressRecent && AiSettings.HideTestBar) ShowTestBar(false, remember: false); };
             Loaded += (s, e) => Start();
             Closed += (s, e) => { WritePlayLog(); Stop(); };
 
@@ -224,6 +226,7 @@ namespace EasyEngine
             PreviewKeyDown += (s, e) =>
             {
                 if (e.Key == Key.F1) { if (DevTools) ToggleConsole(); e.Handled = true; return; }
+                if (e.Key == Key.F2) { if (DevTools) ShowTestBar(TopBar.Visibility != Visibility.Visible, remember: true); e.Handled = true; return; }
                 if (e.Key == Key.Escape && !CutsceneTakesEscape) // Esc skips a skippable cutscene
                 {
                     if (Typing) { FocusGame(); e.Handled = true; }

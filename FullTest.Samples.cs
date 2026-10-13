@@ -167,6 +167,16 @@ public partial class App
             w.Close();
             return drawn && undone && redone && cutBack && cancelled;
         });
+        t.Test("test run: the bar on top hides (✕ / F2) and comes back; tests never save that choice", () =>
+        {
+            var w = t.Sim("[]", PhysicsMode.None, null);
+            bool start = w.TTopBarVisible;
+            bool saved = AiSettings.HideTestBar;
+            w.ShowTestBar(false, remember: true);              // remember is ignored in tests (the person's settings stay)
+            bool hidden = !w.TTopBarVisible && AiSettings.HideTestBar == saved;
+            w.ShowTestBar(true, remember: true);
+            return start && hidden && w.TTopBarVisible;
+        });
         t.Test("corners: an object with a picture has square corners by default (the drawing isn't clipped); a set radius still applies", () =>
         {
             var box = new GameObjectData { Width = 40, Height = 40 };
