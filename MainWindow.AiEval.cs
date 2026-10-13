@@ -21,6 +21,16 @@ namespace EasyEngine
 
         public Task<(bool ok, string summary, string reply)> EvalBuild(string prompt) => AiBuildAsync(prompt);
         public void EvalReset() => ResetTestScene();
+
+        /// <summary>The Boss AI / Cutscene card's "✨ Ask the AI" on an object of the scene, written into its behavior.</summary>
+        public async Task<(bool ok, string summary, string reply)> EvalSequence(SeqMode mode, string objectName, string request)
+        {
+            var bh = TestFindObject(objectName)?.Behaviors.FirstOrDefault(b => b.Kind == (mode == SeqMode.Boss ? BehaviorKind.BossAI : BehaviorKind.Cutscene));
+            if (bh == null) return (false, "no " + mode + " behavior on " + objectName, "");
+            var result = await SequenceAi.MakeAsync((user, system) => AiGenerateAsync(user, system, json: true, temperature: 0.2),
+                                                    mode, request, bh.Text("script", ""), _project, _scene, compact: !_useCloud);
+            return (result.Ok, ApplySeqAi(bh, mode, result), result.Ok ? result.Json : result.Error);
+        }
         public bool EvalCompact { get; set; } // --aitest --compact: the cloud's shorter prompt on a local model too
         public Project EvalProject => _project;
         public Scene EvalScene => _scene;

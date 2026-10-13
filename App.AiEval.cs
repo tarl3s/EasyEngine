@@ -69,7 +69,7 @@ namespace EasyEngine
                     c.Setup?.Invoke(kit);
                     kit.Baseline();
                     if (c.Select != null) ed.EvalSelect(c.Select);
-                    var (ok, summary, reply) = await ed.EvalBuild(c.Prompt);
+                    var (ok, summary, reply) = c.Seq is SeqMode mode ? await ed.EvalSequence(mode, c.SeqObject, c.Prompt) : await ed.EvalBuild(c.Prompt);
                     string? why;
                     try { why = ok ? c.Check(kit) : "nothing was applied"; }
                     catch (Exception ex) { why = "check crashed: " + ex.GetType().Name + " " + ex.Message; }
@@ -99,6 +99,7 @@ namespace EasyEngine
             public string Id = "", Prompt = "";
             public Action<AiEvalKit>? Setup;
             public string[]? Select;
+            public SeqMode? Seq; public string SeqObject = ""; // a Boss AI / Cutscene card's "✨ Ask the AI" instead of the panel
             public Func<AiEvalKit, string?> Check = _ => null; // null = pass, else why it failed
         }
 
@@ -167,6 +168,20 @@ namespace EasyEngine
                 S.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(o);
                 return o;
             }
+            /// <summary>A boss "Golem" that fights from the start (its script is what the AI writes).</summary>
+            public GameObjectData AddBoss(string moves)
+            {
+                var b = AddEnemy("Golem", 640);
+                b.Width = b.Height = 96; b.Y = 460 - 96;
+                Beh(b, BehaviorKind.Health)!.Nums["max"] = 20;
+                var ai = BehaviorCatalog.Info(BehaviorKind.BossAI).CreateData();
+                ai.Texts["moves"] = moves; ai.Texts["starts"] = "start";
+                b.Behaviors.Add(ai);
+                b.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Damager).CreateData());
+                if (moves == "fly") { b.Physics.Mode = PhysicsMode.None; b.Y = 120; }
+                return b;
+            }
+
             public GameObjectData AddEnemy(string name = "Enemy", double x = 600)
             {
                 var e = Add(name, x, 396, 48, 64, "#E5484B", PhysicsMode.Dynamic, BehaviorKind.Health);
@@ -212,6 +227,17 @@ namespace EasyEngine
             var cases = new List<AiCase>();
             void C(string id, string prompt, Func<AiEvalKit, string?> check, Action<AiEvalKit>? setup = null, string[]? select = null)
                 => cases.Add(new AiCase { Id = id, Prompt = prompt, Check = check, Setup = setup, Select = select });
+            void Boss(string id, string prompt, Func<AiEvalKit, string?> check, string moves = "ground")
+                => cases.Add(new AiCase { Id = id, Prompt = prompt, Check = check, Seq = SeqMode.Boss, SeqObject = "Golem", Setup = k => k.AddBoss(moves) });
+            void Cut(string id, string prompt, Func<AiEvalKit, string?> check)
+                => cases.Add(new AiCase { Id = id, Prompt = prompt, Check = check, Seq = SeqMode.Cutscene, SeqObject = "Intro", Setup = k =>
+                {
+                    k.AddBoss("ground");
+                    var o = k.Add("Intro", 0, 0, 32, 32, "#00000000", PhysicsMode.None, BehaviorKind.Cutscene);
+                    AiEvalKit.Beh(o, BehaviorKind.Cutscene)!.Texts["trigger"] = "start";
+                } });
+            static BossScript? Script(AiEvalKit k) { var j = AiEvalKit.Beh(k.Obj("Golem"), BehaviorKind.BossAI)?.Text("script", ""); return string.IsNullOrEmpty(j) ? null : SequenceJson.ParseBoss(j, out _); }
+            static bool Uses(BossScript b, params string[] steps) => b.Attacks.SelectMany(a => a.Steps).Any(st => steps.Contains(st.Do));
             static GameObjectData? First(IEnumerable<GameObjectData> e) => e.FirstOrDefault();
             Action<AiEvalKit> box = k => k.Add("Box", 400, 200);
             Action<AiEvalKit> level2 = k => k.AddScene("Level2");
@@ -519,6 +545,60 @@ namespace EasyEngine
                 int plats = k.NewWith(BehaviorKind.Solid).Count(), coins = k.NewWith(BehaviorKind.Collectible).Count(),
                     enemies = k.New.Count(o => AiEvalKit.Has(o, BehaviorKind.Patrol) || AiEvalKit.Has(o, BehaviorKind.AdvancedPatrol));
                 return Need(plats >= 4 && coins >= 3 && enemies >= 1, $"platforms {plats}, coins {coins}, patrolling enemies {enemies}");
+            });
+
+            // ---------- the Boss AI card's ✨ Ask the AI ----------
+            Boss("boss-ai-jump-ring", "it jumps toward the player and slams the ground, then shoots a ring of 8 bullets", k =>
+            {
+                var b = Script(k); if (b == null) return "no script";
+                if (!Uses(b, "jump") || !Uses(b, "shoot")) return "no jump or no shoot step";
+                var pw = k.Play(); double y0 = pw.TY("Golem"), minY = y0; int shots = 0;
+                var seen = new HashSet<object>(); pw.TCollect(seen); int n0 = seen.Count;
+                AiEvalKit.Run(pw, 14, p => { minY = Math.Min(minY, p.TY("Golem")); p.TCollect(seen); });
+                shots = seen.Count - n0;
+                return Need(y0 - minY > 30, "the boss never jumped") ?? Need(shots >= 4, $"{shots} bullets in 14 s");
+            });
+            Boss("boss-ai-phases", "phase 1: it charges at the player. Below half health it gets angry: it shoots spirals and rests less", k =>
+            {
+                var b = Script(k); if (b == null) return "no script";
+                if (b.Phases.Count < 2) return $"{b.Phases.Count} phase(s)";
+                var pw = k.Play(); AiEvalKit.Run(pw, 1); var p1 = pw.TBossPhase("Golem");
+                pw.TSetHp("Golem", 8); AiEvalKit.Run(pw, 1.5);
+                return Need(pw.TBossPhase("Golem") != p1, $"still in phase '{p1}' at 40% health");
+            });
+            Boss("boss-ai-fly", "it flies above the player, swoops down at them and flies back up, then drops bombs", k =>
+            {
+                var b = Script(k); if (b == null) return "no script";
+                var pw = k.Play(); double lo = 1e9, hi = -1e9; AiEvalKit.Run(pw, 12, p => { lo = Math.Min(lo, p.TY("Golem")); hi = Math.Max(hi, p.TY("Golem")); });
+                return Need(b.Attacks.Count >= 2, $"{b.Attacks.Count} attack(s)") ?? Need(hi - lo > 60, $"moved only {hi - lo:0}px up and down");
+            }, "fly");
+            Boss("boss-ai-death", "when it dies the screen shakes, it explodes into particles and the variable doorOpen becomes 1", k =>
+            {
+                var b = Script(k); if (b == null) return "no script";
+                if (b.Death.Count == 0) return "no death steps";
+                var pw = k.Play(); AiEvalKit.Run(pw, 1); pw.TSetHp("Golem", 0); AiEvalKit.Run(pw, 6);
+                return Need(pw.TVar("doorOpen") == 1, $"doorOpen = {pw.TVar("doorOpen")}");
+            });
+            Boss("pt-boss-ai", "o chefe dá um dash na direção do jogador e depois pula; com 30% de vida ele fica mais rápido e atira", k =>
+            {
+                var b = Script(k); if (b == null) return "no script";
+                return Need(b.Attacks.Count >= 2, $"{b.Attacks.Count} attack(s)") ?? Need(b.Phases.Count >= 2, $"{b.Phases.Count} phase(s)")
+                    ?? Need(Uses(b, "dash") && Uses(b, "jump"), "no dash or no jump");
+            });
+
+            // ---------- the Cutscene card's ✨ Ask the AI ----------
+            Cut("cutscene-intro", "the camera goes to the Golem, the Golem says 'You shall not pass!', then the camera goes back to the player", k =>
+            {
+                var pw = k.Play(); bool said = false;
+                AiEvalKit.Run(pw, 8, p => { if (p.TDialog && p.TDialogText.Contains("pass", StringComparison.OrdinalIgnoreCase)) said = true; if (p.TDialog) p.TAdvanceDialog(); });
+                return Need(said, "the line was never shown");
+            });
+            Cut("pt-cutscene", "o Player diz 'Onde estou?' e depois aparece o título 'Capítulo 1'", k =>
+            {
+                var pw = k.Play(); bool said = false;
+                AiEvalKit.Run(pw, 8, p => { if (p.TDialog && p.TDialogText.Contains("Onde", StringComparison.OrdinalIgnoreCase)) said = true; if (p.TDialog) p.TAdvanceDialog(); });
+                var j = AiEvalKit.Beh(k.Obj("Intro"), BehaviorKind.Cutscene)?.Text("script", "") ?? "";
+                return Need(said, "the line was never shown") ?? Need(j.Contains("Cap", StringComparison.OrdinalIgnoreCase), "no title 'Capítulo 1'");
             });
 
             // ---------- selection ----------
