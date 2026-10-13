@@ -213,6 +213,32 @@ public partial class App
             pw.TPlace("Player", door.X + 4, door.Y + 20); pw.TSteps(10);
             return !none && kept == json && hurt && pw.TScene == "Level2";
         });
+        t.Test("ai: the level a request describes is read from its words (EN/PT, numbers or words, stairs, rooms, a door)", () =>
+        {
+            var scenes = new[] { "Scene 1", "Level2" };
+            string Of(string p) { var d = EasyEngine.MainWindow.LevelFromPrompt(p, scenes); return d == null ? "null" : string.Join(",", d.OrderBy(k => k.Key).Select(k => k.Key + "=" + k.Value)); }
+            return Of("build a simple platformer level with 3 floating platforms, 5 coins, 2 enemies that patrol and a door to Level2 at the end") == "coins=5,door=Level2,enemies=2,platforms=3"
+                && Of("monte uma fase com chão, 4 plataformas, 3 moedas e um inimigo que patrulha") == "coins=3,enemies=1,platforms=4"
+                && Of("make a staircase of 5 platforms going up to the right") == "stairs=5"
+                && Of("make a top-down room surrounded by walls") == "style=topdown"
+                && Of("put 10 coins in a row above the ground") == "coins=10"
+                && Of("make a coin that gives 10 points") == "null" && Of("create an enemy that chases the player") == "null" && Of("give the player 5 hearts") == "null";
+        });
+        t.Test("ai: when the reply doesn't deliver the level asked for, the engine lays it out (a reply that does is kept)", () =>
+        {
+            var ed = NewEditor(s => s.Layers.Add(new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true }));
+            ed.EvalProject.Scenes.Add(new Scene { Name = "Level2", Layers = { new Layer { Name = "Base", Kind = LayerKind.Base } } });
+            ed.TestApplySpec("{\"create\":[{\"name\":\"Ground\",\"x\":0,\"y\":0,\"width\":800,\"height\":100},{\"name\":\"Platform1\",\"x\":100,\"y\":100,\"width\":200,\"height\":20}]}",
+                             "build a level with 3 platforms, 5 coins, 2 enemies and a door to Level2");
+            var all = ed.TestAllObjects();
+            bool built = all.Count(o => o.Name.StartsWith("Platform") && o.Behaviors.Any(b => b.Kind == BehaviorKind.Solid)) == 3 && all.Count(o => o.Name.StartsWith("Coin")) == 5
+                         && all.Count(o => o.Name.StartsWith("Enemy")) == 2 && all.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.GoToScene)) && !all.Any(o => o.Name == "Ground" && o.Y == 0);
+            var ed2 = NewEditor();
+            ed2.TestApplySpec("{\"create\":[{\"name\":\"P1\",\"x\":300,\"y\":380,\"behaviors\":[{\"kind\":\"Solid\"}]},{\"name\":\"P2\",\"x\":500,\"y\":330,\"behaviors\":[{\"kind\":\"Solid\"}]},{\"name\":\"C1\",\"behaviors\":[{\"kind\":\"Collectible\"}]},{\"name\":\"C2\",\"behaviors\":[{\"kind\":\"Collectible\"}]}]}",
+                              "make a level with 2 platforms and 2 coins");
+            bool kept = ed2.TestFindObject("P1") != null && !ed2.TestAllObjects().Any(o => o.Name.StartsWith("Platform"));
+            return built && kept;
+        });
         t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
         {
             var sys = NewEditor().TestBuildPrompt();

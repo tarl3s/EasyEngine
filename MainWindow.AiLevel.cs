@@ -14,6 +14,11 @@ namespace EasyEngine
         private void ApplyLevel(JsonElement root, Action ensureUndo, List<string> changes)
         {
             if (!root.TryGetProperty("level", out var lv) || lv.ValueKind != JsonValueKind.Object) return;
+            ApplyLevelSpec(lv, ensureUndo, changes);
+        }
+
+        private void ApplyLevelSpec(JsonElement lv, Action ensureUndo, List<string> changes)
+        {
             int N(string key, int max) { foreach (var p in lv.EnumerateObject()) if (p.Name.Equals(key, StringComparison.OrdinalIgnoreCase) && LooseJson.TryNumber(p.Value, out var v)) return Math.Clamp((int)Math.Round(v), 0, max); return 0; }
             string S(string key) { foreach (var p in lv.EnumerateObject()) if (p.Name.Equals(key, StringComparison.OrdinalIgnoreCase) && p.Value.ValueKind == JsonValueKind.String) return p.Value.GetString() ?? ""; return ""; }
             bool B(string key) { foreach (var p in lv.EnumerateObject()) if (p.Name.Equals(key, StringComparison.OrdinalIgnoreCase)) return LooseJson.IsTrue(p.Value); return false; }
@@ -122,6 +127,85 @@ namespace EasyEngine
             if (spikes > 0) parts.Add(L.F("{0} spikes", spikes));
             if (door.Length > 0) parts.Add(L.F("a door to {0}", door));
             changes.Add(L.F("Built a level: {0}", string.Join(", ", parts)));
+        }
+
+        // ---- the level the REQUEST asks for, read from its words ("3 platforms, 5 coins and 2 enemies", "4 plataformas") ----
+
+        private static readonly Dictionary<string, int> NumberWords = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a"] = 1, ["an"] = 1, ["one"] = 1, ["two"] = 2, ["three"] = 3, ["four"] = 4, ["five"] = 5, ["six"] = 6, ["seven"] = 7, ["eight"] = 8,
+            ["nine"] = 9, ["ten"] = 10, ["um"] = 1, ["uma"] = 1, ["dois"] = 2, ["duas"] = 2, ["três"] = 3, ["tres"] = 3, ["quatro"] = 4, ["cinco"] = 5,
+            ["seis"] = 6, ["sete"] = 7, ["oito"] = 8, ["nove"] = 9, ["dez"] = 10, ["un"] = 1, ["una"] = 1, ["dos"] = 2, ["cuatro"] = 4, ["siete"] = 7,
+        };
+        private static readonly string NumberAlternation = string.Join("|", NumberWords.Keys.OrderByDescending(k => k.Length));
+        private static readonly (string key, string pattern)[] LevelNouns =
+        {
+            ("platforms", @"platforms?|plataformas?|ledges?"), ("stairs", @"steps?|stairs?|staircase|degraus?|escadas?|escalones?"),
+            ("coins", @"coins?|moedas?|monedas?|gems?"), ("enemies", @"enem(?:y|ies)|inimigos?|enemigos?|monsters?|monstros?|slimes?"),
+            ("spikes", @"spikes?|espinhos?|pinchos?|traps?|armadilhas?"),
+        };
+
+        /// <summary>The level a request describes ({"platforms":3,"coins":5,…}) — null when it doesn't describe one.</summary>
+        internal static Dictionary<string, object>? LevelFromPrompt(string prompt, IEnumerable<string> sceneNames)
+        {
+            var p = (prompt ?? "").ToLowerInvariant();
+            var spec = new Dictionary<string, object>();
+            foreach (var (key, nouns) in LevelNouns)
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(p, $@"\b(\d+|{NumberAlternation})\s+(?:[a-zà-ú]+\s+)?(?:{nouns})\b"); // "3 floating platforms", "um inimigo"
+                if (!m.Success) continue;
+                var w = m.Groups[1].Value;
+                int n = int.TryParse(w, out var d) ? d : NumberWords.TryGetValue(w, out var nw) ? nw : 0;
+                if (n > 0) spec[key] = Math.Min(n, key == "coins" ? 60 : 30);
+            }
+            // "a staircase of 5 platforms" is steps, not platforms
+            if (System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(stair|staircase|escada|escalera)") && spec.TryGetValue("platforms", out var pl))
+            { spec["stairs"] = pl; spec.Remove("platforms"); }
+            bool room = System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(room|sala|habitación)\b") && System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(walls?|paredes?|surrounded|cercad)");
+            if (room) spec["style"] = "topdown";
+            var door = System.Text.RegularExpressions.Regex.Match(p, @"\b(?:door|porta|puerta|exit|saída)\b(?:\s+\w+){0,3}?\s+(?:to|para|a|pra)\s+([\w-]+)");
+            if (door.Success) { var target = sceneNames.FirstOrDefault(s => s.Equals(door.Groups[1].Value, StringComparison.OrdinalIgnoreCase)); if (target != null) spec["door"] = target; }
+            bool levelWords = System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(level|fase|stage|nível|nivel|map|mapa|room|sala|staircase|escada|in a row|em fila|em linha|fileira)\b");
+            int things = spec.Keys.Count(k => k is "platforms" or "stairs" or "coins" or "enemies" or "spikes");
+            return (things >= 2 || levelWords && (things >= 1 || room)) ? spec : null;
+        }
+
+        /// <summary>Whether the reply itself already has at least what the request counted (then it is applied as it is).</summary>
+        private static bool ReplyMeetsLevel(JsonElement root, Dictionary<string, object> want)
+        {
+            int Count(Func<string, string, bool> isIt)
+            {
+                int n = 0;
+                foreach (var key in new[] { "create", "edit" })
+                    if (root.TryGetProperty(key, out var arr) && arr.ValueKind == JsonValueKind.Array)
+                        foreach (var o in arr.EnumerateArray())
+                        {
+                            if (o.ValueKind != JsonValueKind.Object) continue;
+                            var name = (o.TryGetProperty("name", out var nm) && nm.ValueKind == JsonValueKind.String ? nm.GetString() : "") ?? "";
+                            var kinds = o.TryGetProperty("behaviors", out var bs) && bs.ValueKind == JsonValueKind.Array
+                                ? string.Join(",", bs.EnumerateArray().Select(b => b.ValueKind == JsonValueKind.Object && b.TryGetProperty("kind", out var k) ? (ResolveKind(k.GetString())?.ToString() ?? "") : "")) : "";
+                            if (isIt(name.ToLowerInvariant(), kinds)) n++;
+                        }
+                return n;
+            }
+            int Want(string k) => want.TryGetValue(k, out var v) ? Convert.ToInt32(v) : 0;
+            bool Solid(string kinds) => kinds.Contains(nameof(BehaviorKind.Solid));
+            return Count((n, k) => Solid(k) && !n.Contains("ground") && !n.Contains("chão") && !n.Contains("floor")) >= Want("platforms") + Want("stairs")
+                && Count((n, k) => k.Contains(nameof(BehaviorKind.Collectible))) >= Want("coins")
+                && Count((n, k) => k.Contains(nameof(BehaviorKind.Patrol)) || k.Contains(nameof(BehaviorKind.Chase)) || k.Contains("PathChase")) >= Want("enemies")
+                && Count((n, k) => k.Contains(nameof(BehaviorKind.Damager)) && !k.Contains(nameof(BehaviorKind.Patrol)) && !k.Contains(nameof(BehaviorKind.Chase))) >= Want("spikes")
+                && (!want.ContainsKey("style") || Count((n, k) => Solid(k)) >= 4)
+                && (!want.ContainsKey("door") || Count((n, k) => k.Contains(nameof(BehaviorKind.GoToScene))) >= 1);
+        }
+
+        /// <summary>A piece of a level the engine will lay out itself (so the model's own attempt at it is left out).</summary>
+        private static bool IsLevelPiece(JsonElement spec)
+        {
+            var name = ((spec.TryGetProperty("name", out var nm) && nm.ValueKind == JsonValueKind.String ? nm.GetString() : "") ?? "").ToLowerInvariant();
+            if (System.Text.RegularExpressions.Regex.IsMatch(name, @"ground|floor|ch[aã]o|platform|plataforma|step|stair|escada|degrau|coin|moeda|enemy|inimigo|spike|espinho|wall|parede|door|porta|room|sala|level|fase"))
+                return true;
+            return spec.TryGetProperty("behaviors", out var bs) && bs.ValueKind == JsonValueKind.Array && bs.EnumerateArray().Any(b =>
+                b.ValueKind == JsonValueKind.Object && b.TryGetProperty("kind", out var k) && ResolveKind(k.GetString()) is BehaviorKind.Solid or BehaviorKind.Collectible or BehaviorKind.Patrol or BehaviorKind.GoToScene);
         }
     }
 }

@@ -559,10 +559,17 @@ namespace EasyEngine
                     return true;
                 }
 
+                // a level the request counted ("3 platforms, 5 coins…") that the reply doesn't deliver: the engine lays it out and
+                // the reply's own attempt at those pieces is left out (small models can't place them) — MainWindow.AiLevel.cs
+                Dictionary<string, object>? promptLevel = null;
+                if (!root.TryGetProperty("level", out _) && LevelFromPrompt(userPrompt, _project.Scenes.Select(s => s.Name)) is { } want && !ReplyMeetsLevel(root, want))
+                    promptLevel = want;
+
                 if (hasCreate)
                     foreach (var spec in cr.EnumerateArray())
                     {
                         if (spec.ValueKind != JsonValueKind.Object) continue;
+                        if (promptLevel != null && IsLevelPiece(spec)) continue;
                         var name = spec.TryGetProperty("name", out var cn) ? cn.GetString() : null;
 
                         bool asPrefab = spec.TryGetProperty("asPrefab", out var apf) && apf.ValueKind == JsonValueKind.True;
@@ -651,6 +658,7 @@ namespace EasyEngine
                     ApplyLayerArray(lyArr, EnsureUndo, changes);
                 ApplyGlobalSceneVars(root, EnsureUndo, changes);
                 ApplyLevel(root, EnsureUndo, changes); // "level": the engine lays out a whole level (MainWindow.AiLevel.cs)
+                if (promptLevel != null) { using var lvDoc = JsonDocument.Parse(JsonSerializer.Serialize(promptLevel)); ApplyLevelSpec(lvDoc.RootElement, EnsureUndo, changes); }
 
                 if (changes.Count > 0)
                 {
