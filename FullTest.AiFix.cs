@@ -81,6 +81,15 @@ public partial class App
             return ok && ed.TestFindObject("Enemy")?.Behaviors.Any(b => b.Kind == BehaviorKind.Chase) == true && !player.Behaviors.Any(b => b.Kind == BehaviorKind.Chase)
                    && ed.TestFindObject("Rock") == null;
         });
+        t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
+        {
+            var sys = NewEditor().TestBuildPrompt();
+            var line = sys.Split('\n').SkipWhile(l => !l.StartsWith("User: \"make a player that walks")).Skip(1).First();
+            var copy = "Sure:\n" + line.Trim();
+            return EasyEngine.MainWindow.CopiedAnExample(sys, copy, "make the player blue")
+                   && !EasyEngine.MainWindow.CopiedAnExample(sys, copy, "make a player that walks, jumps, has health and can attack")
+                   && !EasyEngine.MainWindow.CopiedAnExample(sys, "{\"edit\":[{\"name\":\"Player\",\"color\":\"#3050FF\"}]}", "make the player blue");
+        });
         t.Test("rules: a value can be an expression or a quoted number; addvar takes \"value\"", () =>
         {
             var s = t.Sim("[{\"when\":\"start\",\"do\":\"set\",\"prop\":\"x\",\"to\":\"100 + 50\"},{\"when\":\"always\",\"do\":\"move\",\"dy\":\"60\"}," +

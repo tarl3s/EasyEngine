@@ -106,6 +106,27 @@ namespace EasyEngine
             "- delete objects: {\"delete\":[\"Enemy\"]}.\n" +
             "Numbers in rules may be expressions (\"rand(1,3)\", \"Player.x - self.x\"). move dx/dy are pixels PER SECOND. Bosses: BossAI (moves=fly for a flying one) + Health respawn=0 + Damager.\n";
 
+        // Small models often answer with an example from the prompt, word for word ("make a player that walks…") whatever
+        // was asked. Such a reply is not applied (the build retries) — unless the request really is that example's.
+        internal static bool CopiedAnExample(string system, string reply, string userPrompt)
+        {
+            var json = LooseJson.Extract(reply);
+            if (json == null) return false;
+            var answer = Squash(json);
+            string lastRequest = "";
+            foreach (var line in system.Split('\n'))
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(line, "^User: \"(.+?)\"");
+                if (m.Success) lastRequest = m.Groups[1].Value;
+                int at = line.IndexOf('{');
+                if (at < 0 || lastRequest.Length == 0 || Squash(line[at..].Trim()) != answer) continue;
+                var asked = Words(userPrompt);
+                return Words(lastRequest).Count(asked.Contains) < 4; // not the same request → a copy
+            }
+            return false;
+        }
+        private static HashSet<string> Words(string s) => System.Text.RegularExpressions.Regex.Matches(s.ToLowerInvariant(), "[a-zà-ú]{3,}").Select(m => m.Value).ToHashSet();
+
         // what the AI asked for that couldn't be used (a made-up event or action) — shown under the change summary
         private readonly List<string> _aiNotes = new();
         private string SummaryOf(List<string> changes) => string.Join("\n", changes.Concat(_aiNotes.Distinct().Select(n => "⚠ " + n)));

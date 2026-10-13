@@ -2567,13 +2567,15 @@ namespace EasyEngine
         {
             var sys = BuildProjectPrompt(compact: _useCloud || EvalCompact); // leaner prompt on the cloud (token limits); full detail on local
             var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
-            bool ok = ApplyProjectSpec(reply, prompt, out var summary);
-            if (ok) return (true, summary, reply);
+            bool copied = CopiedAnExample(sys, reply, prompt); // a small model parroting an example: not applied
+            string summary = "";
+            if (!copied && ApplyProjectSpec(reply, prompt, out summary)) return (true, summary, reply);
 
             var reply2 = await AiGenerateAsync(
-                prompt + "\n\nReturn ONLY the JSON with \"create\"/\"edit\"/\"layers\". Use EXACT behavior kind names from the list. One object can have many behaviors.",
-                sys, json: true, temperature: 0.1);
-            ok = ApplyProjectSpec(reply2, prompt, out summary);
+                prompt + (copied ? "\n\nYour last answer only copied an example from the instructions. Answer THIS request instead." : "") +
+                "\n\nReturn ONLY the JSON with \"create\"/\"edit\"/\"layers\". Use EXACT behavior kind names from the list. One object can have many behaviors.",
+                sys, json: true, temperature: copied ? 0.4 : 0.1);
+            bool ok = !CopiedAnExample(sys, reply2, prompt) && ApplyProjectSpec(reply2, prompt, out summary);
             return (ok, summary, reply2);
         }
 
@@ -2716,6 +2718,15 @@ namespace EasyEngine
             sb.AppendLine("- To SPAWN objects during play (rocks falling, enemies appearing on a key/timer): create the thing with \"asPrefab\":true (it stays OUT of the scene until spawned; give it physics Dynamic if it should fall), then spawn it with a Spawner behavior or a custom spawn rule.");
             sb.AppendLine("- Use EXACT kind names from this list. Never invent kinds. One object, many behaviors.");
             sb.AppendLine();
+            sb.AppendLine("EXAMPLES (the shape of an answer — never copy one unless it is exactly what was asked):");
+            sb.AppendLine("User: \"make a player that walks, jumps, has health and can attack\" =>");
+            sb.AppendLine("{\"create\":[{\"name\":\"Player\",\"x\":120,\"y\":300,\"width\":48,\"height\":64,\"color\":\"#3BC97A\",\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":260,\"jump\":640}},{\"kind\":\"FollowCamera\"},{\"kind\":\"Health\",\"nums\":{\"max\":5,\"respawn\":1}},{\"kind\":\"ToolUse\",\"texts\":{\"tool\":\"sword\"}}]}]}");
+            sb.AppendLine("User: \"give the player more health\" (player already exists) =>");
+            sb.AppendLine("{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Health\",\"nums\":{\"max\":8}}]}]}");
+            sb.AppendLine("User: \"create a global score at 0 and lives at 3, and set the scene timer to 60\" => {\"variables\":{\"global\":{\"score\":0,\"lives\":3},\"scene\":{\"timer\":60}}}");
+            if (_aiImages.Count > 0)
+                sb.AppendLine("User: \"with these images make a boss with full movement\" => {\"create\":[{\"name\":\"Boss\",\"x\":700,\"y\":200,\"width\":120,\"height\":120,\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":120,\"jump\":500}},{\"kind\":\"Health\",\"nums\":{\"max\":20,\"respawn\":0}},{\"kind\":\"Chase\",\"texts\":{\"target\":\"Player\"}},{\"kind\":\"Damager\",\"texts\":{\"target\":\"Player\"}}],\"animations\":[{\"name\":\"idle\",\"frames\":[\"<idle images>\"],\"fps\":6},{\"name\":\"walk\",\"frames\":[\"<walk images>\"],\"fps\":10}]}]}");
+            sb.AppendLine();
             sb.AppendLine("Behavior kinds — nums(texts):");
             foreach (var info in BehaviorCatalog.All)
             {
@@ -2818,14 +2829,8 @@ namespace EasyEngine
             }
             if (_aiImages.Count > 0 || _aiSounds.Count > 0) sb.AppendLine();
 
-            sb.AppendLine("EXAMPLES:");
-            sb.AppendLine("User: \"make a player that walks, jumps, has health and can attack\" =>");
-            sb.AppendLine("{\"create\":[{\"name\":\"Player\",\"x\":120,\"y\":300,\"width\":48,\"height\":64,\"color\":\"#3BC97A\",\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":260,\"jump\":640}},{\"kind\":\"FollowCamera\"},{\"kind\":\"Health\",\"nums\":{\"max\":5,\"respawn\":1}},{\"kind\":\"ToolUse\",\"texts\":{\"tool\":\"sword\"}}]}]}");
-            sb.AppendLine("User: \"give the player more health\" (player already exists) =>");
-            sb.AppendLine("{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Health\",\"nums\":{\"max\":8}}]}]}");
-            sb.AppendLine("User: \"create a global score at 0 and lives at 3, and set the scene timer to 60\" => {\"variables\":{\"global\":{\"score\":0,\"lives\":3},\"scene\":{\"timer\":60}}}");
-            if (_aiImages.Count > 0)
-                sb.AppendLine("User: \"with these images make a boss with full movement\" => {\"create\":[{\"name\":\"Boss\",\"x\":700,\"y\":200,\"width\":120,\"height\":120,\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":120,\"jump\":500}},{\"kind\":\"Health\",\"nums\":{\"max\":20,\"respawn\":0}},{\"kind\":\"Chase\",\"texts\":{\"target\":\"Player\"}},{\"kind\":\"Damager\",\"texts\":{\"target\":\"Player\"}}],\"animations\":[{\"name\":\"idle\",\"frames\":[\"<idle images>\"],\"fps\":6},{\"name\":\"walk\",\"frames\":[\"<walk images>\"],\"fps\":10}]}]}");
+            sb.AppendLine();
+            sb.AppendLine("Now answer ONLY the user's request below: change just what it asks, edit objects that already exist instead of re-creating them, and keep everything else as it is.");
             return sb.ToString();
         }
 
