@@ -205,7 +205,7 @@ namespace EasyEngine
             return b;
         }
 
-        private static (string label, string sym)[] CondOps => new[] // labels in the editor's language; read back by index
+        internal static (string label, string sym)[] CondOps => new[] // labels in the editor's language; read back by index
         {
             (L.T("is at least"), ">="), (L.T("is more than"), ">"), (L.T("is"), "=="), (L.T("is not"), "!="), (L.T("is less than"), "<"), (L.T("is at most"), "<=")
         };

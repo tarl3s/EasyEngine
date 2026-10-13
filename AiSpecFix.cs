@@ -349,6 +349,22 @@ namespace EasyEngine
         /// One behavior from the AI, cleaned up against the catalog: values in the bag their parameter belongs to, choices
         /// written as words turned into their value. Returns extra Custom rules it implies (GoToScene "on death").
         /// </summary>
+        // "while E is held" written as words or as a call: key(E), keydown:E, "E held", "key E pressed", "holding E", key:E → key:E >= 1
+        private static readonly System.Text.RegularExpressions.Regex KeyCondRx = new(
+            @"^(?:while\s+)?(?:(?:the\s+)?key(?:\s*[:(=]\s*|\s+)|key(?:down|held)(?:\s*[:(=]\s*|\s+)|hold(?:ing)?\s+(?:the\s+)?(?:key\s+)?)[""']?(\w+)[""']?\)?(?:\s+key)?(?:\s+(?:is\s+)?(?:held|pressed|down))?(?:\s*(?:>=\s*1|==\s*1|>\s*0))?$" +
+            @"|^(?:while\s+)?(?:the\s+)?[""']?(\w+)[""']?(?:\s+key)?\s+(?:is\s+)?(?:held|pressed|down)$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>A "key is held" condition in the shape the inspector picks (key:E &gt;= 1), or null when it isn't one.</summary>
+        internal static string? KeyCond(string f)
+        {
+            var m = KeyCondRx.Match(f.Trim());
+            if (!m.Success) return null;
+            var name = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
+            if (PlayWindow.KeyByName(name) is not System.Windows.Input.Key k) return null;
+            return $"key:{k} >= 1";
+        }
+
         public static void Behavior(BehaviorInfo info, JsonObject item, List<string> extraRules)
         {
             var nums = item["nums"] as JsonObject ?? new JsonObject();
@@ -359,7 +375,7 @@ namespace EasyEngine
                     if (KeyOf(bag, k) is string real && bag[real] is JsonNode cv) { bag.Remove(real); texts["cond"] = Str(cv); }
             if (texts["cond"] is JsonNode c0)
                 texts["cond"] = Str(c0).Trim() switch { var f when f.Equals("isnight", StringComparison.OrdinalIgnoreCase) || f.Equals("night", StringComparison.OrdinalIgnoreCase) => "isNight >= 1",
-                                                        var f when f.Equals("isday", StringComparison.OrdinalIgnoreCase) || f.Equals("day", StringComparison.OrdinalIgnoreCase) => "isNight < 1", var f => f };
+                                                        var f when f.Equals("isday", StringComparison.OrdinalIgnoreCase) || f.Equals("day", StringComparison.OrdinalIgnoreCase) => "isNight < 1", var f => KeyCond(f) ?? f };
             // the object's physics written inside a behavior ({"kind":"Solid","nums":{"bounciness":0.8}}): handed to the caller
             foreach (var bag in new[] { item, item["nums"] as JsonObject })
                 foreach (var k in new[] { "bounciness", "gravity", "gravityScale" })

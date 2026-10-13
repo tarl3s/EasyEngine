@@ -2242,9 +2242,11 @@ namespace EasyEngine
         private double EvalExpr(string expr, Entity? self)
             => Expr.Eval(expr, name => ResolveName(name, self), CallFunc);
 
-        // Resolve an identifier to a number: mouse/time constants, obj.prop, local.x, or a variable/item count.
+        // Resolve an identifier to a number: a held key (key:E), mouse/time constants, obj.prop, local.x, or a variable/item count.
         private double ResolveName(string name, Entity? self)
         {
+            if (name.Length > KeyPrefix.Length && name.StartsWith(KeyPrefix, StringComparison.OrdinalIgnoreCase))
+                return KeyFormulaHeld(name) ? 1 : 0; // key:E — held right now (PlayWindow.KeyFormula.cs)
             switch (name.ToLowerInvariant())
             {
                 case "mousex": return _mouseWorld.X;
