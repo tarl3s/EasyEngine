@@ -86,7 +86,7 @@ namespace EasyEngine
             if (providerId == "gemini")
             {
                 // the newest numbered "gemini-N-flash", else the moving alias
-                var best = chat.Select(id => (id, m: Regex.Match(id, @"^gemini-(d+(?:.d+)?)-flash$")))
+                var best = chat.Select(id => (id, m: Regex.Match(id, @"^gemini-(\d+(?:\.\d+)?)-flash$")))
                                .Where(x => x.m.Success).OrderByDescending(x => double.Parse(x.m.Groups[1].Value, CultureInfo.InvariantCulture)).Select(x => x.id).FirstOrDefault();
                 return best ?? chat.FirstOrDefault(id => id == "gemini-flash-latest");
             }
@@ -212,12 +212,13 @@ namespace EasyEngine
 
         // how long a busy provider asks to wait: the Retry-After header, or "try again in 7.1s" / "in 1m3s" / "in 250ms" in its message
         private static double RetryAfterSeconds(HttpResponseMessage resp, string? detail)
+            => resp.Headers.RetryAfter?.Delta is TimeSpan d ? d.TotalSeconds : RetryAfterSeconds(detail);
+
+        internal static double RetryAfterSeconds(string? detail)
         {
-            if (resp.Headers.RetryAfter?.Delta is TimeSpan d) return d.TotalSeconds;
-            var m = Regex.Match(detail ?? "", @"(?:try again|retry) in (?:(d+)m)?([d.]+)(ms|s)", RegexOptions.IgnoreCase);
-            if (!m.Success) return 0;
-            double v = double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
-            return (m.Groups[1].Success ? int.Parse(m.Groups[1].Value) * 60 : 0) + (m.Groups[3].Value == "ms" ? v / 1000 : v);
+            var m = Regex.Match(detail ?? "", @"(?:try again|retry) in (?:(\d+)m)?(\d+(?:\.\d+)?)(ms|s)", RegexOptions.IgnoreCase);
+            if (!m.Success || !double.TryParse(m.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var v)) return 0;
+            return (m.Groups[1].Success ? int.Parse(m.Groups[1].Value) * 60 : 0) + (m.Groups[3].Value.Equals("ms", StringComparison.OrdinalIgnoreCase) ? v / 1000 : v);
         }
 
         private static string? TryGetErrorMessage(string text)

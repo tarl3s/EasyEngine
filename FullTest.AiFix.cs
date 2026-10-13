@@ -15,8 +15,10 @@ public partial class App
     {
         static List<Dictionary<string, string>> Fix(string rulesJson, List<string>? notes = null)
         {
-            using var d = JsonDocument.Parse(rulesJson);
-            return App.AiEvalKit.RulesOf(AiSpecFix.Rules(d.RootElement, notes ?? new List<string>()));
+            using var d = JsonDocument.Parse(rulesJson, LooseJson.Options);
+            var raws = new List<string>();
+            AiSpecFix.CollectRules(d.RootElement, raws);
+            return App.AiEvalKit.RulesOf(AiSpecFix.Rules(raws, notes ?? new List<string>()));
         }
         static bool Is(Dictionary<string, string> r, string k, string v) => r.TryGetValue(k, out var x) && x.Equals(v, StringComparison.OrdinalIgnoreCase);
         MainWindow NewEditor(Action<Scene>? fill = null)
@@ -80,6 +82,45 @@ public partial class App
             ed.TestApplySpec("{\"delete\":[\"Rock\"]}", "delete the rock");
             return ok && ed.TestFindObject("Enemy")?.Behaviors.Any(b => b.Kind == BehaviorKind.Chase) == true && !player.Behaviors.Any(b => b.Kind == BehaviorKind.Chase)
                    && ed.TestFindObject("Rock") == null;
+        });
+        t.Test("ai review: trailing commas / a key written twice never crash the build; a bouncy platform stays put", () =>
+        {
+            var ed = NewEditor(s => s.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(new GameObjectData
+            {
+                Id = 93, Name = "Platform", Physics = new PhysicsData { Mode = PhysicsMode.Static }, Behaviors = { BehaviorCatalog.Info(BehaviorKind.Solid).CreateData() }
+            }));
+            var (ok1, _) = ed.TestApplySpec("{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Health\",\"nums\":{\"max\":5,},}],\"custom\":[{\"when\":\"start\",\"do\":\"jump\",},]}]}");
+            var (ok2, _) = ed.TestApplySpec("{\"edit\":[{\"name\":\"Player\",\"custom\":[{\"when\":\"ifvar\",\"var\":\"a\",\"op\":\">=\",\"value\":1,\"do\":\"setvar\",\"var\":\"b\",\"to\":2}]}]}");
+            var (ok3, _) = ed.TestApplySpec("{\"edit\":[{\"name\":\"Platform\",\"physics\":{\"bounciness\":0.8}}]}");
+            var plat = ed.TestFindObject("Platform")!;
+            return ok1 && ed.TestFindObject("Player")!.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Health)?.Num("max") == 5 && ok2 && ok3
+                   && plat.Physics.Mode == PhysicsMode.Static && plat.Behaviors.Any(b => b.Kind == BehaviorKind.Solid) && plat.Physics.Bounciness == 0.8;
+        });
+        t.Test("ai review: two new rules alike both stay (only an old one is retuned)", () =>
+        {
+            using var d = JsonDocument.Parse("[{\"when\":\"after\",\"seconds\":2,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0},{\"when\":\"after\",\"seconds\":4,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":1}]");
+            var merged = App.AiEvalKit.RulesOf(EasyEngine.MainWindow.MergeRules("[{\"when\":\"after\",\"seconds\":1,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0.5}]", d.RootElement));
+            return merged.Count == 2 && Is(merged[0], "seconds", "2") && Is(merged[1], "seconds", "4");
+        });
+        t.Test("ai review: synonyms read their params (remove+item, speed+factor, load+scene, text+var); any case; 'exprCount' stays", () =>
+        {
+            var r = Fix("[{\"when\":\"touch\",\"name\":\"Door\",\"do\":\"remove\",\"item\":\"Key\"},{\"when\":\"start\",\"do\":\"speed\",\"factor\":2}," +
+                        "{\"when\":\"start\",\"do\":\"load\",\"scene\":\"Level2\"},{\"when\":\"start\",\"do\":\"text\",\"var\":\"msg\",\"value\":\"Hi\"}," +
+                        "{\"When\":\"Timer\",\"interval\":2,\"Do\":\"Jump\"},{\"when\":\"start\",\"do\":\"setvar\",\"var\":\"n\",\"to\":\"exprCount + 1\"},{\"when\":\"start\",\"do\":\"setvar\",\"var\":\"m\",\"to\":\"expr: 1 + 1\"}]");
+            return r.Count == 7 && Is(r[0], "do", "removeitem") && Is(r[1], "do", "boost") && Is(r[2], "do", "goscene") && Is(r[3], "do", "settext") && Is(r[3], "to", "Hi")
+                   && Is(r[4], "when", "timer") && Is(r[4], "every", "2") && Is(r[4], "do", "jump") && Is(r[5], "to", "exprCount + 1") && Is(r[6], "to", "1 + 1");
+        });
+        t.Test("cloud: 'try again in 7.1s' / '1m3s' / '250ms' are read; a retired Gemini model is replaced by the newest flash", () =>
+            Math.Abs(CloudClient.RetryAfterSeconds("Rate limit. Please try again in 7.147s.") - 7.147) < 0.001
+            && Math.Abs(CloudClient.RetryAfterSeconds("try again in 1m3s") - 63) < 0.001 && Math.Abs(CloudClient.RetryAfterSeconds("retry in 250ms") - 0.25) < 0.001
+            && CloudClient.RetryAfterSeconds("try again in .s") == 0
+            && CloudClient.PickModel("gemini", new[] { "gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.8-flash-tts", "gemini-flash-latest", "gemini-3.1-pro-preview" }) == "gemini-3.8-flash"
+            && CloudClient.PickModel("openrouter", new[] { "x/paid", "google/gemma-4-31b-it:free", "nvidia/nemotron-3-super-120b-a12b:free" }) == "nvidia/nemotron-3-super-120b-a12b:free");
+        t.Test("rules: \"local\":\"yes\" is a yes (a word in a number param is not a variable)", () =>
+        {
+            var s = t.Sim("[{\"when\":\"start\",\"do\":\"addlocal\",\"var\":\"k\",\"amount\":\"2\"},{\"when\":\"start\",\"do\":\"toggle\",\"var\":\"lit\",\"local\":\"yes\"}]", PhysicsMode.None, null);
+            s.TSteps(3);
+            return s.TLocal("A", "k") == 2;
         });
         t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
         {

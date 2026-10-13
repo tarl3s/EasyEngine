@@ -196,14 +196,12 @@ namespace EasyEngine
             // trigger reads: the trigger bucket only (default when absent) — never the action bucket,
             // so an omitted trigger param uses its default instead of an action param of the same name.
             public double WNum(string k, double d = 0) => WN.TryGetValue(k, out var v) ? v : WT.TryGetValue(k, out var s) ? Calc(s, d) : d;
-            private static readonly System.Text.RegularExpressions.Regex ExprWrap = new(@"^\s*expr\s*[:=(]?\s*[""']?(.*?)[""')]?\s*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
-
-            // a value written as words: an expression ("rand(1,3)", "mousex - self.x", "expr:…"), worked out for this object
-            // when it is read (numbers written in quotes were already stored as numbers by ParseCustom)
+            // a value written as words: an expression ("rand(1,3)", "mousex - self.x"), worked out for this object when it is
+            // read (quoted numbers were already stored as numbers, and "expr: …" unwrapped, by ParseCustom); yes/no words are 1/0
             public System.Func<string, double>? Eval;
             private double Calc(string s, double d)
             {
-                if (s.TrimStart().StartsWith("expr", System.StringComparison.OrdinalIgnoreCase)) s = ExprWrap.Match(s).Groups[1].Value; // "expr: a-b", expr "a-b"
+                if (s.Length <= 5) switch (s.Trim().ToLowerInvariant()) { case "yes" or "true" or "on": return 1; case "no" or "false" or "off": return 0; }
                 return Eval != null && !string.IsNullOrWhiteSpace(s) ? Eval(s) : d;
             }
             public bool HasValue(string k) => N.ContainsKey(k) || T.ContainsKey(k);
@@ -1671,7 +1669,7 @@ namespace EasyEngine
                 case "rot": case "rotation": e.Rot = v; break;
                 case "w": case "width": e.W = Math.Max(1, v); e.Visual.Width = PictureW(e); break;
                 case "h": case "height": e.H = Math.Max(1, v); e.Visual.Height = PictureH(e); break;
-                case "scale": e.TweenScale = v; e.Visual.RenderTransformOrigin = new Point(0.5, 0.5); e.Visual.RenderTransform = new ScaleTransform(v, v); break;
+                case "scale": e.TweenScale = v; e.Visual.RenderTransformOrigin = new Point(0.5, 0.5); if (e.Visual.RenderTransform is ScaleTransform st && !st.IsFrozen) { st.ScaleX = v; st.ScaleY = v; } else e.Visual.RenderTransform = new ScaleTransform(v, v); break; // reused: no allocation per frame
             }
         }
 
@@ -1869,6 +1867,7 @@ namespace EasyEngine
                         else if (p.Value.ValueKind == JsonValueKind.String)
                         {
                             string v = p.Value.GetString() ?? "";
+                            v = AiSpecFix.UnwrapExpr(v) ?? v; // "expr: a - b" → a - b (once, not every frame)
                             if (toTrigger) r.WT[name] = v; else r.T[name] = v;
                             if (LooseJson.TryParse(v, out var qn)) { if (toTrigger) r.WN[name] = qn; else r.N[name] = qn; } // "2" is also the number 2
                         }

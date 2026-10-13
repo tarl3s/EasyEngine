@@ -2553,7 +2553,7 @@ namespace EasyEngine
                     Status(L.T("Could not apply AI response"));
                 }
             }
-            catch (AiException ex)
+            catch (Exception ex) when (ex is AiException || ex is not OutOfMemoryException) // never take the editor down with unsaved work
             {
                 AiLog.Children.Remove(thinking);
                 AddAiMessage(L.T("AI"), "⚠ " + ex.Message, true);
@@ -2569,13 +2569,13 @@ namespace EasyEngine
             var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
             bool copied = CopiedAnExample(sys, reply, prompt); // a small model parroting an example: not applied
             string summary = "";
-            if (!copied && ApplyProjectSpec(reply, prompt, out summary)) return (true, summary, reply);
+            if (!copied && SafeApply(reply, prompt, out summary)) return (true, summary, reply);
 
             var reply2 = await AiGenerateAsync(
                 prompt + (copied ? "\n\nYour last answer only copied an example from the instructions. Answer THIS request instead." : "") +
                 "\n\nReturn ONLY the JSON with \"create\"/\"edit\"/\"layers\". Use EXACT behavior kind names from the list. One object can have many behaviors.",
                 sys, json: true, temperature: copied ? 0.4 : 0.1);
-            bool ok = !CopiedAnExample(sys, reply2, prompt) && ApplyProjectSpec(reply2, prompt, out summary);
+            bool ok = !CopiedAnExample(sys, reply2, prompt) && SafeApply(reply2, prompt, out summary);
             return (ok, summary, reply2);
         }
 
@@ -2804,11 +2804,14 @@ namespace EasyEngine
             sb.AppendLine("Layers: " + string.Join(", ", _scene.Layers.Select(l => $"\"{l.Name}\"({l.Kind}{(l.ScreenSpace || l.Kind == LayerKind.UI ? ",fixed" : "")})")));
             var allObjs = _scene.Layers.SelectMany(l => l.Objects).ToList();
             if (allObjs.Count == 0) sb.AppendLine("Objects: (none yet)");
-            else foreach (var o in allObjs)
+            int ruleBudget = 3000; // the rules shown in all: a big project must not blow the free tiers' token limits
+            if (allObjs.Count > 0) foreach (var o in allObjs)
             {
                 var ov = VarScope.Of(o).Count > 0 ? " vars{" + VarScope.Of(o).Describe() + "}" : "";
                 var script = Compact(o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom)?.Text("script", "") ?? "");
-                var rules = script.Length > 2 ? " custom=" + (script.Length > 600 ? script[..600] + "…" : script) : ""; // so a change can keep or retune them
+                var shown = script.Length > 600 ? script[..600] + "…" : script;
+                var rules = script.Length <= 2 ? "" : shown.Length <= ruleBudget ? " custom=" + shown : " custom=(has rules)"; // so a change can keep or retune them
+                if (script.Length > 2 && shown.Length <= ruleBudget) ruleBudget -= shown.Length;
                 sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Select(b => b.Kind))}]{ov}{(o.Locked ? " LOCKED" : "")}{(o.Z != 0 ? $" z{o.Z}" : "")}{rules}");
             }
             if (VarScope.Of(_project).Count > 0) sb.AppendLine("Global variables: " + VarScope.Of(_project).Describe());
@@ -2840,7 +2843,7 @@ namespace EasyEngine
             if (target.Locked) { if (!_aiSkippedLocked.Contains(target.Name)) _aiSkippedLocked.Add(target.Name); return false; } // locked: never edited by the AI
             var result = target.Behaviors.Select(JsonClone).ToList();
             bool changed = false;
-            var impliedRules = new System.Text.Json.Nodes.JsonArray(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
+            var impliedRules = new List<string>(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
 
             if (spec.TryGetProperty("behaviors", out var arr) && arr.ValueKind == JsonValueKind.Array)
             {
@@ -2850,7 +2853,7 @@ namespace EasyEngine
                     var kindOpt = ResolveKind(kindEl.ValueKind == JsonValueKind.String ? kindEl.GetString() : null);
                     if (kindOpt is not BehaviorKind kind || kind == BehaviorKind.Tilemap) continue;
                     if (kind == BehaviorKind.Custom) { AiSpecFix.CustomAsBehavior(raw, impliedRules); continue; }
-                    var node = (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse(raw.GetRawText())!;
+                    if (LooseJson.Node(raw) is not System.Text.Json.Nodes.JsonObject node) continue; // unreadable: skipped, never a crash
                     AiSpecFix.Behavior(BehaviorCatalog.Info(kind), node, impliedRules);
                     if (node.ContainsKey("drop")) continue;
                     using var fixedDoc = JsonDocument.Parse(node.ToJsonString());
@@ -2880,7 +2883,7 @@ namespace EasyEngine
                 if (spec.TryGetProperty(key, out var c)) { AiSpecFix.CollectRules(c, impliedRules); break; }
             if (impliedRules.Count > 0)
             {
-                using var rulesDoc = JsonDocument.Parse(AiSpecFix.Rules(JsonDocument.Parse(impliedRules.ToJsonString()).RootElement, _aiNotes));
+                using var rulesDoc = JsonDocument.Parse(AiSpecFix.Rules(impliedRules, _aiNotes));
                 var cust = rulesDoc.RootElement;
                 if (cust.GetArrayLength() > 0)
                 {
@@ -2930,7 +2933,7 @@ namespace EasyEngine
             if (bounce is double bv) { target.Physics.Bounciness = Math.Clamp(bv, 0, 1); changed = true; }
             if (grav is double gv) { target.Physics.GravityScale = Math.Clamp(gv, -5, 5); changed = true; }
             if (HasK(BehaviorKind.Platformer) || gravityIntent || customJumps) desired = PhysicsMode.Dynamic;
-            else if (bounce > 0 && askedMode != PhysicsMode.Static) // a bouncy ball: it falls and bounces (a wall never bounces)
+            else if (bounce > 0 && (askedMode == PhysicsMode.Dynamic || askedMode == null && !result.Any(b => StaysPut.Contains(b.Kind)))) // a bouncy ball falls and bounces; a bouncy platform stays put
             {
                 desired = PhysicsMode.Dynamic;
                 if (result.RemoveAll(b => b.Kind == BehaviorKind.Solid) > 0) changed = true;

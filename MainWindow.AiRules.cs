@@ -21,7 +21,9 @@ namespace EasyEngine
                     foreach (var r in doc.RootElement.EnumerateArray()) if (r.ValueKind == JsonValueKind.Object) rules.Add(r.GetRawText());
             }
             catch { } // unreadable old script: the new rules take its place
-            var keys = rules.Select(RuleKeyOf).ToList();
+            // only an OLD rule can be retuned, and once: two new ones alike ("fade out at 2 s", "fade in at 4 s") both stay
+            var oldKeys = rules.Select(RuleKeyOf).ToList();
+            var retuned = new bool[oldKeys.Count];
 
             foreach (var r in added.EnumerateArray())
             {
@@ -29,8 +31,8 @@ namespace EasyEngine
                 var raw = r.GetRawText();
                 if (rules.Any(x => Squash(x) == Squash(raw))) continue;
                 var key = RuleKey(r);
-                int at = keys.IndexOf(key);
-                if (at >= 0) rules[at] = raw; else { rules.Add(raw); keys.Add(key); }
+                int at = Enumerable.Range(0, oldKeys.Count).FirstOrDefault(i => !retuned[i] && oldKeys[i] == key, -1);
+                if (at >= 0) { rules[at] = raw; retuned[at] = true; } else rules.Add(raw);
             }
             return "[" + string.Join(",", rules) + "]";
         }
@@ -41,9 +43,10 @@ namespace EasyEngine
             foreach (var key in new[] { "delete", "remove", "destroy" })
             {
                 if (!root.TryGetProperty(key, out var arr) || arr.ValueKind != JsonValueKind.Array) continue;
+                if (key == "remove" && (root.TryGetProperty("behaviors", out _) || root.TryGetProperty("custom", out _))) continue; // there it lists behaviors to take off
                 foreach (var el in arr.EnumerateArray())
                 {
-                    var name = el.ValueKind == JsonValueKind.String ? el.GetString() : el.ValueKind == JsonValueKind.Object && el.TryGetProperty("name", out var n) ? n.GetString() : null;
+                    var name = el.ValueKind == JsonValueKind.String ? el.GetString() : el.ValueKind == JsonValueKind.Object && el.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
                     if (string.IsNullOrWhiteSpace(name)) continue;
                     foreach (var layer in _scene.Layers)
                     {
@@ -105,6 +108,13 @@ namespace EasyEngine
             "- message when touching: {\"when\":\"touch\",\"name\":\"Player\",\"do\":\"say\",\"text\":\"Welcome!\"} (touch's \"name\" is the OTHER object).\n" +
             "- delete objects: {\"delete\":[\"Enemy\"]}.\n" +
             "Numbers in rules may be expressions (\"rand(1,3)\", \"Player.x - self.x\"). move dx/dy are pixels PER SECOND. Bosses: BossAI (moves=fly for a flying one) + Health respawn=0 + Damager.\n";
+
+        // Applying a reply never takes the editor down: whatever odd JSON slipped past the clean-up just counts as "not applied".
+        private bool SafeApply(string reply, string prompt, out string summary)
+        {
+            try { return ApplyProjectSpec(reply, prompt, out summary); }
+            catch (Exception) { summary = ""; return false; } // the panel then shows the raw reply
+        }
 
         // Small models often answer with an example from the prompt, word for word ("make a player that walks…") whatever
         // was asked. Such a reply is not applied (the build retries) — unless the request really is that example's.

@@ -35,6 +35,14 @@ namespace EasyEngine
             return false;
         }
 
+        /// <summary>An element as an editable node, read as leniently as the rest (comments, trailing commas); null when
+        /// it can't be (e.g. a key written twice).</summary>
+        public static System.Text.Json.Nodes.JsonNode? Node(JsonElement e)
+        {
+            try { return System.Text.Json.Nodes.JsonNode.Parse(e.GetRawText(), null, Options); }
+            catch (System.Exception) { return null; }
+        }
+
         /// <summary>A yes: true, 1, "true", "yes" or "1" (models write flags every way).</summary>
         public static bool IsTrue(JsonElement e) => e.ValueKind switch
         {

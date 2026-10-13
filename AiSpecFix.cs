@@ -46,7 +46,7 @@ namespace EasyEngine
             ["update"] = "always", ["frame"] = "always", ["forever"] = "always", ["tick"] = "always", ["loop"] = "always", ["everyframe"] = "always",
             ["condition"] = "expr", ["if"] = "expr", ["while"] = "expr", ["when"] = "expr",
             ["variable"] = "ifvar", ["var"] = "ifvar", ["ifvariable"] = "ifvar", ["whenvar"] = "ifvar",
-            ["timeout"] = "after", ["leftclick"] = "click", ["ready"] = "start", ["keyhold"] = "key", ["keyup"] = "keypress",
+            ["timeout"] = "after", ["leftclick"] = "click", ["ready"] = "start", ["keyhold"] = "key",
             ["touching"] = "touch", ["touched"] = "touch", ["hover"] = "mouseover", ["mouseenter"] = "mouseover", ["night"] = "isnight", ["day"] = "isday",
         };
 
@@ -88,16 +88,30 @@ namespace EasyEngine
         private static string Squeeze(string s) => new string(s.Where(char.IsLetterOrDigit).ToArray());
         private static string Str(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s : n?.ToJsonString().Trim('"') ?? "";
 
-        /// <summary>The AI's rule list, cleaned up. <paramref name="notes"/> gets one line per rule that had to be dropped.</summary>
-        public static string Rules(JsonElement arr, List<string> notes)
+        /// <summary>The AI's rules (raw JSON objects, as <see cref="CollectRules"/> gathers them), cleaned up.
+        /// <paramref name="notes"/> gets one line per rule that had to be dropped. Never throws.</summary>
+        public static string Rules(IEnumerable<string> rawRules, List<string> notes)
         {
             var outRules = new List<string>();
-            if (arr.ValueKind == JsonValueKind.Array)
-                foreach (var el in arr.EnumerateArray())
-                    if (el.ValueKind == JsonValueKind.Object)
-                        foreach (var props in Rule(el, notes))
-                            outRules.Add("{" + string.Join(",", props.Select(p => JsonSerializer.Serialize(p.key) + ":" + (p.val?.ToJsonString() ?? "null"))) + "}");
+            foreach (var raw in rawRules)
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(raw, LooseJson.Options);
+                    if (doc.RootElement.ValueKind != JsonValueKind.Object) continue;
+                    foreach (var props in Rule(doc.RootElement, notes))
+                        outRules.Add("{" + string.Join(",", props.Select(p => JsonSerializer.Serialize(p.key) + ":" + (p.val?.ToJsonString() ?? "null"))) + "}");
+                }
+                catch (Exception) { notes.Add(L.T("Skipped a rule that couldn't be read.")); }
+            }
             return "[" + string.Join(",", outRules) + "]";
+        }
+
+        // a value as a node — read leniently (a trailing comma inside it is fine); anything odd stays as its text
+        private static JsonNode? Node(JsonElement e)
+        {
+            try { return JsonNode.Parse(e.GetRawText(), null, LooseJson.Options); }
+            catch (Exception) { return JsonValue.Create(e.GetRawText()); }
         }
 
         // one rule in, zero (unusable) or more (a "teleport to x,y" becomes two) rules out — keeping key order (trigger params before "do")
@@ -105,31 +119,37 @@ namespace EasyEngine
         private static IEnumerable<List<(string key, JsonNode? val)>> Rule(JsonElement r, List<string> notes)
         {
             // keys in lower case, in their order (params before "do" belong to the event)
-            var props = r.EnumerateObject().Select(p => (key: p.Name.ToLowerInvariant(), val: JsonNode.Parse(p.Value.GetRawText()))).ToList();
+            var props = r.EnumerateObject().Select(p => (key: p.Name.ToLowerInvariant(), val: Node(p.Value))).ToList();
             string Get(string k) => props.FirstOrDefault(p => p.key == k).val is { } v ? Str(v) : "";
             bool Has(string k) => props.Any(p => p.key == k);
             void Set(string k, JsonNode? v) { int i = props.FindIndex(p => p.key == k); if (i >= 0) props[i] = (k, v); else props.Add((k, v)); }
             void Rename(string from, string to) { int i = props.FindIndex(p => p.key == from); if (i >= 0 && !Has(to)) props[i] = (to, props[i].val); }
+            foreach (var (from, to) in new[] { ("event", "when"), ("trigger", "when"), ("on", "when"), ("action", "do"), ("then", "do") }) if (!Has(to)) Rename(from, to);
 
             // the event
-            var when = Get("when");
-            if (when.Length == 0) when = Has("key") ? "keypress" : Has("every") ? "timer" : "start";
+            var whenRaw = Get("when");
+            var when = whenRaw.Length == 0 ? (Has("key") ? "keypress" : Has("every") ? "timer" : "start") : whenRaw.ToLowerInvariant();
             if (!Events.Contains(when)) when = WhenSynonyms.TryGetValue(Squeeze(when), out var w) ? w : when;
-            if (!Events.Contains(when)) { notes.Add(L.F("Skipped a rule: \"{0}\" isn't an event the game knows.", Get("when"))); yield break; }
+            if (when == "expr" && !Has("expr") && Has("var")) when = "ifvar"; // "if"/"condition" written with var/op/value
+            if (!Events.Contains(when)) { notes.Add(L.F("Skipped a rule: \"{0}\" isn't an event the game knows.", whenRaw)); yield break; }
             Set("when", when);
-            if (when == "after") { foreach (var k in new[] { "time", "delay", "wait", "duration_before", "every" }) if (!Has("seconds") && Has(k) && k != "every") Rename(k, "seconds"); if (!Has("seconds") && Has("every")) Rename("every", "seconds"); }
+            if (when == "after") foreach (var k in new[] { "time", "delay", "wait", "every" }) if (!Has("seconds") && Has(k)) Rename(k, "seconds");
             if (when == "timer") foreach (var k in new[] { "interval", "seconds", "time", "period" }) if (!Has("every") && Has(k)) Rename(k, "every");
             if (when == "touch") foreach (var k in new[] { "target", "object", "with", "other", "obj" }) if (!Has("name") && Has(k)) Rename(k, "name");
             if (when is "ifvar" or "iflocal" && OpSynonyms.TryGetValue(Get("op").Replace(" ", ""), out var op)) Set("op", op);
 
-            // the action
+            // the action — some words mean different actions depending on what comes with them
             var doRaw = Get("do");
-            var act = doRaw;
-            if (!Actions.Contains(act)) act = DoSynonyms.TryGetValue(Squeeze(act), out var d) ? d : act;
+            var sq = Squeeze(doRaw).ToLowerInvariant();
+            var act = Actions.Contains(doRaw) ? doRaw.ToLowerInvariant() : DoSynonyms.TryGetValue(sq, out var d) ? d : sq;
+            if (act == "destroy" && sq is "remove" or "delete" or "take" && Has("item")) act = "removeitem";
+            if (act == "velocity" && sq == "speed" && Has("factor")) act = "boost";
+            if (act == "load" && (Has("scene") || Has("level"))) act = "goscene";
+            if (act == "say" && sq is "text" or "showtext" && Has("var")) act = "settext";
             if (!Actions.Contains(act))
             {
                 // "teleport"/"moveto" to x,y = set x (and set y)
-                if (Squeeze(doRaw) is "teleport" or "moveto" or "goto" or "setposition" or "position" && (Has("x") || Has("y")))
+                if (sq is "teleport" or "moveto" or "goto" or "setposition" or "position" && (Has("x") || Has("y")))
                 {
                     foreach (var axis in new[] { "x", "y" })
                     {
@@ -144,7 +164,6 @@ namespace EasyEngine
                 yield break;
             }
             Set("do", act);
-            var sq = Squeeze(doRaw).ToLowerInvariant();
             if (act == "tween")
             {
                 if (!Has("prop")) Set("prop", sq is "grow" or "shrink" ? "scale" : "opacity");
@@ -152,12 +171,16 @@ namespace EasyEngine
                 if (!Has("duration")) foreach (var k in new[] { "time", "over", "seconds" }) if (Has(k) && !(k == "seconds" && when == "after")) { Rename(k, "duration"); break; }
             }
             if (act == "tint" && !Has("color")) foreach (var k in new[] { "to", "colour", "value" }) if (Has(k)) { Rename(k, "color"); break; }
-            if (act == "say" && !Has("text")) foreach (var k in new[] { "message", "msg", "line", "dialog", "value", "to" }) if (Has(k)) { Rename(k, "text"); break; }
+            if (act is "say" or "settext" && !Has(act == "say" ? "text" : "to")) foreach (var k in new[] { "text", "message", "msg", "line", "dialog", "value", "to" }) if (Has(k)) { Rename(k, act == "say" ? "text" : "to"); break; }
             if (act == "goscene" && !Has("scene")) foreach (var k in new[] { "to", "target", "name", "level" }) if (Has(k)) { Rename(k, "scene"); break; }
             if (act == "spawn" && !Has("object")) foreach (var k in new[] { "name", "prefab", "what", "target" }) if (Has(k) && !(when == "touch" && k == "name")) { Rename(k, "object"); break; }
             if (act is "addvar" or "addlocal" && !Has("amount")) foreach (var k in new[] { "value", "by", "delta" }) if (Has(k) && !(when is "ifvar" or "iflocal" && k == "value")) { Rename(k, "amount"); break; }
             if (act is "setvar" or "setlocal" && !Has("to") && !Has("expr")) foreach (var k in new[] { "value", "amount" }) if (Has(k) && !(when is "ifvar" or "iflocal" && k == "value")) { Rename(k, "to"); break; }
             if (act is "setvar" or "addvar" or "setlocal" or "addlocal" && !Has("var")) foreach (var k in new[] { "variable", "name" }) if (Has(k) && !(when == "touch" && k == "name")) { Rename(k, "var"); break; }
+
+            // "expr: a - b" / expr "a - b" → the bare expression, once here instead of every frame in the game
+            for (int i = 0; i < props.Count; i++)
+                if (props[i].val is JsonValue sv && sv.TryGetValue<string>(out var text) && UnwrapExpr(text) is string inner) props[i] = (props[i].key, JsonValue.Create(inner));
 
             // "when" first, so a rule that wrote it last still reads its event params right
             int wi = props.FindIndex(p => p.key == "when");
@@ -165,21 +188,26 @@ namespace EasyEngine
             yield return props;
         }
 
-        /// <summary>The rules however the AI wrote them: an array, one rule object, or a JSON string holding either.</summary>
-        public static void CollectRules(JsonElement c, JsonArray into)
+        private static readonly System.Text.RegularExpressions.Regex ExprWrap =
+            new(@"^\s*expr\s*(?:[:=]\s*|\(\s*|(?=[""']))[""']?(.*?)[""']?\)?\s*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+        /// <summary>"expr: a - b", "expr(a - b)", expr "a - b" → "a - b"; null when it isn't written that way ("exprCount + 1" stays).</summary>
+        public static string? UnwrapExpr(string s) { var m = ExprWrap.Match(s); return m.Success ? m.Groups[1].Value : null; }
+
+        /// <summary>The rules however the AI wrote them: an array, one rule object, or a JSON string holding either — as raw JSON.</summary>
+        public static void CollectRules(JsonElement c, List<string> into)
         {
             if (c.ValueKind == JsonValueKind.String)
             {
-                try { using var d = JsonDocument.Parse(c.GetString() ?? "", LooseJson.Options); CollectRules(d.RootElement.Clone(), into); } catch { }
+                try { using var d = JsonDocument.Parse(c.GetString() ?? "", LooseJson.Options); CollectRules(d.RootElement.Clone(), into); } catch (Exception) { }
                 return;
             }
-            if (c.ValueKind == JsonValueKind.Object) { into.Add(JsonNode.Parse(c.GetRawText())); return; }
+            if (c.ValueKind == JsonValueKind.Object) { into.Add(c.GetRawText()); return; }
             if (c.ValueKind == JsonValueKind.Array)
-                foreach (var r in c.EnumerateArray()) if (r.ValueKind == JsonValueKind.Object) into.Add(JsonNode.Parse(r.GetRawText()));
+                foreach (var r in c.EnumerateArray()) if (r.ValueKind == JsonValueKind.Object) into.Add(r.GetRawText());
         }
 
         /// <summary>{"kind":"Custom","texts":{"when":…,"do":…}} or {"kind":"Custom","rules":[…]} / texts.script — written as a behavior.</summary>
-        public static void CustomAsBehavior(JsonElement item, JsonArray into)
+        public static void CustomAsBehavior(JsonElement item, List<string> into)
         {
             foreach (var k in new[] { "rules", "custom", "script" })
                 if (item.TryGetProperty(k, out var r)) { CollectRules(r, into); return; }
@@ -188,11 +216,10 @@ namespace EasyEngine
                 if (t.TryGetProperty("script", out var s)) { CollectRules(s, into); return; }
                 if (t.TryGetProperty("when", out _) || t.TryGetProperty("do", out _))
                 {
-                    var rule = new JsonObject();
-                    foreach (var p in t.EnumerateObject()) rule[p.Name] = JsonNode.Parse(p.Value.GetRawText());
+                    var parts = t.EnumerateObject().Select(p => JsonSerializer.Serialize(p.Name) + ":" + p.Value.GetRawText()).ToList();
                     if (item.TryGetProperty("nums", out var n) && n.ValueKind == JsonValueKind.Object)
-                        foreach (var p in n.EnumerateObject()) rule[p.Name] = JsonNode.Parse(p.Value.GetRawText());
-                    into.Add(rule);
+                        parts.AddRange(n.EnumerateObject().Select(p => JsonSerializer.Serialize(p.Name) + ":" + p.Value.GetRawText()));
+                    into.Add("{" + string.Join(",", parts) + "}");
                 }
             }
         }
@@ -201,7 +228,7 @@ namespace EasyEngine
         /// One behavior from the AI, cleaned up against the catalog: values in the bag their parameter belongs to, choices
         /// written as words turned into their value. Returns extra Custom rules it implies (GoToScene "on death").
         /// </summary>
-        public static void Behavior(BehaviorInfo info, JsonObject item, JsonArray extraRules)
+        public static void Behavior(BehaviorInfo info, JsonObject item, List<string> extraRules)
         {
             var nums = item["nums"] as JsonObject ?? new JsonObject();
             var texts = item["texts"] as JsonObject ?? new JsonObject();
@@ -240,7 +267,7 @@ namespace EasyEngine
                 var t = Squeeze(Str(trig)).ToLowerInvariant();
                 if (t is "death" or "die" or "dies" or "ondeath" or "killed")
                 {
-                    extraRules.Add(new JsonObject { ["when"] = "death", ["do"] = "goscene", ["scene"] = Str(texts["scene"]) });
+                    extraRules.Add("{\"when\":\"death\",\"do\":\"goscene\",\"scene\":" + JsonSerializer.Serialize(Str(texts["scene"])) + "}");
                     item["drop"] = true; // the caller removes this behavior: the rule does the job
                 }
                 else if (t is "touch" or "collision" or "collide" or "enter" or "player" or "contact" or "overlap" or "hit" or "") texts["trigger"] = "Player";
