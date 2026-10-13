@@ -1818,12 +1818,15 @@ namespace EasyEngine
             InspectorRoot.Children.Add(combo);
         }
 
-        private void ScriptRow(BehaviorData bh, Panel target)
+        private void ScriptRow(GameObjectData obj, BehaviorData bh, Panel target)
         {
             var blockBtn = new Button { Content = L.T("🧩  Build with blocks (easy)"), Style = (Style)FindResource("AccentButton"), Height = 36, Margin = new Thickness(0, 2, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Center };
             blockBtn.Click += (s, e) =>
             {
-                var win = new BlockEditorWindow(_project, _scene, bh.Text("script", "[]")) { Owner = this };
+                // the blocks' "✨ Ask the AI" goes through the same AI as the panel (or says why it can't)
+                var win = new BlockEditorWindow(_project, _scene, bh.Text("script", "[]"), obj,
+                    (prompt, system) => AiNotReadyReason() is string notReady ? throw new AiException(notReady + ".")
+                                                                               : AiGenerateAsync(prompt, system, json: true, temperature: 0.1)) { Owner = this };
                 if (win.ShowDialog() == true)
                 {
                     PushUndo(); bh.Texts["script"] = win.ResultJson; Dirty();

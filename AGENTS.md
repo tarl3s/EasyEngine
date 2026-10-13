@@ -41,12 +41,12 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 |---|---|---|
 | `--fulltest` | the big battery (≈451 checks: every script action/event, behaviors, Scratch round-trip, editor, E2E) | `%TEMP%\easyengine_fulltest.log` |
 | `--e2e` | plays the test scenarios step by step (Axe, Lighting, Boss, Infinite World; ≈41 steps) | `easyengine_e2e.log` |
-| `--behtest` (49) / `--exprtest` (26) / `--blocktest` (7) / `--aijsontest` (20) | behaviors / expression evaluator / block-editor round-trip / AI-JSON parsing robustness | `easyengine_<name>.log` |
+| `--behtest` (49) / `--exprtest` (26) / `--blocktest` (18) / `--aijsontest` (20) | behaviors / expression evaluator / block-editor round-trip / AI-JSON parsing robustness | `easyengine_<name>.log` |
 | `--selftest` | opens real windows (editor, play, every dialog), measures every visible text against what is drawn behind it (`ContrastAudit`, fails under 4.5:1), renders PNG snapshots; add `--theme light` for the light theme | `easyengine_selftest.log`, `easyengine_snap_*.png` (`*_light.png`) |
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
 | `--aitest [--model m]` | ~32 prompts through the real AI pipeline (needs a running AI) | `easyengine_aitest.log` |
 
-Last known green: fulltest 544/544, e2e 60/60, behtest 49, blocktest 7, exprtest 26, aijsontest 20, selftest PASS (dark and light).
+Last known green: fulltest 553/553, e2e 67/67, behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light).
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 
@@ -68,7 +68,7 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 | Editor window (scene canvas, docking panels, inspector, AI panel, undo/redo, export) | `MainWindow.xaml(.cs)`, `MainWindow.Params.cs` (param pickers), `.Learn.cs`, `.Minimap.cs`, `.Sequences.cs`, `.LockZ.cs` (🔒 Lock — editor-only, the AI skips locked objects; Z layer; arrow-key nudge; Keep proportions / Original size) |
 | **Runtime** (game loop on `CompositionTarget.Rendering`, AABB physics, behaviors, Custom-rule interpreter, camera, HUD) | `PlayWindow.xaml(.cs)` + `PlayWindow.<Feature>.cs`: Boss, Sequences (cutscene step runner), Terrain, Lighting (smooth darkness + glow), LightGrid (Day/Night "Blocks" lighting: per-block light map, block-by-block), Minimap, Tools (Use Item/Hotbar/Harvestable), Texts (Text/Yes-No/Colour variables, settext/toggle/setcolor/tint) and Lists (listadd/listremove/listclear/iflist, `count:name`), Sound, Console, Checklist, Hitbox ("fit to the drawing": X/Y/W/H are the sprite's visible part, the picture is drawn at the full box via `PictureAt`, mirrored when flipped; bounds in `HitboxFit.cs`, editor rows in `MainWindow.Hitbox.cs`), ZOrder (`GameObjectData.Z`: `ZOrder.InDrawOrder` orders each layer in the editor and at load; spawned copies go on top, ordered by Z among themselves), `Tests*` (test hooks); variable kinds and their conversions live in `VarScope.cs` |
 | Custom behavior mini-language (`when → do` rules) + expressions | runtime in `PlayWindow.xaml.cs` (`RunCustom`/`DoCustom`/`RuleValue`), `Expr.cs` (recursive evaluator, never throws) |
-| Scratch-style editors | `BlockEditorWindow.cs` (Custom rules), `SequenceEditorWindow.cs` ("Advanced Scratch" for Boss AI / Cutscene) |
+| Scratch-style editors | `BlockEditorWindow.cs` (Custom rules; `.Ai.cs` = its "✨ Ask the AI": prompt built from the block palette, tolerant reply reader), `SequenceEditorWindow.cs` ("Advanced Scratch" for Boss AI / Cutscene) |
 | Boss/Cutscene step palette, script model, tolerant JSON (shared by runtime, editor and AI) | `SequenceModel.cs` (`StepCatalog`, `SeqStep`, `BossScript`, `SequenceJson`), `SequenceAi.cs` |
 | AI clients | `OllamaClient.cs` + `OllamaManager.cs` (local, `localhost:11434`), `CloudClient.cs` (OpenAI-compatible free tiers Groq/Gemini/OpenRouter with auto-fallback on 429, BYO paid keys incl. native Anthropic; `AiSettings`) |
 | Shared helpers | `LooseJson.cs` (lenient JSON + number parsing), `Theme.cs` (dark/light palettes, `Init`), `Loc.cs` (`L.T` languages, `Lang/*.json`), `CacheCleaner.cs` (clear temporary files), `Dropdown.cs`, `ParamSources.cs` (lists for pickers), `Contrast.cs`, `DemoKit.cs`, `ToolArt.cs`, `LookPicker.cs`, `ColorPickerPopup.cs`, `SoundSynth.cs` (generated WAVs) |

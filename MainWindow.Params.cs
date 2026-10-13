@@ -178,7 +178,7 @@ namespace EasyEngine
                     TerrainBlocksEditor(obj, bh, panel);
                     break;
                 case PickKind.Special:
-                    if (bh.Kind == BehaviorKind.Custom && tp.Key == "script") ScriptRow(bh, panel);
+                    if (bh.Kind == BehaviorKind.Custom && tp.Key == "script") ScriptRow(obj, bh, panel);
                     else if (bh.Kind == BehaviorKind.AdvancedPatrol && tp.Key == "path") AdvancedPatrolRow(obj, bh, panel);
                     else if (bh.Kind is BehaviorKind.BossAI or BehaviorKind.Cutscene) SequenceCard(obj, bh, panel);
                     break;

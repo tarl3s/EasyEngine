@@ -475,6 +475,48 @@ public partial class App : Application
             Check("Expr value round-trips", Has(expr, r => r.TryGetProperty("expr", out var ev) && (ev.GetString() ?? "").Replace(" ", "").Contains("coins-15")));
 
             Check("Round-trip is stable (idempotent)", RT(coin) == coin);
+
+            // picked fields (number / own variables, items, the volume channel, "Only run if" variable) save exactly what
+            // the typed boxes did: same keys, same value types — names that aren't in any list are kept as they are
+            project.Variables["lives"] = 3;
+            var hero = new GameObjectData { Name = "Hero" }; hero.Variables["hp2"] = 5;
+            var picked = "[{\"when\":\"ifvar\",\"var\":\"coins\",\"op\":\">=\",\"value\":5,\"do\":\"setvar\",\"var\":\"score\",\"to\":3},"
+                       + "{\"when\":\"iflocal\",\"var\":\"hp\",\"op\":\"<\",\"value\":1,\"do\":\"addlocal\",\"var\":\"hp\",\"amount\":1},"
+                       + "{\"when\":\"hasitem\",\"item\":\"key\",\"do\":\"removeitem\",\"item\":\"key\",\"amount\":1},"
+                       + "{\"when\":\"start\",\"do\":\"setvolume\",\"channel\":\"music\",\"to\":0.4},"
+                       + "{\"when\":\"click\",\"do\":\"additem\",\"item\":\"wood\",\"amount\":2,\"cond\":\"coins >= 15\"},"
+                       + "{\"when\":\"start\",\"do\":\"setvolume\",\"channel\":\"voice\",\"to\":1},"
+                       + "{\"when\":\"always\",\"do\":\"setlocal\",\"var\":\"neverSeen\",\"expr\":\"lives * 2\",\"cond\":\"item:wood >= 1\"}]";
+            Check("Picked fields round-trip byte-for-byte", RT(picked) == picked);
+            var win = new BlockEditorWindow(project, scene, picked, hero);
+            Check("Picked fields round-trip with the object known", win.SerializeTest() == picked);
+            var combos = Descendants(win).OfType<System.Windows.Controls.ComboBox>().ToList();
+            List<string> Tags(System.Windows.Controls.ComboBox c) => c.Items.OfType<System.Windows.Controls.ComboBoxItem>().Select(i => i.Tag as string ?? "").ToList();
+            var channel = combos.First(c => Tags(c).Contains("sfx"));
+            Check("Volume channel is a choice (All sound / Music / Sound effects)", Tags(channel).Take(3).SequenceEqual(new[] { "master", "music", "sfx" })
+                  && channel.Items.OfType<System.Windows.Controls.ComboBoxItem>().Any(i => (i.Content as string) == "Sound effects"));
+            Check("Number variable picker offers project and rule variables + New", combos.Any(c => Tags(c).Contains("lives") && Tags(c).Contains("score") && Tags(c).Contains("coins") && Tags(c).Any(t => t.StartsWith("\u0001"))));
+            Check("Own variable picker offers the object's and its rules' variables", combos.Any(c => Tags(c).Contains("hp2") && Tags(c).Contains("hp") && Tags(c).Contains("neverSeen") && !Tags(c).Contains("lives")));
+            var items = ParamSources.Items(project);
+            var itemPickers = combos.Where(c => items.All(Tags(c).Contains) && Tags(c).Any(t => t.StartsWith("\u0001"))).ToList();
+            Check("Item pickers offer the project's items + New (and keep their own)", itemPickers.Count == 3 && itemPickers.Any(c => Tags(c).Contains("wood")) && itemPickers.Count(c => Tags(c).Contains("key")) >= 2);
+            Check("Only-run-if variable is picked too ((none) first)", combos.Count(c => Tags(c).FirstOrDefault() == "" && Tags(c).Contains("lives")) == 7);
+            channel.SelectedItem = channel.Items.OfType<System.Windows.Controls.ComboBoxItem>().First(i => (string?)i.Tag == "sfx");
+            Check("Picking a channel saves its value", win.SerializeTest().Contains("\"channel\":\"sfx\""));
+            win.Close();
+
+            // duplicate / move buttons on every block
+            var two = "[{\"when\":\"start\",\"do\":\"jump\",\"force\":600},{\"when\":\"click\",\"do\":\"destroy\"}]";
+            var bw = new BlockEditorWindow(project, scene, two);
+            System.Windows.Controls.Button Btn(string tip, int n) => Descendants(bw).OfType<System.Windows.Controls.Button>().Where(b => (b.ToolTip as string) == tip).ElementAt(n);
+            void Click(System.Windows.Controls.Button b) => b.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Click(Btn("Duplicate", 0));
+            Check("Duplicate copies a block right after it", bw.SerializeTest() == "[{\"when\":\"start\",\"do\":\"jump\",\"force\":600},{\"when\":\"start\",\"do\":\"jump\",\"force\":600},{\"when\":\"click\",\"do\":\"destroy\"}]");
+            Click(Btn("Move up", 2));
+            Check("Move up swaps with the block above", bw.SerializeTest() == "[{\"when\":\"start\",\"do\":\"jump\",\"force\":600},{\"when\":\"click\",\"do\":\"destroy\"},{\"when\":\"start\",\"do\":\"jump\",\"force\":600}]");
+            Check("The first block can't move up, the last can't move down", !Btn("Move up", 0).IsEnabled && !Btn("Move down", 2).IsEnabled && Btn("Move down", 0).IsEnabled);
+            bw.Close();
+            TestScenarios.TryDeleteDir(temp);
         }
         catch (Exception ex) { sb.AppendLine("FATAL: " + ex); fail++; }
         sb.Insert(0, "blocktest " + DateTime.Now + "\n");

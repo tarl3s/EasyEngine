@@ -82,6 +82,16 @@ namespace EasyEngine
             _map = table ?? new();
         }
 
+        /// <summary>Runs <paramref name="make"/> with every <see cref="T"/> answering English (an AI prompt built from a palette
+        /// whose labels are made through L.T). The editor is single-threaded, so nothing else sees the switch.</summary>
+        internal static T0 InEnglish<T0>(Func<T0> make)
+        {
+            var map = _map;
+            _map = new();
+            try { return make(); }
+            finally { _map = map; }
+        }
+
         /// <summary>The translation table of <paramref name="code"/> (empty if missing or broken — English shows instead).</summary>
         public static Dictionary<string, string> LoadTable(string code)
         {
