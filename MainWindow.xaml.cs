@@ -1211,7 +1211,7 @@ namespace EasyEngine
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
-            if (Keyboard.FocusedElement is TextBox) return;
+            if (Keyboard.FocusedElement is TextBox || ListSearch.WantsKey(e)) return; // typing in a field, or searching an open list
 
             if (e.Key == Key.Delete && _selected != null) { DeleteSelected(); e.Handled = true; }
             else if (NudgeKey(e)) e.Handled = true; // arrows move the selection (MainWindow.LockZ.cs)
@@ -1798,7 +1798,7 @@ namespace EasyEngine
             var combo = new ComboBox { Margin = new Thickness(0, 2, 0, 0) };
             combo.Items.Add(new ComboBoxItem { Content = L.T("＋ Add behavior…"), Tag = null, IsSelected = true });
             foreach (var info in BehaviorCatalog.All)
-                if (!info.Hidden) combo.Items.Add(new ComboBoxItem { Content = $"{info.Icon}  {L.T(info.Name)}", Tag = info.Kind });
+                if (!info.Hidden) { var it = new ComboBoxItem { Content = $"{info.Icon}  {L.T(info.Name)}", Tag = info.Kind }; TextSearch.SetText(it, info.Name); combo.Items.Add(it); } // found by its English name too
             combo.SelectionChanged += (s, e) =>
             {
                 if (combo.SelectedItem is ComboBoxItem ci && ci.Tag is BehaviorKind kind)

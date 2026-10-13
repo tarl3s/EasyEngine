@@ -151,6 +151,13 @@ namespace EasyEngine
         private static readonly DependencyProperty OriginalProperty = DependencyProperty.RegisterAttached(
             "Original", typeof(Dictionary<DependencyProperty, (string En, string Shown)>), typeof(L), new PropertyMetadata(null));
 
+        /// <summary>The English originals of the texts translated on this element (its content, header or text — not its
+        /// tooltip); empty when nothing on it was translated. Lets a search find "Platformer" in Portuguese too.</summary>
+        public static IEnumerable<string> EnglishOf(DependencyObject d) =>
+            d.GetValue(OriginalProperty) is Dictionary<DependencyProperty, (string En, string Shown)> o
+                ? o.Where(kv => kv.Key != FrameworkElement.ToolTipProperty).Select(kv => kv.Value.En)
+                : Enumerable.Empty<string>();
+
         private static bool _installed, _everTranslated;
 
         /// <summary>Translates every window as it opens, and elements that load later (call once at startup).</summary>

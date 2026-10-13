@@ -119,7 +119,7 @@ namespace EasyEngine
             _recalc.Tick += (s, e) => { _recalc.Stop(); Recalc(); };
             _tick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
             _tick.Tick += (s, e) => UpdatePlayhead();
-            PreviewKeyDown += (s, e) => { if (e.Key == Key.Space && e.OriginalSource is not TextBox) { TogglePlay(); e.Handled = true; } };
+            PreviewKeyDown += (s, e) => { if (e.Key == Key.Space && e.OriginalSource is not TextBox && !ListSearch.WantsKey(e)) { TogglePlay(); e.Handled = true; } };
             Closed += (s, e) => { StopPlay(); _recalc.Stop(); };
 
             OnTrimChanged();

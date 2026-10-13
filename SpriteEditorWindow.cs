@@ -438,6 +438,7 @@ namespace EasyEngine
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
+            if (ListSearch.WantsKey(e)) return; // keys that search an open list (R, Esc…) aren't shortcuts
             if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.Z) { Redo(); e.Handled = true; return; }
             if (Keyboard.Modifiers == ModifierKeys.Control && !(Keyboard.FocusedElement is TextBox))
             {

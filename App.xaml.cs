@@ -43,6 +43,7 @@ public partial class App : Application
             if (s is Window sw) ScaleWindow(sw);
         }));
         L.Install(); // editor texts in the chosen language (English until ApplyUserPreferences)
+        ListSearch.Install(); // type to search in every dropdown and picker menu
 
         // exported game: EasyEngine.exe --play <project.eeproj>
         var playIdx = Array.IndexOf(e.Args, "--play");

@@ -172,15 +172,32 @@
                             </ToggleButton>
                             <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
                                 <Border Background="{StaticResource Bg2}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="5" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" Margin="0,2,0,0">
-                                    <ScrollViewer MaxHeight="260">
-                                        <ItemsPresenter/>
-                                    </ScrollViewer>
+                                    <DockPanel>
+                                        <!-- type to search (ListSearch.cs): what was typed, and "No match"; hidden while nothing is typed -->
+                                        <TextBlock x:Name="query" DockPanel.Dock="Top" Margin="8,5,8,3" Foreground="{StaticResource TextDim}" TextTrimming="CharacterEllipsis"
+                                                   Text="{Binding Path=(local:ListSearch.Query), RelativeSource={RelativeSource TemplatedParent}}"/>
+                                        <TextBlock x:Name="hint" DockPanel.Dock="Top" Margin="8,0,8,5" Foreground="{StaticResource TextDim}" FontStyle="Italic"
+                                                   Text="{Binding Path=(local:ListSearch.Hint), RelativeSource={RelativeSource TemplatedParent}}"/>
+                                        <ScrollViewer MaxHeight="260">
+                                            <ItemsPresenter/>
+                                        </ScrollViewer>
+                                    </DockPanel>
                                 </Border>
                             </Popup>
                         </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="local:ListSearch.Query" Value="">
+                                <Setter TargetName="query" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                            <Trigger Property="local:ListSearch.Hint" Value="">
+                                <Setter TargetName="hint" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <!-- WPF's own type-ahead SELECTED (and saved) the first entry starting with the typed letter: ListSearch filters instead -->
+            <Setter Property="IsTextSearchEnabled" Value="False"/>
         </Style>
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
@@ -319,10 +336,25 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
                         <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="3">
-                            <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">
-                                <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
-                            </ScrollViewer>
+                            <DockPanel>
+                                <!-- type to search (ListSearch.cs), as in the dropdowns -->
+                                <TextBlock x:Name="query" DockPanel.Dock="Top" Margin="8,4,12,3" Foreground="{StaticResource TextDim}" TextTrimming="CharacterEllipsis"
+                                           Text="{Binding Path=(local:ListSearch.Query), RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <TextBlock x:Name="hint" DockPanel.Dock="Top" Margin="8,0,12,5" Foreground="{StaticResource TextDim}" FontStyle="Italic"
+                                           Text="{Binding Path=(local:ListSearch.Hint), RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                </ScrollViewer>
+                            </DockPanel>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="local:ListSearch.Query" Value="">
+                                <Setter TargetName="query" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                            <Trigger Property="local:ListSearch.Hint" Value="">
+                                <Setter TargetName="hint" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
