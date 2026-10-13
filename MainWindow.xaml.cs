@@ -2118,10 +2118,15 @@ namespace EasyEngine
         private void SoundRow(GameObjectData obj, BehaviorData bh, Panel target, string key = "asset", string? label = null)
         {
             var grid = RowGrid(label ?? L.T("Sound file"), target);
-            var inner = new StackPanel { Orientation = Orientation.Horizontal };
+            // the file name takes what room is left (cut with "…", whole in the tooltip): ✂ and ✕ always stay visible
+            var inner = new Grid();
+            inner.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            inner.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            inner.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var current = bh.Text(key, "");
-            var pick = new Button { Content = string.IsNullOrEmpty(current) ? L.T("Choose…") : Path.GetFileName(current), Style = (Style)FindResource("CardButton"), Height = 28, Padding = new Thickness(8, 0, 8, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
-            if (!string.IsNullOrEmpty(current)) L.SetSkip(pick, true); // the file name
+            var name = string.IsNullOrEmpty(current) ? L.T("Choose…") : Path.GetFileName(current);
+            var pick = new Button { Content = new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis }, Style = (Style)FindResource("CardButton"), Height = 28, Padding = new Thickness(8, 0, 8, 0), HorizontalContentAlignment = HorizontalAlignment.Center, MinWidth = 0 };
+            if (!string.IsNullOrEmpty(current)) { L.SetSkip(pick, true); pick.ToolTip = name; } // the file name
             pick.Click += (s, e) =>
             {
                 var dlg = new OpenFileDialog { Title = L.T("Choose sound"), Filter = L.T("Audio") + "|*.wav;*.mp3" };
@@ -2141,10 +2146,10 @@ namespace EasyEngine
                     var made = AudioEditorWindow.Edit(this, _project, current);
                     if (made != null) { PushUndo(); bh.Texts[key] = made; BuildInspector(obj); Dirty(); }
                 };
-                inner.Children.Add(edit);
+                Grid.SetColumn(edit, 1); inner.Children.Add(edit);
                 var clear = new Button { Content = "✕", ToolTip = L.T("No sound"), Style = (Style)FindResource("CardButton"), Height = 28, Width = 28, Margin = new Thickness(4, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
                 clear.Click += (s, e) => { PushUndo(); bh.Texts[key] = ""; BuildInspector(obj); Dirty(); };
-                inner.Children.Add(clear);
+                Grid.SetColumn(clear, 2); inner.Children.Add(clear);
             }
             Grid.SetColumn(inner, 1); grid.Children.Add(inner);
         }

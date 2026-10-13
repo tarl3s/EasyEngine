@@ -68,5 +68,25 @@ public partial class App
             pw.TSay("plain", "");
             return bg.EndsWith("EAD9B0") && font == "Consolas" && pw.TDialogBg.EndsWith(theme.DialogBg.TrimStart('#').ToUpperInvariant());
         });
+        t.Test("inspector: a sound with a very long file name is cut with … and its ✂ Edit and ✕ buttons stay inside the card", () =>
+        {
+            var project = ProjectIO.CreateNew("SoundRow", System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EE_Full_SoundRow_" + System.Guid.NewGuid().ToString("N")[..6]));
+            var ed = new MainWindow(project);
+            var o = new GameObjectData { Name = "Radio" };
+            var snd = BehaviorCatalog.Info(BehaviorKind.SoundEmitter).CreateData();
+            snd.Texts["asset"] = @"Assets\sounds\Smells_Like_Teen_Spirit_2019_Remastered_Extended_Version_Final.wav";
+            o.Behaviors.Add(snd);
+            ed.TestInspect(o);
+            const double width = 300;
+            ed.InspectorRoot.Measure(new System.Windows.Size(width, double.PositiveInfinity));
+            ed.InspectorRoot.Arrange(new System.Windows.Rect(0, 0, width, ed.InspectorRoot.DesiredSize.Height));
+            static System.Collections.Generic.IEnumerable<System.Windows.DependencyObject> All(System.Windows.DependencyObject d)
+            { yield return d; foreach (var c in System.Windows.LogicalTreeHelper.GetChildren(d).OfType<System.Windows.DependencyObject>()) foreach (var x in All(c)) yield return x; }
+            var clear = All(ed.InspectorRoot).OfType<System.Windows.Controls.Button>().FirstOrDefault(b => b.Content as string == "✕" && b.ToolTip as string == L.T("No sound"));
+            if (clear == null) return false;
+            double right = clear.TranslatePoint(new System.Windows.Point(clear.ActualWidth, 0), ed.InspectorRoot).X;
+            try { ed.Close(); } catch { }
+            return clear.ActualWidth > 10 && right <= width + 0.5;
+        });
     }
 }
