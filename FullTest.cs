@@ -1066,6 +1066,7 @@ public partial class App
             FeatureTestsMinimap(kit);
             FeatureTestsCover(kit);
             FeatureTestsLearn(kit);
+            FeatureTestsBackup(kit);
             FeatureTestsSequences(kit);
             FeatureTestsBoss(kit);
             FeatureTestsTerrain(kit);
@@ -1106,6 +1107,7 @@ public partial class App
     partial void FeatureTestsMinimap(FullTestKit t);
     partial void FeatureTestsCover(FullTestKit t);
     partial void FeatureTestsLearn(FullTestKit t);
+    partial void FeatureTestsBackup(FullTestKit t);
     partial void FeatureTestsSequences(FullTestKit t);
     partial void FeatureTestsBoss(FullTestKit t);
     partial void FeatureTestsTerrain(FullTestKit t);

@@ -315,6 +315,7 @@ namespace EasyEngine
         public static double UiScale { get; set; } = 1.0;                   // interface size (1 = 100%)
         public static bool CheckUpdates { get; set; } = true;               // the launcher looks for a new version on start
         public static bool HideTestBar { get; set; }                         // the bar on top of a test run (Stop, Console…) starts hidden (F2)
+        public static bool AssetBackup { get; set; } = true;                // keep a hidden backup copy of every picture/sound in a project (AssetBackup.cs)
 
         public static string Key(string providerId) => CloudKeys.TryGetValue(providerId, out var v) ? v : "";
         public static void SetKey(string providerId, string value) { CloudKeys[providerId] = value?.Trim() ?? ""; }
@@ -344,6 +345,7 @@ namespace EasyEngine
                     UiScale = data.UiScale is double s && s >= 0.8 && s <= 1.5 ? s : 1.0;
                     CheckUpdates = data.CheckUpdates ?? true;
                     HideTestBar = data.HideTestBar ?? false;
+                    AssetBackup = data.AssetBackup ?? true;
                 }
             }
             catch { }
@@ -351,7 +353,7 @@ namespace EasyEngine
 
         public static void Save()
         {
-            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel, SamplesInstalled = SamplesInstalled, SamplesVersion = SamplesVersion, Language = Language, Theme = ThemeName, UiScale = UiScale, CheckUpdates = CheckUpdates, HideTestBar = HideTestBar })); }
+            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel, SamplesInstalled = SamplesInstalled, SamplesVersion = SamplesVersion, Language = Language, Theme = ThemeName, UiScale = UiScale, CheckUpdates = CheckUpdates, HideTestBar = HideTestBar, AssetBackup = AssetBackup })); }
             catch { }
         }
 
@@ -371,6 +373,7 @@ namespace EasyEngine
             [JsonPropertyName("uiScale")] public double? UiScale { get; set; }
             [JsonPropertyName("checkUpdates")] public bool? CheckUpdates { get; set; }
             [JsonPropertyName("hideTestBar")] public bool? HideTestBar { get; set; }
+            [JsonPropertyName("assetBackup")] public bool? AssetBackup { get; set; }
         }
     }
 }

@@ -1,4 +1,8 @@
 {
+  "Keep a backup copy of every picture and sound": "Guardar una copia de seguridad de cada imagen y sonido",
+  "🛟  Backup": "🛟  Copia de seguridad",
+  "A hidden copy inside each project: if a file is deleted by mistake, it comes back when the project opens.": "Una copia oculta dentro de cada proyecto: si un archivo se borra por error, vuelve cuando se abre el proyecto.",
+  "🛟 Brought back {0} missing file(s) from the backup: {1}": "🛟 Se recuperaron {0} archivo(s) que faltaban desde la copia de seguridad: {1}",
   "\"{0}\" is now the start scene": "\"{0}\" es ahora la escena inicial",
   "(a colour)": "(un color)",
   "(a ground wave)": "(una onda por el suelo)",

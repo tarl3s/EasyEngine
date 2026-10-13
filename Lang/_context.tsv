@@ -26,6 +26,7 @@ A copy of this animation (e.g. to make a variation)	AnimationWindow.xaml
 A custom behavior written as a tiny rule script (when → do). Usually created by the AI when the request is too complex for the other behaviors.	behavior Custom
 A day/night cycle. Add it to one object (a controller, can be invisible). It dims the scene at night and brightens it by day, and sets the variables isDay/isNight/timeOfDay you can read in the AI or in blocks (e.g. spawn certain enemies only at night). In Platformer mode, adding it creates a 'Sky' layer under all the others with a Sun and a Moon already linked (Top-down has no sky — just the light changes) — give them your own sprites there. The sky is drawn behind everything (tilemaps, trees, player), fixed to the screen; the sun and moon cross it and leave the screen completely before day/night changes. Put clouds or stars in the Sky layer too. Platformer: turn on 'coverDark' and it also gets darker the more solid blocks are above the player (caves, underground) — torches still light it up; it sets the variables cover (0 to 1) and underground (0 or 1). 'True black darkness' makes the dark pure black (no night tint) and fully dark underground. Lighting style: Smooth = soft circles of light; Blocks = light computed block by block (each Light then chooses whether solid blocks stop it, whether it colours what it touches and whether it adds up with other lights). Works for Top-down and Platformer.	behavior DayNight
 A grid of tiles you paint in the editor (ground, walls, level geometry). Solid tiles become collision automatically. Add it to an empty object, then paint with the Tiles panel. Turn on 'Breakable' to let individual tiles be destroyed (by bullets, melee, damagers, stomping, touching, or the 'Break a tile' block).	behavior Tilemap
+A hidden copy inside each project: if a file is deleted by mistake, it comes back when the project opens.	SettingsWindow.cs
 A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). ANY name is an item — make your own (shovel, hammer, magic wand…) with the '＋ New item' button, or add ':look' to a slot: a built-in drawing (pickaxe, axe, sword, shovel, hammer, hoe, tile) or a picture file (e.g. wand:#FFFFFF:Assets/sprites/wand.png). A Harvestable whose 'tool' is that name only accepts it. You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.	behavior Hotbar
 A key is pressed	behavior Cutscene
 A locked object can't be moved, resized, deleted or edited in the editor. The game ignores the lock.	MainWindow.LockZ.cs
@@ -574,6 +575,7 @@ Jump over obstacles (0/1)	behavior AdvancedPatrol
 Jump strength (platform)	behavior AdvancedPatrol
 Jumps the Day/Night cycle to that moment (needs a Day/Night cycle object in the scene).	BlockEditorWindow.Palette.cs
 Just the player — add things to show below.	MainWindow.Minimap.cs
+Keep a backup copy of every picture and sound	SettingsWindow.cs
 Keeps this object from leaving the scene (or the part the camera shows). At the edge it stops, bounces back, or comes out the other side (like Pac-Man). Pick which sides count — e.g. all but the bottom, so it can still fall into a pit.	behavior StayInside
 Key	behavior Cutscene, behavior Interact, behavior Switch, BlockEditorWindow.Palette.cs
 Key to open the big map	behavior Minimap
@@ -1426,6 +1428,8 @@ y	step camera, step move, step moveto, step spawn
 🔨 Build	MainWindow.xaml
 🗂  Temporary files	SettingsWindow.cs
 🗑 Delete animation	AnimationWindow.xaml
+🛟  Backup	SettingsWindow.cs
+🛟 Brought back {0} missing file(s) from the backup: {1}	MainWindow.xaml.cs
 🛠 Custom local model…	MainWindow.xaml
 🧩  Advanced Scratch…	MainWindow.Sequences.cs
 🧩  Build with blocks (easy)	MainWindow.xaml.cs

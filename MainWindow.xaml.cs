@@ -108,6 +108,8 @@ namespace EasyEngine
             _project = project;
             if (_project.Scenes.Count == 0) _project.Scenes.Add(new Scene());
             ProjectNameText.Text = project.Name;
+            var restored = AssetBackup.Sync(_project); // files deleted by mistake come back (⚙ Settings → Backup)
+            if (restored.Count > 0) Loaded += (_, _) => Status(L.F("🛟 Brought back {0} missing file(s) from the backup: {1}", restored.Count, string.Join(", ", restored.Select(Path.GetFileName))));
 
             SceneCanvas.MouseMove += Canvas_MouseMove;
             SceneCanvas.MouseLeftButtonUp += Canvas_MouseUp;
@@ -2845,7 +2847,8 @@ namespace EasyEngine
                 File.Copy(file, Path.Combine(dst, Path.GetFileName(file)), overwrite: true);
             }
             foreach (var dir in Directory.GetDirectories(src))
-                CopyDir(dir, Path.Combine(dst, Path.GetFileName(dir)), skipExt);
+                if (Path.GetFileName(dir) != AssetBackup.FolderName) // the project's backup stays out of the exported game
+                    CopyDir(dir, Path.Combine(dst, Path.GetFileName(dir)), skipExt);
         }
 
         // ============================================================

@@ -1,4 +1,8 @@
 {
+  "Keep a backup copy of every picture and sound": "为每个图片和声音保留备份",
+  "🛟  Backup": "🛟  备份",
+  "A hidden copy inside each project: if a file is deleted by mistake, it comes back when the project opens.": "每个项目内的隐藏副本：如果文件被误删，打开项目时会自动恢复。",
+  "🛟 Brought back {0} missing file(s) from the backup: {1}": "🛟 已从备份恢复 {0} 个丢失的文件：{1}",
   "\"{0}\" is now the start scene": "“{0}”现在是起始场景",
   "(a colour)": "（一种颜色）",
   "(a ground wave)": "（地面冲击波）",

@@ -172,7 +172,7 @@ namespace EasyEngine
             }
 
             if (!File.Exists(dest)) File.Copy(sourceFile, dest, overwrite: false);
-            return Path.Combine("Assets", kind, Path.GetFileName(dest));
+            return Kept(p, Path.Combine("Assets", kind, Path.GetFileName(dest)));
         }
 
         /// <summary>Copies a project asset next to itself ("slime.png" → "slime_copy.png", "slime_copy2.png"…) and returns
@@ -187,7 +187,7 @@ namespace EasyEngine
             for (int i = 2; File.Exists(dest); i++) dest = Path.Combine(dir, $"{stem}_copy{i}{ext}");
             File.Copy(src, dest);
             var relDir = Path.GetDirectoryName(relative) ?? "";
-            return Path.Combine(relDir, Path.GetFileName(dest));
+            return Kept(p, Path.Combine(relDir, Path.GetFileName(dest)));
         }
 
         /// <summary>Saves a drawn bitmap as a PNG in Assets/sprites and returns its project-relative path.</summary>
@@ -204,7 +204,7 @@ namespace EasyEngine
             var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
             enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
             using (var fs = File.Create(dest)) enc.Save(fs);
-            return Path.Combine("Assets", "sprites", Path.GetFileName(dest));
+            return Kept(p, Path.Combine("Assets", "sprites", Path.GetFileName(dest)));
         }
 
         /// <summary>Saves WAV bytes in Assets/sounds (never overwriting) and returns the project-relative path.</summary>
@@ -219,8 +219,11 @@ namespace EasyEngine
             int i = 1;
             while (File.Exists(dest)) dest = Path.Combine(destDir, $"{stem}_{i++}.wav");
             File.WriteAllBytes(dest, wav);
-            return Path.Combine("Assets", "sounds", Path.GetFileName(dest));
+            return Kept(p, Path.Combine("Assets", "sounds", Path.GetFileName(dest)));
         }
+
+        // every asset the engine writes also goes to the project's hidden backup (AssetBackup.cs, ⚙ Settings → Backup)
+        private static string Kept(Project p, string relative) { AssetBackup.Keep(p, relative); return relative; }
 
         public static string? AbsoluteAsset(Project p, string? relative)
         {

@@ -70,6 +70,11 @@ namespace EasyEngine
             updates.Unchecked += (s, e) => { AiSettings.CheckUpdates = false; AiSettings.Save(); };
             root.Children.Add(Row(L.T("⬆  Updates"), updates, null));
 
+            var backup = new CheckBox { Content = L.T("Keep a backup copy of every picture and sound"), IsChecked = AiSettings.AssetBackup, Margin = new Thickness(0, 4, 0, 0) };
+            backup.Checked += (s, e) => { AiSettings.AssetBackup = true; AiSettings.Save(); };
+            backup.Unchecked += (s, e) => { AiSettings.AssetBackup = false; AiSettings.Save(); };
+            root.Children.Add(Row(L.T("🛟  Backup"), backup, L.T("A hidden copy inside each project: if a file is deleted by mistake, it comes back when the project opens.")));
+
             _tempInfo = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) };
             _clear = new Button { Content = L.T("🧹  Clear temporary files"), Height = 34, Padding = new Thickness(14, 0, 14, 0), HorizontalAlignment = HorizontalAlignment.Left };
             _clear.Click += (s, e) =>

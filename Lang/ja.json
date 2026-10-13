@@ -1,4 +1,8 @@
 {
+  "Keep a backup copy of every picture and sound": "すべての画像とサウンドのバックアップを保存する",
+  "🛟  Backup": "🛟  バックアップ",
+  "A hidden copy inside each project: if a file is deleted by mistake, it comes back when the project opens.": "各プロジェクト内の隠しコピー：ファイルを誤って削除しても、プロジェクトを開くと元に戻ります。",
+  "🛟 Brought back {0} missing file(s) from the backup: {1}": "🛟 見つからなかったファイル {0} 個をバックアップから復元しました：{1}",
   "\"{0}\" is now the start scene": "「{0}」が開始シーンになりました",
   "(a colour)": "（色を選ぶ）",
   "(a ground wave)": "（地面を走る波）",
