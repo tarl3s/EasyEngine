@@ -56,7 +56,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 - **A IA faz a lógica** — selecione um objeto, descreva o que ele faz, e a IA aplica comportamentos de verdade.
   **🔨 Build** mexe no jogo, **💡 Brainstorm** conversa sobre ideias, **🎓 Learn** ensina a usar qualquer coisa
   (cada comportamento tem um **?** que pergunta direto pra ela).
-- **Comportamentos prontos** — plataforma (pulo variável, coyote time, pulo duplo, wall jump, dash), top-down,
+- **Comportamentos prontos** — plataforma (pulo variável, coyote time, pulo duplo, wall jump, dash), top-down, vidas (corações na tela, volta ao checkpoint, game over),
   perseguição, patrulha (até por um caminho que você desenha), vida/dano/knockback, itens que você usa (espada,
   machado, picareta, os seus), hotbar, lojas e crafting, coletáveis (que valem pontos), portas entre cenas, molas,
   blocos de empurrar, torres que miram, manter coisas dentro da tela e muito mais. Coisas que andam, torres, geradores e

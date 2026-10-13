@@ -53,7 +53,7 @@ old version and opens again. Your projects are never touched. The sample games a
 - **The AI does the logic** — select an object, describe what it should do, and the AI applies real behaviors.
   **🔨 Build** edits the game, **💡 Brainstorm** talks ideas through, **🎓 Learn** teaches you how to use anything
   (every behavior card has a **?** that asks it directly).
-- **Ready-made behaviors** — platformer (variable jump, coyote time, double jump, wall jump, dash), top-down, chase,
+- **Ready-made behaviors** — platformer (variable jump, coyote time, double jump, wall jump, dash), top-down, chase, lives (hearts on screen, back to the checkpoint, game over),
   patrol (even along a route you draw), health/damage/knockback, items you swing (sword, axe, pickaxe, your own),
   hotbar, shops and crafting, collectibles (worth points), doors between scenes, springs, pushable blocks, turrets that
   aim, keeping things inside the screen, and more. Movers, turrets, spawners and hazards can work **only while**

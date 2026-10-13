@@ -1,4 +1,6 @@
 "{0}" is now the start scene	MainWindow.xaml.cs
+"{0}" now draws behind "{1}"	MainWindow.Layers.cs
+"{0}" now draws in front of "{1}"	MainWindow.Layers.cs
 (a colour)	BlockEditorWindow.cs
 (a ground wave)	SequenceEditorWindow.cs
 (a point: x, y)	step camera, step move, step moveto, step spawn
@@ -15,9 +17,13 @@
 1 phase	SequenceModel.cs
 1 step	SequenceModel.cs
 1 — forward	behavior Shooter
+150 px — very close	behavior Chase, behavior PathChase
 2 = twice as fast, 0.5 = half. Affects Platformer/Top-down speed.	BlockEditorWindow.Palette.cs
+300 px — near	behavior Chase, behavior PathChase
 4 — a cross	behavior Shooter
+500 px — far	behavior Chase, behavior PathChase
 8 — all around	behavior Shooter
+800 px — very far	behavior Chase, behavior PathChase
 A bar that fills based on a variable, e.g. health. Fill = var / max. Put it on a UI layer for a HUD, or above an enemy for a health bar. 'max' can be a number or another variable name.	behavior Bar
 A boss fight. Attacks are lists of steps (warn, dash, jump with a shockwave, shoot rings/fans/aimed bullets, summon minions, become invulnerable…). Phases pick which attacks it uses — the next phase starts when its health drops to a percentage — and a death sequence plays when it is defeated. Give it Health (Disappear, with its own variable like bossHP) and a Damager for contact damage. Build it with 🧩 Advanced Scratch or ask the AI.	behavior BossAI
 A clickable button. On click it runs an effect: goscene (change scene), setvar, addvar, say, save or load. Put it on a UI layer; add a Label for its text. Great for menus and HUD.	behavior UIButton
@@ -29,6 +35,7 @@ A grid of tiles you paint in the editor (ground, walls, level geometry). Solid t
 A hidden copy inside each project: if a file is deleted by mistake, it comes back when the project opens.	SettingsWindow.cs
 A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). ANY name is an item — make your own (shovel, hammer, magic wand…) with the '＋ New item' button, or add ':look' to a slot: a built-in drawing (pickaxe, axe, sword, shovel, hammer, hoe, tile) or a picture file (e.g. wand:#FFFFFF:Assets/sprites/wand.png). A Harvestable whose 'tool' is that name only accepts it. You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.	behavior Hotbar
 A key is pressed	behavior Cutscene
+A layer with that name already exists.	MainWindow.Layers.cs
 A locked object can't be moved, resized, deleted or edited in the editor. The game ignores the lock.	MainWindow.LockZ.cs
 A lot	MainWindow.TerrainBlocks.cs
 A name can't contain , : or ".	PrefabRename.cs
@@ -37,6 +44,7 @@ A number, or a formula like rand(100, 300) or score * 2	BlockEditorWindow.cs
 A one-off puff of particles (sparks, dust, explosions).	BlockEditorWindow.Palette.cs
 A prefab with that name already exists.	PrefabRename.cs
 A project needs at least one scene.	MainWindow.xaml.cs
+A pushable block is moved by pushing; a Patrol or Chase on it fights the pushing. For a moving platform use Solid + Patrol.	BehaviorCombos.cs
 A repeating (tiled) image can't be trimmed.	MainWindow.Hitbox.cs
 A repeating (tiled) image isn't trimmed: the whole box collides.	MainWindow.Hitbox.cs
 A row	behavior Generator
@@ -63,6 +71,7 @@ APPEARANCE	MainWindow.Tiles.cs, MainWindow.xaml.cs
 ATTACKS are lists of steps. PHASES choose which attacks the boss uses — the next phase starts when its health drops to a percentage. WHEN IT DIES plays at 0 health.	SequenceEditorWindow.cs
 Ability	BlockEditorWindow.Palette.cs
 Ability / Key Pickup	behavior AbilityPickup
+Active — exists in the game	MainWindow.Layers.cs
 Add	behavior Area, behavior Interact, behavior UIButton, VariablesWindow.xaml.cs
 Add a free cloud API key first (⚙ AI settings)	MainWindow.xaml.cs
 Add a scene	MainWindow.xaml
@@ -82,8 +91,10 @@ Adds to its speed gradually (not instant). + up/down makes it fall faster.	Block
 Adds up with other lights (0/1)	behavior LightSource
 Adds words to the end of a text variable.	BlockEditorWindow.Palette.cs
 Advanced Patrol	behavior AdvancedPatrol
+Advanced Patrol moves it, so this Patrol never does. Keep one of them.	BehaviorCombos.cs
 Advanced — paid keys, offline AI	MainWindow.xaml.cs
 Advanced — raw rules (JSON). The blocks above edit this for you.	MainWindow.xaml.cs
+After losing one it goes back to	behavior Lives
 After some seconds	BlockEditorWindow.Palette.cs
 Aim at (optional)	BlockEditorWindow.Palette.cs
 Aimed at the target	step shoot
@@ -100,6 +111,7 @@ Also show	behavior Minimap
 Also show on the map	MainWindow.Minimap.cs
 Also unlocks	behavior AbilityPickup
 Always	MainWindow.Params.cs
+Always (any distance)	behavior Chase, behavior PathChase
 Ambient light (0-1)	MainWindow.xaml.cs
 Amount	BlockEditorWindow.Palette.cs, step addvar
 Amount given	behavior Shop
@@ -115,6 +127,7 @@ Animations	AnimationWindow.xaml, MainWindow.xaml.cs
 Animations — {0}	AnimationWindow.xaml.cs
 Another thing that must be true (or may be true) for the block to run	BlockEditorWindow.cs
 Area	behavior StayInside
+Area (its whole rectangle)	behavior LightSource
 Around caves	MainWindow.TerrainBlocks.cs
 Arrows: move · Shift: 10 px	MainWindow.xaml.cs
 Ask	MainWindow.xaml.cs
@@ -140,9 +153,11 @@ Background	MainWindow.xaml.cs
 Background color	behavior Bar
 Background that scrolls slower than the camera.	behavior Parallax
 Bar (health/progress)	behavior Bar
+Bar (neon tube glow)	behavior LightSource
 Base	MainWindow.xaml.cs
 Base URL (…/v1) and model name:	MainWindow.xaml.cs
 Base angle (deg)	behavior Particles
+Beam (flashlight cone)	behavior LightSource
 Behavior	BlockEditorWindow.Palette.cs
 Belongs to "{0}". Each copy of it in the game gets its own.	VariablesWindow.xaml.cs
 Belongs to the selected object.	VariablesWindow.xaml.cs
@@ -151,6 +166,7 @@ Big (32 px)	behavior DayNight
 Big title	step title
 Bigger = higher jumps. The Platformer's usual strength is 640.	BlockEditorWindow.Palette.cs
 Blink	behavior Label
+Blink (on and off, alarm)	behavior LightSource
 Blink forever	BlockEditorWindow.Recipes.cs
 Block size	behavior Terrain
 Block {0}	BlockEditorWindow.cs, MainWindow.TerrainBlocks.cs
@@ -185,6 +201,7 @@ Breaks a tile of a breakable tilemap: any it overlaps (touching), the one below/
 Breaks after	MainWindow.TerrainBlocks.cs
 Brightness at night (0-1)	behavior DayNight
 Brightness by day (0-1)	behavior DayNight
+Bring forward (draw in front)	MainWindow.Layers.cs
 Brush	SpriteEditorWindow.cs
 Build behavior with blocks	BlockEditorWindow.cs
 Build failed (exit {0}).	MainWindow.xaml.cs
@@ -218,9 +235,10 @@ Change its jump height	BlockEditorWindow.Palette.cs
 Change the colour	BlockEditorWindow.Palette.cs
 Channel	behavior SoundEmitter, BlockEditorWindow.Palette.cs
 Chase	behavior Chase
+Chase moves it whenever its target exists, so this patrol never shows. Set the Chase's 'Only when closer than' to patrol until the target comes near.	BehaviorCombos.cs
 Chases	behavior Chase, behavior PathChase
 Chases a target but navigates AROUND walls/obstacles using grid pathfinding (unlike plain Chase, which goes in a straight line). Best for top-down enemies. 'cell' is the grid resolution.	behavior PathChase
-Chases another object by name.	behavior Chase
+Chases another object by name (with gravity it runs after it on the ground instead of flying). 'Only when closer than' makes it chase only while the target is that near — add a Patrol too and it patrols until the target comes close, then chases.	behavior Chase
 Chat about ideas — the AI won't change anything.	MainWindow.xaml.cs
 Checking Ollama…	MainWindow.xaml
 Checking for a new version…	UpdatePrompt.cs
@@ -235,6 +253,7 @@ Choose sound	MainWindow.xaml.cs
 Choose…	MainWindow.xaml.cs
 Cinema bars	step bars
 Cinema bars (0/1)	behavior Cutscene
+Circle (all around)	behavior LightSource
 Clear	MainWindow.xaml.cs, SpriteEditorWindow.cs
 Clear the canvas?	SpriteEditorWindow.cs
 Click a pixel to take its colour.	SpriteEditorWindow.cs
@@ -265,9 +284,11 @@ Colour variable	BlockEditorWindow.Palette.cs, step setcolor
 Colours what it touches (0/1)	behavior LightSource
 Columns	MainWindow.xaml.cs
 Columns from the generator: right is +, left is −.	MainWindow.TerrainBlocks.cs
+Combo: J adds 1, back to 0 after 1 s without J, "Combo!" at 3	BlockEditorWindow.Recipes.cs
 Comes out the other side	behavior StayInside
 Compares words (capital letters don't matter). "Its own" reads this object's own text variable.	BlockEditorWindow.Palette.cs
 Condition	BlockEditorWindow.Palette.cs
+Cone width	behavior LightSource
 Control	step category
 Controls	BlockEditorWindow.Palette.cs
 Cooldown (s)	behavior Shooter, BlockEditorWindow.Palette.cs
@@ -285,6 +306,7 @@ Couldn't play the sound: {0}	AudioEditorWindow.cs
 Couldn't reach {0}. Check your internet connection.	CloudClient.cs
 Couldn't talk to Ollama. Is it installed and running? (server at localhost:11434)	OllamaClient.cs
 Couldn't use that picture:	LookPicker.cs
+Count them in variable	behavior Lives
 Countdown from 60 (show it with a Label "{timer}")	BlockEditorWindow.Recipes.cs
 Create	LauncherWindow.xaml, NewItemDialog.cs
 Create a layer first	MainWindow.xaml.cs
@@ -332,7 +354,7 @@ Delete	AnimationWindow.xaml.cs, BlockEditorWindow.cs, MainWindow.xaml.cs
 Delete / remove	LauncherWindow.xaml, LauncherWindow.xaml.cs
 Delete animation "{0}"?	AnimationWindow.xaml.cs
 Delete failed:	LauncherWindow.xaml.cs
-Delete layer	MainWindow.xaml.cs
+Delete layer	MainWindow.Layers.cs, MainWindow.xaml.cs
 Delete layer "{0}" and its {1} object(s)?	MainWindow.xaml.cs
 Delete prefab	MainWindow.xaml.cs
 Delete project	LauncherWindow.xaml.cs
@@ -352,7 +374,7 @@ Destroy Off-screen	behavior DestroyOffscreen
 Destroy an object	step destroy
 Destroy itself	BlockEditorWindow.Palette.cs
 Diamond	SpriteEditorWindow.cs
-Direction	behavior Patrol, behavior Projectile
+Direction	behavior LightSource, behavior Patrol, behavior Projectile
 Directions	BlockEditorWindow.Palette.cs
 Dirt color	behavior Terrain
 Dirt depth (blocks)	behavior Terrain
@@ -372,6 +394,7 @@ Don't show this on the map	MainWindow.Minimap.cs
 Done	BlockEditorWindow.cs
 Double jump	behavior AbilityPickup
 Double jump (0/1)	behavior Platformer
+Down	behavior LightSource
 Downloading EasyEngine v{0}…	UpdatePrompt.cs
 Drag from one end of the line to the other.	SpriteEditorWindow.cs
 Drag to draw the shape you picked beside the tool.	SpriteEditorWindow.cs
@@ -384,8 +407,12 @@ Drawing: click points on the scene to trace the route (green dot = start). The g
 Draws a small map in a corner showing the whole scene (in an endless world: the area around the player, with the ground), with a dot for the player and optional dots for other things, each in its own colour. Put it on a UI layer. 'markers' = comma-separated 'Name:#RRGGBB' entries; a name matches an object (and every copy of a prefab) or a whole group (empty = just the player). With 'canMax' on, a key opens a big map in the middle of the screen (press it again to close).	behavior Minimap
 Drops	behavior Harvestable, behavior Tilemap, MainWindow.TerrainBlocks.cs
 Duplicate	BlockEditorWindow.cs, MainWindow.xaml.cs
+Duplicate layer	MainWindow.Layers.cs
 Duplicate this frame (the copy goes right after it)	AnimationWindow.xaml.cs
 Duplicate this image: this object uses a copy of the file, so you can change it without touching the original	MainWindow.xaml.cs
+Duplicate this scene (a copy right after it, then you are in the copy)	MainWindow.xaml
+Duplicated "{0}" as "{1}" (doors and rules still point where they did)	MainWindow.Layers.cs
+Duplicated layer "{0}" as "{1}" (in front of it)	MainWindow.Layers.cs
 Duplicated {0}	MainWindow.xaml.cs
 Dusk	step settime
 Dynamic	MainWindow.xaml.cs
@@ -401,8 +428,8 @@ EasyEngine's logs, test projects and finished downloads in the Windows temp fold
 Edit in the sprite editor	AnimationWindow.xaml.cs
 Edit this image in the sprite editor (the original file stays as it is)	MainWindow.xaml.cs
 Edited "{0}"	MainWindow.AiApply.cs
-Effect	behavior Label
-Effect speed	behavior Label
+Effect	behavior Label, behavior LightSource
+Effect speed	behavior Label, behavior LightSource
 Ellipse	SpriteEditorWindow.cs
 Emits particles (sparks, smoke, explosions, trails). on=start bursts once when the scene loads; on=always emits continuously at 'rate'; or trigger a burst from a script with the 'emit' action. spread is the cone angle (360 = all directions).	behavior Particles
 Empty a list	BlockEditorWindow.Palette.cs
@@ -445,15 +472,20 @@ Failed	MainWindow.xaml.cs
 Falling from the top of the screen	behavior Spawner
 Fan (forward)	step shoot
 Fan angle (°)	step shoot
+Fast	behavior LightSource
 Felled sound	behavior Harvestable
 Fights	behavior BossAI
 Fill color	behavior Bar
 Fill shapes / polygon	SpriteEditorWindow.cs
 Fill the shape	SpriteEditorWindow.cs
 Fire key (none = fires by itself)	behavior Shooter
+Fires once per press, only while that object (or one of its numbered copies) is close — for shops, doors, chests and people to talk to.	BlockEditorWindow.Palette.cs
 Fires once per press. Cooldown stops it repeating too fast while held.	BlockEditorWindow.Palette.cs
 Fires once when it touches the ground after being in the air.	BlockEditorWindow.Palette.cs
 Fires once, that many seconds after it appears.	BlockEditorWindow.Palette.cs
+Fires once, that many seconds after the key was last pressed — e.g. a combo that goes back to 0.	BlockEditorWindow.Palette.cs
+Fires once, the moment it becomes true (again only after it has been false) — e.g. when combo reaches 3.	BlockEditorWindow.Palette.cs
+Fires once, when the last one is collected or destroyed. Numbered copies count too (Coin, Coin_2, Coin3…).	BlockEditorWindow.Palette.cs
 Fires projectiles when a key is pressed — or, with no key, by itself every 'cooldown' seconds (a turret, an enemy that shoots). 'directions' = how many bullets spread around (8 = all directions, 1 = forward). 'Aims at' points the shots at an object, e.g. the Player.	behavior Shooter
 Fires projectiles. 1 direction = straight ahead, or straight at the object it aims at; more = spread all around.	BlockEditorWindow.Palette.cs
 Fires the moment it starts touching that object (once per touch).	BlockEditorWindow.Palette.cs
@@ -461,9 +493,10 @@ Fires the moment its health goes down.	BlockEditorWindow.Palette.cs
 Fires when its Interact behavior is used (the key pressed near it).	BlockEditorWindow.Palette.cs
 Fit	MainWindow.xaml
 Fit scene (Ctrl 0)	MainWindow.xaml
-Fixed = stays on screen (UI/HUD). Scroll = moves with the world.	MainWindow.xaml.cs
+Fixed = stays on screen (UI/HUD). Scroll = moves with the world.	MainWindow.Layers.cs
 Fixed up: {0}	MainWindow.Sequences.cs
 Flat	behavior Terrain
+Flicker (candle, torch)	behavior LightSource
 Flies in a direction at a speed and disappears after a while.	behavior Projectile
 Float (separate window)	MainWindow.xaml.cs
 Floating	MainWindow.xaml.cs
@@ -498,9 +531,10 @@ Give the project a name.	LauncherWindow.xaml.cs
 Give this object the look you copied (its size, behaviors and name stay)	MainWindow.xaml.cs
 Give this tile frames that play in the game (water, lava, torches…) — every copy of it moves together	MainWindow.Tiles.cs
 Give variables a starting value. A variable is a Number, a Yes/No, a Text, a Colour or a List. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object; settext/toggle/iftext for texts and Yes/No; setcolor for colours; listadd/listremove/iflist for lists) and show them in a Label with {name}.	VariablesWindow.xaml
-Gives back health, never above its maximum.	BlockEditorWindow.Palette.cs
+Gives back health, never above its maximum — to itself or to another object with Health (a Heart heals the Player who touches it).	BlockEditorWindow.Palette.cs
 Gives hit points. When they reach 0: respawn=1 → respawn at last checkpoint/start (for the player); respawn=0 → the object is destroyed (for enemies). Writes the value to a variable for a Label or a Bar — 'health' is the player's: an enemy only shows its health in a variable of its own (e.g. bossHP).	behavior Health
 Gives or takes away double jump, wall jump or dash.	BlockEditorWindow.Palette.cs
+Gives the player a number of lives (tries), shown as hearts. A life is lost when its Health runs out, when it touches the hazard you pick (lava, spikes…), when it falls out of the level, or when a rule takes 1 from the lives variable. Then it goes back to the last checkpoint (or the start); when none are left the game goes to a scene (Game Over), or starts this scene again.	behavior Lives
 Glide a property	BlockEditorWindow.Palette.cs
 Glide to	step moveto
 Global	VariablesWindow.xaml.cs
@@ -517,12 +551,14 @@ Grid: off	MainWindow.xaml, MainWindow.xaml.cs
 Grid: on	MainWindow.xaml.cs
 Ground level (px from the top)	behavior Terrain
 Group	MainWindow.xaml.cs
+Half circle (wall lamp)	behavior LightSource
 Hammer	ToolArt.cs
 Harvestable (tree / rock)	behavior Harvestable
 Heal	BlockEditorWindow.Palette.cs
 Health	behavior Health
 Hear the result (Space)	AudioEditorWindow.cs
 Heart	SpriteEditorWindow.cs
+Heart: heals the Player 1 and disappears	BlockEditorWindow.Recipes.cs
 Heavy (no knockback) (0/1)	behavior BossAI
 Height	MainWindow.xaml.cs, step jump
 Heights in blocks from the ground level: up (sky) is +, down is −.	MainWindow.TerrainBlocks.cs
@@ -567,6 +603,8 @@ Image set on {0}	MainWindow.xaml.cs
 Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs
 Images & audio	MainWindow.xaml.cs
 In order	SequenceEditorWindow.cs
+In the game: on. Click to leave it out of the game.	MainWindow.Layers.cs
+In the game: on. Click to leave this layer's objects out of the game.	MainWindow.Layers.cs
 In the sky	MainWindow.TerrainBlocks.cs
 Inspector	MainWindow.xaml
 Install it now? EasyEngine will download it, close, replace the old version with the new one and open again. Your projects are not touched.	UpdatePrompt.cs
@@ -577,6 +615,7 @@ Interact (press key)	behavior Interact
 Invalid destination folder.	LauncherWindow.xaml.cs
 Invalid project file.	ProjectIO.cs
 Invulnerable	step invulnerable
+It is set to chase itself. Pick another object to chase.	BehaviorCombos.cs
 Item	BlockEditorWindow.Palette.cs, step listadd
 Item "{0}" added to the hotbar (and Use Item added to {1}) — give it with item:{0} = 1 (shop, pickup…)	NewItemDialog.cs
 Item "{0}" added to the hotbar (and Use Item added to {1}) — the player starts with it	NewItemDialog.cs
@@ -586,6 +625,8 @@ Item in hand (no Hotbar in this scene)	behavior ToolUse
 Item or number	BlockEditorWindow.Palette.cs
 Items	behavior Hotbar, MainWindow.Params.cs
 Items that swing	behavior ToolUse
+Its layer "{0}" is locked — unlock the layer to edit	MainWindow.LockZ.cs
+Its layer "{0}" is off in the game, so it won't be there either.	MainWindow.Layers.cs
 Its own	BlockEditorWindow.Palette.cs
 Its target (player)	SequenceEditorWindow.cs
 Jump	BlockEditorWindow.Palette.cs, step jump
@@ -598,6 +639,7 @@ Jumps the Day/Night cycle to that moment (needs a Day/Night cycle object in the 
 Just the player — add things to show below.	MainWindow.Minimap.cs
 Keep a backup copy of every picture and sound	SettingsWindow.cs
 Keeping {0} s → {1} s ({2} s)	AudioEditorWindow.cs
+Keeps firing every moment while it is true — for something that should happen once, use "When a variable becomes…".	BlockEditorWindow.Palette.cs
 Keeps this object from leaving the scene (or the part the camera shows). At the edge it stops, bounces back, or comes out the other side (like Pac-Man). Pick which sides count — e.g. all but the bottom, so it can still fall into a pit.	behavior StayInside
 Key	behavior Cutscene, behavior Interact, behavior Switch, BlockEditorWindow.Palette.cs
 Key to open the big map	behavior Minimap
@@ -611,6 +653,11 @@ Later	SequenceEditorWindow.cs
 Launch force	behavior Spring
 Launches	behavior Spring
 Launches anything dynamic that lands on it (trampoline, jump pad). 'force' is the launch power; dir = up/down/left/right.	behavior Spring
+Layer "{0}" is locked — unlock it to add objects	MainWindow.xaml.cs
+Layer "{0}" is off in the game: its objects won't exist when playing	MainWindow.Layers.cs
+Layer "{0}" is on in the game	MainWindow.Layers.cs
+Layer "{0}" locked	MainWindow.Layers.cs
+Layer "{0}" unlocked	MainWindow.Layers.cs
 Layer name:	MainWindow.xaml.cs
 Layer {0}	MainWindow.xaml.cs
 Layers	MainWindow.xaml.cs
@@ -618,7 +665,7 @@ Layers — {0}	MainWindow.AiApply.cs
 Layout	behavior Generator
 Leaps (landing near the target). The shockwave shakes the screen and sends a wave along the ground both ways.	step jump
 Leave empty to always run.  Example:  coins  is at least  15	BlockEditorWindow.cs
-Left	behavior Label, MainWindow.xaml.cs
+Left	behavior Label, behavior LightSource, MainWindow.xaml.cs
 Left and right only	behavior StayInside
 Left out (not a block): {0}	BlockEditorWindow.Ai.cs
 Left-drag paints · Right-drag erases	MainWindow.xaml.cs
@@ -632,17 +679,21 @@ Light mode	SettingsWindow.cs
 Lighting style	behavior DayNight
 Lighting style (the scene's Day/Night)	MainWindow.xaml.cs
 Lights shine in the dark of a Day/Night cycle. Add Day/Night to an object, with Lighting style: Blocks, for light that blocks stop and that colours what it touches.	MainWindow.xaml.cs
-Lights up the darkness around it (things near it show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).	behavior LightSource
+Lights up the darkness around it (things in its light show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). Shape: circle (all around), beam (a cone like a flashlight or a car's headlights — it points where the object faces, or right/left/up/down, or at the mouse; Cone width = how wide), half circle (a wall lamp lighting one side), area (the object's whole rectangle is lit — a window, a lit room, a light shaft; Radius = how far the light spreads past its edges) or bar (a long glow along the object's length — a neon tube, a lamp strip). Radius = how far it reaches. Effect: flicker (a candle or torch), pulse (slowly grows and shrinks) or blink (on and off, like an alarm). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).	behavior LightSource
 Lines (Text => condition)	behavior Checklist
 List	BlockEditorWindow.Palette.cs, step listadd, VariablesWindow.xaml.cs
+Lives	behavior Lives
+Lives at the start	behavior Lives
 Load the game	behavior UIButton, BlockEditorWindow.Palette.cs
 Local (scene)	VariablesWindow.xaml.cs
 Location	LauncherWindow.xaml
 Lock the player	step lock
 Lock the player (0/1)	behavior Cutscene
+Lock this layer (its objects can't be picked, moved or deleted; the AI leaves them alone)	MainWindow.Layers.cs
 Locked {0}	MainWindow.LockZ.cs
 Locked — click to unlock	MainWindow.LockZ.cs
 Locked — unlock to edit	MainWindow.LockZ.cs, MainWindow.xaml.cs
+Locked: its objects can't be picked, moved or deleted, and the AI leaves them alone. Click to unlock.	MainWindow.Layers.cs
 Look for a new version when EasyEngine starts	SettingsWindow.cs
 Look of {0} copied	MainWindow.xaml.cs
 Look pasted on {0}	MainWindow.xaml.cs
@@ -651,8 +702,10 @@ Looks	step category
 Loop	AnimationWindow.xaml, BlockEditorWindow.Palette.cs
 Loop (0/1)	behavior SoundEmitter
 Loop (straight back to start)	MainWindow.xaml.cs
+Loses one when it touches	behavior Lives
 Lots of models, smaller daily limit.	MainWindow.xaml.cs
 Louder or quieter. A sound that would get too loud is kept just below the limit.	AudioEditorWindow.cs
+Lower in the list = drawn in front (here and in the game). Right-click a layer or use ⋯ for more.	MainWindow.xaml
 Make an attack first (Attacks tab).	SequenceEditorWindow.cs
 Make it	MainWindow.Sequences.cs
 Make this the start scene (the game begins here)	MainWindow.xaml
@@ -677,6 +730,7 @@ Mode	MainWindow.xaml.cs
 Model "{0}" isn't available on {1}.	CloudClient.cs
 Moon	behavior DayNight
 More blocks	behavior Terrain, MainWindow.TerrainBlocks.cs
+More: order, rename, duplicate, opacity, delete	MainWindow.Layers.cs
 More…	NewItemDialog.cs
 Moss	MainWindow.TerrainBlocks.cs
 Motion	step category
@@ -699,6 +753,8 @@ Name	InputDialog.xaml, MainWindow.xaml.cs
 Name (also what Harvestable 'tool' asks for)	NewItemDialog.cs
 Name of this block	MainWindow.TerrainBlocks.cs
 Name on the health bar	behavior BossAI
+Narrow (20°)	behavior LightSource
+Near	BlockEditorWindow.Palette.cs
 Needs a Day/Night cycle object in the scene.	BlockEditorWindow.Palette.cs
 Needs a Day/Night cycle object in the scene. Great for enemies that only come out at night.	BlockEditorWindow.Palette.cs
 New	Dropdown.cs, MainWindow.xaml
@@ -713,7 +769,7 @@ New item name (e.g. wood, key, shovel):	BlockEditorWindow.cs, MainWindow.Params.
 New layer	MainWindow.xaml.cs
 New list name:	BlockEditorWindow.cs, SequenceEditorWindow.cs
 New name for the project:	LauncherWindow.xaml.cs
-New name:	AnimationWindow.xaml.cs, MainWindow.xaml.cs
+New name:	AnimationWindow.xaml.cs, MainWindow.Layers.cs, MainWindow.xaml.cs
 New project	LauncherWindow.xaml
 New scene	MainWindow.xaml.cs
 New text variable name:	BlockEditorWindow.cs, SequenceEditorWindow.cs
@@ -722,7 +778,7 @@ New {0}×{1} canvas	SpriteEditorWindow.cs
 Night	step settime
 Night length (seconds)	behavior DayNight
 Night tint	behavior DayNight
-No	MainWindow.xaml.cs
+No	behavior Lives, MainWindow.xaml.cs
 No = only remove it from this list	LauncherWindow.xaml.cs
 No AI changes yet.	MainWindow.xaml.cs
 No API key for {0}. Paste your key in the AI settings (get one at {1}).	CloudClient.cs
@@ -743,7 +799,8 @@ No variables yet.	VariablesWindow.xaml.cs
 Non-stop	behavior Particles
 None	behavior Label, MainWindow.xaml.cs
 Noon	step settime
-Normal	AudioEditorWindow.cs, behavior Terrain, MainWindow.TerrainBlocks.cs
+Normal	AudioEditorWindow.cs, behavior LightSource, behavior Terrain, MainWindow.TerrainBlocks.cs
+Normal (40°)	behavior LightSource
 Nothing	MainWindow.Params.cs
 Nothing else	behavior AbilityPickup, MainWindow.Params.cs
 Nothing is left to save — keep a longer part.	AudioEditorWindow.cs
@@ -755,12 +812,16 @@ Number	VariablesWindow.xaml.cs
 Number boxes also take a formula, e.g. rand(100, 300) or score * 2.	BlockEditorWindow.cs
 OBJECT	MainWindow.xaml.cs
 OBJECTS	MainWindow.xaml
-OBJECTS — {0}	MainWindow.xaml.cs
+OBJECTS — {0}	MainWindow.Layers.cs, MainWindow.xaml.cs
 OK	InputDialog.xaml, SequenceEditorWindow.cs
 Object	BlockEditorWindow.Palette.cs, step destroy, step face, step hide, step move, step show, step spawn, step summon, VariablesWindow.xaml.cs
 Object (or self)	BlockEditorWindow.Palette.cs
 Objects	MainWindow.xaml.cs
 Off	AudioEditorWindow.cs
+Off in the game. Click to turn it on.	MainWindow.Layers.cs
+Off in the game: its objects won't exist when playing. Click to turn it on.	MainWindow.Layers.cs
+Off: it is taken out of the game (a layer: all its objects). On: an object or layer that is off comes in, where the scene has it.	BlockEditorWindow.Palette.cs
+Off: it stays in the scene (and can still be spawned or turned on by a rule) but isn't there when the game starts.	MainWindow.Layers.cs
 Off: that behavior rests (a mover stands still) until it is turned on again.	BlockEditorWindow.Palette.cs
 Off: the arrow keys / WASD no longer move it (e.g. during a cutscene). On brings them back.	BlockEditorWindow.Palette.cs
 Ollama answered with an error ({0}): {1}	OllamaClient.cs
@@ -778,15 +839,19 @@ Only breaks when	behavior Terrain, behavior Tilemap
 Only grass, dirt, stone and ore — add clouds, a deeper ore, a sand biome…	MainWindow.TerrainBlocks.cs
 Only once (0/1)	behavior Area, behavior Cutscene, behavior Interact
 Only run if… (optional)	BlockEditorWindow.cs
+Only when closer than	behavior Chase, behavior PathChase
 Only while (a formula, optional)	MainWindow.xaml.cs
 Only works while standing on the ground. Bigger = higher.	BlockEditorWindow.Palette.cs
 Opacity	MainWindow.xaml.cs
 Opacity (0-1)	behavior Minimap
+Opacity of "{0}"	MainWindow.Layers.cs
+Opacity…	MainWindow.Layers.cs
 Open	MainWindow.xaml
 Open failed:	LauncherWindow.xaml.cs
 Open project	LauncherWindow.xaml.cs
 Opening EasyEngine...	Updater.cs
 Opens when variable	behavior Gate
+Or a whole layer	BlockEditorWindow.Palette.cs
 Or use a colour variable	BlockEditorWindow.cs
 Order	SequenceEditorWindow.cs
 Ore color	behavior Terrain
@@ -859,6 +924,7 @@ Property	BlockEditorWindow.Palette.cs
 Puff of particles when broken (0/1)	behavior Tilemap
 Pulse	behavior Label
 Pulse (grow and shrink)	BlockEditorWindow.Recipes.cs
+Pulse (slowly grows and shrinks)	behavior LightSource
 Pushable Block	behavior Pushable
 Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'); hold the button to keep using it, one swing per cooldown. Each use: the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe, or your own (shovel…). Far away = a miss; wrong tool = refused; something solid in between (wall, water, a block) = blocked, the swing only hits what is in front. 'itemDamage' = damage per item (e.g. sword=2,axe=1), 'tools' = only these items swing (comma list, empty = all), 'toolLook' = look of the fixed tool. Everything shows in the F1 console.	behavior ToolUse
 Puts a colour in a colour variable. Use it in "Change the colour" or in particles.	BlockEditorWindow.Palette.cs
@@ -895,11 +961,13 @@ Removing the old version...	Updater.cs
 Rename	LauncherWindow.xaml, LauncherWindow.xaml.cs
 Rename animation	AnimationWindow.xaml.cs
 Rename failed:	LauncherWindow.xaml.cs
+Rename layer	MainWindow.Layers.cs
 Rename prefab	MainWindow.xaml.cs
 Rename project	LauncherWindow.xaml.cs
 Rename scene	MainWindow.xaml.cs
 Rename this prefab (everything that uses it follows the new name)	MainWindow.xaml.cs
 Rename this scene	MainWindow.xaml
+Rename…	MainWindow.Layers.cs
 Repeat	behavior AdvancedPatrol, MainWindow.xaml.cs
 Repeats forever on this interval.	BlockEditorWindow.Palette.cs
 Repeats the sound, quieter each time, as in a cave.	AudioEditorWindow.cs
@@ -907,7 +975,7 @@ Reset layout to default	MainWindow.xaml.cs
 Resizing keeps the picture's proportions. Hold Shift while dragging a handle to keep them just once.	MainWindow.LockZ.cs
 Resources dropped	behavior Harvestable
 Respawn (for the player)	behavior Health
-Right	behavior Label, MainWindow.xaml.cs
+Right	behavior Label, behavior LightSource, MainWindow.xaml.cs
 Ring (all around)	step shoot
 Rotates continuously. Negative spins the other way.	BlockEditorWindow.Palette.cs
 Rotates on its own. Decorative.	behavior Spin
@@ -920,6 +988,7 @@ Run away from the player	BlockEditorWindow.Recipes.cs
 SCENE	MainWindow.xaml, MainWindow.xaml.cs
 SCENE LAYERS	MainWindow.xaml
 SELECTION	SpriteEditorWindow.cs
+Safe time after losing one (s)	behavior Lives
 Same as this scene	MainWindow.xaml.cs
 Sand	MainWindow.TerrainBlocks.cs
 Save	App.xaml.cs, MainWindow.xaml
@@ -935,6 +1004,7 @@ Saved "{0}" as a prefab under "{1}"	MainWindow.xaml.cs
 Saved to {0}	MainWindow.xaml.cs
 Saves the spot for	behavior Checkpoint
 Say (waits for Enter)	step say
+Say something once when score reaches 10	BlockEditorWindow.Recipes.cs
 Say something when the scene starts	BlockEditorWindow.Recipes.cs
 Scattered at random	behavior Generator
 Scene	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.Palette.cs, MainWindow.xaml, step goscene
@@ -951,6 +1021,7 @@ Select an object to save as a prefab	MainWindow.xaml.cs
 Self-contained build — the player does NOT need .NET installed. Zip and share the whole folder.	MainWindow.xaml.cs
 Sells	behavior Shop
 Send	MainWindow.xaml.cs
+Send backward (draw behind)	MainWindow.Layers.cs
 Set a colour	BlockEditorWindow.Palette.cs, step setcolor
 Set a property	BlockEditorWindow.Palette.cs
 Set a text	BlockEditorWindow.Palette.cs, step settext
@@ -966,6 +1037,7 @@ Settings	SettingsWindow.cs
 Settings (language, theme, size, temporary files)	MainWindow.xaml
 Shake the screen	step shake
 Shake when hit (0/1)	behavior Harvestable
+Shape	behavior LightSource
 Shared across the whole game (score, lives…). Persists between scenes.	VariablesWindow.xaml.cs
 Shift	ParamSources.cs
 Shifts its position a little each second, ignoring physics.	BlockEditorWindow.Palette.cs
@@ -974,13 +1046,16 @@ Shockwave on landing	step jump
 Shoot	BlockEditorWindow.Palette.cs, step shoot
 Shooter	behavior Shooter
 Shop / Crafting bench	behavior Shop
+Shop: press E near it with 10 coins to get a Sword	BlockEditorWindow.Recipes.cs
 Shovel	ToolArt.cs
 Show	BlockEditorWindow.Palette.cs, MainWindow.xaml.cs
 Show a message	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.Palette.cs
 Show an object	step show
+Show hearts on screen	behavior Lives
 Show one more thing on the map, with its own colour	MainWindow.Minimap.cs
 Show the health in variable	behavior Health
 Shown in the hand of	behavior Hotbar
+Shown or hidden while you edit. The game ignores this — use ▶ on/off for the game.	MainWindow.Layers.cs
 Shows a dialogue line and waits until the player presses Enter.	step say
 Shows a line in the debug console (F1 while playing). Use {variable} to print a value, e.g. Coins: {coins}.	BlockEditorWindow.Palette.cs
 Shows text on the object. Use {variableName} to show a variable, e.g. "Score: {score}". Put it on a UI layer to keep it fixed on screen. effect animates the text: typewriter (types out), fade (fades in/out), blink, or pulse.	behavior Label
@@ -997,6 +1072,7 @@ Skipped a rule: "{0}" isn't an event the game knows.	AiSpecFix.cs
 Sky	MainWindow.xaml.cs
 Slides the object in a straight line to another object or to a point.	step move
 Slot size (px)	behavior Hotbar
+Slow	behavior LightSource
 Slow-down steps (0=none)	behavior Patrol
 Slower is longer and deeper, faster is shorter and higher — like a tape.	AudioEditorWindow.cs
 Small (16 px)	behavior DayNight
@@ -1006,6 +1082,7 @@ Smooth (soft circles of light)	behavior DayNight
 Smooth stop at ends (0/1)	behavior Patrol
 Smoothing (0-1)	behavior FollowCamera
 Smoothly animates a property to a value. Loop repeats; yoyo bounces back and forth.	BlockEditorWindow.Palette.cs
+Soft edge (0-1)	behavior LightSource
 Solid	MainWindow.TerrainBlocks.cs
 Solid (collision)	MainWindow.xaml.cs
 Solid (ground/platform)	behavior Solid
@@ -1043,6 +1120,7 @@ Star	SpriteEditorWindow.cs
 Start a new blank canvas? Current drawing will be lost.	SpriteEditorWindow.cs
 Start a new blank {0}×{1} canvas? Current drawing will be lost.	SpriteEditorWindow.cs
 Start at night (0/1)	behavior DayNight
+Start moving only after the Player steps on it (it needs a Patrol)	BlockEditorWindow.Recipes.cs
 Start this object on the ground	behavior Terrain
 Starting slot	behavior Hotbar
 Starts	SequenceEditorWindow.cs
@@ -1055,6 +1133,8 @@ Static image	MainWindow.xaml.cs
 Stay Inside	behavior StayInside
 Stay inside the scene (0/1)	behavior FollowCamera
 Stay on once flipped (0/1)	behavior Switch
+Stays where it is	behavior Lives
+Steady	behavior LightSource
 Steps	behavior Cutscene
 Steps (JSON) — the blocks above edit this for you	MainWindow.Sequences.cs
 Stone color	behavior Terrain
@@ -1088,6 +1168,7 @@ Text (| = next line)	step say
 Text variable	BlockEditorWindow.Palette.cs, step settext
 Text — {variable} shows a value	behavior Label
 That project file no longer exists.	LauncherWindow.xaml.cs
+The Boss AI moves this object by itself, so this movement is ignored in the game.	BehaviorCombos.cs
 The WAV file has no sound data.	AudioEdit.cs
 The WAV file has no sound format.	AudioEdit.cs
 The answer took too long and was cancelled.	OllamaClient.cs
@@ -1106,6 +1187,7 @@ The game shows {0} × {1} of the scene at a time, scaled to fit the window (the 
 The image file is missing.	ProjectIO.cs
 The image is fully transparent.	MainWindow.Hitbox.cs
 The item needs a name.	NewItemDialog.cs
+The last checkpoint (or the start)	behavior Lives
 The model "{0}" isn't downloaded. Run this in a terminal:	OllamaClient.cs
 The name can't be empty.	PrefabRename.cs
 The name is empty.	ProjectIO.cs
@@ -1119,9 +1201,11 @@ The player's keys and clicks stop working (Enter still advances dialogue).	step 
 The same every time (built once)	behavior Generator
 The scene starts	behavior BossAI, behavior Cutscene
 The sound file is missing.	AudioEditorWindow.cs
+The start	behavior Lives
 The steps run one after another, top to bottom. Steps like Say, Wait, Move or Camera wait until they're done.	SequenceEditorWindow.cs
 The target PC needs the free .NET 8 Desktop Runtime (couldn't find the SDK to make a self-contained build).	MainWindow.xaml.cs
 The update couldn't be downloaded:	UpdatePrompt.cs
+The whole layer, in the editor and in the game.	MainWindow.Layers.cs
 The whole scene	behavior StayInside
 The world just ends (you can fall off)	behavior Terrain
 Theme updated	MainWindow.AiApply.cs
@@ -1155,11 +1239,13 @@ Top and bottom only	behavior StayInside
 Top left	behavior Checklist, behavior Minimap
 Top right	behavior Checklist, behavior Minimap
 Top-Down Movement	behavior TopDown
+Top-Down Movement on the same object turns gravity off, so this Platformer can't fall or jump. Keep one of them.	BehaviorCombos.cs
 Top-down (free + pathfinding)	MainWindow.xaml.cs
 Top-down (seen from above)	behavior DayNight
 Topple when felled (0/1)	behavior Harvestable
 Touch it	behavior Switch
 Toward	step face
+Toward the mouse	behavior LightSource
 Toward the target	step jump
 Tree	behavior Terrain
 Tree density (0-1)	behavior Terrain
@@ -1170,6 +1256,9 @@ True black darkness (0/1)	behavior DayNight
 Turn	BlockEditorWindow.Palette.cs
 Turn an ability on or off	BlockEditorWindow.Palette.cs
 Turn its controls on or off	BlockEditorWindow.Palette.cs
+Turn off in the game	MainWindow.Layers.cs
+Turn on in the game	MainWindow.Layers.cs
+Turn on or off in the game	BlockEditorWindow.Palette.cs
 Turn on the smart AI — it's free	MainWindow.xaml
 Turn one of its behaviors on or off	BlockEditorWindow.Palette.cs
 Turn per volley (°)	step shoot
@@ -1188,6 +1277,7 @@ Ungrouped	MainWindow.xaml.cs
 Unique id (keeps 'once' maps stable)	behavior Generator
 Unlock the player	step unlock
 Unlocked {0}	MainWindow.LockZ.cs
+Up	behavior LightSource
 Update EasyEngine	UpdatePrompt.cs
 Updating EasyEngine	UpdatePrompt.cs
 Updating EasyEngine...	Updater.cs
@@ -1201,6 +1291,8 @@ Variable it turns on/off	behavior Switch
 Variable {0} is on	MainWindow.Params.cs
 Variables	MainWindow.xaml, VariablesWindow.xaml
 Variables — {0}	MainWindow.AiApply.cs
+Very fast	behavior LightSource
+Very wide (90°)	behavior LightSource
 Volleys	step shoot
 Volume (0-1)	behavior SoundEmitter, BlockEditorWindow.Palette.cs, step playsound
 WHEN	BlockEditorWindow.cs
@@ -1221,7 +1313,11 @@ What to show on the map (an object, every copy of a prefab, or a whole group)	Ma
 What to spawn	behavior Spawner
 What to spawn (random mix)	behavior Generator
 When	behavior Particles
+When a key hasn't been pressed for a while	BlockEditorWindow.Palette.cs
 When a key is pressed	BlockEditorWindow.Palette.cs
+When a key is pressed near an object	BlockEditorWindow.Palette.cs
+When a variable becomes…	BlockEditorWindow.Palette.cs
+When all the Coins are collected, go to another scene	BlockEditorWindow.Recipes.cs
 When clicked	BlockEditorWindow.Palette.cs
 When it dies	behavior Health, BlockEditorWindow.Palette.cs
 When it gets hurt	BlockEditorWindow.Palette.cs
@@ -1229,6 +1325,8 @@ When it lands	BlockEditorWindow.Palette.cs
 When it spawns	BlockEditorWindow.Palette.cs
 When it touches an object	BlockEditorWindow.Palette.cs
 When its health is at or below	SequenceEditorWindow.cs
+When none are left, go to (none = this scene again)	behavior Lives
+When none of an object are left	BlockEditorWindow.Palette.cs
 When right-clicked	BlockEditorWindow.Palette.cs
 When someone interacts with it	BlockEditorWindow.Palette.cs
 When the collector touches it, sets a variable to 1 (an ability unlocked, a key obtained) and disappears. Pair it with a Door that opens on that variable, or a Platformer ability. Great for metroidvania progression.	behavior AbilityPickup
@@ -1239,6 +1337,7 @@ When the target touches it, it becomes the target's respawn point.	behavior Chec
 When the trigger is near and presses the key, fires an effect: say (show dialogue text, lines split by |), setvar, addvar or goscene. Use for NPCs, signs, chests, levers.	behavior Interact
 When this phase starts	SequenceEditorWindow.cs
 Where	behavior Spawner
+Where it faces	behavior LightSource
 Where it grows	MainWindow.TerrainBlocks.cs
 Where to save the project	LauncherWindow.xaml.cs
 Which	BlockEditorWindow.Palette.cs
@@ -1262,8 +1361,10 @@ Who flips it	behavior Switch
 Who is talking	behavior Interact
 Who uses it	behavior GoToScene
 Whose light (usually the player)	behavior DayNight
+Wide (60°)	behavior LightSource
 Width	MainWindow.xaml.cs
 Width × height in pixels (4 to 256 each), for example 32x128:	SpriteEditorWindow.cs
+Within (px)	BlockEditorWindow.Palette.cs
 Without a bullet object it fires small round bullets that hurt the target and vanish when they hit.	step shoot
 Words to add	BlockEditorWindow.Palette.cs
 World depth (blocks)	behavior Terrain
@@ -1273,7 +1374,7 @@ Write to the console	BlockEditorWindow.Palette.cs
 Write what you want first.	BlockEditorWindow.Ai.cs, MainWindow.Sequences.cs
 X	MainWindow.xaml.cs
 Y	MainWindow.xaml.cs
-Yes	MainWindow.xaml.cs, VariablesWindow.xaml.cs
+Yes	behavior Lives, MainWindow.xaml.cs, VariablesWindow.xaml.cs
 Yes = delete the files from disk	LauncherWindow.xaml.cs
 Yes becomes No and No becomes Yes.	BlockEditorWindow.Palette.cs
 Yes/No	VariablesWindow.xaml.cs
@@ -1311,12 +1412,12 @@ ease in and out	BlockEditorWindow.Palette.cs
 ease out	BlockEditorWindow.Palette.cs
 error	BlockEditorWindow.Palette.cs
 exactly	behavior Gate
-fixed	MainWindow.xaml.cs
+fixed	MainWindow.Layers.cs
 front	BlockEditorWindow.Palette.cs
 ground	MainWindow.AiLevel.cs
 has at least (items)	BlockEditorWindow.Palette.cs
 has exactly (items)	BlockEditorWindow.Palette.cs
-hidden	MainWindow.xaml.cs
+hidden	MainWindow.Layers.cs
 info	BlockEditorWindow.Palette.cs
 is	behavior Gate, BlockEditorWindow.cs, BlockEditorWindow.Palette.cs
 is at least	BlockEditorWindow.cs
@@ -1346,15 +1447,15 @@ or	BlockEditorWindow.cs
 or when	BlockEditorWindow.cs
 rename	AnimationWindow.xaml
 right	BlockEditorWindow.Palette.cs
-scroll	MainWindow.xaml.cs
+scroll	MainWindow.Layers.cs
 self	BlockEditorWindow.cs
-shown	MainWindow.xaml.cs
+shown	MainWindow.Layers.cs
 stereo	AudioEditorWindow.cs
 then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.12.1	LauncherWindow.xaml
+v0.12.3	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs
@@ -1386,6 +1487,8 @@ y	step camera, step move, step moveto, step spawn
 {0} spikes	MainWindow.AiLevel.cs
 {0} steps	MainWindow.AiLevel.cs, SequenceModel.cs
 {0} took too long and was cancelled.	CloudClient.cs
+{0}: off in the game (it stays in the scene)	MainWindow.Layers.cs
+{0}: on in the game	MainWindow.Layers.cs
 — updated ✓	LauncherWindow.xaml.cs
 …or an advanced condition (expression — overrides the boxes above)	BlockEditorWindow.cs
 …or when the player has	behavior Gate
@@ -1420,6 +1523,8 @@ y	step camera, step move, step moveto, step spawn
 ▫ An empty block (underground)	MainWindow.TerrainBlocks.cs
 ▶  Test	MainWindow.xaml
 ▶ Play	AudioEditorWindow.cs
+▶ off	MainWindow.Layers.cs
+▶ on	MainWindow.Layers.cs
 ▸ Advanced — paid keys, offline AI	MainWindow.xaml
 ◆ Shape	SpriteEditorWindow.cs
 ☁ Cloud selected — add a free API key below (any provider works).	MainWindow.xaml.cs
@@ -1446,6 +1551,8 @@ y	step camera, step move, step moveto, step spawn
 ⚠ The AI's answer had no usable blocks. Try describing it differently.	BlockEditorWindow.Ai.cs
 ⚠ The JSON couldn't be read ({0}). Saving here replaces it.	SequenceEditorWindow.cs
 ⚠ The scene changed while the AI was working — not applied.	MainWindow.Sequences.cs
+⚠ These rules couldn't be read (the JSON has a mistake), so they show no blocks. Done keeps them as they are — fix them in the raw rules box, or add blocks here to start over.	BlockEditorWindow.cs
+⚠ Unknown block: {0}	BlockEditorWindow.cs
 ⚡ Local — fastest (1.5b)	MainWindow.xaml
 ✂ CUT — drag the two handles to keep only a part	AudioEditorWindow.cs
 ✂ Edit…	MainWindow.xaml.cs
@@ -1499,7 +1606,9 @@ y	step camera, step move, step moveto, step spawn
 📥 Paste look	MainWindow.xaml.cs
 🔊 RESULT	AudioEditorWindow.cs
 🔍  Interface size	SettingsWindow.cs
+🔒 Lock layer	MainWindow.Layers.cs
 🔒 Locked	MainWindow.LockZ.cs
+🔓 Unlock layer	MainWindow.Layers.cs
 🔓 Unlocked	MainWindow.LockZ.cs
 🔗 Keep proportions	MainWindow.LockZ.cs
 🔥 Local — needs GPU/RAM (14b)	MainWindow.xaml
