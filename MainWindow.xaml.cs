@@ -2143,6 +2143,14 @@ namespace EasyEngine
             inner.Children.Add(pick);
             if (!string.IsNullOrEmpty(current))
             {
+                // the sound editor: cut it and add effects; the result is a NEW sound that replaces this one here
+                var edit = new Button { Content = L.T("✂ Edit…"), ToolTip = L.T("Cut the sound and add effects (slower, faster, pitch, echo…)"), Style = (Style)FindResource("CardButton"), Height = 28, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(4, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+                edit.Click += (s, e) =>
+                {
+                    var made = AudioEditorWindow.Edit(this, _project, current);
+                    if (made != null) { PushUndo(); bh.Texts[key] = made; BuildInspector(obj); Dirty(); }
+                };
+                inner.Children.Add(edit);
                 var clear = new Button { Content = "✕", ToolTip = L.T("No sound"), Style = (Style)FindResource("CardButton"), Height = 28, Width = 28, Margin = new Thickness(4, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
                 clear.Click += (s, e) => { PushUndo(); bh.Texts[key] = ""; BuildInspector(obj); Dirty(); };
                 inner.Children.Add(clear);
