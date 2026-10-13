@@ -68,12 +68,11 @@ namespace EasyEngine
             // --- bottom: play / stop on the left, cancel / save on the right ---
             var bottom = new DockPanel { Margin = new Thickness(0, 12, 0, 0), LastChildFill = false };
             DockPanel.SetDock(bottom, Dock.Bottom);
-            _play = new Button { Content = L.T("▶ Play"), Height = 32, Padding = new Thickness(14, 0, 14, 0), Margin = new Thickness(0, 0, 6, 0), Style = Theme.Style("CardButton"), ToolTip = L.T("Hear the result (Space)") };
+            // one button: ▶ Play turns into ■ Stop while it plays
+            _play = new Button { Content = L.T("▶ Play"), Height = 32, MinWidth = 90, Padding = new Thickness(14, 0, 14, 0), Style = Theme.Style("CardButton"), ToolTip = L.T("Hear the result (Space)") };
             _play.Click += (s, e) => TogglePlay();
-            var stop = new Button { Content = L.T("■ Stop"), Height = 32, Padding = new Thickness(14, 0, 14, 0), Style = Theme.Style("CardButton") };
-            stop.Click += (s, e) => StopPlay();
-            DockPanel.SetDock(_play, Dock.Left); DockPanel.SetDock(stop, Dock.Left);
-            bottom.Children.Add(_play); bottom.Children.Add(stop);
+            DockPanel.SetDock(_play, Dock.Left);
+            bottom.Children.Add(_play);
             var save = new Button { Content = L.T("💾 Save as new sound"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Style = Theme.Style("AccentButton"), ToolTip = L.T("The original sound is kept; the edited one is saved next to it") };
             save.Click += (s, e) => SaveAndClose();
             var cancel = new Button { Content = L.T("Cancel"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton"), IsCancel = true };
