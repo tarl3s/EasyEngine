@@ -1096,6 +1096,7 @@ public partial class App
             FeatureTestsMultiBehaviors(kit);
             FeatureTestsLights(kit);
             FeatureTestsBehaviorCombos(kit);
+            FeatureTestsFontsCopy(kit);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
@@ -1147,6 +1148,7 @@ public partial class App
     partial void FeatureTestsScratchReview(FullTestKit t); // FullTest.ScratchReview.cs
     partial void FeatureTestsInteract(FullTestKit t);
     partial void FeatureTestsMultiBehaviors(FullTestKit t); // FullTest.MultiBehaviors.cs
+    partial void FeatureTestsFontsCopy(FullTestKit t); // FullTest.FontsCopy.cs
 
     /// <summary>Deletes the throwaway project folders a test run left in %TEMP% (by name pattern).</summary>
     internal static void DeleteTempFolders(params string[] patterns)

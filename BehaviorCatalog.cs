@@ -16,6 +16,7 @@ namespace EasyEngine
         Key, Color, Sound,
         Item, Items, ItemDamage, ItemSounds, HotbarItems, Look,
         Variable, Currency, Requirement,
+        Font,                  // "" = the game's font, a Windows font, or one of the project's font files (GameFonts.cs)
         MapMarkers,            // minimap: which things show, each with its colour
         TerrainBlocks,         // Terrain Generator: extra blocks, each with where it grows (visual editor)
         Special                // drawn by its own editor (script, tilemap, path, boss/cutscene steps)
@@ -228,11 +229,12 @@ namespace EasyEngine
                 Texts = { T("script","Rules (JSON)","[]", PickKind.Special) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Label, Name = "Label / HUD text", Icon = "🔤",
-                Desc = "Shows text on the object. Use {variableName} to show a variable, e.g. \"Score: {score}\". Put it on a UI layer to keep it fixed on screen. effect animates the text: typewriter (types out), fade (fades in/out), blink, or pulse.",
+                Desc = "Shows text on the object. Use {variableName} to show a variable, e.g. \"Score: {score}\". Put it on a UI layer to keep it fixed on screen. effect animates the text: typewriter (types out), fade (fades in/out), blink, or pulse. font = its font: a Windows font (Arial, Consolas…) or a font file added to the project; empty = the game's font.",
                 Nums = { new("fontSize","Font size",20), NIf(new("effectSpeed","Effect speed",0), c => c.Bh.Text("effect", "none") != "none") },
                 Texts = { T("text","Text — {variable} shows a value","Score: {score}", PickKind.LongText), T("color","Color","#FFFFFF", PickKind.Color),
                           T("effect","Effect","none", PickKind.Choice, "none|None", "typewriter|Typewriter (types out)", "fade|Fade in/out", "blink|Blink", "pulse|Pulse"),
-                          T("align","Alignment","center", PickKind.Choice, "left|Left", "center|Center", "right|Right") } },
+                          T("align","Alignment","center", PickKind.Choice, "left|Left", "center|Center", "right|Right"),
+                          T("font","Font","", PickKind.Font) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Health, Name = "Health", Icon = "❤",
                 Desc = "Gives hit points. When they reach 0: respawn=1 → respawn at last checkpoint/start (for the player); respawn=0 → the object is destroyed (for enemies). Writes the value to a variable for a Label or a Bar — 'health' is the player's: an enemy only shows its health in a variable of its own (e.g. bossHP).",
@@ -366,6 +368,7 @@ namespace EasyEngine
                           TIf(T("key","Key","E", PickKind.Key), IfText("trigger", "key")),
                           TIf(T("who","Who enters","Player", PickKind.Object), IfText("trigger", "enter")),
                           T("skipKey","Skip key","Escape", PickKind.Key),
+                          T("font","Font (its dialogue and titles)","", PickKind.Font),
                           T("script","Steps","{\"steps\":[]}", PickKind.Special) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Shop, Repeatable = true, Name = "Shop / Crafting bench", Icon = "🛒",
@@ -409,7 +412,7 @@ namespace EasyEngine
                           TIf(T("look","Dialogue box","theme", PickKind.Choice, DialogLooks), IfText("action", "say")),
                           TIf(T("boxColor","Box colour","#111418", PickKind.Color), c => c.Bh.Text("action", "say") == "say" && c.Bh.Text("look", "theme") == "custom"),
                           TIf(T("textColor","Text colour","#FFFFFF", PickKind.Color), c => c.Bh.Text("action", "say") == "say" && c.Bh.Text("look", "theme") == "custom"),
-                          TIf(T("font","Font","", PickKind.Choice, DialogFonts), IfText("action", "say")),
+                          TIf(T("font","Font","", PickKind.Font), IfText("action", "say")),
                           TIf(T("var","Variable","", PickKind.Variable), IfText("action", "setvar", "addvar")),
                           TIf(T("scene","Scene","", PickKind.Scene), IfText("action", "goscene")),
                           T("key","Key","E", PickKind.Key), T("trigger","Who can use it","Player", PickKind.Object) } },
@@ -426,6 +429,7 @@ namespace EasyEngine
                           TIf(T("scene","Scene","", PickKind.Scene), IfText("action", "goscene")),
                           TIf(T("var","Variable","", PickKind.Variable), IfText("action", "setvar", "addvar")),
                           TIf(T("text","Message","", PickKind.LongText), IfText("action", "say")),
+                          TIf(T("font","Font","", PickKind.Font), IfText("action", "say")),
                           T("target","Who enters","Player", PickKind.Object) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Generator, Name = "Procedural Generator", Icon = "🎲",
@@ -465,7 +469,8 @@ namespace EasyEngine
                 Texts = { T("action","On click","goscene", PickKind.Choice, Effects.Concat(new[] { "save|Save the game", "load|Load the game" }).ToArray()),
                           TIf(T("scene","Scene","", PickKind.Scene), IfText("action", "goscene")),
                           TIf(T("var","Variable","", PickKind.Variable), IfText("action", "setvar", "addvar")),
-                          TIf(T("text","Message","", PickKind.LongText), IfText("action", "say")) } },
+                          TIf(T("text","Message","", PickKind.LongText), IfText("action", "say")),
+                          TIf(T("font","Font","", PickKind.Font), IfText("action", "say")) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Bar, Name = "Bar (health/progress)", Icon = "▭",
                 Desc = "A bar that fills based on a variable, e.g. health. Fill = var / max. Put it on a UI layer for a HUD, or above an enemy for a health bar. 'max' can be a number or another variable name.",

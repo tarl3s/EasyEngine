@@ -15,9 +15,12 @@ namespace EasyEngine
         /// the list is kept and shown (empty → "(none)"). An option shown as its own value (a name: object, item, variable…)
         /// is the person's content and is never translated; other labels are translated like any text (pass them in English
         /// or already through <see cref="L.T"/>). With <paramref name="newPrompt"/> the last entry is "＋ New…",
-        /// which asks <paramref name="owner"/> for a new name. <paramref name="set"/> runs when the person picks another value.</summary>
+        /// which asks <paramref name="owner"/> for a new name. With <paramref name="create"/> the last entry is <paramref name="createLabel"/>
+        /// and picking it runs <paramref name="create"/> (e.g. a file dialog), which returns the new option or null (cancelled).
+        /// <paramref name="set"/> runs when the person picks another value.</summary>
         public static ComboBox Make(IEnumerable<(string value, string label)> options, string? current, Action<string> set,
-                                    string? newPrompt = null, Window? owner = null)
+                                    string? newPrompt = null, Window? owner = null,
+                                    Func<(string value, string label)?>? create = null, string? createLabel = null)
         {
             current ??= "";
             var cb = new ComboBox { MaxDropDownHeight = 320 };
@@ -25,7 +28,7 @@ namespace EasyEngine
             foreach (var (v, l) in options)
                 if (Find(v) == null) cb.Items.Add(Item(l, v));
             if (Find(current) == null) cb.Items.Add(current.Length > 0 ? Item(current, current) : new ComboBoxItem { Content = L.T("(none)"), Tag = current });
-            if (newPrompt != null) cb.Items.Add(new ComboBoxItem { Content = L.T("＋ New…"), Tag = NewTag, FontStyle = FontStyles.Italic });
+            if (newPrompt != null || create != null) cb.Items.Add(new ComboBoxItem { Content = createLabel ?? L.T("＋ New…"), Tag = NewTag, FontStyle = FontStyles.Italic });
 
             cb.SelectedItem = Find(current);
             object? last = cb.SelectedItem;
@@ -35,6 +38,16 @@ namespace EasyEngine
                 var v = (string)ci.Tag!;
                 if (v == NewTag)
                 {
+                    if (create != null)
+                    {
+                        var made = create();
+                        if (made is not (string mv, string ml)) { cb.SelectedItem = last; return; }
+                        ci = Find(mv) ?? Item(ml, mv);
+                        if (!cb.Items.Contains(ci)) cb.Items.Insert(cb.Items.Count - 1, ci);
+                        last = ci; cb.SelectedItem = ci;
+                        set(mv);
+                        return;
+                    }
                     var name = owner != null ? InputDialog.Prompt(owner, L.T("New"), newPrompt!, "")?.Trim() : null;
                     if (name == null) { cb.SelectedItem = last; return; }
                     ci = Item(name, name);

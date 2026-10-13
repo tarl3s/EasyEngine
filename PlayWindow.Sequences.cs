@@ -29,6 +29,7 @@ namespace EasyEngine
             public Key? SkipKey; public bool SkipWas; // cutscenes: the key that skips to the end
             public bool BarsUsed, FadeUsed, WentToScene;
             public bool OutlivesOwner;               // a boss's death steps: they play to the end even once it is destroyed
+            public string Font = "";                 // cutscenes: the font of their dialogue and big titles ("" = the game's)
         }
 
         private sealed class Mover { public SeqRunner? Owner; public Entity E = null!; public double FromX, FromY, ToX, ToY, Start, Dur; public bool Done; }
@@ -205,7 +206,7 @@ namespace EasyEngine
 
             var skip = bh.Text("skipKey", "Escape").Trim();
             Key? skipKey = skip.Length > 0 && Enum.TryParse<Key>(skip, true, out var sk) ? sk : null;
-            var r = new SeqRunner { Owner = en, Mode = SeqMode.Cutscene, Label = en.Data.Name, Steps = script.Steps, SkipKey = skipKey, SkipWas = skipKey is Key k0 && _keys.Contains(k0) };
+            var r = new SeqRunner { Owner = en, Mode = SeqMode.Cutscene, Label = en.Data.Name, Steps = script.Steps, SkipKey = skipKey, SkipWas = skipKey is Key k0 && _keys.Contains(k0), Font = bh.Text("font", "").Trim() };
             if (bh.Num("lock", 1) >= 0.5) _inputLocks.Add(r);
             if (bh.Num("bars", 1) >= 0.5) { _barsOn = true; r.BarsUsed = true; }
             r.OnFinish = _ => Info("Cutscene", en.Data.Name, "Finished");
@@ -326,11 +327,12 @@ namespace EasyEngine
             {
                 case "wait": WaitStepTime(r, s); break;
                 case "say":
-                    ShowDialog(s.Str("text"), s.Str("speaker"));
+                    ShowDialog(s.Str("text"), s.Str("speaker"), r.Font.Length > 0 ? ThemeLookWithFont(r.Font) : null);
                     r.Until = () => !_dialogOpen && _dialog.Count == 0;
                     break;
                 case "title":
                     _titleText = Substitute(s.Str("text")); _titleStart = _gameTime; _titleDur = Math.Max(0.3, s.Num("time", 2));
+                    TitleFont(r.Font);
                     if (s.On("wait", true)) r.WaitUntil = _gameTime + _titleDur;
                     break;
                 case "fadeout":

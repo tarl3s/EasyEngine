@@ -821,11 +821,28 @@ namespace EasyEngine
             catch { }
         }
 
+        // a font value (PickKind.Font, GameFonts.cs): "" = the game's font (the theme's — a name or a file), a Windows font,
+        // or a font file the project carries (Assets\fonts); a file that is missing or unreadable falls back to the game's font
         private FontFamily ResolveFont(string? name)
         {
-            var fam = string.IsNullOrWhiteSpace(name) ? (_project.Theme?.FontFamily ?? "Segoe UI") : name;
-            try { return new FontFamily(string.IsNullOrWhiteSpace(fam) ? "Segoe UI" : fam); }
-            catch { return new FontFamily("Segoe UI"); }
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                if (GameFonts.Make(_project, name, out var problem) is FontFamily ff) return ff;
+                FontWarning(name, problem);
+            }
+            var theme = _project.Theme?.FontFamily;
+            if (!string.IsNullOrWhiteSpace(theme))
+            {
+                if (GameFonts.Make(_project, theme, out var problem) is FontFamily tf) return tf;
+                FontWarning(theme, problem);
+            }
+            return _segoe ??= new FontFamily("Segoe UI");
+        }
+        private static FontFamily? _segoe;
+        private readonly HashSet<string> _fontWarned = new(StringComparer.OrdinalIgnoreCase);
+        private void FontWarning(string value, string? problem)
+        {
+            if (_fontWarned.Add(value)) Warn("Font", "", (problem ?? $"The font \"{value}\" can't be used") + " — the game's font is used instead");
         }
 
         private Entity AddEntity(GameObjectData obj, bool screenSpace = false)
@@ -934,7 +951,7 @@ namespace EasyEngine
                     Text = en.LabelText,
                     Foreground = Brush(label.Text("color", "#FFFFFF")),
                     FontSize = Math.Max(6, label.Num("fontSize", 20)),
-                    FontFamily = ResolveFont(obj.FontFamily),
+                    FontFamily = ResolveFont(GameFonts.LabelFont(label, obj)),
                     FontWeight = obj.Bold ? FontWeights.Bold : FontWeights.SemiBold,
                     HorizontalAlignment = align == "left" ? HorizontalAlignment.Left : align == "right" ? HorizontalAlignment.Right : HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
