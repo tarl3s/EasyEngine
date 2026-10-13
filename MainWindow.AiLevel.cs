@@ -167,7 +167,7 @@ namespace EasyEngine
             if (door.Success) { var target = sceneNames.FirstOrDefault(s => s.Equals(door.Groups[1].Value, StringComparison.OrdinalIgnoreCase)); if (target != null) spec["door"] = target; }
             bool levelWords = System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(level|fase|stage|nível|nivel|map|mapa|room|sala|staircase|escada|in a row|em fila|em linha|fileira)\b");
             int things = spec.Keys.Count(k => k is "platforms" or "stairs" or "coins" or "enemies" or "spikes");
-            return (things >= 2 || levelWords && (things >= 1 || room)) ? spec : null;
+            return (things >= 2 || levelWords && (things >= 1 || room) || spec.ContainsKey("door")) ? spec : null; // a door to a scene that exists counts alone
         }
 
         /// <summary>Whether the reply itself already has at least what the request counted (then it is applied as it is).</summary>
