@@ -131,6 +131,8 @@ namespace EasyEngine
                 L.T("Puts a colour in a colour variable. Use it in \"Change the colour\" or in particles.")),
             new("tint",      L.T("Change the colour"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self"), new Field("color", L.T("Colour"), "color", "#FFFFFF") { Absent = "" } },
                 L.T("Paints this object (or another one) with a colour or a colour variable. An object drawn with a picture keeps its picture.")),
+            new("playanim",  L.T("Play an animation"), new[] { new Field("anim", L.T("Animation"), "anim"), new Field("mode", L.T("How"), "choice", "once", new[] { "once", "loop", "auto" }) },
+                L.T("Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. \"Back to automatic\" lets idle / walk / jump choose again.")),
             new("listadd",   L.T("Add to a list"), new[] { new Field("var", L.T("List"), "listvar"), new Field("value", L.T("Item"), "text"), new Field("local", L.T("Its own"), "bool") },
                 L.T("Adds an item to the end of a list. {name} inside is replaced by that variable's value.")),
             new("listremove",L.T("Remove from a list"), new[] { new Field("var", L.T("List"), "listvar"), new Field("value", L.T("Item"), "text"), new Field("local", L.T("Its own"), "bool") },
@@ -191,6 +193,7 @@ namespace EasyEngine
             "notcontains" => L.T("doesn't contain"), "countis" => L.T("has exactly (items)"), "countatleast" => L.T("has at least (items)"),
             "master" => L.T("All sound"), "music" => L.T("Music"), "sfx" => L.T("Sound effects"),
             "linear" => L.T("linear"), "easein" => L.T("ease in"), "easeout" => L.T("ease out"), "easeinout" => L.T("ease in and out"),
+            "once" => L.T("Once, then back to normal"), "loop" => L.T("Over and over"), "auto" => L.T("Back to automatic"),
             "on" => L.T("on"), "off" => L.T("off"), "doubleJump" => L.T("double jump"), "wallJump" => L.T("wall jump"), "dash" => L.T("dash"),
             _ => o,
         };

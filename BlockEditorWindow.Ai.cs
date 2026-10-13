@@ -193,6 +193,7 @@ namespace EasyEngine
                     "behkind" => "one of its behaviors, e.g. Patrol, Chase, Shooter, Platformer",
                     "numvar" => "number variable",
                     "localvar" => "this object's own variable",
+                    "anim" => "one of this object's animation names (idle, walk…)",
                     "textvar" => "text variable", "flagvar" => "Yes/No variable", "colorvar" => "colour variable", "listvar" => "list variable",
                     "color" => "#RRGGBB or {colourVariable}",
                     "bool" => "true or leave out",

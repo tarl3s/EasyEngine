@@ -30,7 +30,7 @@ namespace EasyEngine
             "velocity", "move", "accelerate", "accel", "jump", "rotate", "shoot", "spawn", "destroy", "hide", "show", "setactive", "goscene", "setvar", "addvar",
             "setlocal", "addlocal", "settext", "addtext", "toggle", "setcolor", "tint", "listadd", "listremove", "listclear", "set", "additem",
             "removeitem", "boost", "setspeed", "say", "save", "load", "emit", "tween", "setvolume", "breaktile", "settime", "playsound", "log",
-            "controls", "ability", "setjump", "heal", "behavior",
+            "controls", "ability", "setjump", "heal", "behavior", "playanim",
         };
 
         internal static readonly Dictionary<string, string> WhenSynonyms = new(StringComparer.OrdinalIgnoreCase)
@@ -63,6 +63,7 @@ namespace EasyEngine
 
         internal static readonly Dictionary<string, string> DoSynonyms = new(StringComparer.OrdinalIgnoreCase)
         {
+            ["animation"] = "playanim", ["playanimation"] = "playanim", ["setanimation"] = "playanim", ["changeanimation"] = "playanim", ["anim"] = "playanim",
             ["message"] = "say", ["dialog"] = "say", ["dialogue"] = "say", ["talk"] = "say", ["speak"] = "say", ["showmessage"] = "say",
             ["showtext"] = "say", ["text"] = "say", ["print"] = "log",
             ["kill"] = "destroy", ["remove"] = "destroy", ["delete"] = "destroy", ["die"] = "destroy", ["despawn"] = "destroy",
@@ -234,6 +235,7 @@ namespace EasyEngine
             }
             if (act == "tint" && !Has("color")) foreach (var k in new[] { "to", "colour", "value" }) if (Has(k)) { Rename(k, "color"); break; }
             if (act is "say" or "settext" && !Has(act == "say" ? "text" : "to")) foreach (var k in new[] { "text", "message", "msg", "line", "dialog", "value", "to" }) if (Has(k)) { Rename(k, act == "say" ? "text" : "to"); break; }
+            if (act == "playanim" && !Has("anim")) foreach (var k in new[] { "animation", "name", "to", "value" }) if (Has(k) && !(when == "touch" && k == "name")) { Rename(k, "anim"); break; }
             if (act == "goscene" && !Has("scene")) foreach (var k in new[] { "to", "target", "name", "level" }) if (Has(k)) { Rename(k, "scene"); break; }
             if (act == "spawn" && !Has("object")) foreach (var k in new[] { "name", "prefab", "what", "target" }) if (Has(k) && !(when is "touch" or "keynear" or "allgone" && k == "name")) { Rename(k, "object"); break; }
             if (act is "addvar" or "addlocal" && !Has("amount")) foreach (var k in new[] { "value", "by", "delta" }) if (Has(k) && !(when is "ifvar" or "iflocal" or "becomes" && k == "value")) { Rename(k, "amount"); break; }

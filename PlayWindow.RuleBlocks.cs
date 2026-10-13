@@ -13,7 +13,14 @@ namespace EasyEngine
         {
             public HashSet<BehaviorKind>? OffKinds; // behaviors a "behavior" block turned off (they rest, like a false "only while")
             public int InteractCount;               // how many times its Interact effect fired (the "interact" event)
+            public SpriteAnimation? ForcedAnim;     // the "Play an animation" block: shown instead of the automatic idle/walk/jump…
+            public bool ForcedOnce;                 // …once (then back to automatic) or over and over
         }
+
+        // the animation a rule chose, if any (Animate asks this before choosing idle/walk/jump by itself)
+        private static SpriteAnimation? ForcedAnimation(Entity en) => en.ForcedAnim;
+        internal void TAnimate(double dt) { foreach (var e in _entities) if (!e.Dead) Animate(e, dt); } // tests: one render step of the animations
+        internal string TAnimName(string name) => _entities.FirstOrDefault(e => e.Data.Name == name)?.CurAnim?.Name ?? "";
 
         // the frame a behavior event happens; each rule keeps what it saw last frame in r.Last (and r.Timer for "landed")
         private static bool BehaviorEventFires(Entity en, CustomRule r)
@@ -50,6 +57,16 @@ namespace EasyEngine
         {
             switch (r.Do)
             {
+                case "playanim": // one of its animations, by name; "auto" (or no name) gives the choice back to idle/walk/jump
+                {
+                    string name = r.Str("anim", "").Trim(), mode = r.Str("mode", "once").Trim().ToLowerInvariant();
+                    var anim = name.Length == 0 ? null : en.Data.Animations.Find(a => a.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    if (mode == "auto" || name.Length == 0) { en.ForcedAnim = null; break; }
+                    if (anim == null || anim.Frames.Count == 0) { if (!r.WarnedUnknown) { r.WarnedUnknown = true; Warn("Script", en.Data.Name, $"playanim: it has no animation called \"{name}\"", "Make it in 🎞 Edit Animations, or pick one of its animations in the block."); } break; }
+                    en.ForcedAnim = anim; en.ForcedOnce = mode != "loop";
+                    en.CurAnim = null; // restart it from its first frame, even if it was already showing
+                    break;
+                }
                 case "controls": // the arrow keys / WASD move it, or not (its Platformer / TopDown "controls")
                 {
                     bool on = r.Num("on", 0) >= 0.5;

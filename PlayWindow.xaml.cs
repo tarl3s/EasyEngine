@@ -2150,7 +2150,7 @@ namespace EasyEngine
                 case "boost": en.SpeedScale *= r.Num("factor", 2); break;
                 case "setspeed": en.SpeedScale = r.Num("factor", 1); break;
                 case "say": ShowDialog(r.Str("text"), r.Str("speaker")); break;
-                case "controls": case "ability": case "setjump": case "heal": case "behavior": DoBehaviorBlock(en, r); break; // PlayWindow.RuleBlocks.cs
+                case "controls": case "ability": case "setjump": case "heal": case "behavior": case "playanim": DoBehaviorBlock(en, r); break; // PlayWindow.RuleBlocks.cs
                 case "": break; // a block's extra WHEN (no action of its own)
                 case "save": SaveGame(); break;
                 case "load": LoadGame(); break;
@@ -3258,7 +3258,10 @@ namespace EasyEngine
             {
                 en.FrameTimer -= spf;
                 en.FrameIndex++;
-                if (en.FrameIndex >= anim.Frames.Count) en.FrameIndex = anim.Loop ? 0 : anim.Frames.Count - 1;
+                if (en.FrameIndex < anim.Frames.Count) continue;
+                bool onceEnded = en.ForcedOnce && ReferenceEquals(anim, en.ForcedAnim);
+                if (onceEnded) en.ForcedAnim = null; // "Play an animation … once" ended: back to automatic next frame
+                en.FrameIndex = anim.Loop && !onceEnded ? 0 : anim.Frames.Count - 1;
             }
             var src = Load(anim.Frames[Math.Min(en.FrameIndex, anim.Frames.Count - 1)]);
             if (src != null) en.Brush.ImageSource = src;
@@ -3273,6 +3276,7 @@ namespace EasyEngine
         {
             var anims = en.Data.Animations;
             if (anims.Count == 0) return null;
+            if (ForcedAnimation(en) is { } forced) return forced; // a rule's "Play an animation"
             SpriteAnimation? Find(string[] names)
             {
                 foreach (var a in anims)

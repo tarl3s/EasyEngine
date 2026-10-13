@@ -121,6 +121,7 @@ An invisible zone. When the target enters it, fires an effect: goscene, setvar, 
 An on-screen checklist for testing. Each line is 'Text => condition' (one per line or separated by ';'). A line ticks ✓ by itself when its condition becomes true (e.g. holding:axe >= 1, stat:hits >= 1, item:wood >= 5) and stays ticked. Logs to the F1 console and sets check:done / check:total / check:all.	behavior Checklist
 Angle (°)	BlockEditorWindow.Palette.cs
 Animated tile	AnimationWindow.xaml.cs
+Animation	BlockEditorWindow.Palette.cs
 Animation name (e.g. idle, walk):	AnimationWindow.xaml.cs
 Animation name (e.g. idle, walk, jump):	AnimationWindow.xaml.cs
 Animations	AnimationWindow.xaml, MainWindow.xaml.cs
@@ -150,6 +151,7 @@ BEHAVIORS	MainWindow.Params.cs, MainWindow.xaml.cs
 Back and forth (retrace)	MainWindow.xaml.cs
 Back and forth (yoyo)	BlockEditorWindow.Palette.cs
 Back to a plain colour	MainWindow.Tiles.cs
+Back to automatic	BlockEditorWindow.Palette.cs
 Background	MainWindow.xaml.cs
 Background color	behavior Bar
 Background that scrolls slower than the camera.	behavior Parallax
@@ -588,6 +590,7 @@ Hoe	ToolArt.cs
 Hold the button to keep using (0/1)	behavior ToolUse
 Holding the {0}	MainWindow.Params.cs
 Hotbar / Inventory	behavior Hotbar
+How	BlockEditorWindow.Palette.cs
 How close (px)	behavior BossAI, behavior Shop
 How dark underground (0-1)	behavior DayNight
 How do I use {0} {1}? Explain step by step for a beginner.	MainWindow.Learn.cs
@@ -842,6 +845,7 @@ On click	behavior UIButton
 On the ground (gravity)	behavior BossAI
 On the surface (instead of grass)	MainWindow.TerrainBlocks.cs
 Once (stop at the end)	MainWindow.xaml.cs
+Once, then back to normal	BlockEditorWindow.Palette.cs
 One burst when the scene starts	behavior Particles
 One-way (jump through from below) (0/1)	behavior Solid
 Only WAV sounds can be edited. Turn the MP3 into a WAV (many free programs and websites do it) and choose that file instead.	AudioEditorWindow.cs
@@ -870,6 +874,7 @@ Ore drops	behavior Terrain
 Ores (0/1)	behavior Terrain
 Original size	MainWindow.LockZ.cs
 Over (s)	BlockEditorWindow.Palette.cs
+Over and over	BlockEditorWindow.Palette.cs
 Owns {0}	MainWindow.Params.cs
 PHYSICS	MainWindow.Tiles.cs, MainWindow.xaml.cs
 PREFABS	MainWindow.xaml
@@ -911,11 +916,13 @@ Platformer (gravity + jumps)	MainWindow.xaml.cs
 Platformer (side view, sun + moon)	behavior DayNight
 Platformer Character	behavior Platformer
 Play a sound	BlockEditorWindow.Palette.cs, step playsound
+Play an animation	BlockEditorWindow.Palette.cs
 Play on start (0/1)	behavior SoundEmitter
 Player	behavior Minimap
 Player colour	behavior Minimap
 Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master.	behavior SoundEmitter
 Plays a sound file from the project's Assets/sounds folder.	BlockEditorWindow.Palette.cs
+Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. "Back to automatic" lets idle / walk / jump choose again.	BlockEditorWindow.Palette.cs
 Plays the sound backwards.	AudioEditorWindow.cs
 Plays when	behavior Cutscene
 Plays when the {0} hits an enemy	MainWindow.Params.cs

@@ -88,5 +88,31 @@ public partial class App
             try { ed.Close(); } catch { }
             return clear.ActualWidth > 10 && right <= width + 0.5;
         });
+        t.Test("blocks: 'Play an animation' shows it once and then idle again; 'over and over' keeps it; 'back to automatic' gives idle back", () =>
+        {
+            PlayWindow Sim(string mode) => PlayWindow.NewScriptSim("[{\"when\":\"keypress\",\"key\":\"Space\",\"do\":\"playanim\",\"anim\":\"dance\",\"mode\":\"" + mode + "\"},{\"when\":\"keypress\",\"key\":\"X\",\"do\":\"playanim\",\"mode\":\"auto\"}]", out _, extra: (p, s) =>
+            {
+                string Png(string n)
+                {
+                    var dir = System.IO.Path.Combine(p.FolderPath!, "Assets", "sprites"); System.IO.Directory.CreateDirectory(dir);
+                    var bmp = System.Windows.Media.Imaging.BitmapSource.Create(2, 2, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, new byte[16], 8);
+                    var enc = new System.Windows.Media.Imaging.PngBitmapEncoder(); enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+                    using (var fs = System.IO.File.Create(System.IO.Path.Combine(dir, n + ".png"))) enc.Save(fs);
+                    return System.IO.Path.Combine("Assets", "sprites", n + ".png");
+                }
+                var a = s.Layers.SelectMany(l => l.Objects).First(o => o.Name == "A");
+                a.Animations.Add(new SpriteAnimation { Name = "idle", Frames = { Png("i0") }, Fps = 10 });
+                a.Animations.Add(new SpriteAnimation { Name = "dance", Frames = { Png("d0"), Png("d1"), Png("d2") }, Fps = 10, Loop = true });
+            });
+            void Key(PlayWindow pw, string k) { pw.TKey(k, true); pw.TStep(); pw.TKey(k, false); pw.TSteps(2); }
+            var once = Sim("once"); t.Sims.Add(once);
+            once.TSteps(3); once.TAnimate(0.05); string before = once.TAnimName("A");
+            Key(once, "Space"); once.TAnimate(0.01); string playing = once.TAnimName("A");
+            once.TAnimate(0.35); once.TAnimate(0.01); string after = once.TAnimName("A");
+            var loop = Sim("loop"); t.Sims.Add(loop);
+            loop.TSteps(3); Key(loop, "Space"); loop.TAnimate(0.01); loop.TAnimate(1.0); loop.TAnimate(0.01); string looping = loop.TAnimName("A");
+            Key(loop, "X"); loop.TAnimate(0.01); string auto = loop.TAnimName("A");
+            return before == "idle" && playing == "dance" && after == "idle" && looping == "dance" && auto == "idle";
+        });
     }
 }

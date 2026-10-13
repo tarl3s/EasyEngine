@@ -1,4 +1,11 @@
 {
+  "Animation": "Animation",
+  "Back to automatic": "Revenir à l'automatique",
+  "How": "Comment",
+  "Once, then back to normal": "Une fois, puis normal",
+  "Over and over": "En boucle",
+  "Play an animation": "Jouer une animation",
+  "Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. \"Back to automatic\" lets idle / walk / jump choose again.": "Joue une de ses animations (faites dans 🎞 Modifier les animations) : une fois puis retour à la normale, ou en boucle jusqu'à en choisir une autre. « Revenir à l'automatique » laisse repos / marche / saut choisir à nouveau.",
   "Box colour": "Couleur de la boîte",
   "Dark": "Sombre",
   "Dialogue box": "Boîte de dialogue",
