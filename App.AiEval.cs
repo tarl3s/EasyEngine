@@ -55,7 +55,7 @@ namespace EasyEngine
             if (!cloud) await OllamaManager.EnsureRunningAsync();
             ed.EvalReset();
             try { File.AppendAllText(log, $"system prompt: {ed.TestBuildPrompt(cloud).Length} chars\n\n"); } catch { }
-            int pass = 0, n = 0;
+            int pass = 0, n = 0, skipped = 0;
             var fails = new List<string>();
             foreach (var c in cases)
             {
@@ -78,13 +78,14 @@ namespace EasyEngine
                     detail = (why != null ? "  WHY: " + why + "\n" : "") + "  APPLIED: " + summary.Replace("\n", " | ") + "\n  STATE: " + ed.EvalDump() +
                              (why != null ? "\n  REPLY: " + OneLine(reply, 2500) : "");
                 }
+                catch (CloudException ex) when (ex.RateLimited || ex.Message.Contains("quota")) { verdict = "SKIP"; skipped++; detail = "  (no AI answer: " + ex.Message + ")"; } // free tier used up — not the AI's fault
                 catch (Exception ex) { verdict = "ERROR"; fails.Add(c.Id); detail = "  " + ex.GetType().Name + ": " + ex.Message; }
                 finally { kit.Dispose(); }
                 var line = $"{verdict}  [{c.Id}] {c.Prompt}  ({sw.Elapsed.TotalSeconds:0.0}s)\n{detail}\n";
                 try { File.AppendAllText(log, line); } catch { }
                 if (cloud) await Task.Delay(1500); // be gentle with the free tiers' per-minute limits
             }
-            var total = $"\n{pass}/{n} passed" + (fails.Count > 0 ? "  — failed: " + string.Join(", ", fails) : "  — ALL PASS") + "\n";
+            var total = $"\n{pass}/{n - skipped} passed" + (skipped > 0 ? $" ({skipped} skipped: no AI answer)" : "") + (fails.Count > 0 ? "  — failed: " + string.Join(", ", fails) : "  — ALL PASS") + "\n";
             try { File.AppendAllText(log, total); } catch { }
         }
 

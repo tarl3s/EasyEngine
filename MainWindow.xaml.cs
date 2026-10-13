@@ -2483,15 +2483,17 @@ namespace EasyEngine
             // (a per-minute limit), wait that long once and go round again instead of giving up.
             bool auto = _cloudProvider == "auto";
             CloudException? last = null;
+            bool allBusy = false;
             for (int round = 0; round < 2; round++)
             {
                 double wait = double.MaxValue;
+                allBusy = true;
                 foreach (var p in order)
                 {
                     try { return await _cloud.GenerateAsync(p, prompt, system, AiSettings.Key(p.Id), json, temperature, ct); }
                     catch (CloudException ex) when (auto || ex.RateLimited)
                     {
-                        last = ex;
+                        last = ex; allBusy &= ex.RateLimited;
                         wait = ex.RateLimited ? Math.Min(wait, ex.RetryAfter > 0 ? ex.RetryAfter : 10) : wait;
                     }
                 }
@@ -2499,6 +2501,8 @@ namespace EasyEngine
                 Status(L.F("The free AI is busy — trying again in {0} s…", Math.Ceiling(wait)));
                 await Task.Delay(TimeSpan.FromSeconds(wait + 0.5), ct);
             }
+            if (auto && allBusy && order.Count > 1) // every free tier is used up for now: say what to do, not one provider's raw message
+                throw new CloudException(L.T("Every free AI is out of quota for now (it comes back during the day). Try again later, add a key for another free provider (⚙), or switch to the local AI."));
             throw last ?? new CloudException(L.T("All free providers are out of quota right now. Try again later."));
         }
 
