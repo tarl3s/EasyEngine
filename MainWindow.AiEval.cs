@@ -31,6 +31,7 @@ namespace EasyEngine
                                                     mode, request, bh.Text("script", ""), _project, _scene, compact: !_useCloud);
             return (result.Ok, ApplySeqAi(bh, mode, result), result.Ok ? result.Json : result.Error);
         }
+        public Task<string> EvalLearn(string question) => TeachAsync(question);
         public bool EvalCompact { get; set; } // --aitest --compact: the cloud's shorter prompt on a local model too
         public Project EvalProject => _project;
         public Scene EvalScene => _scene;

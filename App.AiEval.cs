@@ -69,7 +69,10 @@ namespace EasyEngine
                     c.Setup?.Invoke(kit);
                     kit.Baseline();
                     if (c.Select != null) ed.EvalSelect(c.Select);
-                    var (ok, summary, reply) = c.Seq is SeqMode mode ? await ed.EvalSequence(mode, c.SeqObject, c.Prompt) : await ed.EvalBuild(c.Prompt);
+                    var before = c.Learn ? JsonSerializer.Serialize(kit.P) : "";
+                    var (ok, summary, reply) = c.Learn ? (true, "", await ed.EvalLearn(c.Prompt))
+                                             : c.Seq is SeqMode mode ? await ed.EvalSequence(mode, c.SeqObject, c.Prompt) : await ed.EvalBuild(c.Prompt);
+                    if (c.Learn) { kit.Answer = reply; kit.Changed = JsonSerializer.Serialize(kit.P) != before; }
                     string? why;
                     try { why = ok ? c.Check(kit) : "nothing was applied"; }
                     catch (Exception ex) { why = "check crashed: " + ex.GetType().Name + " " + ex.Message; }
@@ -100,7 +103,8 @@ namespace EasyEngine
             public string Id = "", Prompt = "";
             public Action<AiEvalKit>? Setup;
             public string[]? Select;
-            public SeqMode? Seq; public string SeqObject = ""; // a Boss AI / Cutscene card's "✨ Ask the AI" instead of the panel
+            public SeqMode? Seq; public string SeqObject = "";
+            public bool Learn; // 🎓 Learn mode: a question; the check reads the answer (and the project must not change) // a Boss AI / Cutscene card's "✨ Ask the AI" instead of the panel
             public Func<AiEvalKit, string?> Check = _ => null; // null = pass, else why it failed
         }
 
@@ -108,6 +112,7 @@ namespace EasyEngine
         public sealed class AiEvalKit : IDisposable
         {
             public readonly MainWindow Ed;
+            public string Answer = ""; public bool Changed; // the Learn mode's reply; whether it changed the project (it never may)
             private HashSet<int> _before = new();
             private readonly List<PlayWindow> _plays = new();
             public AiEvalKit(MainWindow ed) { Ed = ed; }
@@ -601,6 +606,20 @@ namespace EasyEngine
                 var j = AiEvalKit.Beh(k.Obj("Intro"), BehaviorKind.Cutscene)?.Text("script", "") ?? "";
                 return Need(said, "the line was never shown") ?? Need(j.Contains("Cap", StringComparison.OrdinalIgnoreCase), "no title 'Capítulo 1'");
             });
+
+            // ---------- 🎓 Learn mode: questions people ask ----------
+            void Ask(string id, string question, params string[] anyOf)
+                => cases.Add(new AiCase { Id = id, Prompt = question, Learn = true, Check = k =>
+                       Need(!k.Changed, "Learn mode changed the project") ?? Need(k.Answer.Length > 40, "no real answer") ?? Need(anyOf.Any(w => k.Answer.Contains(w, StringComparison.OrdinalIgnoreCase)), "doesn't mention " + string.Join(" / ", anyOf)) });
+            Ask("learn-double-jump", "how do I make the player double jump?", "double jump", "doubleJump");
+            Ask("learn-patrol", "how do I make an enemy that walks back and forth?", "Patrol");
+            Ask("learn-coin", "how do I make a coin that gives points?", "Collectible");
+            Ask("learn-door", "how do I make a door that goes to the next level?", "Go To Scene", "GoToScene");
+            Ask("learn-score", "how do I show the score on the screen?", "Label");
+            Ask("learn-fade", "how do I make something fade away after a few seconds?", "Glide", "tween", "After some seconds", "opacity");
+            Ask("learn-boss", "how do I make a boss with phases?", "Boss AI", "BossAI", "phase");
+            Ask("learn-blocks", "what is the block editor for?", "when", "rule");
+            Ask("pt-learn-spawn", "como faço inimigos aparecerem a cada 3 segundos?", "Spawner", "spawn", "timer");
 
             // ---------- selection ----------
             C("selected-spin", "make it spin", k => Need(AiEvalKit.Has(k.Obj("Box")!, BehaviorKind.Spin) || AiEvalKit.Rules(k.Obj("Box")).Any(r => AiEvalKit.Is(r, "do", "rotate")), "the selected Box doesn't spin")
