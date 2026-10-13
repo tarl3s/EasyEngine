@@ -21,7 +21,7 @@ namespace EasyEngine
             [BehaviorKind.Tilemap] =
                 "1. Click \"＋ Empty Object\" (Prefabs panel) and put it on the Base layer.\n" +
                 "2. Inspector → ＋ Add behavior → ▦ Tilemap. Set Tile size, Columns and Rows in its card.\n" +
-                "3. In the card's TILES list, click a tile (set its Tile color or picture and tick \"Solid (collision)\" for ground/walls).\n" +
+                "3. In the card's TILES list, click a tile: set its Tile color, or give it a picture (🎨 Draw at the tile's size, or Choose image…) or frames (🎞 Animate — water, lava, torches; every copy plays in sync; ✕ goes back to the colour), and tick \"Solid (collision)\" for ground/walls.\n" +
                 "4. On the scene: left-drag paints, right-drag erases.\n" +
                 "5. Optional: turn on Breakable so tiles can be destroyed (by bullets, item clicks, damagers, stomping or touching); \"Only breaks when\" can demand a tool, e.g. holding a pickaxe; \"Drops\" gives an item per tile.",
 
