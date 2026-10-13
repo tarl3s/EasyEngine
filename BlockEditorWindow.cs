@@ -422,7 +422,7 @@ namespace EasyEngine
                 cb.SelectionChanged += (s, e) => rule[f.Key] = (cb.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
                 ctrl = cb;
             }
-            else if (f.Type is "obj" or "aim" or "scene" or "key" or "sound")
+            else if (f.Type is "obj" or "aim" or "scene" or "layer" or "key" or "sound")
             {
                 // names, keys and files are the person's own (shown as they are); a value that isn't in the list is kept,
                 // an empty one shows "(none)" (and is saved as left out) until one is picked
@@ -482,6 +482,7 @@ namespace EasyEngine
         {
             "key" => ParamSources.Keys.Select(k => (k.value, k.value)).ToList(), // a key is a value: shown as the game names it
             "scene" => Names(_project.Scenes.Select(s => s.Name)).ToList(),
+            "layer" => new[] { ("", L.T("(none)")) }.Concat(Names(_scene.Layers.Select(l => l.Name))).ToList(), // the scene's layers (the person's own names)
             "sound" => Names(ParamSources.Sounds(_project)).ToList(), // the relative paths the game plays
             "aim" => new[] { ("", L.T("(none)")) }.Concat(ParamSources.ObjectOrPrefabOptions(_scene, _project)).ToList(),
             _ => new[] { ("self", L.T("self")) }.Concat(ParamSources.ObjectOrPrefabOptions(_scene, _project)).ToList(), // obj

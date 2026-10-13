@@ -16,7 +16,7 @@ namespace EasyEngine
         // Applies a behavior/property spec (JsonElement object) to an existing object. Caller handles undo.
         private bool ApplyBehaviorsToObject(GameObjectData target, JsonElement spec, string userPrompt)
         {
-            if (target.Locked) { if (!_aiSkippedLocked.Contains(target.Name)) _aiSkippedLocked.Add(target.Name); return false; } // locked: never edited by the AI
+            if (IsLockedObj(target)) { if (!_aiSkippedLocked.Contains(target.Name)) _aiSkippedLocked.Add(target.Name); return false; } // locked: never edited by the AI
             var result = target.Behaviors.Select(JsonClone).ToList();
             bool changed = false;
             var impliedRules = new List<string>(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
@@ -477,11 +477,16 @@ namespace EasyEngine
                 if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty("name", out var nm)) continue;
                 var layer = _scene.Layers.FirstOrDefault(l => l.Name.Equals(nm.GetString(), StringComparison.OrdinalIgnoreCase));
                 if (layer == null) continue;
+                if (layer.Locked) { if (!_aiSkippedLocked.Contains(layer.Name)) _aiSkippedLocked.Add(layer.Name); continue; } // a locked layer: never changed by the AI
                 var lyr = layer;
                 if (item.TryGetProperty("screenSpace", out var ss) && (ss.ValueKind == JsonValueKind.True || ss.ValueKind == JsonValueKind.False))
                 { bool v = ss.GetBoolean(); acts.Add(() => lyr.ScreenSpace = v); lch.Add($"{lyr.Name}:{(v ? "fixed" : "scroll")}"); }
                 if (item.TryGetProperty("visible", out var vv) && (vv.ValueKind == JsonValueKind.True || vv.ValueKind == JsonValueKind.False))
                 { bool v = vv.GetBoolean(); acts.Add(() => lyr.Visible = v); lch.Add($"{lyr.Name}:{(v ? "visible" : "hidden")}"); }
+                if (item.TryGetProperty("active", out var av) && (av.ValueKind == JsonValueKind.True || av.ValueKind == JsonValueKind.False))
+                { bool v = av.GetBoolean(); acts.Add(() => lyr.Active = v); lch.Add($"{lyr.Name}:{(v ? "on in the game" : "off in the game")}"); }
+                if (item.TryGetProperty("opacity", out var ov) && LooseJson.TryNumber(ov, out var op))
+                { double v = Math.Clamp(op > 1 ? op / 100 : op, 0, 1); acts.Add(() => lyr.Opacity = v); lch.Add($"{lyr.Name}:{Math.Round(v * 100)}%"); }
             }
             if (acts.Count > 0) { ensureUndo(); foreach (var a in acts) a(); changes.Add(L.F("Layers — {0}", string.Join("; ", lch))); }
         }
@@ -504,8 +509,7 @@ namespace EasyEngine
             }
 
             var layerName = spec.TryGetProperty("layer", out var ly) ? ly.GetString() : null;
-            var layer = _scene.Layers.FirstOrDefault(l => l.Name.Equals(layerName, StringComparison.OrdinalIgnoreCase))
-                        ?? _activeLayer ?? _scene.Layers.FirstOrDefault(l => l.Kind == LayerKind.Base) ?? _scene.Layers.FirstOrDefault();
+            var layer = AiLayer(_scene.Layers.FirstOrDefault(l => l.Name.Equals(layerName, StringComparison.OrdinalIgnoreCase)));
             if (layer == null) return null;
 
             if (!spec.TryGetProperty("x", out _)) obj.X = _scene.Width / 2 - obj.Width / 2;
@@ -704,7 +708,7 @@ namespace EasyEngine
             foreach (var r in rules.OfType<System.Text.Json.Nodes.JsonObject>().ToList())
             {
                 if ((string?)r["when"] != "touch" || (string?)r["do"] != "destroy" || r["name"]?.ToString() is not { Length: > 0 } other) continue;
-                var copies = _scene.Layers.SelectMany(l => l.Objects).Where(o => !o.Locked && o.Name != playerName
+                var copies = _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && o.Name != playerName
                     && (o.Name.Equals(other, StringComparison.OrdinalIgnoreCase) || System.Text.RegularExpressions.Regex.IsMatch(o.Name, $"^{System.Text.RegularExpressions.Regex.Escape(other)}_?\\d+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))).ToList();
                 if (copies.Count == 0) continue;
                 using var one = JsonDocument.Parse("[{\"when\":\"touch\",\"name\":" + JsonSerializer.Serialize(playerName) + ",\"do\":\"destroy\"}]");
@@ -740,7 +744,8 @@ namespace EasyEngine
                 double x = player != null ? (player.X + gate.X) / 2 : gate.X - 200, y = gate.Y + gate.Height - 40;
                 var key = new GameObjectData { Id = _project.NextId, Name = UniqueName("Key"), Type = "Key", X = Math.Round(x), Y = Math.Round(y), Width = 24, Height = 24, Color = "#FFD700" };
                 var pick = BehaviorCatalog.Info(BehaviorKind.AbilityPickup).CreateData(); pick.Texts["var"] = v; key.Behaviors.Add(pick);
-                (_scene.Layers.FirstOrDefault(l => l.Objects.Contains(gate)) ?? _activeLayer ?? _scene.Layers[0]).Objects.Add(key);
+                if (AiLayer(_scene.Layers.FirstOrDefault(l => l.Objects.Contains(gate))) is not Layer keyLayer) continue; // every layer locked
+                keyLayer.Objects.Add(key);
                 changes.Add(CreatedLine(key));
             }
         }

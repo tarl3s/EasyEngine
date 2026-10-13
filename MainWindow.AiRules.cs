@@ -64,7 +64,7 @@ namespace EasyEngine
                     {
                         var o = layer.Objects.FirstOrDefault(x => x.Name.Equals(name.Trim(), StringComparison.OrdinalIgnoreCase));
                         if (o == null) continue;
-                        if (o.Locked) { if (!_aiSkippedLocked.Contains(o.Name)) _aiSkippedLocked.Add(o.Name); break; } // locked: never deleted by the AI
+                        if (o.Locked || layer.Locked) { if (!_aiSkippedLocked.Contains(o.Name)) _aiSkippedLocked.Add(o.Name); break; } // locked: never deleted by the AI
                         ensureUndo();
                         layer.Objects.Remove(o);
                         _selection.Remove(o);

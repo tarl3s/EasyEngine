@@ -26,7 +26,7 @@ namespace EasyEngine
         /// <summary>Every DO the runtime knows (PlayWindow.DoCustom).</summary>
         public static readonly HashSet<string> Actions = new(StringComparer.OrdinalIgnoreCase)
         {
-            "velocity", "move", "accelerate", "accel", "jump", "rotate", "shoot", "spawn", "destroy", "hide", "show", "goscene", "setvar", "addvar",
+            "velocity", "move", "accelerate", "accel", "jump", "rotate", "shoot", "spawn", "destroy", "hide", "show", "setactive", "goscene", "setvar", "addvar",
             "setlocal", "addlocal", "settext", "addtext", "toggle", "setcolor", "tint", "listadd", "listremove", "listclear", "set", "additem",
             "removeitem", "boost", "setspeed", "say", "save", "load", "emit", "tween", "setvolume", "breaktile", "settime", "playsound", "log",
             "controls", "ability", "setjump", "heal", "behavior",
@@ -85,6 +85,8 @@ namespace EasyEngine
             ["freeze"] = "controls", ["lockcontrols"] = "controls", ["unlockcontrols"] = "controls",
             ["giveability"] = "ability", ["setability"] = "ability", ["unlockability"] = "ability", ["enableability"] = "ability", ["disableability"] = "ability",
             ["setbehavior"] = "behavior", ["togglebehavior"] = "behavior", ["enablebehavior"] = "behavior", ["disablebehavior"] = "behavior", ["behaviour"] = "behavior",
+            ["activate"] = "setactive", ["deactivate"] = "setactive", ["turnon"] = "setactive", ["turnoff"] = "setactive", ["setenabled"] = "setactive",
+            ["enableobject"] = "setactive", ["disableobject"] = "setactive", ["enablelayer"] = "setactive", ["disablelayer"] = "setactive", ["switchon"] = "setactive", ["switchoff"] = "setactive",
         };
 
         private static readonly Dictionary<string, string> OpSynonyms = new(StringComparer.OrdinalIgnoreCase)
@@ -207,6 +209,12 @@ namespace EasyEngine
             {
                 if (sq.StartsWith("enable") || sq.StartsWith("unlock") || sq.StartsWith("give")) Set("on", "on");
                 else if (sq.StartsWith("disable") || sq.StartsWith("lock") || sq == "freeze") Set("on", "off");
+            }
+            if (act == "setactive") // "deactivate", "turn off the Bridge", "active":false…
+            {
+                if (!Has("on")) foreach (var k in new[] { "active", "enabled", "state", "to" }) if (Has(k)) { Rename(k, "on"); break; }
+                if (!Has("on")) Set("on", sq.StartsWith("deactivate") || sq.StartsWith("disable") || sq.EndsWith("off") ? "off" : "on");
+                if (!Has("target") && !Has("layer")) foreach (var k in new[] { "object", "obj", "what" }) if (Has(k)) { Rename(k, "target"); break; }
             }
             if (act == "tween")
             {

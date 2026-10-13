@@ -213,6 +213,7 @@ namespace EasyEngine
         public Dictionary<string, List<string>> Lists { get => _lists; set => _lists = VarScope.NewLists(value); } // list variables (ordered words)
         public string Group { get; set; } = ""; // organization tag (groups objects in the scene list)
         public bool Locked { get; set; } = false; // editor-only: can't be moved, resized, deleted or edited (the game ignores it)
+        public bool Active { get; set; } = true;  // false = off: kept in the project (and as a spawn template) but not created when the game plays
         public int Z { get; set; } = 0;           // order inside its layer: higher draws in front; equal Z keeps the list order
         public bool KeepAspect { get; set; } = false; // editor: resizing keeps the picture's proportions
         public double Aspect { get; set; } = 0;       // width/height kept by KeepAspect when there is no picture (set when turned on)
@@ -246,8 +247,11 @@ namespace EasyEngine
     {
         public string Name { get; set; } = "Layer";
         public LayerKind Kind { get; set; } = LayerKind.Base;
-        public bool Visible { get; set; } = true;
+        public bool Visible { get; set; } = true;   // the editor's eye: shown or hidden while editing (the game ignores it — see Active)
         public bool ScreenSpace { get; set; } = false; // fixed to the screen (ignores camera) — for UI/HUD
+        public bool Locked { get; set; } = false;  // editor-only: its objects can't be picked, moved or deleted on the canvas, and the AI skips them
+        public double Opacity { get; set; } = 1.0; // the whole layer, in the editor and the game (multiplies each object's own opacity)
+        public bool Active { get; set; } = true;   // false = off: none of its objects exist when the game plays (Visible is only the editor's eye)
         public List<GameObjectData> Objects { get; set; } = new();
     }
 
