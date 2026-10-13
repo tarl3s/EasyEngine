@@ -400,6 +400,7 @@ European. A good backup.	MainWindow.xaml.cs
 Every (s)	behavior Spawner, step shoot
 Every few seconds	BlockEditorWindow.cs
 Every frame (always)	BlockEditorWindow.cs
+Every free AI is out of quota for now (it comes back during the day). Try again later, add a key for another free provider (⚙), or switch to the local AI.	MainWindow.xaml.cs
 Export	App.xaml.cs, MainWindow.xaml, MainWindow.xaml.cs
 Export complete	MainWindow.xaml.cs
 Export failed	MainWindow.xaml.cs

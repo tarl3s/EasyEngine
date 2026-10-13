@@ -402,6 +402,7 @@
   "Every (s)": "間隔（秒）",
   "Every few seconds": "数秒ごと",
   "Every frame (always)": "毎フレーム（常に）",
+  "Every free AI is out of quota for now (it comes back during the day). Try again later, add a key for another free provider (⚙), or switch to the local AI.": "無料のAIはどれも今は上限に達しています（1日のうちに回復します）。後でもう一度試すか、別の無料プロバイダーのキーを追加する（⚙）か、ローカルAIに切り替えてください。",
   "Export": "エクスポート",
   "Export complete": "エクスポート完了",
   "Export failed": "エクスポートに失敗しました",
