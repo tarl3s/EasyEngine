@@ -57,17 +57,18 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   (cada comportamento tem um **?** que pergunta direto pra ela).
 - **Comportamentos prontos** — plataforma (pulo variável, coyote time, pulo duplo, wall jump, dash), top-down,
   perseguição, patrulha (até por um caminho que você desenha), vida/dano/knockback, itens que você usa (espada,
-  machado, picareta, os seus), hotbar, lojas e crafting, coletáveis, portas entre cenas, molas, blocos de empurrar
-  e muito mais. Toda opção é **escolhida numa lista** — nada de sintaxe pra decorar.
+  machado, picareta, os seus), hotbar, lojas e crafting, coletáveis (que valem pontos), portas entre cenas, molas,
+  blocos de empurrar, torres que miram, manter coisas dentro da tela e muito mais. Toda opção é **escolhida numa lista** — nada de sintaxe pra decorar.
 - **🧩 Blocos pra lógica própria** — blocos no estilo Scratch (*quando → faça*), com variáveis globais, de cena e
-  por objeto (números, sim/não, texto, cores e listas), inventário e diálogos.
+  por objeto (números, sim/não, texto, cores e listas), inventário e diálogos. Descreva o que quer e **✨ a IA adiciona
+  os blocos**, ou comece por uma **📚 receita** (sumir aos poucos, piscar, seguir o mouse, andar em círculo, contagem…).
 - **👑 Boss AI** — chefões com **fases pela vida**, ataques montados com passos (avisar, investida, pulo com onda de
   choque, tiros em anel/leque/mirados, invocar lacaios, invulnerável…), sequência de morte e barra de vida do chefe.
 - **🎬 Cinemáticas** — falas, câmera que viaja, títulos grandes, fades, barras de cinema, mover personagens, travar
   o controle; disparam no início, ao entrar numa área, por variável ou tecla.
 - **✨ Ask the AI** dentro dos editores de chefe e cinemática: descreva, e a IA escreve os passos.
 - **Mundo** — física AABB (a hitbox pode se ajustar ao desenho, ignorando as margens vazias do sprite), plataformas de
-  um sentido e móveis, tilemaps (quebráveis), **geração procedural** e um
+  um sentido e móveis, tilemaps (quebráveis, com tiles que você desenha ou anima), **geração procedural** e um
   **gerador de terreno** (morros, cavernas, minérios, árvores, e blocos seus — nuvens, minérios mais fundos, biomas)
   que dá pra minerar, infinito ou do tamanho que você escolher.
 - **Dia, noite e iluminação** — sol e lua, tochas e lâmpadas, escuridão no subterrâneo, e uma **iluminação por
@@ -91,13 +92,14 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 Abra o painel da IA e escolha **Which AI to use**:
 
 - **IA grátis na nuvem** (Groq, Google Gemini ou OpenRouter): crie uma conta grátis e cole a chave — o app te guia.
-  Rápida e esperta, sem cartão de crédito.
+  Rápida e esperta, sem cartão de crédito. Coloque mais de uma chave: quando uma acaba no dia, a próxima assume.
 - **IA offline** com a [Ollama](https://ollama.com): roda no seu computador, nada sai dele. Modelos pequenos
   funcionam (a engine foi feita pra lidar com eles).
 - **Sua própria conta paga** (OpenAI, Claude, DeepSeek, Mistral, ou qualquer endpoint compatível com OpenAI).
 
 A IA nunca escreve código dentro do seu jogo: ela responde com os comportamentos e as opções da própria engine, que o
-editor confere antes de aplicar. As chaves ficam no seu computador (`%APPDATA%\EasyEngine\settings.json`).
+editor confere — e arruma — antes de aplicar. Ela é medida com ~80 pedidos típicos (mover coisas, timers,
+inimigos, chefões, uma fase inteira, perguntas…) jogados de verdade pra ver se funcionam. As chaves ficam no seu computador (`%APPDATA%\EasyEngine\settings.json`).
 
 ## Compilar a partir do código
 

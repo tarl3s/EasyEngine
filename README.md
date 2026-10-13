@@ -54,17 +54,19 @@ old version and opens again. Your projects are never touched. The sample games a
   (every behavior card has a **?** that asks it directly).
 - **Ready-made behaviors** — platformer (variable jump, coyote time, double jump, wall jump, dash), top-down, chase,
   patrol (even along a route you draw), health/damage/knockback, items you swing (sword, axe, pickaxe, your own),
-  hotbar, shops and crafting, collectibles, doors between scenes, springs, pushable blocks, and more.
+  hotbar, shops and crafting, collectibles (worth points), doors between scenes, springs, pushable blocks, turrets that
+  aim, keeping things inside the screen, and more.
   Every setting is **picked from a list** — no syntax to learn.
 - **🧩 Blocks for custom logic** — Scratch-style *when → do* blocks, with global, scene and per-object variables
-  (numbers, yes/no, text, colours and lists), an inventory and dialogue.
+  (numbers, yes/no, text, colours and lists), an inventory and dialogue. Describe what you want and **✨ the AI adds the
+  blocks**, or start from a **📚 recipe** (fade out, blink, follow the mouse, move in a circle, a countdown…).
 - **👑 Boss AI** — bosses with **phases by health**, attacks built from steps (warn, dash, jump with a shockwave,
   ring/spread/aimed shots, summon minions, invulnerable…), a death sequence and a boss health bar.
 - **🎬 Cutscenes** — dialogue, camera moves, big titles, fades, cinema bars, moving characters, locking the controls;
   triggered on start, entering an area, a variable or a key.
 - **✨ Ask the AI** inside the Boss and Cutscene editors: describe it, the AI writes the steps.
 - **World** — AABB physics (hitboxes can fit the drawing, ignoring a sprite's empty margins), one-way and moving
-  platforms, tilemaps (breakable), **procedural generation**, and a
+  platforms, tilemaps (breakable, with tiles you draw or animate), **procedural generation**, and a
   **terrain generator** (hills, caves, ores, trees, plus your own blocks — clouds, deeper ores, biomes) you can mine,
   endless or with a size you choose.
 - **Day & night and lighting** — sun and moon, torches and lamps, darker underground, and **pixel-style
@@ -87,13 +89,14 @@ old version and opens again. Your projects are never touched. The sample games a
 Open the AI panel and pick **Which AI to use**:
 
 - **Free cloud AI** (Groq, Google Gemini or OpenRouter): make a free account, paste the key — the app guides you.
-  Fast and smart, no credit card.
+  Fast and smart, no credit card. Add more than one key: when one runs out for the day, the next one takes over.
 - **Offline AI** with [Ollama](https://ollama.com): runs on your computer, nothing leaves it. Smaller models work
   (the engine is built to cope with them).
 - **Your own paid account** (OpenAI, Claude, DeepSeek, Mistral, or any OpenAI-compatible endpoint).
 
 The AI never writes code into your game: it answers with the engine's own behaviors and settings, which the editor
-checks before applying. Keys stay on your computer (`%APPDATA%\EasyEngine\settings.json`).
+checks — and tidies up — before applying. It is measured against ~80 typical requests (moving things, timers,
+enemies, bosses, a whole level, questions…) played back to see that they really work. Keys stay on your computer (`%APPDATA%\EasyEngine\settings.json`).
 
 ## Build from source
 
