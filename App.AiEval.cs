@@ -655,7 +655,7 @@ namespace EasyEngine
             }, k => k.AddEnemy("Enemy", 780));
             C("lava-lives", "the player has 3 lives shown on the screen. Touching the Lava takes away a life and sends the player back to the start. When the lives run out, go to the GameOver scene", k =>
             {
-                if (!k.Objs.Any(o => AiEvalKit.Beh(o, BehaviorKind.Label)?.Text("text", "").Contains('{') == true)) return "the lives aren't shown";
+                if (!k.Objs.Any(o => AiEvalKit.Beh(o, BehaviorKind.Label)?.Text("text", "").Contains('{') == true || AiEvalKit.Beh(o, BehaviorKind.Lives)?.Num("show", 1) >= 0.5)) return "the lives aren't shown"; // a Label, or the Lives hearts
                 var pw = k.Play(); AiEvalKit.Run(pw, 0.5);
                 for (int i = 0; i < 4 && pw.TScene != "GameOver"; i++) { pw.TPlace("Player", 430, 386); AiEvalKit.Run(pw, 1.6); }
                 return Need(pw.TScene == "GameOver", "4 touches of the Lava didn't end the game");

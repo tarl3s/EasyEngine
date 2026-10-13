@@ -225,6 +225,7 @@ namespace EasyEngine
             ["particles"] = new[] { "count" }, ["number"] = new[] { "count", "amount" }, ["button"] = new[] { "key" }, ["file"] = new[] { "sound" },
             ["times"] = new[] { "factor" }, ["multiplier"] = new[] { "factor" }, ["easing"] = new[] { "ease" }, ["level"] = new[] { "scene", "to" },
             ["x"] = new[] { "vx", "dx", "ax" }, ["y"] = new[] { "vy", "dy", "ay" }, ["colour"] = new[] { "color" },
+            ["distance"] = new[] { "radius" }, ["range"] = new[] { "radius" }, ["within"] = new[] { "radius" }, ["near"] = new[] { "name" }, ["who"] = new[] { "name", "target" },
         };
 
         // choice values written another way (tween's property names)
@@ -259,11 +260,16 @@ namespace EasyEngine
                 if (json != null)
                 {
                     using var doc = JsonDocument.Parse(json, LooseJson.Options);
-                    int block = 0;
+                    int block = 0, aiBlock = 0;
                     foreach (var el in RuleElements(doc.RootElement, 0))
                     {
-                        var one = ReadRule(el, events, actions, dropped).ToList();
-                        if (one.Count > 1) { block++; one = one.Select(r => r[..^1] + ",\"block\":" + block + "}").ToList(); } // a list of actions: one block that does them all
+                        // the reply's own blocks (consecutive rules sharing "block": n, some with only a WHEN) stay blocks;
+                        // a rule with a list of actions is one block that does them all
+                        int its = el.TryGetProperty("block", out var bv) && LooseJson.TryNumber(bv, out var bn) ? (int)bn : 0;
+                        var one = ReadRule(el, events, actions, dropped, its != 0).ToList();
+                        if (its != 0 && its != aiBlock || its == 0 && one.Count > 1) block++;
+                        aiBlock = its;
+                        if (its != 0 || one.Count > 1) one = one.Select(r => r[..^1] + ",\"block\":" + block + "}").ToList();
                         rules.AddRange(one);
                     }
                 }
@@ -292,7 +298,7 @@ namespace EasyEngine
         }
 
         // one AI rule → rule JSON for the blocks (one per action when "do" is a list); unusable ones go to dropped
-        private static IEnumerable<string> ReadRule(JsonElement el, BlockDef[] events, BlockDef[] actions, List<string> dropped)
+        private static IEnumerable<string> ReadRule(JsonElement el, BlockDef[] events, BlockDef[] actions, List<string> dropped, bool inBlock = false)
         {
             string whenRaw = "", cond = "";
             var whenPs = new List<(string k, JsonElement v)>();
@@ -310,10 +316,23 @@ namespace EasyEngine
                 }
                 else if (k is "cond" or "condition" or "onlyif") cond = Text(p.Value);
                 else if (k is "if" or "ifop" or "ifval") guards.Add((k, p.Value)); // the old guard: the blocks turn it into "Only run if"
+                else if (k == "block") continue; // (read by ReadAiReply)
                 else loose.Add((k, p.Value));
             }
 
             var when = MapId(whenRaw, events, WhenSynonyms);
+            if (dos.Count == 0 && inBlock && when != null) // a block's "or when…" row: an event with no action of its own
+            {
+                var ev = Array.Find(events, d => d.Id == when)!;
+                var wv = new Dictionary<string, JsonElement>();
+                foreach (var (k, v) in whenPs.Concat(loose)) Put(ev, wv, k, v);
+                var parts = new List<string> { $"\"when\":{Q(when)}" };
+                parts.AddRange(Fields(ev, wv));
+                foreach (var (k, v) in guards) parts.Add($"{Q(k)}:{v.GetRawText()}");
+                if (cond.Trim().Length > 0) parts.Add($"\"cond\":{Q(cond.Trim())}");
+                yield return "{" + string.Join(",", parts) + "}";
+                yield break;
+            }
             if (dos.Count == 0) dos.Add(("", new()));
             foreach (var (doRaw, doPs) in dos)
             {

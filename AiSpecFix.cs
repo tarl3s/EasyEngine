@@ -21,6 +21,7 @@ namespace EasyEngine
         {
             "start", "always", "key", "keydown", "keypress", "timer", "after", "touch", "death", "ifvar", "iflocal", "hasitem", "iftext", "iflist",
             "isnight", "isday", "wheelup", "wheeldown", "expr", "click", "rightclick", "mousedown", "mouseover", "hover", "mousepress", "landed", "hurt", "interact",
+            "keynear", "keyidle", "becomes", "allgone",
         };
 
         /// <summary>Every DO the runtime knows (PlayWindow.DoCustom).</summary>
@@ -52,6 +53,12 @@ namespace EasyEngine
             ["land"] = "landed", ["lands"] = "landed", ["landing"] = "landed", ["touchground"] = "landed", ["hitground"] = "landed", ["onground"] = "landed",
             ["hurts"] = "hurt", ["damaged"] = "hurt", ["takedamage"] = "hurt", ["takesdamage"] = "hurt", ["injured"] = "hurt", ["gethurt"] = "hurt", ["getshurt"] = "hurt",
             ["interacted"] = "interact", ["interaction"] = "interact", ["used"] = "interact", ["activated"] = "interact",
+            ["pressnear"] = "keynear", ["keypressnear"] = "keynear", ["nearkey"] = "keynear", ["presskeynear"] = "keynear", ["interactnear"] = "keynear", ["usenear"] = "keynear",
+            ["keynearby"] = "keynear", ["pressnearby"] = "keynear", ["nearpress"] = "keynear", ["nearandpress"] = "keynear", ["keypressednear"] = "keynear",
+            ["idle"] = "keyidle", ["notpressed"] = "keyidle", ["keynotpressed"] = "keyidle", ["nopress"] = "keyidle", ["idlekey"] = "keyidle", ["inactive"] = "keyidle", ["nokey"] = "keyidle",
+            ["reaches"] = "becomes", ["varbecomes"] = "becomes", ["varreaches"] = "becomes", ["whenvarbecomes"] = "becomes", ["changesto"] = "becomes", ["reach"] = "becomes", ["become"] = "becomes",
+            ["allcollected"] = "allgone", ["collectedall"] = "allgone", ["noneleft"] = "allgone", ["nonleft"] = "allgone", ["alldestroyed"] = "allgone", ["nomore"] = "allgone",
+            ["allcleared"] = "allgone", ["cleared"] = "allgone", ["allpicked"] = "allgone", ["allkilled"] = "allgone", ["alldead"] = "allgone", ["allcollect"] = "allgone", ["collectall"] = "allgone",
         };
 
         internal static readonly Dictionary<string, string> DoSynonyms = new(StringComparer.OrdinalIgnoreCase)
@@ -172,7 +179,10 @@ namespace EasyEngine
             if (when == "after") foreach (var k in new[] { "time", "delay", "wait", "every" }) if (!Has("seconds") && Has(k)) Rename(k, "seconds");
             if (when == "timer") foreach (var k in new[] { "interval", "seconds", "time", "period" }) if (!Has("every") && Has(k)) Rename(k, "every");
             if (when == "touch") foreach (var k in new[] { "target", "object", "with", "other", "obj" }) if (!Has("name") && Has(k)) Rename(k, "name");
-            if (when is "ifvar" or "iflocal" && OpSynonyms.TryGetValue(Get("op").Replace(" ", ""), out var op)) Set("op", op);
+            if (when is "keynear" or "allgone") foreach (var k in new[] { "target", "object", "with", "near", "who", "obj", "what", "type" }) if (!Has("name") && Has(k)) Rename(k, "name");
+            if (when == "keynear") foreach (var k in new[] { "distance", "range", "within", "dist" }) if (!Has("radius") && Has(k)) Rename(k, "radius");
+            if (when == "keyidle") foreach (var k in new[] { "time", "delay", "after", "wait", "every" }) if (!Has("seconds") && Has(k)) Rename(k, "seconds");
+            if (when is "ifvar" or "iflocal" or "becomes" && OpSynonyms.TryGetValue(Get("op").Replace(" ", ""), out var op)) Set("op", op);
 
             // the action — some words mean different actions depending on what comes with them
             var doRaw = Get("do");
@@ -225,10 +235,10 @@ namespace EasyEngine
             if (act == "tint" && !Has("color")) foreach (var k in new[] { "to", "colour", "value" }) if (Has(k)) { Rename(k, "color"); break; }
             if (act is "say" or "settext" && !Has(act == "say" ? "text" : "to")) foreach (var k in new[] { "text", "message", "msg", "line", "dialog", "value", "to" }) if (Has(k)) { Rename(k, act == "say" ? "text" : "to"); break; }
             if (act == "goscene" && !Has("scene")) foreach (var k in new[] { "to", "target", "name", "level" }) if (Has(k)) { Rename(k, "scene"); break; }
-            if (act == "spawn" && !Has("object")) foreach (var k in new[] { "name", "prefab", "what", "target" }) if (Has(k) && !(when == "touch" && k == "name")) { Rename(k, "object"); break; }
-            if (act is "addvar" or "addlocal" && !Has("amount")) foreach (var k in new[] { "value", "by", "delta" }) if (Has(k) && !(when is "ifvar" or "iflocal" && k == "value")) { Rename(k, "amount"); break; }
-            if (act is "setvar" or "setlocal" && !Has("to") && !Has("expr")) foreach (var k in new[] { "value", "amount" }) if (Has(k) && !(when is "ifvar" or "iflocal" && k == "value")) { Rename(k, "to"); break; }
-            if (act is "setvar" or "addvar" or "setlocal" or "addlocal" && !Has("var")) foreach (var k in new[] { "variable", "name" }) if (Has(k) && !(when == "touch" && k == "name")) { Rename(k, "var"); break; }
+            if (act == "spawn" && !Has("object")) foreach (var k in new[] { "name", "prefab", "what", "target" }) if (Has(k) && !(when is "touch" or "keynear" or "allgone" && k == "name")) { Rename(k, "object"); break; }
+            if (act is "addvar" or "addlocal" && !Has("amount")) foreach (var k in new[] { "value", "by", "delta" }) if (Has(k) && !(when is "ifvar" or "iflocal" or "becomes" && k == "value")) { Rename(k, "amount"); break; }
+            if (act is "setvar" or "setlocal" && !Has("to") && !Has("expr")) foreach (var k in new[] { "value", "amount" }) if (Has(k) && !(when is "ifvar" or "iflocal" or "becomes" && k == "value")) { Rename(k, "to"); break; }
+            if (act is "setvar" or "addvar" or "setlocal" or "addlocal" && !Has("var")) foreach (var k in new[] { "variable", "name" }) if (Has(k) && !(when is "touch" or "keynear" or "allgone" && k == "name")) { Rename(k, "var"); break; }
 
             // a second action written into the same rule ({"do":"addvar",…,"additem":"Sword"}): its own rule, same event and cond
             var seconds = new List<List<(string key, JsonNode? val)>>();
@@ -283,6 +293,9 @@ namespace EasyEngine
                         && System.Text.RegularExpressions.Regex.IsMatch(f, $@"\b{System.Text.RegularExpressions.Regex.Escape(Str(r["var"]))}\b"))
                     { r["do"] = act == "addvar" ? "setvar" : "setlocal"; if (r["to"] == null) { r["to"] = f; r.Remove("expr"); } }
                     if (hold && when == "keypress") { r["when"] = "key"; r.Remove("cooldown"); }
+                    // "when score reaches 10, say Well done": a "while" event would say it every frame — it means the moment
+                    if (when == "ifvar" && act is "say" or "playsound" or "emit" or "spawn" or "shoot" or "additem" or "removeitem" or "addvar" or "addlocal"
+                        or "log" or "toggle" or "listadd" or "addtext" or "tween") r["when"] = "becomes";
                     if (!repeat && act == "tween") { r.Remove("loop"); r.Remove("yoyo"); }
                 }
                 return rules.ToJsonString();

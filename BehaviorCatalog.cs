@@ -245,6 +245,13 @@ namespace EasyEngine
                 Desc = "When the target touches it, it becomes the target's respawn point.",
                 Texts = { T("target","Saves the spot for","Player", PickKind.Object) } },
 
+            new BehaviorInfo { Kind = BehaviorKind.Lives, Name = "Lives", Icon = "💗",
+                Desc = "Gives the player a number of lives (tries), shown as hearts. A life is lost when its Health runs out, when it touches the hazard you pick (lava, spikes…), when it falls out of the level, or when a rule takes 1 from the lives variable. Then it goes back to the last checkpoint (or the start); when none are left the game goes to a scene (Game Over), or starts this scene again.",
+                Nums = { new("lives","Lives at the start",3), new("invincible","Safe time after losing one (s)",1.5), new("show","Show hearts on screen",1, "1|Yes", "0|No") },
+                Texts = { T("var","Count them in variable","lives", PickKind.Variable), TNone("hazard","Loses one when it touches","", PickKind.Object),
+                          T("back","After losing one it goes back to","checkpoint", PickKind.Choice, "checkpoint|The last checkpoint (or the start)", "start|The start", "stay|Stays where it is"),
+                          TNone("scene","When none are left, go to (none = this scene again)","", PickKind.Scene) } },
+
             new BehaviorInfo { Kind = BehaviorKind.Tilemap, Name = "Tilemap", Icon = "▦",
                 Desc = "A grid of tiles you paint in the editor (ground, walls, level geometry). Solid tiles become collision automatically. Add it to an empty object, then paint with the Tiles panel. Turn on 'Breakable' to let individual tiles be destroyed (by bullets, melee, damagers, stomping, touching, or the 'Break a tile' block).",
                 Nums = { new("tileSize","Tile size",32),

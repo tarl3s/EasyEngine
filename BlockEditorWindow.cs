@@ -61,8 +61,10 @@ namespace EasyEngine
         private readonly List<RuleModel> _rules = new();
         private StackPanel _list = null!;
         private ScrollViewer _scroll = null!;
+        private string _original = "[]";   // the rules as they came in
+        private bool _unreadable;           // they couldn't be read: kept as they are unless blocks are added
         public string ResultJson { get; private set; } = "[]";
-        public string SerializeTest() => Serialize(); // headless round-trip check
+        public string SerializeTest() => Result(); // headless round-trip check
 
         /// <param name="generate">asks the AI (prompt, system) → its reply; null hides "✨ Ask the AI".</param>
         public BlockEditorWindow(Project project, Scene scene, string json, GameObjectData? obj = null, Func<string, string, Task<string>>? generate = null)
@@ -72,7 +74,9 @@ namespace EasyEngine
             Width = 720; Height = generate != null ? 690 : 620; // room for "✨ Ask the AI"
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = Theme.Brush("Bg0", "#15151A");
-            ParseJson(json);
+            _original = json ?? "[]";
+            ParseJson(_original);
+            _unreadable = _rules.Count == 0 && !ReadableRules(_original);
             BuildUi();
             RenderRules();
         }
@@ -91,6 +95,11 @@ namespace EasyEngine
                 Text = L.T("Number boxes also take a formula, e.g. rand(100, 300) or score * 2."),
                 Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
             }, Dock.Top));
+            if (_unreadable) root.Children.Add(Docked(new TextBlock
+            {
+                Text = L.T("⚠ These rules couldn't be read (the JSON has a mistake), so they show no blocks. Done keeps them as they are — fix them in the raw rules box, or add blocks here to start over."),
+                Foreground = Theme.Brush("Text", "#EEE"), FontSize = 12, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            }, Dock.Top));
             if (_generate != null) root.Children.Add(Docked(BuildAiBox(), Dock.Top));
 
             // bottom buttons
@@ -98,7 +107,7 @@ namespace EasyEngine
             var cancel = new Button { Content = L.T("Cancel"), Height = 32, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0), Style = Theme.Style("GhostButton") };
             cancel.Click += (s, e) => { DialogResult = false; Close(); };
             var done = new Button { Content = L.T("Done"), Height = 32, Padding = new Thickness(20, 0, 20, 0), Style = Theme.Style("AccentButton") };
-            done.Click += (s, e) => { ResultJson = Serialize(); DialogResult = true; Close(); };
+            done.Click += (s, e) => { ResultJson = Result(); DialogResult = true; Close(); };
             bottom.Children.Add(cancel); bottom.Children.Add(done);
             root.Children.Add(Docked(bottom, Dock.Bottom));
 
@@ -352,6 +361,8 @@ namespace EasyEngine
                 cb.Items.Add(it);
                 if (d.Id == selectedId) cb.SelectedItem = it;
             }
+            if (cb.SelectedItem == null && selectedId.Length > 0) // shown as it is (and kept), never as another block
+                cb.Items.Insert(0, cb.SelectedItem = L.Keep(new ComboBoxItem { Content = L.F("⚠ Unknown block: {0}", selectedId), Tag = selectedId }));
             if (cb.SelectedItem == null && cb.Items.Count > 0) cb.SelectedIndex = 0;
             return cb;
         }
@@ -368,7 +379,8 @@ namespace EasyEngine
             return own.Length > 0 ? own : all;
         }
 
-        private static BlockDef DefOf(BlockDef[] defs, string id) => Array.Find(defs, d => d.Id == id) ?? defs[0];
+        // a block id the palette doesn't have (a typo, a newer version's block) has no fields: its rule's params are kept as they are
+        private static BlockDef DefOf(BlockDef[] defs, string id) => Array.Find(defs, d => d.Id == id) ?? new BlockDef(id, id, Array.Empty<Field>());
 
         private FrameworkElement FieldsPanel(BlockDef def, Dictionary<string, string> bag)
         {
@@ -535,9 +547,13 @@ namespace EasyEngine
             try
             {
                 using var doc = System.Text.Json.JsonDocument.Parse(json, LooseJson.Options);
-                if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array) return;
+                var root = doc.RootElement;
+                // one rule written on its own ({"when":…,"do":…}, by hand) is a list of one
+                IEnumerable<System.Text.Json.JsonElement> items = root.ValueKind == System.Text.Json.JsonValueKind.Array ? root.EnumerateArray()
+                    : root.ValueKind == System.Text.Json.JsonValueKind.Object && (root.TryGetProperty("when", out _) || root.TryGetProperty("do", out _)) ? new[] { root }
+                    : Array.Empty<System.Text.Json.JsonElement>();
                 RuleModel? cur = null; int curBlock = 0;
-                foreach (var el in doc.RootElement.EnumerateArray())
+                foreach (var el in items)
                 {
                     if (el.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
                     var f = ParseRule(el);
@@ -555,6 +571,21 @@ namespace EasyEngine
                 }
             }
             catch { }
+        }
+
+        // what Done saves: the blocks — or, when the rules couldn't be read and no block was added, the rules as they were
+        private string Result() => _unreadable && _rules.Count == 0 ? _original : Serialize();
+
+        // rules the blocks can open: nothing at all, a list, or one rule (anything else is a mistake the person must see)
+        private static bool ReadableRules(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return true;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json, LooseJson.Options);
+                return doc.RootElement.ValueKind is System.Text.Json.JsonValueKind.Array or System.Text.Json.JsonValueKind.Object;
+            }
+            catch (System.Text.Json.JsonException) { return false; }
         }
 
         private static bool SamePart(Part a, Part b)

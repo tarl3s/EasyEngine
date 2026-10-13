@@ -23,6 +23,13 @@ namespace EasyEngine
             (L.T("Explode when it dies"), "[{\"when\":\"death\",\"do\":\"emit\",\"count\":30,\"speed\":220,\"color\":\"#FF8A3D\"}]"),
             (L.T("Countdown from 60 (show it with a Label \"{timer}\")"), "[{\"when\":\"start\",\"do\":\"setvar\",\"var\":\"timer\",\"to\":60},{\"when\":\"timer\",\"every\":1,\"cond\":\"timer > 0\",\"do\":\"addvar\",\"var\":\"timer\",\"amount\":-1}]"),
             (L.T("Say something when the scene starts"), "[{\"when\":\"start\",\"do\":\"say\",\"text\":\"Hello!\"}]"),
+            (L.T("Say something once when score reaches 10"), "[{\"when\":\"becomes\",\"var\":\"score\",\"op\":\">=\",\"value\":10,\"do\":\"say\",\"text\":\"Well done!\"}]"),
+            (L.T("When all the Coins are collected, go to another scene"), "[{\"when\":\"allgone\",\"name\":\"Coin\",\"do\":\"goscene\",\"scene\":\"Level2\"}]"),
+            (L.T("Heart: heals the Player 1 and disappears"), "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"heal\",\"target\":\"Player\",\"amount\":1,\"block\":1},{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\",\"block\":1}]"),
+            (L.T("Shop: press E near it with 10 coins to get a Sword"), "[{\"when\":\"keynear\",\"key\":\"E\",\"name\":\"Player\",\"radius\":100,\"do\":\"addvar\",\"var\":\"coins\",\"amount\":-10,\"cond\":\"coins >= 10\",\"block\":1},{\"when\":\"keynear\",\"key\":\"E\",\"name\":\"Player\",\"radius\":100,\"do\":\"additem\",\"item\":\"Sword\",\"amount\":1,\"cond\":\"coins >= 10\",\"block\":1}]"),
+            (L.T("Combo: J adds 1, back to 0 after 1 s without J, \"Combo!\" at 3"), "[{\"when\":\"keypress\",\"key\":\"J\",\"cooldown\":0.1,\"do\":\"addvar\",\"var\":\"combo\",\"amount\":1},{\"when\":\"keyidle\",\"key\":\"J\",\"seconds\":1,\"do\":\"setvar\",\"var\":\"combo\",\"to\":0},"
+                + "{\"when\":\"becomes\",\"var\":\"combo\",\"op\":\">=\",\"value\":3,\"do\":\"say\",\"text\":\"Combo!\",\"block\":1},{\"when\":\"becomes\",\"var\":\"combo\",\"op\":\">=\",\"value\":3,\"do\":\"setvar\",\"var\":\"combo\",\"to\":0,\"block\":1}]"),
+            (L.T("Start moving only after the Player steps on it (it needs a Patrol)"), "[{\"when\":\"start\",\"do\":\"behavior\",\"kind\":\"Patrol\",\"on\":\"off\"},{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"behavior\",\"kind\":\"Patrol\",\"on\":\"on\"}]"),
         };
 
         private Button RecipesButton()

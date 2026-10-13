@@ -132,8 +132,8 @@ public partial class App
             var box = new GameObjectData { Name = "Box" };
             var hero = new GameObjectData { Name = "Hero", Behaviors = { new BehaviorData { Kind = BehaviorKind.Platformer }, new BehaviorData { Kind = BehaviorKind.Health } } };
             var bare = Offer(box); var plat = Offer(hero); var any = Offer(null); var kept = Offer(box, "[{'when':'landed','do':'controls','on':'off'}]");
-            string[] behaviorBlocks = { "controls", "ability", "setjump", "heal", "behavior" };
-            return !bare.dos.Intersect(behaviorBlocks).Any() && !bare.whens.Contains("landed") && !bare.whens.Contains("death") && !bare.whens.Contains("hurt")
+            string[] behaviorBlocks = { "controls", "ability", "setjump", "behavior" }; // (heal can heal another object: offered everywhere)
+            return !bare.dos.Intersect(behaviorBlocks).Any() && bare.dos.Contains("heal") && !bare.whens.Contains("landed") && !bare.whens.Contains("death") && !bare.whens.Contains("hurt")
                    && behaviorBlocks.All(plat.dos.Contains) && plat.whens.Contains("landed") && plat.whens.Contains("hurt") && plat.whens.Contains("death") && !plat.whens.Contains("interact")
                    && behaviorBlocks.All(any.dos.Contains) && any.whens.Contains("interact")
                    && kept.dos.Contains("controls") && kept.whens.Contains("landed")

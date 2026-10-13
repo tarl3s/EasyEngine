@@ -24,7 +24,7 @@ namespace EasyEngine
         {
             public GameObjectData Data = null!;
             public double X, Y, VX, VY, W, H, Rot;
-            public bool Grounded, Dead;
+            public bool Grounded;                 // (Dead is a property: PlayWindow.RuleEvents.cs remembers the step it died in)
             public Border Visual = null!;
             public ImageBrush? Brush;
             public double Life = -1;
@@ -221,6 +221,8 @@ namespace EasyEngine
                 ["hasitem"] = new[] { "item" }, ["expr"] = new[] { "expr" },
                 ["iftext"] = new[] { "var", "op", "value", "local" },
                 ["iflist"] = new[] { "var", "op", "value", "local" },
+                ["keynear"] = new[] { "key", "name", "radius" }, ["keyidle"] = new[] { "key", "seconds" },
+                ["becomes"] = new[] { "var", "op", "value" }, ["allgone"] = new[] { "name" },
             };
             private static bool TriggerConsumes(string when, string key)
                 => TriggerKeys.TryGetValue(when, out var ks) && System.Array.Exists(ks, x => string.Equals(x, key, System.StringComparison.OrdinalIgnoreCase));
@@ -869,18 +871,15 @@ namespace EasyEngine
             var bar = en.Beh(BehaviorKind.Bar);
             if (bar != null) BuildBar(en, bar);
 
-            var customB = en.Beh(BehaviorKind.Custom);
-            if (customB != null)
-            {
-                en.Custom = ParseCustom(customB.Text("script", "[]"), obj.Name);
-                foreach (var r in en.Custom) r.Eval = x => EvalExpr(x, en); // values written as expressions
-            }
+            BuildCustomRules(en, obj); // every Custom behavior's rules, in one list (PlayWindow.RuleEvents.cs)
 
             var solidB = en.Beh(BehaviorKind.Solid);
             en.OneWay = solidB != null && solidB.Num("oneWay") >= 0.5;
 
             var hp = en.Beh(BehaviorKind.Health);
             if (hp != null) { en.MaxHealth = Math.Max(1, hp.Num("max", 3)); en.CurHealth = en.MaxHealth; en.RespawnX = en.X; en.RespawnY = en.Y; }
+            var livesB = en.Beh(BehaviorKind.Lives); // the lives are counted before any rule reads them (PlayWindow.Lives.cs)
+            if (livesB != null) StartLives(en, livesB, LivesVar(livesB));
             var harv = en.Beh(BehaviorKind.Harvestable);
             if (harv != null) en.HarvestLeft = Math.Max(1, (int)Math.Round(harv.Num("hits", 4)));
 
@@ -1032,7 +1031,7 @@ namespace EasyEngine
         // so automated E2E runs exactly the same code as real play. Rendering stays out of here.
         private void StepLogic(double dt)
         {
-            _gameTime += dt; _frameNo++;
+            _gameTime += dt; _frameNo++; Entity.Clock = ++s_steps; // the step being played, for "died this step" (PlayWindow.RuleEvents.cs)
             // a press latched by MouseDown still counts when the button was released inside the
             // same frame (touchpad taps), so a quick click is never lost
             _mouseClicked = (_mouseDown && !_mousePrevDown) || _lmbPressLatch; _mousePrevDown = _mouseDown; _lmbPressLatch = false;
@@ -1196,6 +1195,7 @@ namespace EasyEngine
                             break;
                         }
                         // (Melee is gone: projects are converted to Tool Use when they load — see ProjectIO.MigrateLegacy)
+                        case BehaviorKind.Lives: UpdateLives(en, bh, dt); break; // PlayWindow.Lives.cs
                         case BehaviorKind.Checkpoint:
                         {
                             var t = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("target", "Player"));
@@ -1610,11 +1610,12 @@ namespace EasyEngine
                             break;
                         }
                         case BehaviorKind.Bar: /* updated in Render */ break;
-                        case BehaviorKind.Custom:
-                            RunCustom(en, dt);
-                            break;
+                        case BehaviorKind.Custom: break; // its rules run below, after every other behavior
                     }
                 }
+                // the object's rules (all of its Custom behaviors, once) have the last word: they run after its behaviors,
+                // whatever their order in the list — "always: speed 200" isn't undone by a Platformer listed after it
+                if (en.Custom != null) RunCustom(en, dt);
             }
         }
 
@@ -1936,7 +1937,10 @@ namespace EasyEngine
                 "timer" => $"every {r.WNum("every", 1):0.##}s",
                 "after" => $"after {r.WNum("seconds", r.WNum("every", 1)):0.##}s",
                 "touch" => $"touch {r.WStr("name")}",
-                "ifvar" or "iflocal" => $"{r.When} {r.WStr("var")} {r.WStr("op", ">=")} {r.WNum("value"):0.##}",
+                "ifvar" or "iflocal" or "becomes" => $"{r.When} {r.WStr("var")} {r.WStr("op", ">=")} {r.WNum("value"):0.##}",
+                "keynear" => $"keynear {r.WStr("key", "E")} near {r.WStr("name", "Player")}",
+                "keyidle" => $"keyidle {r.WStr("key", "Space")} {r.WNum("seconds", 1):0.##}s",
+                "allgone" => $"none left: {r.WStr("name")}",
                 "hasitem" => $"hasitem {r.WStr("item")}",
                 "iftext" => $"iftext {r.WStr("var")} {r.WStr("op", "is")} \"{(r.WT.TryGetValue("value", out var tv) ? tv : "")}\"",
                 "iflist" => $"iflist {r.WStr("var")} {r.WStr("op", "contains")} {(r.WT.TryGetValue("value", out var lv) ? lv : r.WN.TryGetValue("value", out var ln) ? VarScope.NumberText(ln) : "")}",
@@ -1990,7 +1994,7 @@ namespace EasyEngine
         }
 
         private static bool InstantWhen(string when) => when is "keypress" or "timer" or "after" or "touch" or "click" or "rightclick" or "mousepress" or "wheelup" or "wheeldown"
-            or "landed" or "hurt" or "interact";
+            or "landed" or "hurt" or "interact" or "keynear" or "keyidle";
 
         // whether a rule fires this frame: its event, then its guards (and the console line when it starts/fires)
         private bool RuleFires(Entity en, CustomRule r, double dt)
@@ -2017,7 +2021,7 @@ namespace EasyEngine
                 case "touch":
                 {
                     var other = r.WStr("name"); bool now = false;
-                    foreach (var x in _entities) if (x != en && !x.Dead && Touching(en, x) && x.Data.Name.Equals(other, StringComparison.OrdinalIgnoreCase)) { now = true; break; }
+                    foreach (var x in _entities) if (x != en && (!x.Dead || x.DiedThisStep) && Touching(en, x) && x.Data.Name.Equals(other, StringComparison.OrdinalIgnoreCase)) { now = true; break; }
                     fire = now && !r.WasTouching; // only on the frame contact STARTS (not every frame)
                     r.WasTouching = now;
                     break;
@@ -2042,13 +2046,9 @@ namespace EasyEngine
                 case "mouseover": case "hover": fire = PointInEntity(en); break;
                 case "mousepress": fire = _mouseClicked; break; // anywhere on screen
                 case "landed": case "hurt": case "interact": fire = BehaviorEventFires(en, r); break; // PlayWindow.RuleBlocks.cs
+                case "keynear": case "keyidle": case "becomes": case "allgone": fire = NewEventFires(en, r, dt); break; // PlayWindow.RuleEvents.cs
             }
-            // optional extra guard on any rule: "if"/"ifop"/"ifval" (checks a global variable)
-            if (fire && r.T.ContainsKey("if"))
-                fire = CompareVar(Var(r.Str("if")), r.Str("ifop", ">="), r.Num("ifval"));
-            // universal guard: "cond" is a full expression that must be truthy for the rule to fire
-            if (fire && r.T.ContainsKey("cond"))
-                fire = EvalExpr(r.Str("cond"), en) != 0;
+            if (fire) fire = GuardsAllow(en, r);
 
             // console: continuous triggers log when they start; discrete ones at most once per 0.2s per rule
             if (fire)
@@ -2073,6 +2073,7 @@ namespace EasyEngine
             {
                 var r = en.Custom[i];
                 if (r.When != "death") continue;
+                if (!GuardsAllow(en, r)) { Info("Script", en.Data.Name, "death rule skipped (its \"Only run if\" is false): " + r.Summary); continue; }
                 Info("Script", en.Data.Name, "death rule: " + r.Summary);
                 if (r.Group == 0) { DoCustom(en, r, dt); continue; }
                 if (r.Group == doneGroup) continue; // its block already ran
@@ -2111,7 +2112,9 @@ namespace EasyEngine
                 {
                     var who = r.Str("target", "self");
                     var tgt = who.Equals("self", StringComparison.OrdinalIgnoreCase) ? en : _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
-                    if (tgt != null) TweenApply(tgt, "opacity", r.Do == "hide" ? 0 : tgt.Data.Opacity > 0.05 ? tgt.Data.Opacity : 1);
+                    if (tgt == null) break;
+                    if (r.Do == "show") tgt.Visual.Visibility = Visibility.Visible; // also after a cutscene's "hide" step (it collapses it)
+                    TweenApply(tgt, "opacity", r.Do == "hide" ? 0 : tgt.Data.Opacity > 0.05 ? tgt.Data.Opacity : 1);
                     break;
                 }
                 case "goscene":
@@ -2953,7 +2956,7 @@ namespace EasyEngine
         private void DamageEntity(Entity t, double amount, double kb, double fromCX)
         {
             if (t.InvTimer > 0) return;
-            t.CurHealth -= amount;
+            t.CurHealth -= amount; t.Hits++; // ("hurt" rules see every hit: PlayWindow.RuleBlocks.cs)
             t.InvTimer = Math.Max(0.3, t.Beh(BehaviorKind.Health)?.Num("invincible", 1) ?? 0.5);
             if (t.NoKnockback || kb <= 0) return;
             double dir = t.CX < fromCX ? -1 : 1;
@@ -3294,6 +3297,7 @@ namespace EasyEngine
                 if (en.LightVisual != null) Lights.Children.Remove(en.LightVisual);
                 if (en.HotbarCanvas != null) Hud.Children.Remove(en.HotbarCanvas);
                 if (en.ChecklistPanel != null) Hud.Children.Remove(en.ChecklistPanel);
+                if (en.LivesHud != null) Hud.Children.Remove(en.LivesHud); // PlayWindow.Lives.cs
                 MinimapEntityRemoved(en);
                 if (en.HeldVisual != null) { Hud.Children.Remove(en.HeldVisual); World.Children.Remove(en.HeldVisual); }
                 if (en.HeldArm != null) { Hud.Children.Remove(en.HeldArm); World.Children.Remove(en.HeldArm); }

@@ -29,9 +29,13 @@ public partial class App
         var sb = new StringBuilder();
         int pass = 0, fail = 0;
         var sims = new List<PlayWindow>();
+        // --only a,b: run just the checks whose name contains one of these (a quick loop while working on one feature)
+        var onlyArg = Environment.GetCommandLineArgs().SkipWhile(a => a != "--only").Skip(1).FirstOrDefault();
+        var only = onlyArg?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         void Test(string name, Func<bool> f)
         {
+            if (only != null && !only.Any(o => name.Contains(o, StringComparison.OrdinalIgnoreCase))) return;
             bool ok;
             try { ok = f(); }
             catch (Exception ex) { sb.AppendLine("FAIL  " + name + "  [EX: " + ex.GetType().Name + ": " + Trunc(ex.Message) + "]"); fail++; return; }
@@ -1087,13 +1091,14 @@ public partial class App
             FeatureTestsListSearch(kit);
             FeatureTestsMultiBlocks(kit);
             FeatureTestsScenesLayers(kit);
+            FeatureTestsScratchReview(kit);
             FeatureTestsLights(kit);
             FeatureTestsBehaviorCombos(kit);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
             var bplay = new PlayWindow(bp, bs); sims.Add(bplay);
-            foreach (var r in bplay.RunBehaviorChecks()) { if (r.StartsWith("PASS")) pass++; else fail++; sb.AppendLine(r); }
+            if (only == null) foreach (var r in bplay.RunBehaviorChecks()) { if (r.StartsWith("PASS")) pass++; else fail++; sb.AppendLine(r); }
         }
         catch (Exception ex) { sb.AppendLine("FATAL: " + ex); fail++; }
 
@@ -1102,6 +1107,7 @@ public partial class App
         // clean up the throwaway project folders this run created
         DeleteTempFolders("EE_Full*", "EE_BehTest_*");
 
+        if (only != null) sb.Insert(0, "(only the checks with: " + string.Join(", ", only) + ")\n");
         sb.Insert(0, $"fulltest {DateTime.Now}\n");
         sb.AppendLine($"\n{pass}/{pass + fail} passed" + (fail == 0 ? "  — ALL PASS" : $"  — {fail} FAILED"));
         try { File.WriteAllText(log, sb.ToString()); } catch { }
@@ -1136,6 +1142,7 @@ public partial class App
     partial void FeatureTestsScenesLayers(FullTestKit t);
     partial void FeatureTestsLights(FullTestKit t);
     partial void FeatureTestsBehaviorCombos(FullTestKit t);
+    partial void FeatureTestsScratchReview(FullTestKit t); // FullTest.ScratchReview.cs
 
     /// <summary>Deletes the throwaway project folders a test run left in %TEMP% (by name pattern).</summary>
     internal static void DeleteTempFolders(params string[] patterns)
