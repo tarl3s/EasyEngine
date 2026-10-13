@@ -128,6 +128,7 @@ Animations — {0}	AnimationWindow.xaml.cs
 Another thing that must be true (or may be true) for the block to run	BlockEditorWindow.cs
 Area	behavior StayInside
 Area (its whole rectangle)	behavior LightSource
+Arial	behavior Interact
 Around caves	MainWindow.TerrainBlocks.cs
 Arrows: move · Shift: 10 px	MainWindow.xaml.cs
 Ask	MainWindow.xaml.cs
@@ -188,6 +189,7 @@ Bottom left	behavior Minimap
 Bottom right	behavior Minimap
 Bounces back	behavior StayInside
 Bounciness	MainWindow.xaml.cs
+Box colour	behavior Interact
 Box trimmed to the drawing: {0}×{1} → {2}×{3}.	MainWindow.Hitbox.cs
 Brainstorming…	MainWindow.xaml.cs
 Break a tile	BlockEditorWindow.Palette.cs
@@ -286,9 +288,11 @@ Columns	MainWindow.xaml.cs
 Columns from the generator: right is +, left is −.	MainWindow.TerrainBlocks.cs
 Combo: J adds 1, back to 0 after 1 s without J, "Combo!" at 3	BlockEditorWindow.Recipes.cs
 Comes out the other side	behavior StayInside
+Comic Sans MS	behavior Interact
 Compares words (capital letters don't matter). "Its own" reads this object's own text variable.	BlockEditorWindow.Palette.cs
 Condition	BlockEditorWindow.Palette.cs
 Cone width	behavior LightSource
+Consolas	behavior Interact
 Control	step category
 Controls	BlockEditorWindow.Palette.cs
 Cooldown (s)	behavior Shooter, BlockEditorWindow.Palette.cs
@@ -308,6 +312,7 @@ Couldn't talk to Ollama. Is it installed and running? (server at localhost:11434
 Couldn't use that picture:	LookPicker.cs
 Count them in variable	behavior Lives
 Countdown from 60 (show it with a Label "{timer}")	BlockEditorWindow.Recipes.cs
+Courier New	behavior Interact
 Create	LauncherWindow.xaml, NewItemDialog.cs
 Create a layer first	MainWindow.xaml.cs
 Create an object	step spawn
@@ -331,6 +336,7 @@ Damage to enemies	NewItemDialog.cs
 Damage to enemies (default)	behavior ToolUse
 Damage to enemies, per item	MainWindow.Params.cs
 Damager / Hazard	behavior Damager
+Dark	behavior Interact
 Dark mode	SettingsWindow.cs
 Darker under solid blocks (underground) (0/1)	behavior DayNight
 Dash	behavior AbilityPickup
@@ -373,6 +379,7 @@ Design	NewItemDialog.cs
 Destroy Off-screen	behavior DestroyOffscreen
 Destroy an object	step destroy
 Destroy itself	BlockEditorWindow.Palette.cs
+Dialogue box	behavior Interact
 Diamond	SpriteEditorWindow.cs
 Direction	behavior LightSource, behavior Patrol, behavior Projectile
 Directions	BlockEditorWindow.Palette.cs
@@ -505,11 +512,12 @@ Flying (no gravity)	behavior BossAI
 Follow Camera	behavior FollowCamera
 Follow the mouse	BlockEditorWindow.Recipes.cs
 Follows a path you draw with the mouse, using platformer physics — it walks the route, jumps up steps, and hops over obstacles in its way. Select it, click 'Draw path', then click points on the scene.	behavior AdvancedPatrol
-Font	MainWindow.xaml.cs
+Font	behavior Interact, MainWindow.xaml.cs
 Font size	behavior Label
 Format	MainWindow.xaml.cs
 Free / flying (straight line)	MainWindow.xaml.cs
 Free, no credit card.	MainWindow.xaml.cs
+Freeze who is using it until the talk ends (0/1)	behavior Interact
 From	BlockEditorWindow.Palette.cs
 From (empty) = at this object · top = falling from the top of the screen · near = on the ground, a little to the left or right.	BlockEditorWindow.Palette.cs
 From column	MainWindow.TerrainBlocks.cs
@@ -523,6 +531,7 @@ Game view	behavior DayNight
 Gate / Locked Door	behavior Gate
 Generation failed	MainWindow.xaml.cs
 Gentle	behavior Terrain
+Georgia	behavior Interact
 Give an item	BlockEditorWindow.Palette.cs
 Give it a picture first: this sets the size to the picture's real pixels.	MainWindow.LockZ.cs
 Give it an image first: the hitbox follows the picture's visible pixels.	MainWindow.Hitbox.cs
@@ -602,6 +611,7 @@ Image fit	MainWindow.xaml.cs
 Image set on {0}	MainWindow.xaml.cs
 Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs
 Images & audio	MainWindow.xaml.cs
+Impact	behavior Interact
 In order	SequenceEditorWindow.cs
 In the game: on. Click to leave it out of the game.	MainWindow.Layers.cs
 In the game: on. Click to leave this layer's objects out of the game.	MainWindow.Layers.cs
@@ -673,7 +683,7 @@ Level	BlockEditorWindow.Palette.cs
 Level (0-1)	BlockEditorWindow.Palette.cs
 Life (s)	BlockEditorWindow.Palette.cs, step shoot
 Lifetime (s, 0 = forever)	behavior Projectile
-Light	behavior LightSource
+Light	behavior Interact, behavior LightSource
 Light block size	behavior DayNight
 Light mode	SettingsWindow.cs
 Lighting style	behavior DayNight
@@ -720,7 +730,7 @@ Max (0 = unlimited)	behavior Spawner
 Max health	behavior Health
 Medium (32)	behavior Terrain
 Message	behavior Area, behavior UIButton, BlockEditorWindow.Palette.cs
-Message (| = next line)	behavior Interact
+Message (press Enter for the next line)	behavior Interact
 Midnight	step settime
 Min gap between items	behavior Generator
 Minimap (HUD)	behavior Minimap
@@ -748,6 +758,7 @@ Moves in 8 directions, no gravity. 'controls' = respond to the default keys (WAS
 Multiply its speed	BlockEditorWindow.Palette.cs
 Music	behavior SoundEmitter, BlockEditorWindow.Palette.cs
 My Game	LauncherWindow.xaml
+My own colours	behavior Interact
 My picture…	LookPicker.cs
 Name	InputDialog.xaml, MainWindow.xaml.cs
 Name (also what Harvestable 'tool' asks for)	NewItemDialog.cs
@@ -871,6 +882,7 @@ Panel width (px)	behavior Checklist
 Panels ▾	MainWindow.xaml
 Pans the camera to an object (or a point) and waits until it gets there.	step camera
 Parallax	behavior Parallax
+Parchment (RPG)	behavior Interact
 Particle Emitter	behavior Particles
 Particle life (s)	behavior Particles
 Particle size	behavior Particles
@@ -975,6 +987,7 @@ Reset layout to default	MainWindow.xaml.cs
 Resizing keeps the picture's proportions. Hold Shift while dragging a handle to keep them just once.	MainWindow.LockZ.cs
 Resources dropped	behavior Harvestable
 Respawn (for the player)	behavior Health
+Retro (pixel)	behavior Interact
 Right	behavior Label, behavior LightSource, MainWindow.xaml.cs
 Ring (all around)	step shoot
 Rotates continuously. Negative spins the other way.	BlockEditorWindow.Palette.cs
@@ -1013,6 +1026,7 @@ Scene {0}	MainWindow.xaml.cs
 Screen size	MainWindow.xaml.cs
 Seconds	BlockEditorWindow.Palette.cs, step camera, step cameraback, step dash, step fadein, step fadeout, step invulnerable, step move, step moveto, step shake, step telegraph, step title, step wait, step walk
 See-through (decoration)	MainWindow.TerrainBlocks.cs
+Segoe UI	behavior Interact
 Select	ColorPickerPopup.cs
 Select all	Styles.xaml
 Select an object in the scene to add its variables.	VariablesWindow.xaml.cs
@@ -1165,6 +1179,7 @@ Terrain Generator	behavior Terrain
 Test Checklist	behavior Checklist
 Text	BlockEditorWindow.Palette.cs, step title, VariablesWindow.xaml.cs
 Text (| = next line)	step say
+Text colour	behavior Interact
 Text variable	BlockEditorWindow.Palette.cs, step settext
 Text — {variable} shows a value	behavior Label
 That project file no longer exists.	LauncherWindow.xaml.cs
@@ -1184,6 +1199,8 @@ The easiest 2D game engine — you bring the art, the AI writes the code.	Launch
 The editor's language. The AI also answers you in it. Your games keep their own texts.	SettingsWindow.cs
 The free AI is busy — trying again in {0} s…	MainWindow.xaml.cs
 The game shows {0} × {1} of the scene at a time, scaled to fit the window (the same in tests and exported games).	MainWindow.xaml.cs
+The game's font	behavior Interact
+The game's theme	behavior Interact
 The image file is missing.	ProjectIO.cs
 The image is fully transparent.	MainWindow.Hitbox.cs
 The item needs a name.	NewItemDialog.cs
@@ -1226,6 +1243,7 @@ Tiles (JSON)	behavior Tilemap
 Time	BlockEditorWindow.Palette.cs, step settime
 Time between swings (s)	behavior ToolUse
 Times	BlockEditorWindow.Palette.cs
+Times New Roman	behavior Interact
 Tip: to make something need it, give that object a Harvestable and set its Tool to this name (e.g. a dirt mound that only the shovel digs).	NewItemDialog.cs
 Title	behavior Checklist
 To	BlockEditorWindow.Palette.cs, step camera, step move, step moveto, step settext, step setvar
@@ -1247,6 +1265,7 @@ Touch it	behavior Switch
 Toward	step face
 Toward the mouse	behavior LightSource
 Toward the target	step jump
+Trebuchet MS	behavior Interact
 Tree	behavior Terrain
 Tree density (0-1)	behavior Terrain
 Trees (0/1)	behavior Terrain
@@ -1291,6 +1310,7 @@ Variable it turns on/off	behavior Switch
 Variable {0} is on	MainWindow.Params.cs
 Variables	MainWindow.xaml, VariablesWindow.xaml
 Variables — {0}	MainWindow.AiApply.cs
+Verdana	behavior Interact
 Very fast	behavior LightSource
 Very wide (90°)	behavior LightSource
 Volleys	step shoot
@@ -1334,7 +1354,7 @@ When the mouse is clicked (anywhere)	BlockEditorWindow.Palette.cs
 When the mouse wheel scrolls down	BlockEditorWindow.Palette.cs
 When the mouse wheel scrolls up	BlockEditorWindow.Palette.cs
 When the target touches it, it becomes the target's respawn point.	behavior Checkpoint
-When the trigger is near and presses the key, fires an effect: say (show dialogue text, lines split by |), setvar, addvar or goscene. Use for NPCs, signs, chests, levers.	behavior Interact
+When the trigger is near and presses the key, fires an effect: say (show dialogue text, one line after another — each line of the message is the next thing said), setvar, addvar or goscene. Use for NPCs, signs, chests, levers. Pressing the key again while the message shows doesn't open it again; it can freeze whoever is using it until the talk ends, and the dialogue box can have its own look and font.	behavior Interact
 When this phase starts	SequenceEditorWindow.cs
 Where	behavior Spawner
 Where it faces	behavior LightSource
@@ -1455,7 +1475,7 @@ then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.12.3	LauncherWindow.xaml
+v0.13.0	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs

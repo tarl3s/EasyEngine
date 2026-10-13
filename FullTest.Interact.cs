@@ -1,0 +1,72 @@
+using System.Linq;
+
+namespace EasyEngine;
+
+// Interact (press a key near it): the talk isn't queued again while it shows, every line of the message is the next
+// thing said, it can freeze whoever is using it, and its dialogue box can have its own look and font.
+public partial class App
+{
+    partial void FeatureTestsInteract(FullTestKit t)
+    {
+        PlayWindow Talk(string text, string look = "theme", string font = "", double freeze = 0)
+        {
+            var pw = PlayWindow.NewScriptSim("[]", out _, extra: (p, s) =>
+            {
+                var layer = s.Layers.First(l => l.Kind == LayerKind.Base);
+                layer.Objects.Add(new GameObjectData { Id = 2, Name = "Floor", X = 0, Y = 300, Width = 1000, Height = 40, Physics = new PhysicsData { Mode = PhysicsMode.Static }, Behaviors = { new BehaviorData { Kind = BehaviorKind.Solid } } });
+                var player = new GameObjectData { Id = 3, Name = "Player", Type = "Player", X = 400, Y = 236, Width = 48, Height = 64, Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
+                player.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Platformer).CreateData());
+                layer.Objects.Add(player);
+                var npc = new GameObjectData { Id = 4, Name = "NPC", X = 440, Y = 236, Width = 40, Height = 64 };
+                var it = BehaviorCatalog.Info(BehaviorKind.Interact).CreateData();
+                it.Texts["text"] = text; it.Texts["look"] = look; it.Texts["font"] = font; it.Nums["freeze"] = freeze;
+                npc.Behaviors.Add(it);
+                layer.Objects.Add(npc);
+            });
+            t.Sims.Add(pw);
+            pw.TSteps(20);
+            return pw;
+        }
+        void Press(PlayWindow pw, string key) { pw.TKey(key, true); pw.TSteps(3); pw.TKey(key, false); pw.TSteps(3); }
+
+        t.Test("interact: pressing E again while the message shows doesn't queue the talk again; one Enter per line closes it", () =>
+        {
+            var pw = Talk("Hi!\nHow are you?");
+            Press(pw, "E");
+            bool open = pw.TDialog; int queued = pw.TDialogQueued;
+            Press(pw, "E"); Press(pw, "E");
+            bool same = pw.TDialogQueued == queued;
+            pw.TAdvanceDialog(); pw.TAdvanceDialog(); pw.TAdvanceDialog(); // typewriter: reveal, next line, close
+            if (pw.TDialog) pw.TAdvanceDialog();
+            return open && queued == 1 && same && !pw.TDialog;
+        });
+        t.Test("interact: each line of the message (Enter) and the older | are the next thing said", () =>
+        {
+            var pw = Talk("One\r\nTwo|Three");
+            Press(pw, "E");
+            return pw.TDialog && pw.TDialogQueued == 2;
+        });
+        t.Test("interact: 'Freeze who is using it' keeps the player still until the talk ends", () =>
+        {
+            var pw = Talk("Wait here.", freeze: 1);
+            Press(pw, "E");
+            double x0 = pw.TX("Player");
+            pw.TKey("Right", true); pw.TSteps(30);
+            bool still = System.Math.Abs(pw.TX("Player") - x0) < 2;
+            pw.TKey("Right", false);
+            while (pw.TDialog) pw.TAdvanceDialog();
+            pw.TKey("Right", true); pw.TSteps(30); pw.TKey("Right", false);
+            return still && pw.TX("Player") > x0 + 20;
+        });
+        t.Test("interact: the dialogue box takes its look (parchment) and font, and the next plain message is back to the theme", () =>
+        {
+            var pw = Talk("Old map.", look: "parchment", font: "Consolas");
+            Press(pw, "E");
+            string bg = pw.TDialogBg, font = pw.TDialogFont;
+            while (pw.TDialog) pw.TAdvanceDialog();
+            var theme = new GameTheme();
+            pw.TSay("plain", "");
+            return bg.EndsWith("EAD9B0") && font == "Consolas" && pw.TDialogBg.EndsWith(theme.DialogBg.TrimStart('#').ToUpperInvariant());
+        });
+    }
+}

@@ -155,7 +155,8 @@ namespace EasyEngine
 
         // gameplay state (persists across scene switches within a play session)
         private readonly Dictionary<string, double> _vars = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Queue<(string speaker, string text)> _dialog = new();
+        private readonly Queue<(string speaker, string text, DialogLook? look)> _dialog = new();
+        private bool _dialogFreeze; // an Interact with "Freeze who is using it": no keys reach the game until the talk ends (Enter still advances)
         private bool _dialogOpen;
         private string _dialogFull = "";   // full current line (for typewriter reveal)
         private double _dialogReveal;       // chars revealed so far
@@ -1500,7 +1501,10 @@ namespace EasyEngine
                             bool near = dx * dx + dy * dy <= rad * rad;
                             bool keyDown = _keys.Contains(ParseKey(bh.Text("key", "E")));
                             bool active = near && keyDown;
-                            bool fire = active && !en.InteractWas;
+                            // while a message is showing (or waiting) the key does nothing — pressing it again used to queue
+                            // the whole talk once more, so it took many Enters to get out
+                            bool talking = _dialogOpen || _dialog.Count > 0;
+                            bool fire = active && !en.InteractWas && !talking;
                             en.InteractWas = active;
                             if (fire && !(bh.Num("once", 0) >= 0.5 && en.InteractFired))
                             {
@@ -1802,7 +1806,7 @@ namespace EasyEngine
         {
             switch (action.ToLowerInvariant())
             {
-                case "say": ShowDialog(bh.Text("text", ""), bh.Text("speaker", "")); break;
+                case "say": ShowDialog(bh.Text("text", ""), bh.Text("speaker", ""), LookOf(bh), bh.Num("freeze", 0) >= 0.5); break;
                 case "setvar": _vars[bh.Text("var", "")] = bh.Num("to", 1); break;
                 case "addvar": _vars[bh.Text("var", "")] = Var(bh.Text("var", "")) + bh.Num("amount", 1); break;
                 case "save": SaveGame(); break;
@@ -2353,13 +2357,16 @@ namespace EasyEngine
         }
 
         // ---- dialogue ----
-        private void ShowDialog(string text, string speaker)
+        // each line of the message (a new line, or the older "|") is shown after the previous one; Enter moves on
+        private void ShowDialog(string text, string speaker, DialogLook? look = null, bool freeze = false)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
-            foreach (var line in text.Split('|'))
-                _dialog.Enqueue((speaker, line.Trim()));
+            foreach (var line in text.Split(DialogBreaks, StringSplitOptions.RemoveEmptyEntries))
+                if (line.Trim().Length > 0) _dialog.Enqueue((speaker, line.Trim(), look));
+            if (freeze) _dialogFreeze = true;
             if (!_dialogOpen) AdvanceDialog();
         }
+        private static readonly char[] DialogBreaks = { '|', '\n', '\r' };
 
         private void AdvanceDialog()
         {
@@ -2367,7 +2374,8 @@ namespace EasyEngine
             if (_dialogTyping) { _dialogReveal = _dialogFull.Length; DialogText.Text = _dialogFull; _dialogTyping = false; return; }
 
             if (_dialog.Count == 0) { CloseDialog(); return; }
-            var (speaker, text) = _dialog.Dequeue();
+            var (speaker, text, look) = _dialog.Dequeue();
+            ApplyDialogLook(look);
             DialogSpeaker.Text = Substitute(speaker);
             DialogSpeaker.Visibility = string.IsNullOrWhiteSpace(speaker) ? Visibility.Collapsed : Visibility.Visible;
             _dialogFull = Substitute(text);
@@ -2393,6 +2401,7 @@ namespace EasyEngine
             DialogBox.Visibility = Visibility.Collapsed;
             _dialogOpen = false;
             _dialogTyping = false;
+            _dialogFreeze = false;
         }
 
         private void RequestScene(Entity en)

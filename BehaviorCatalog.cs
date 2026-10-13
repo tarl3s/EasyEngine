@@ -98,6 +98,10 @@ namespace EasyEngine
                                            "\"phases\":[{\"name\":\"Phase 1\",\"when\":{\"type\":\"start\"},\"attacks\":[\"Charge\",\"Ring\"],\"order\":\"random\",\"pause\":1}],\"death\":[]}";
 
         private static readonly string[] Effects ={ "say|Show a message", "setvar|Set a variable", "addvar|Add to a variable", "goscene|Go to a scene" };
+        // the dialogue box of one Interact (PlayWindow.DialogLooks.cs): the game's theme, a ready-made look, or its own colours
+        internal static readonly string[] DialogLooks = { "theme|The game's theme", "dark|Dark", "light|Light", "parchment|Parchment (RPG)", "retro|Retro (pixel)", "custom|My own colours" };
+        internal static readonly string[] DialogFonts = { "|The game's font", "Segoe UI|Segoe UI", "Arial|Arial", "Verdana|Verdana", "Georgia|Georgia", "Times New Roman|Times New Roman",
+                                                          "Trebuchet MS|Trebuchet MS", "Comic Sans MS|Comic Sans MS", "Consolas|Consolas", "Courier New|Courier New", "Impact|Impact" };
 
         public static readonly List<BehaviorInfo> All = new()
         {
@@ -392,10 +396,15 @@ namespace EasyEngine
                           TNone("item","…or when the player has","", PickKind.Item) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Interact, Name = "Interact (press key)", Icon = "💬",
-                Desc = "When the trigger is near and presses the key, fires an effect: say (show dialogue text, lines split by |), setvar, addvar or goscene. Use for NPCs, signs, chests, levers.",
-                Nums = { new("radius","How near (px)",60), NIf(new("amount","Add",1), IfText("action", "addvar")), NIf(new("to","Set to",1), IfText("action", "setvar")), new("once","Only once (0/1)",0) },
+                Desc = "When the trigger is near and presses the key, fires an effect: say (show dialogue text, one line after another — each line of the message is the next thing said), setvar, addvar or goscene. Use for NPCs, signs, chests, levers. Pressing the key again while the message shows doesn't open it again; it can freeze whoever is using it until the talk ends, and the dialogue box can have its own look and font.",
+                Nums = { new("radius","How near (px)",60), NIf(new("amount","Add",1), IfText("action", "addvar")), NIf(new("to","Set to",1), IfText("action", "setvar")), new("once","Only once (0/1)",0),
+                         NIf(new("freeze","Freeze who is using it until the talk ends (0/1)",0), IfText("action", "say")) },
                 Texts = { T("action","What happens","say", PickKind.Choice, Effects),
-                          TIf(T("text","Message (| = next line)","Hello!", PickKind.LongText), IfText("action", "say")), TIf(T("speaker","Who is talking",""), IfText("action", "say")),
+                          TIf(T("text","Message (press Enter for the next line)","Hello!", PickKind.LongText), IfText("action", "say")), TIf(T("speaker","Who is talking",""), IfText("action", "say")),
+                          TIf(T("look","Dialogue box","theme", PickKind.Choice, DialogLooks), IfText("action", "say")),
+                          TIf(T("boxColor","Box colour","#111418", PickKind.Color), c => c.Bh.Text("action", "say") == "say" && c.Bh.Text("look", "theme") == "custom"),
+                          TIf(T("textColor","Text colour","#FFFFFF", PickKind.Color), c => c.Bh.Text("action", "say") == "say" && c.Bh.Text("look", "theme") == "custom"),
+                          TIf(T("font","Font","", PickKind.Choice, DialogFonts), IfText("action", "say")),
                           TIf(T("var","Variable","", PickKind.Variable), IfText("action", "setvar", "addvar")),
                           TIf(T("scene","Scene","", PickKind.Scene), IfText("action", "goscene")),
                           T("key","Key","E", PickKind.Key), T("trigger","Who can use it","Player", PickKind.Object) } },

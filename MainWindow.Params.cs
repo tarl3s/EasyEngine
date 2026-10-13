@@ -183,6 +183,8 @@ namespace EasyEngine
                     else if (bh.Kind is BehaviorKind.BossAI or BehaviorKind.Cutscene) SequenceCard(obj, bh, panel);
                     break;
                 case PickKind.LongText:
+                    // a talk: one line per thing said (the older "|" between lines shows as a new line)
+                    if (bh.Kind == BehaviorKind.Interact && tp.Key == "text") cur = cur.Replace("|", Environment.NewLine);
                     LongTextRow(label, cur, Set, panel);
                     break;
                 default:

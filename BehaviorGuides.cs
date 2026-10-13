@@ -117,7 +117,7 @@ namespace EasyEngine
             [BehaviorKind.Interact] =
                 "1. Select the NPC/sign/chest → Inspector → ＋ Add behavior → 💬 Interact (press key).\n" +
                 "2. \"What happens\": Show a message, Set a variable, Add to a variable or Go to a scene.\n" +
-                "3. For a message, type it (| starts the next line) and \"Who is talking\".\n" +
+                "3. For a message, type it — press Enter for the next line (each line is shown after the previous one) — and \"Who is talking\". \"Dialogue box\" and \"Font\" change how it looks; \"Freeze who is using it\" keeps the player still until the talk ends.\n" +
                 "4. Set the Key and How near the player must be; \"Only once\" for one-time events.\n" +
                 "5. Press ▶ Test, walk up to it and press the key.",
 

@@ -86,7 +86,7 @@ namespace EasyEngine
                 _runners.RemoveAll(r => r.Finished);
             }
 
-            if (_inputLocks.Count > 0) // locked: this tick sees no keys, mouse buttons or wheel (Enter still advances dialogue)
+            if (_inputLocks.Count > 0 || _dialogFreeze && _dialogOpen) // locked (a cutscene, or an Interact talk that freezes): this tick sees no keys, mouse buttons or wheel (Enter still advances dialogue)
             {
                 _heldKeys = _keys; _noKeys.Clear(); _keys = _noKeys;
                 _heldButtons = (_mouseDown, _rmbDown); _mouseDown = _rmbDown = false;
