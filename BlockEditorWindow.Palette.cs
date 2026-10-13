@@ -155,8 +155,8 @@ namespace EasyEngine
                 L.T("Gives or takes away double jump, wall jump or dash.")) { Needs = new[] { BehaviorKind.Platformer } },
             new("setjump",   L.T("Change its jump height"), new[] { new Field("jump", L.T("Jump strength"), "num", "800") },
                 L.T("Bigger = higher jumps. The Platformer's usual strength is 640.")) { Needs = new[] { BehaviorKind.Platformer } },
-            new("heal",      L.T("Heal"), new[] { new Field("amount", L.T("Amount"), "num", "1") },
-                L.T("Gives back health, never above its maximum.")) { Needs = new[] { BehaviorKind.Health } },
+            new("heal",      L.T("Heal"), new[] { new Field("amount", L.T("Amount"), "num", "1"), new Field("target", L.T("Object (or self)"), "obj", "self") },
+                L.T("Gives back health, never above its maximum — to itself or to another object with Health (a Heart heals the Player who touches it).")),
             new("behavior",  L.T("Turn one of its behaviors on or off"), new[] { new Field("kind", L.T("Behavior"), "behkind", "Patrol", SwitchableKinds) { Absent = "Patrol" }, new Field("on", L.T("Turn"), "choice", "off", OnOff) },
                 L.T("Off: that behavior rests (a mover stands still) until it is turned on again.")) { Needs = PlayWindow.OnlyWhileKinds.ToArray() },
         };

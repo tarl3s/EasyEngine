@@ -34,13 +34,19 @@ namespace EasyEngine
                 var raw = r.GetRawText();
                 if (rules.Any(x => Squash(x) == Squash(raw))) continue;
                 var key = RuleKey(r);
-                int at = Enumerable.Range(0, oldKeys.Count).FirstOrDefault(i => !retuned[i] && oldKeys[i] == key, -1);
-                if (at >= 0) { rules[at] = raw; retuned[at] = true; }
+                // a rule of a NEW block is never a retune (it would leave its block); a retuned rule stays in the old one's block
+                int at = BlockOf(r) > 0 ? -1 : Enumerable.Range(0, oldKeys.Count).FirstOrDefault(i => !retuned[i] && oldKeys[i] == key, -1);
+                if (at >= 0) { int oldBlock = OldBlock(rules[at]); rules[at] = oldBlock > 0 ? Reblocked(raw, oldBlock) : raw; retuned[at] = true; }
                 else rules.Add(lastBlock > 0 && BlockOf(r) > 0 ? Reblocked(raw, BlockOf(r) + lastBlock) : raw);
             }
             return "[" + string.Join(",", rules) + "]";
         }
 
+        private static int OldBlock(string raw)
+        {
+            try { using var d = JsonDocument.Parse(raw, LooseJson.Options); return BlockOf(d.RootElement); }
+            catch (JsonException) { return 0; }
+        }
         private static int BlockOf(JsonElement r) => r.ValueKind == JsonValueKind.Object && r.TryGetProperty("block", out var b) && b.ValueKind == JsonValueKind.Number && b.TryGetInt32(out var n) ? n : 0;
         private static string Reblocked(string raw, int block)
         {

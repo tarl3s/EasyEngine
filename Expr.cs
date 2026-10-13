@@ -9,6 +9,7 @@ namespace EasyEngine
     /// Supports numbers, identifiers (resolved by a callback), function calls,
     /// arithmetic (+ - * / %), comparisons (&gt; &lt; &gt;= &lt;= == !=),
     /// logical &amp;&amp; || !, unary minus, and parentheses.
+    /// The words a beginner (or an AI) writes are read too: and / or / not, a single = (is), =&gt; =&lt; &lt;&gt;.
     /// Comparisons/logic yield 1.0 (true) or 0.0 (false). Never throws — returns 0 on error.
     /// Identifiers may contain letters, digits, '_', '.', ':' (e.g. self.x, item:key, Player.cx).
     /// </summary>
@@ -45,7 +46,7 @@ namespace EasyEngine
                 while (true)
                 {
                     SkipWs();
-                    if (Match("||")) { double b = ParseAnd(); a = (a != 0 || b != 0) ? 1 : 0; }
+                    if (Match("||") || MatchWord("or")) { double b = ParseAnd(); a = (a != 0 || b != 0) ? 1 : 0; }
                     else return a;
                 }
             }
@@ -56,7 +57,7 @@ namespace EasyEngine
                 while (true)
                 {
                     SkipWs();
-                    if (Match("&&")) { double b = ParseCompare(); a = (a != 0 && b != 0) ? 1 : 0; }
+                    if (Match("&&") || MatchWord("and")) { double b = ParseCompare(); a = (a != 0 && b != 0) ? 1 : 0; }
                     else return a;
                 }
             }
@@ -70,8 +71,12 @@ namespace EasyEngine
                 if (Match("<=")) return a <= ParseAdd() ? 1 : 0;
                 if (Match("==")) return Math.Abs(a - ParseAdd()) < 1e-6 ? 1 : 0;
                 if (Match("!=")) return Math.Abs(a - ParseAdd()) >= 1e-6 ? 1 : 0;
+                if (Match("=>")) return a >= ParseAdd() ? 1 : 0;
+                if (Match("=<")) return a <= ParseAdd() ? 1 : 0;
+                if (Match("<>")) return Math.Abs(a - ParseAdd()) >= 1e-6 ? 1 : 0;
                 if (Match(">")) return a > ParseAdd() ? 1 : 0;
                 if (Match("<")) return a < ParseAdd() ? 1 : 0;
+                if (Match("=")) return Math.Abs(a - ParseAdd()) < 1e-6 ? 1 : 0; // "lives = 0" means "is"
                 return a;
             }
 
@@ -105,7 +110,7 @@ namespace EasyEngine
                 SkipWs();
                 if (Match("-")) return -ParseUnary();
                 if (Match("+")) return ParseUnary();
-                if (Match("!")) return ParseUnary() == 0 ? 1 : 0;
+                if (Match("!") || MatchWord("not")) return ParseUnary() == 0 ? 1 : 0;
                 return ParsePrimary();
             }
 
@@ -175,6 +180,17 @@ namespace EasyEngine
                 for (int k = 0; k < op.Length; k++) if (_s[_i + k] != op[k]) return false;
                 // for word-less operators this is fine; guard '>' vs '>=' handled by order of checks
                 _i += op.Length;
+                return true;
+            }
+
+            // a word operator (and / or / not, any case) — only a whole word: "android" or "notes" stay names
+            private bool MatchWord(string word)
+            {
+                SkipWs();
+                int end = _i + word.Length;
+                if (end > _s.Length || string.Compare(_s, _i, word, 0, word.Length, StringComparison.OrdinalIgnoreCase) != 0) return false;
+                if (end < _s.Length && IsIdentChar(_s[end])) return false;
+                _i = end;
                 return true;
             }
         }

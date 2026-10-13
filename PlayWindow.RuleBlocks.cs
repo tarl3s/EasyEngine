@@ -29,11 +29,11 @@ namespace EasyEngine
                     r.Timer = 0;
                     return fire;
                 }
-                case "hurt":
+                case "hurt": // its health went down, or it took a hit (also the one that knocked out a character who comes back at once)
                 {
                     double hp = en.CurHealth;
-                    bool fire = !double.IsNaN(r.Last) && hp < r.Last - 1e-9;
-                    r.Last = hp;
+                    bool fire = !double.IsNaN(r.Last) && (hp < r.Last - 1e-9 || en.Hits != (int)r.Timer);
+                    r.Last = hp; r.Timer = en.Hits;
                     return fire;
                 }
                 case "interact":
@@ -77,10 +77,12 @@ namespace EasyEngine
                     if (plat != null) plat.Nums["jump"] = Math.Max(0, jump);
                     break;
                 }
-                case "heal":
+                case "heal": // this object, or another one ("target": a Heart heals the Player who touches it)
                 {
                     double amount = r.Num("amount", 1);
-                    if (en.Has(BehaviorKind.Health)) en.CurHealth = Math.Min(en.MaxHealth, en.CurHealth + amount);
+                    string who = r.Str("target", "self").Trim();
+                    var t = who.Length == 0 || who.Equals("self", StringComparison.OrdinalIgnoreCase) ? en : FindAlive(who);
+                    if (t != null && t.Has(BehaviorKind.Health)) t.CurHealth = Math.Min(t.MaxHealth, t.CurHealth + amount);
                     break;
                 }
                 case "behavior":
