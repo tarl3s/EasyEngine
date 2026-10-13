@@ -1,4 +1,9 @@
 {
+  "Lock this scene when it is finished, so nothing in it changes by mistake": "場景完成後鎖定它，防止意外改動",
+  "Scene \"{0}\" locked — nothing in it can be changed until you unlock it": "場景 \"{0}\" 已鎖定 — 解鎖前裡面的任何東西都不能更改",
+  "Scene \"{0}\" unlocked": "場景 \"{0}\" 已解鎖",
+  "This scene is locked — unlock it (🔒 next to the scene) to change it": "此場景已鎖定 — 解鎖（場景旁的 🔒）後才能更改",
+  "This scene is locked: nothing in it can be picked, moved, added or deleted, and the AI leaves it alone. Click to unlock.": "此場景已鎖定：其中的內容不能被選取、移動、新增或刪除，AI 也不會改動它。點擊解鎖。",
   "Animation": "動畫",
   "Back to automatic": "恢復自動",
   "How": "方式",

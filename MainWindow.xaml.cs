@@ -452,6 +452,7 @@ namespace EasyEngine
 
         private void Undo()
         {
+            if (SceneLockedNote()) return; // a locked scene stays as it is
             if (_undo.Count == 0) { Status(L.T("Nothing to undo")); return; }
             _redo.Push(SceneJson());
             ReplaceActiveScene(FromJson(_undo.Pop()));
@@ -460,6 +461,7 @@ namespace EasyEngine
 
         private void Redo()
         {
+            if (SceneLockedNote()) return; // a locked scene stays as it is
             if (_redo.Count == 0) { Status(L.T("Nothing to redo")); return; }
             _undo.Push(SceneJson());
             ReplaceActiveScene(FromJson(_redo.Pop()));
@@ -495,7 +497,7 @@ namespace EasyEngine
             foreach (var s in _project.Scenes)
             {
                 bool start = s.Name == _project.StartScene;
-                SceneCombo.Items.Add(new ComboBoxItem { Content = (start ? "★ " : "") + s.Name, Tag = s });
+                SceneCombo.Items.Add(new ComboBoxItem { Content = (start ? "★ " : "") + (s.Locked ? "🔒 " : "") + s.Name, Tag = s });
             }
             _loadingScenes = false;
         }
@@ -514,6 +516,7 @@ namespace EasyEngine
             _undo.Clear(); _redo.Clear();
             UpdateTitle();
             SelectSceneInCombo(scene);
+            UpdateSceneLockButton();
             SceneFrame.Width = scene.Width;
             SceneFrame.Height = scene.Height;
             _selected = null;
@@ -548,6 +551,7 @@ namespace EasyEngine
 
         private void RenameScene_Click(object sender, RoutedEventArgs e)
         {
+            if (SceneLockedNote()) return;
             var name = InputDialog.Prompt(this, L.T("Rename scene"), L.T("New name:"), _scene.Name);
             if (name == null) return;
             bool wasStart = _project.StartScene == _scene.Name;
@@ -560,6 +564,7 @@ namespace EasyEngine
 
         private void DeleteScene_Click(object sender, RoutedEventArgs e)
         {
+            if (SceneLockedNote()) return;
             if (_project.Scenes.Count <= 1) { MessageBox.Show(L.T("A project needs at least one scene.")); return; }
             if (MessageBox.Show(L.F("Delete scene \"{0}\"?", _scene.Name), L.T("Delete scene"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             var removed = _scene;
@@ -1114,6 +1119,7 @@ namespace EasyEngine
         {
             var layer = _activeLayer ?? _scene.Layers.FirstOrDefault();
             if (layer == null) { Status(L.T("Create a layer first")); return; }
+            if (_scene.Locked) { Status(L.T("This scene is locked — unlock it (🔒 next to the scene) to change it")); return; }
             if (layer.Locked) { Status(L.F("Layer \"{0}\" is locked — unlock it to add objects", layer.Name)); return; }
             PushUndo();
             obj.Id = _project.NextId;
@@ -1195,7 +1201,7 @@ namespace EasyEngine
 
         private void DuplicateSelected()
         {
-            if (_selected == null) return;
+            if (_selected == null || SceneLockedNote()) return;
             var layer = _scene.Layers.FirstOrDefault(l => l.Objects.Contains(_selected));
             if (layer == null) return;
             PushUndo();
@@ -1345,6 +1351,7 @@ namespace EasyEngine
 
         private void DeleteLayer(Layer layer)
         {
+            if (SceneLockedNote()) return;
             if (_scene.Layers.Count <= 1) { MessageBox.Show(L.T("A scene needs at least one layer.")); return; }
             if (layer.Objects.Count > 0 &&
                 MessageBox.Show(L.F("Delete layer \"{0}\" and its {1} object(s)?", layer.Name, layer.Objects.Count), L.T("Delete layer"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
@@ -1368,6 +1375,7 @@ namespace EasyEngine
 
         private void AddLayer_Click(object sender, RoutedEventArgs e)
         {
+            if (SceneLockedNote()) return;
             var name = InputDialog.Prompt(this, L.T("New layer"), L.T("Layer name:"), L.F("Layer {0}", _scene.Layers.Count + 1));
             if (name == null) return;
             PushUndo();
@@ -2558,6 +2566,7 @@ namespace EasyEngine
                     Dirty();
                     Status(L.T("AI applied changes. Press Test to try it."));
                 }
+                else if (reply.Length == 0 && summary.Length > 0) { AddAiMessage(L.T("AI"), "🔒 " + summary, true); Status(summary); } // nothing asked (a locked scene)
                 else
                 {
                     AddAiMessage(L.T("AI"), L.F("I couldn't apply that. Try rephrasing. Raw reply:\n{0}", reply), true);
@@ -2576,6 +2585,7 @@ namespace EasyEngine
         // 🔨 Build: ask the AI for a project spec and apply it (one retry with a firmer nudge). Shared by the panel and --aieval.
         private async Task<(bool ok, string summary, string reply)> AiBuildAsync(string prompt)
         {
+            if (_scene.Locked) return (false, L.T("This scene is locked — unlock it (🔒 next to the scene) to change it"), ""); // finished: the AI doesn't touch it
             var sys = BuildProjectPrompt(prompt); // made for this request (MainWindow.AiPrompt.cs): small, fast, few tokens
             var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
             if (SafeApply(reply, prompt, out var summary)) return (true, summary, reply);

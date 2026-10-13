@@ -1,4 +1,9 @@
 {
+  "Lock this scene when it is finished, so nothing in it changes by mistake": "Trave esta cena quando ela estiver pronta, para nada mudar sem querer",
+  "Scene \"{0}\" locked — nothing in it can be changed until you unlock it": "Cena \"{0}\" travada — nada nela pode mudar até você destravar",
+  "Scene \"{0}\" unlocked": "Cena \"{0}\" destravada",
+  "This scene is locked — unlock it (🔒 next to the scene) to change it": "Esta cena está travada — destrave (🔒 ao lado da cena) para mudar",
+  "This scene is locked: nothing in it can be picked, moved, added or deleted, and the AI leaves it alone. Click to unlock.": "Esta cena está travada: nada nela pode ser selecionado, movido, adicionado ou apagado, e a IA não mexe nela. Clique para destravar.",
   "Animation": "Animação",
   "Back to automatic": "Voltar ao automático",
   "How": "Como",

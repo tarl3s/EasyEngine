@@ -77,6 +77,8 @@ namespace EasyEngine
         public static Layer? LayerOf(Scene scene, GameObjectData obj) => scene.Layers.FirstOrDefault(l => l.Objects.Contains(obj));
 
         /// <summary>Locked for the editor's canvas and the AI: the object itself, or the layer it is in.</summary>
-        public static bool IsLocked(Scene scene, GameObjectData obj) => obj.Locked || LayerOf(scene, obj)?.Locked == true;
+        public static bool IsLocked(Scene scene, GameObjectData obj) => scene.Locked || obj.Locked || LayerOf(scene, obj)?.Locked == true;
+        /// <summary>A layer nothing can be added to or changed in: locked itself, or its whole scene is locked.</summary>
+        public static bool IsLocked(Scene scene, Layer layer) => scene.Locked || layer.Locked;
     }
 }

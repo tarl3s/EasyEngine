@@ -1,4 +1,9 @@
 {
+  "Lock this scene when it is finished, so nothing in it changes by mistake": "完成したシーンをロックして、うっかり変わらないようにする",
+  "Scene \"{0}\" locked — nothing in it can be changed until you unlock it": "シーン \"{0}\" をロックしました — ロックを解除するまで何も変更できません",
+  "Scene \"{0}\" unlocked": "シーン \"{0}\" のロックを解除しました",
+  "This scene is locked — unlock it (🔒 next to the scene) to change it": "このシーンはロックされています — 変更するにはロックを解除してください（シーンの横の 🔒）",
+  "This scene is locked: nothing in it can be picked, moved, added or deleted, and the AI leaves it alone. Click to unlock.": "このシーンはロックされています：中のものは選択・移動・追加・削除できず、AI も触りません。クリックでロック解除。",
   "Animation": "アニメーション",
   "Back to automatic": "自動に戻す",
   "How": "再生のしかた",

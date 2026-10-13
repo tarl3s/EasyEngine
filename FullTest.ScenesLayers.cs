@@ -266,5 +266,24 @@ public partial class App
             ed.TestUndo(); ed.TestUndo();
             return ok && second && ed.TestScene.Layers.Count == count;
         });
+        t.Test("scenes: a locked scene can't be changed — nothing picked, moved, deleted, added, duplicated or undone, and the AI isn't asked; it saves", () =>
+        {
+            var (p, s, ed) = Editor("SL", (_, sc) => L(sc, LayerKind.Base).Objects.Add(Box(70, "Tree", 100, 100)));
+            ed.TestToggleSceneLock();
+            var tree = ed.TestFindObject("Tree")!;
+            bool pick = !ed.TestPickable(tree), drag = !ed.TestPressOn(tree);
+            int before = L(ed.TestScene, LayerKind.Base).Objects.Count;
+            ed.TestSelect(tree); ed.TestNudge(5, 0, false); ed.TestDeleteSelected(); ed.TestDuplicate();
+            var b = L(ed.TestScene, LayerKind.Base);
+            ed.TestAddEmpty(); ed.TestUndo();
+            bool kept = ed.TestFindObject("Tree") is { X: 100 } && b.Objects.Count == before;
+            var (ok, summary, reply) = ed.EvalBuild("make the Tree red").GetAwaiter().GetResult();
+            bool ai = !ok && reply == "" && summary.Contains("locked") && ed.TestFindObject("Tree")!.Color != "#FF0000";
+            ProjectIO.Save(p); bool saved = ProjectIO.Load(p.FilePath!).GetStartScene().Locked;
+            ed.TestToggleSceneLock();
+            bool all = pick && drag && kept && ai && saved && !ed.TestScene.Locked && ed.TestPickable(ed.TestFindObject("Tree")!);
+            if (!all) throw new Exception($"pick={pick} drag={drag} kept={kept} (x={ed.TestFindObject("Tree")?.X}, n={b.Objects.Count}) ai={ai} ({summary}) saved={saved}");
+            return all;
+        });
     }
 }

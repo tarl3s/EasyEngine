@@ -37,6 +37,7 @@ namespace EasyEngine
         /// the Base layer, any unlocked layer (null = every layer is locked).</summary>
         private Layer? AiLayer(Layer? wanted)
         {
+            if (_scene.Locked) return null; // a locked scene takes nothing new
             if (wanted != null && !wanted.Locked) return wanted;
             if (_activeLayer != null && !_activeLayer.Locked && _scene.Layers.Contains(_activeLayer)) return _activeLayer;
             return _scene.Layers.FirstOrDefault(l => l.Kind == LayerKind.Base && !l.Locked) ?? _scene.Layers.FirstOrDefault(l => !l.Locked);
@@ -112,6 +113,7 @@ namespace EasyEngine
                 grid.Children.Add(parts[i]);
             }
 
+            if (_scene.Locked) foreach (var p in new FrameworkElement[] { eye, game, lockBtn, fix, more }) p.IsEnabled = false; // a locked scene: look, don't touch
             var item = new ListBoxItem { Content = grid, Tag = layer, Padding = new Thickness(4, 4, 4, 4), Foreground = (SolidColorBrush)FindResource("Text"), HorizontalContentAlignment = HorizontalAlignment.Stretch }; // stretch: the kind sits at the right, not glued to the name
             item.MouseRightButtonUp += (s, e) => { e.Handled = true; ShowLayerMenu(layer, item); };
             return item;
@@ -142,7 +144,34 @@ namespace EasyEngine
             return menu;
         }
 
-        private void ShowLayerMenu(Layer layer, FrameworkElement anchor) => LayerMenu(layer, anchor).IsOpen = true;
+        private void ShowLayerMenu(Layer layer, FrameworkElement anchor) { if (SceneLockedNote()) return; LayerMenu(layer, anchor).IsOpen = true; }
+
+        // a locked scene refuses the change and says so in the status bar (true = refused)
+        private bool SceneLockedNote()
+        {
+            if (!_scene.Locked) return false;
+            Status(L.T("This scene is locked — unlock it (🔒 next to the scene) to change it"));
+            return true;
+        }
+
+        // 🔒 next to the scene: a finished scene can't be changed by mistake (nor by the AI) until it is unlocked
+        private void LockScene_Click(object sender, RoutedEventArgs e)
+        {
+            _scene.Locked = !_scene.Locked;
+            _selection.Clear(); _selected = null;
+            RefreshSceneCombo(); SelectSceneInCombo(_scene); UpdateSceneLockButton();
+            RefreshLayers(); RenderScene(); BuildInspector(null); Dirty();
+            Status(_scene.Locked ? L.F("Scene \"{0}\" locked — nothing in it can be changed until you unlock it", _scene.Name) : L.F("Scene \"{0}\" unlocked", _scene.Name));
+        }
+
+        internal void TestToggleSceneLock() => LockScene_Click(this, new RoutedEventArgs());
+
+        private void UpdateSceneLockButton()
+        {
+            LockSceneBtn.Content = _scene.Locked ? "🔒" : "🔓";
+            LockSceneBtn.ToolTip = _scene.Locked ? L.T("This scene is locked: nothing in it can be picked, moved, added or deleted, and the AI leaves it alone. Click to unlock.")
+                                                 : L.T("Lock this scene when it is finished, so nothing in it changes by mistake");
+        }
 
         // ============================================================
         //  LAYER ACTIONS (each one undoable)
@@ -239,7 +268,7 @@ namespace EasyEngine
         {
             bool off = !layer.Active || !obj.Active;
             el.Opacity *= Math.Clamp(layer.Opacity, 0, 1) * (off ? OffDim : 1);
-            if (layer.Locked) el.IsHitTestVisible = false; // clicks go through to what is under it
+            if (SceneTools.IsLocked(_scene, layer)) el.IsHitTestVisible = false; // clicks go through to what is under it (a locked layer or scene)
             if (!off || el is not Border b) return;
             var dash = new Rectangle { Stroke = (SolidColorBrush)FindResource("Text"), StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 4, 3 }, IsHitTestVisible = false, Tag = "off" };
             switch (b.Child)

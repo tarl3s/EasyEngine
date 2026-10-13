@@ -1,4 +1,9 @@
 {
+  "Lock this scene when it is finished, so nothing in it changes by mistake": "Bloquea esta escena cuando esté terminada, para que nada cambie sin querer",
+  "Scene \"{0}\" locked — nothing in it can be changed until you unlock it": "Escena \"{0}\" bloqueada — nada en ella puede cambiar hasta que la desbloquees",
+  "Scene \"{0}\" unlocked": "Escena \"{0}\" desbloqueada",
+  "This scene is locked — unlock it (🔒 next to the scene) to change it": "Esta escena está bloqueada — desbloquéala (🔒 junto a la escena) para cambiarla",
+  "This scene is locked: nothing in it can be picked, moved, added or deleted, and the AI leaves it alone. Click to unlock.": "Esta escena está bloqueada: nada en ella se puede seleccionar, mover, añadir ni borrar, y la IA no la toca. Haz clic para desbloquear.",
   "Animation": "Animación",
   "Back to automatic": "Volver a automático",
   "How": "Cómo",

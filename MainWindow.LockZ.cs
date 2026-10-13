@@ -40,10 +40,10 @@ namespace EasyEngine
             row.Children.Add(btn);
             InspectorRoot.Children.Add(row);
             var layer = SceneTools.LayerOf(_scene, obj);
-            if (obj.Locked || layer?.Locked == true)
+            if (obj.Locked || layer?.Locked == true || _scene.Locked)
                 InspectorRoot.Children.Add(new TextBlock
                 {
-                    Tag = LockTag, Text = obj.Locked ? L.T("Locked — unlock to edit") : L.F("Its layer \"{0}\" is locked — unlock the layer to edit", layer!.Name), Foreground = (SolidColorBrush)FindResource("TextDim"),
+                    Tag = LockTag, Text = obj.Locked ? L.T("Locked — unlock to edit") : layer?.Locked == true ? L.F("Its layer \"{0}\" is locked — unlock the layer to edit", layer!.Name) : L.T("This scene is locked — unlock it (🔒 next to the scene) to change it"), Foreground = (SolidColorBrush)FindResource("TextDim"),
                     FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6)
                 });
         }

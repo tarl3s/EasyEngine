@@ -259,6 +259,7 @@ namespace EasyEngine
     public class Scene
     {
         public string Name { get; set; } = "Scene 1";
+        public bool Locked { get; set; } // 🔒 finished: nothing in it can be picked, moved, added, deleted or changed by the AI (editor only)
         public double Width { get; set; } = 960;
         public double Height { get; set; } = 540;
         public string BackgroundColor { get; set; } = "#1A1A20";

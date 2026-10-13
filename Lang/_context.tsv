@@ -703,6 +703,7 @@ Location	LauncherWindow.xaml
 Lock the player	step lock
 Lock the player (0/1)	behavior Cutscene
 Lock this layer (its objects can't be picked, moved or deleted; the AI leaves them alone)	MainWindow.Layers.cs
+Lock this scene when it is finished, so nothing in it changes by mistake	MainWindow.Layers.cs, MainWindow.xaml
 Locked {0}	MainWindow.LockZ.cs
 Locked — click to unlock	MainWindow.LockZ.cs
 Locked — unlock to edit	MainWindow.LockZ.cs, MainWindow.xaml.cs
@@ -961,7 +962,7 @@ Rectangle	SpriteEditorWindow.cs
 Redo	MainWindow.xaml.cs
 Redo (Ctrl+Y)	SpriteEditorWindow.cs
 Refused sound	behavior ToolUse
-Remove	MainWindow.xaml.cs
+Remove	MainWindow.MultiBehaviors.cs, MainWindow.xaml.cs
 Remove an item	BlockEditorWindow.Palette.cs
 Remove from a list	BlockEditorWindow.Palette.cs
 Remove prefab "{0}" from the palette?\n(objects already placed in scenes are NOT affected)	MainWindow.xaml.cs
@@ -1028,6 +1029,8 @@ Say something once when score reaches 10	BlockEditorWindow.Recipes.cs
 Say something when the scene starts	BlockEditorWindow.Recipes.cs
 Scattered at random	behavior Generator
 Scene	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.Palette.cs, MainWindow.xaml, step goscene
+Scene "{0}" locked — nothing in it can be changed until you unlock it	MainWindow.Layers.cs
+Scene "{0}" unlocked	MainWindow.Layers.cs
 Scene name:	MainWindow.xaml.cs
 Scene {0}	MainWindow.xaml.cs
 Screen size	MainWindow.xaml.cs
@@ -1238,6 +1241,8 @@ This is not a WAV file.	AudioEdit.cs
 This kind of WAV can't be edited ({0}-bit, format {1}).	AudioEdit.cs
 This object (self)	SequenceEditorWindow.cs
 This object has no image to trim to.	MainWindow.Hitbox.cs
+This scene is locked — unlock it (🔒 next to the scene) to change it	MainWindow.Layers.cs, MainWindow.LockZ.cs, MainWindow.xaml.cs
+This scene is locked: nothing in it can be picked, moved, added or deleted, and the AI leaves it alone. Click to unlock.	MainWindow.Layers.cs
 This sound is empty.	AudioEditorWindow.cs
 Tight platformer movement: run, jump (variable height), coyote time, jump buffer, optional double jump, wall jump and dash. 'controls' = respond to the default keys (arrows/A-D/Space). Turn it off for enemies so they don't copy the player — then set custom keys or move it with a script.	behavior Platformer
 Tile (repeat)	MainWindow.xaml.cs

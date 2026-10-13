@@ -39,6 +39,7 @@
                     <Button Content="⧉" ToolTip="Duplicate this scene (a copy right after it, then you are in the copy)" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Click="DuplicateScene_Click"/>
                     <Button Content="🗑" ToolTip="Delete this scene" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Foreground="{StaticResource Danger}" Click="DeleteScene_Click"/>
                     <Button Content="★" ToolTip="Make this the start scene (the game begins here)" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Click="SetStartScene_Click"/>
+                    <Button x:Name="LockSceneBtn" Content="🔓" ToolTip="Lock this scene when it is finished, so nothing in it changes by mistake" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Click="LockScene_Click"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,12,0">
                     <TextBlock x:Name="OllamaDot" Text="●" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12"/>
