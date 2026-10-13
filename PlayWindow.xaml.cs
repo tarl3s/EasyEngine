@@ -877,6 +877,8 @@ namespace EasyEngine
 
             var hp = en.Beh(BehaviorKind.Health);
             if (hp != null) { en.MaxHealth = Math.Max(1, hp.Num("max", 3)); en.CurHealth = en.MaxHealth; en.RespawnX = en.X; en.RespawnY = en.Y; }
+            var livesB = en.Beh(BehaviorKind.Lives); // the lives are counted before any rule reads them (PlayWindow.Lives.cs)
+            if (livesB != null) StartLives(en, livesB, LivesVar(livesB));
             var harv = en.Beh(BehaviorKind.Harvestable);
             if (harv != null) en.HarvestLeft = Math.Max(1, (int)Math.Round(harv.Num("hits", 4)));
 
@@ -1583,11 +1585,12 @@ namespace EasyEngine
                             break;
                         }
                         case BehaviorKind.Bar: /* updated in Render */ break;
-                        case BehaviorKind.Custom:
-                            if (ReferenceEquals(bh, en.CustomOwner)) RunCustom(en, dt); // once a frame, even with two Custom behaviors
-                            break;
+                        case BehaviorKind.Custom: break; // its rules run below, after every other behavior
                     }
                 }
+                // the object's rules (all of its Custom behaviors, once) have the last word: they run after its behaviors,
+                // whatever their order in the list — "always: speed 200" isn't undone by a Platformer listed after it
+                if (en.Custom != null) RunCustom(en, dt);
             }
         }
 
@@ -2084,7 +2087,9 @@ namespace EasyEngine
                 {
                     var who = r.Str("target", "self");
                     var tgt = who.Equals("self", StringComparison.OrdinalIgnoreCase) ? en : _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
-                    if (tgt != null) TweenApply(tgt, "opacity", r.Do == "hide" ? 0 : tgt.Data.Opacity > 0.05 ? tgt.Data.Opacity : 1);
+                    if (tgt == null) break;
+                    if (r.Do == "show") tgt.Visual.Visibility = Visibility.Visible; // also after a cutscene's "hide" step (it collapses it)
+                    TweenApply(tgt, "opacity", r.Do == "hide" ? 0 : tgt.Data.Opacity > 0.05 ? tgt.Data.Opacity : 1);
                     break;
                 }
                 case "goscene":

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace EasyEngine
 {
     // Custom rules ("Scratch"): the shared bits of the rule runtime that live outside PlayWindow.xaml.cs —
-    // - the rules of EVERY Custom behavior an object has, in one list that runs once a frame;
+    // - the rules of EVERY Custom behavior an object has, in one list that runs once a frame, after its other behaviors;
     // - a rule's guards ("Only run if" = "cond", and the old if/ifop/ifval), for normal and "when it dies" rules alike;
     // - "died this step": an object that disappeared during this step still counts for the touch events of the same step,
     //   so "Player touches Heart" and the Heart's own "touch Player → destroy" both happen whichever runs first;
@@ -27,7 +27,6 @@ namespace EasyEngine
             public bool DiedThisStep => _dead && DiedAt == Clock;
             internal static long Clock;             // the step being played (StepLogic)
             public int Hits;                         // hits taken (DamageEntity): the "hurt" event also sees a hit that knocked it out
-            public BehaviorData? CustomOwner;        // the first Custom behavior: the one that runs the rules (of all of them)
         }
 
         // Every Custom behavior's rules, in order, as one list; a second behavior's blocks never join the first one's.
@@ -45,8 +44,7 @@ namespace EasyEngine
                     if (r.Group != 0) { r.Group += groupBase; top = Math.Max(top, r.Group); }
                 }
                 groupBase = top;
-                if (en.CustomOwner == null) { en.CustomOwner = b; en.Custom = list; }
-                else en.Custom!.AddRange(list);
+                if (en.Custom == null) en.Custom = list; else en.Custom.AddRange(list);
             }
         }
 
@@ -83,11 +81,11 @@ namespace EasyEngine
                     r.Started = false;
                     return true;
                 }
-                case "becomes": // the moment the comparison turns true (true at the start counts once too)
-                {
+                case "becomes": // the moment the comparison turns true (already true when it appears isn't "becoming": a variable
+                {               // another object sets at the start would fire it by mistake)
                     bool now = CompareVar(Var(r.WStr("var")), r.WStr("op", ">="), r.WNum("value"));
-                    bool fire = now && !r.WasTouching; // (WasTouching: it was true last frame)
-                    r.WasTouching = now;
+                    bool fire = r.Started && now && !r.WasTouching; // (WasTouching: it was true last frame)
+                    r.Started = true; r.WasTouching = now;
                     return fire;
                 }
                 case "allgone": // there were some, and now none is left

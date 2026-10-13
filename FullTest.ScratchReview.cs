@@ -105,6 +105,36 @@ public partial class App
             var rules = doc.RootElement.EnumerateArray().ToList();
             return rules.Count == 3 && rules[1].GetProperty("every").GetDouble() == 3 && rules[1].TryGetProperty("block", out var b) && b.GetInt32() == 1;
         });
+        t.Test("scratch review: an object's rules run after its other behaviors, whatever their order (a Platformer listed after them undid their speed)", () =>
+        {
+            double Vx(bool platformerFirst)
+            {
+                var p = t.Sim(J("[{'when':'always','do':'velocity','vx':200,'vy':0}]"), PhysicsMode.None, (pr, s) =>
+                {
+                    var a = s.Layers.First(l => l.Kind == LayerKind.Base).Objects.First(o => o.Name == "A");
+                    var plat = new BehaviorData { Kind = BehaviorKind.Platformer, Nums = { ["controls"] = 0 } };
+                    if (platformerFirst) a.Behaviors.Insert(0, plat); else a.Behaviors.Add(plat);
+                });
+                p.TSteps(3);
+                return p.TVX("A");
+            }
+            return Vx(true) == 200 && Vx(false) == 200;
+        });
+        t.Test("scratch review: a 'Show' rule brings back an object a cutscene's 'hide' step hid (it stayed hidden)", () =>
+        {
+            var p = t.Sim(J("[{'when':'keypress','key':'S','do':'show','target':'Box'}]"), PhysicsMode.None, CutArena("{'steps':[{'do':'hide','object':'Box'}]}"));
+            p.TSteps(3); bool hidden = !p.TVisible("Box");
+            p.TKey("S", true); p.TSteps(2);
+            return hidden && p.TVisible("Box") && p.TOpacity("Box") > 0.9;
+        });
+        t.Test("scratch review: a block id the editor doesn't know is shown as unknown and kept as it is (it showed as another block and got its fields)", () =>
+        {
+            var odd = J("[{'when':'start','do':'flyaway','speed':3},{'when':'tuch','name':'B','do':'jump','force':600}]");
+            var w = new BlockEditorWindow(project, scene, odd);
+            bool shown = Descendants(w).OfType<ComboBoxItem>().Count(i => (i.Content as string ?? "").Contains("flyaway") || (i.Content as string ?? "").Contains("tuch")) == 2;
+            var json = w.SerializeTest(); w.Close();
+            return shown && json == odd;
+        });
 
         // ---------------- new events: what beginners kept failing to build
         void Press(PlayWindow p, string k, int held = 4, int after = 8) { p.TKey(k, true); p.TSteps(held); p.TKey(k, false); p.TSteps(after); }
@@ -142,7 +172,9 @@ public partial class App
             bool first = p.TVar("once") == 1 && p.TVar("every") >= 10;
             p.TSetVar("score", 15); p.TSteps(5); bool still = p.TVar("once") == 1;
             p.TSetVar("score", 2); p.TSteps(2); p.TSetVar("score", 10); p.TSteps(2);
-            return first && still && p.TVar("once") == 2;
+            var q = t.Sim(J("[{'when':'becomes','var':'x','op':'>=','value':0,'do':'addvar','var':'n','amount':1}]"), PhysicsMode.None, null);
+            q.TSteps(5); // already true when it appears: it didn't "become" true
+            return first && still && p.TVar("once") == 2 && q.TVar("n") == 0;
         });
         t.Test("scratch review: 'When none of an object are left' — all the coins (Coin, Coin_2, Coin3) collected → once", () =>
         {
@@ -231,6 +263,23 @@ public partial class App
             bool fell = p.TVar("lives") == 2 && p.TY("A") < 400 && !p.TDead("A");
             p.TSetVar("lives", 0); p.TSteps(3);
             return fell && p.TVar("lives") == 3 && p.TLogHas("the scene starts again") && p.TExists("A") && p.TScene != "S2";
+        });
+        t.Test("scratch review: Lives are counted when the scene loads: a 'lives <= 0 → Game Over' rule on another object doesn't fire at the start", () =>
+        {
+            var p = t.Sim(J("[{'when':'becomes','var':'lives','op':'<=','value':0,'do':'goscene','scene':'S2'},{'when':'ifvar','var':'lives','op':'<=','value':0,'do':'setvar','var':'early','to':1}]"),
+                          PhysicsMode.None, (pr, s) =>
+            {
+                LivesA(pr, s);
+                var l = s.Layers.First(x => x.Kind == LayerKind.Base);
+                var a = l.Objects.First(o => o.Name == "A"); // the rules on an object that plays before the one with Lives
+                a.Behaviors.RemoveAll(b => b.Kind == BehaviorKind.Lives);
+                l.Objects.Add(new GameObjectData { Id = 30, Name = "Hero", Type = "Object", X = 300, Y = 600, Width = 30, Height = 30,
+                    Behaviors = { new BehaviorData { Kind = BehaviorKind.Lives, Nums = { ["lives"] = 2 }, Texts = { ["var"] = "lives", ["scene"] = "S2" } } } });
+            });
+            p.TSteps(5);
+            bool calm = p.TScene != "S2" && p.TVar("early") == 0 && p.TVar("lives") == 2;
+            p.TSetVar("lives", 0); p.TSteps(3);
+            return calm && p.TScene == "S2";
         });
         t.Test("scratch review: Lives is in the catalog with every field picked (none typed), a how-to guide and the AI's hint", () =>
         {

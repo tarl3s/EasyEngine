@@ -361,6 +361,8 @@ namespace EasyEngine
                 cb.Items.Add(it);
                 if (d.Id == selectedId) cb.SelectedItem = it;
             }
+            if (cb.SelectedItem == null && selectedId.Length > 0) // shown as it is (and kept), never as another block
+                cb.Items.Insert(0, cb.SelectedItem = L.Keep(new ComboBoxItem { Content = L.F("⚠ Unknown block: {0}", selectedId), Tag = selectedId }));
             if (cb.SelectedItem == null && cb.Items.Count > 0) cb.SelectedIndex = 0;
             return cb;
         }
@@ -377,7 +379,8 @@ namespace EasyEngine
             return own.Length > 0 ? own : all;
         }
 
-        private static BlockDef DefOf(BlockDef[] defs, string id) => Array.Find(defs, d => d.Id == id) ?? defs[0];
+        // a block id the palette doesn't have (a typo, a newer version's block) has no fields: its rule's params are kept as they are
+        private static BlockDef DefOf(BlockDef[] defs, string id) => Array.Find(defs, d => d.Id == id) ?? new BlockDef(id, id, Array.Empty<Field>());
 
         private FrameworkElement FieldsPanel(BlockDef def, Dictionary<string, string> bag)
         {
