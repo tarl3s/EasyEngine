@@ -125,10 +125,10 @@ namespace EasyEngine
             public bool OnScreenLayer(GameObjectData o) { var l = LayerOf(o); return l.ScreenSpace || l.Kind == LayerKind.UI; }
 
             /// <summary>The object's Custom rules as lower-case key → text (numbers as text).</summary>
-            public static List<Dictionary<string, string>> Rules(GameObjectData? o)
+            public static List<Dictionary<string, string>> Rules(GameObjectData? o) => RulesOf(Beh(o, BehaviorKind.Custom)?.Text("script", "[]") ?? "[]");
+            public static List<Dictionary<string, string>> RulesOf(string s)
             {
                 var list = new List<Dictionary<string, string>>();
-                var s = Beh(o, BehaviorKind.Custom)?.Text("script", "[]") ?? "[]";
                 try
                 {
                     using var doc = JsonDocument.Parse(s, LooseJson.Options);

@@ -1999,6 +1999,7 @@ namespace EasyEngine
 
         private void DoCustom(Entity en, CustomRule r, double dt)
         {
+            r.Eval ??= x => EvalExpr(x, en); // rules made on the fly (cutscene / boss steps) read expressions too
             switch (r.Do)
             {
                 case "velocity": en.VX = r.Num("vx"); en.VY = r.Num("vy"); break;
@@ -2129,7 +2130,7 @@ namespace EasyEngine
         // A rule value: use the "expr" text as an expression if present; else the first numeric key found; else fallback.
         private double RuleValue(Entity en, CustomRule r, double fallback, params string[] numKeys)
         {
-            if (r.T.ContainsKey("expr")) return EvalExpr(r.Str("expr"), en);
+            if (r.T.ContainsKey("expr")) return r.Num("expr", fallback); // an expression (also "expr: …"), or a number
             foreach (var k in numKeys) if (r.HasValue(k)) return r.Num(k, fallback);
             return fallback;
         }

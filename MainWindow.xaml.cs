@@ -3189,7 +3189,7 @@ namespace EasyEngine
         }
 
         // ---- headless test hooks (used by --aijsontest) ----
-        public (bool ok, string summary) TestApplySpec(string reply) { bool r = ApplyProjectSpec(reply, "", out var s); return (r, s); }
+        public (bool ok, string summary) TestApplySpec(string reply, string prompt = "") { bool r = ApplyProjectSpec(reply, prompt, out var s); return (r, s); }
         public GameObjectData? TestFindObject(string name) => _scene.Layers.SelectMany(l => l.Objects).FirstOrDefault(o => o.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         public GameTheme TestTheme => _project.Theme;
         internal void TestLanguageChanged() => OnLanguageChanged();

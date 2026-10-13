@@ -108,6 +108,7 @@ namespace EasyEngine
         public double TScale(string name) => TE(name)?.TweenScale ?? 1;
         public double THpMax(string name) => TE(name)?.MaxHealth ?? 0;
         public int TLiveCount => _entities.Count(z => !z.Dead);
+        public double[] TBulletVXs() => _entities.Where(z => !z.Dead && z.Has(BehaviorKind.Projectile)).Select(z => z.VX).ToArray();
         /// <summary>Adds every entity that exists right now to <paramref name="seen"/> (count spawns over a run).</summary>
         public void TCollect(System.Collections.Generic.HashSet<object> seen) { foreach (var z in _entities) seen.Add(z); }
         public double TVX(string name) => TE(name)?.VX ?? 0;

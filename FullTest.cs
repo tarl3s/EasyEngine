@@ -1079,6 +1079,7 @@ public partial class App
             FeatureTestsHitbox(kit);
             FeatureTestsTiles(kit);
             FeatureTestsLockZ(kit);
+            FeatureTestsAiFix(kit);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
@@ -1122,6 +1123,7 @@ public partial class App
     partial void FeatureTestsHitbox(FullTestKit t);
     partial void FeatureTestsTiles(FullTestKit t);
     partial void FeatureTestsLockZ(FullTestKit t);
+    partial void FeatureTestsAiFix(FullTestKit t);
 
     // Re-run a script and its block-editor round-trip; the measured outcome must match.
     private static bool SameOutcome(string script, int steps, Func<PlayWindow, double> read, Func<string, string> rt)
