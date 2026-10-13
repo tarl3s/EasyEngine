@@ -167,6 +167,17 @@ public partial class App
             w.Close();
             return drawn && undone && redone && cutBack && cancelled;
         });
+        t.Test("game screen: a run always shows the project's screen size (960×540 by default, old projects too), scaled to the window", () =>
+        {
+            var w = t.Sim("[]", PhysicsMode.None, (p, s) => { p.ScreenWidth = 640; p.ScreenHeight = 360; });
+            var made = ProjectIO.CreateNew("ScreenOld", Path.Combine(Path.GetTempPath(), "EE_Full_Screen_" + Guid.NewGuid().ToString("N").Substring(0, 6)));
+            // a project saved before this setting existed: its JSON has no ScreenWidth / ScreenHeight
+            File.WriteAllText(made.FilePath!, System.Text.RegularExpressions.Regex.Replace(File.ReadAllText(made.FilePath!), @"""Screen(Width|Height)""\s*:\s*[0-9.]+,?", ""));
+            var old = ProjectIO.Load(made.FilePath!);
+            bool ok = w.TScreenSize == (640, 360) && old.ScreenWidth == 960 && old.ScreenHeight == 540;
+            TestScenarios.TryDeleteDir(Path.GetDirectoryName(old.FilePath!)!);
+            return ok;
+        });
         t.Test("test run: the bar on top hides (✕ / F2) and comes back; tests never save that choice", () =>
         {
             var w = t.Sim("[]", PhysicsMode.None, null);

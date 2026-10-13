@@ -1495,6 +1495,25 @@ namespace EasyEngine
             NumRow(L.T("Height"), _scene.Height, v => { _scene.Height = v; SceneFrame.Height = v; Dirty(); });
             ColorRow(L.T("Background"), _scene.BackgroundColor, v => { _scene.BackgroundColor = v; RenderScene(); Dirty(); });
 
+            // the whole game's screen size (Project.ScreenWidth/Height): what the camera shows at once, scaled to the window
+            Section(L.T("GAME SCREEN"));
+            string Key(double w, double h) => $"{w:0}x{h:0}";
+            var sizes = new List<(string value, string label)> { ("640x360", "640 × 360"), ("960x540", "960 × 540"), ("1280x720", "1280 × 720 (HD)"), ("1920x1080", "1920 × 1080 (Full HD)") };
+            string cur = Key(_project.ScreenWidth, _project.ScreenHeight);
+            if (!sizes.Any(s => s.value == cur)) sizes.Add((cur, $"{_project.ScreenWidth:0} × {_project.ScreenHeight:0}"));
+            sizes.Add(("scene", L.T("Same as this scene")));
+            PickRow(L.T("Screen size"), InspectorRoot, sizes, cur, false, null, v =>
+            {
+                if (v == "scene") { _project.ScreenWidth = _scene.Width; _project.ScreenHeight = _scene.Height; }
+                else { var p = v.Split('x'); _project.ScreenWidth = double.Parse(p[0]); _project.ScreenHeight = double.Parse(p[1]); }
+                Dirty(); RefreshAfterChoiceAlways(null!); // the scene inspector (nothing selected)
+            });
+            InspectorRoot.Children.Add(new TextBlock
+            {
+                Text = L.F("The game shows {0} × {1} of the scene at a time, scaled to fit the window (the same in tests and exported games).", _project.ScreenWidth, _project.ScreenHeight),
+                TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = (SolidColorBrush)FindResource("TextDim"), Margin = new Thickness(0, 0, 0, 8)
+            });
+
             Section(L.T("LIGHT"));
             NumRow(L.T("Ambient light (0-1)"), _scene.AmbientLight, v => { _scene.AmbientLight = Math.Clamp(v, 0, 1); Dirty(); });
 

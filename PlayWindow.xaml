@@ -12,9 +12,13 @@
             <ColumnDefinition x:Name="ConsoleCol" Width="0"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Root = the game area (camera, HUD and every layout helper size from it).
+        <!-- Root = the game area at the project's screen size (camera, HUD and every layout helper size from it).
              Transparent background so it receives the mouse everywhere inside it. -->
-        <Grid x:Name="Root" Grid.Column="0" ClipToBounds="True" Background="Transparent">
+        <!-- GameHost: the game screen (Root, fixed at Project.ScreenWidth × ScreenHeight) scaled to fit the window with black
+             bars, pixels kept sharp; the test bar sits on top, not scaled -->
+        <Grid x:Name="GameHost" Grid.Column="0" Background="Black">
+        <Viewbox x:Name="GameView" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor">
+        <Grid x:Name="Root" ClipToBounds="True" Background="Transparent">
             <!-- céu: sol e lua (tela fixa, atrás de TUDO) -->
             <Canvas x:Name="Sky" IsHitTestVisible="False"/>
             <!-- mundo (sofre a câmera) -->
@@ -54,6 +58,9 @@
                     <TextBlock Text="▼ Enter" Foreground="#8C8C97" FontSize="11" HorizontalAlignment="Right" Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
+
+            </Grid>
+        </Viewbox>
 
             <TextBlock x:Name="BarHint" Text="F2: show the bar" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="16,12,0,0"
                        Foreground="#CCCCCC" Background="#88000000" Padding="8,4" FontSize="12" Visibility="Collapsed" IsHitTestVisible="False"/>

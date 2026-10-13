@@ -313,6 +313,10 @@ namespace EasyEngine
     {
         public string Name { get; set; } = "New Project";
         public string AiModel { get; set; } = "qwen2.5-coder:1.5b";
+        // the game screen: the area the camera shows, drawn at this size and scaled to fit the window (black bars when the
+        // window's shape differs) — so a test run, an exported game and the editor's scene frame show the same thing
+        public double ScreenWidth { get; set; } = 960;
+        public double ScreenHeight { get; set; } = 540;
         public List<Scene> Scenes { get; set; } = new();
         public List<PrefabDef> Prefabs { get; set; } = new();
         public Dictionary<string, double> Variables { get; set; } = new(); // global (shared across the whole game)

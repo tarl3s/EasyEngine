@@ -41,6 +41,7 @@ namespace EasyEngine
 
         private void HideBar_Click(object sender, RoutedEventArgs e) { ShowTestBar(false, remember: true); FocusGame(); }
         public bool TTopBarVisible => TopBar.Visibility == Visibility.Visible;
+        public (double w, double h) TScreenSize => (Root.Width, Root.Height);
 
         // ---------------- logging ----------------
         private void Log(LogLevel lvl, string cat, string src, string msg, string details = "") => _log.Add(_gameTime, _frameNo, lvl, cat, src, msg, details);

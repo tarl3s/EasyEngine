@@ -431,6 +431,7 @@ From column	MainWindow.TerrainBlocks.cs
 From height	MainWindow.TerrainBlocks.cs
 Full value	behavior Bar
 Full value from a variable	behavior Bar
+GAME SCREEN	MainWindow.xaml.cs
 Game exported!\n\nFolder:\n{0}\n\nDouble-click "{1}.exe" to play.\n\n{2}	MainWindow.xaml.cs
 Game name	LauncherWindow.xaml
 Game view	behavior DayNight
@@ -820,6 +821,7 @@ Rules (JSON)	behavior Custom
 SCENE	MainWindow.xaml, MainWindow.xaml.cs
 SCENE LAYERS	MainWindow.xaml
 SELECTION	SpriteEditorWindow.cs
+Same as this scene	MainWindow.xaml.cs
 Sand	MainWindow.TerrainBlocks.cs
 Save	App.xaml.cs, MainWindow.xaml
 Save as Prefab	MainWindow.xaml.cs
@@ -837,6 +839,7 @@ Scattered at random	behavior Generator
 Scene	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.cs, MainWindow.xaml, step goscene
 Scene name:	MainWindow.xaml.cs
 Scene {0}	MainWindow.xaml.cs
+Screen size	MainWindow.xaml.cs
 Seconds	BlockEditorWindow.cs, step camera, step cameraback, step dash, step fadein, step fadeout, step invulnerable, step move, step moveto, step shake, step telegraph, step title, step wait, step walk
 See-through (decoration)	MainWindow.TerrainBlocks.cs
 Select	ColorPickerPopup.cs
@@ -982,6 +985,7 @@ The download doesn't contain EasyEngine.exe.	Updater.cs
 The drawing already fills the box.	MainWindow.Hitbox.cs
 The easiest 2D game engine — you bring the art, the AI writes the code.	LauncherWindow.xaml
 The editor's language. The AI also answers you in it. Your games keep their own texts.	SettingsWindow.cs
+The game shows {0} × {1} of the scene at a time, scaled to fit the window (the same in tests and exported games).	MainWindow.xaml.cs
 The image file is missing.	ProjectIO.cs
 The image is fully transparent.	MainWindow.Hitbox.cs
 The item needs a name.	NewItemDialog.cs

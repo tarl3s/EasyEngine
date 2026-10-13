@@ -120,6 +120,8 @@ namespace EasyEngine
                 double topLeftY = TopBar.IsVisible && TopBar.ActualHeight > 0 ? TopBar.ActualHeight + 12 + 8 : 64;
                 left = corner.Contains('l') ? m : vw - bw - m;
                 top = corner.Contains('b') ? vh - bhh - m : corner.Contains('l') ? topLeftY : m;
+                // top-right too, when the bar is long enough to reach it (a hidden bar — F2 — leaves the corner free)
+                if (!corner.Contains('b') && !corner.Contains('l') && TopBar.IsVisible && 12 + TopBar.ActualWidth > left) top = topLeftY;
             }
             Canvas.SetLeft(box, left); Canvas.SetTop(box, top);
             Panel.SetZIndex(box, big ? 1000 : 0);

@@ -212,6 +212,13 @@ namespace EasyEngine
             _project = project;
             _sceneName = startSceneName;
             L.SetSkip(this, true); // a game shows its own texts: never translated by the editor's language
+            // the game screen is always the project's screen size, scaled to the window (PlayWindow.xaml: GameView)
+            Root.Width = Math.Clamp(project.ScreenWidth, 160, 3840);
+            Root.Height = Math.Clamp(project.ScreenHeight, 120, 2160);
+            // open at 1:1 (window frame around it), but never bigger than the screen's work area
+            var work = SystemParameters.WorkArea;
+            double k = Math.Min(1, Math.Min((work.Width - 40) / (Root.Width + 16), (work.Height - 40) / (Root.Height + 39)));
+            Width = Root.Width * k + 16; Height = Root.Height * k + 39;
 
             World.RenderTransform = _camTransform;
             Lights.RenderTransform = _lightTransform;
