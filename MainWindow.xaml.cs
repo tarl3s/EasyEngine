@@ -605,6 +605,7 @@ namespace EasyEngine
                 foreach (var obj in ZOrder.InDrawOrder(layer.Objects)) // Z orders objects inside their layer
                 {
                     var el = MakeVisual(obj);
+                    LayerLook(layer, obj, el); // layer opacity, off in the game, locked layer (MainWindow.Layers.cs)
                     _visuals[obj] = el;
                     SceneCanvas.Children.Add(el);
                     if (obj.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap))
@@ -753,7 +754,7 @@ namespace EasyEngine
                 if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) { ToggleSelect(obj); FocusScene(); e.Handled = true; return; }
                 Select(obj);
                 FocusScene(); // the arrow keys nudge the selection (MainWindow.LockZ.cs)
-                if (obj.Locked) { e.Handled = true; return; } // locked: selected so it can be inspected, never dragged
+                if (IsLockedObj(obj)) { e.Handled = true; return; } // locked (or in a locked layer): selected so it can be inspected, never dragged
                 PushUndo();
                 _dragObj = obj;
                 _dragStart = e.GetPosition(SceneCanvas);
@@ -873,7 +874,7 @@ namespace EasyEngine
         private void AddResizeHandles()
         {
             if (_selected == null || !_visuals.ContainsKey(_selected)) return;
-            if (_selected.Locked) return; // locked objects can't be resized
+            if (IsLockedObj(_selected)) return; // locked objects can't be resized
             if (_selected.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)) return; // tilemaps are painted, not resized
             foreach (Handle h in Enum.GetValues(typeof(Handle)))
             {
@@ -926,7 +927,7 @@ namespace EasyEngine
 
         private void ApplyResize(Point p, bool? shift = null)
         {
-            if (_selected == null || _selected.Locked) return;
+            if (_selected == null || IsLockedObj(_selected)) return;
             const double min = 8;
             double dx = p.X - _resizeStartMouse.X, dy = p.Y - _resizeStartMouse.Y;
             double L = _resizeRect.X, T = _resizeRect.Y, W = _resizeRect.Width, H = _resizeRect.Height;
@@ -990,9 +991,9 @@ namespace EasyEngine
         {
             _selected = obj;
             // load tilemap edit state before building the inspector (which reads it)
-            if (obj != null && !obj.Locked && obj.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)) LoadTilemapEdit(obj); // a locked tilemap isn't painted
+            if (obj != null && !IsLockedObj(obj) && obj.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)) LoadTilemapEdit(obj); // a locked tilemap isn't painted
             else { _tmObj = null; _tmBh = null; }
-            if (obj != null && !ReferenceEquals(obj, _selectedBefore)) Status(obj.Locked ? L.T("Locked — unlock to edit") : L.T("Arrows: move · Shift: 10 px"));
+            if (obj != null && !ReferenceEquals(obj, _selectedBefore)) Status(IsLockedObj(obj) ? L.T("Locked — unlock to edit") : L.T("Arrows: move · Shift: 10 px"));
             _selectedBefore = obj;
 
             UpdateSelectionOutline();
@@ -1113,6 +1114,7 @@ namespace EasyEngine
         {
             var layer = _activeLayer ?? _scene.Layers.FirstOrDefault();
             if (layer == null) { Status(L.T("Create a layer first")); return; }
+            if (layer.Locked) { Status(L.F("Layer \"{0}\" is locked — unlock it to add objects", layer.Name)); return; }
             PushUndo();
             obj.Id = _project.NextId;
             obj.Name = UniqueName(baseName);
@@ -1182,7 +1184,7 @@ namespace EasyEngine
         private void DeleteSelected()
         {
             if (_selection.Count == 0) return;
-            var gone = _selection.Where(o => !o.Locked).ToList(); // locked objects are never deleted
+            var gone = _selection.Where(o => !IsLockedObj(o)).ToList(); // locked objects are never deleted
             if (gone.Count == 0) { Status(L.T("Locked — unlock to edit")); return; }
             PushUndo();
             foreach (var o in gone)
@@ -1332,38 +1334,6 @@ namespace EasyEngine
             LayersList.SelectedIndex = i >= 0 ? i : IndexOfBaseLayer();
         }
 
-        private ListBoxItem MakeLayerItem(Layer layer)
-        {
-            var eye = new Button
-            {
-                Content = layer.Visible ? L.T("shown") : L.T("hidden"), Width = 50, Height = 22, FontSize = 10,
-                Background = Brushes.Transparent, BorderThickness = new Thickness(0),
-                Foreground = (SolidColorBrush)FindResource(layer.Visible ? "Text" : "TextDim"), Cursor = Cursors.Hand, Tag = layer
-            };
-            eye.Click += (s, e) => { layer.Visible = !layer.Visible; eye.Content = layer.Visible ? L.T("shown") : L.T("hidden"); eye.Foreground = (SolidColorBrush)FindResource(layer.Visible ? "Text" : "TextDim"); RenderScene(); Dirty(); e.Handled = true; };
-
-            var name = L.Keep(new TextBlock { Text = layer.Name, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) });
-            var kind = new TextBlock { Text = LayerKindLabel(layer.Kind), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
-
-            bool Fixed() => layer.ScreenSpace || layer.Kind == LayerKind.UI;
-            var fix = new Button { Content = Fixed() ? L.T("fixed") : L.T("scroll"), MinWidth = 46, Padding = new Thickness(4, 0, 4, 0), Height = 22, FontSize = 10, Style = (Style)FindResource("GhostButton"), VerticalAlignment = VerticalAlignment.Center, ToolTip = L.T("Fixed = stays on screen (UI/HUD). Scroll = moves with the world.") };
-            fix.Click += (s, e) => { e.Handled = true; PushUndo(); layer.ScreenSpace = !Fixed(); fix.Content = Fixed() ? L.T("fixed") : L.T("scroll"); Dirty(); };
-
-            var del = new Button { Content = L.T("Delete"), Height = 22, FontSize = 10, Style = (Style)FindResource("GhostButton"), Foreground = (SolidColorBrush)FindResource("Danger"), VerticalAlignment = VerticalAlignment.Center };
-            del.Click += (s, e) => { e.Handled = true; DeleteLayer(layer); };
-
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            Grid.SetColumn(eye, 0); Grid.SetColumn(name, 1); Grid.SetColumn(kind, 2); Grid.SetColumn(fix, 3); Grid.SetColumn(del, 4);
-            grid.Children.Add(eye); grid.Children.Add(name); grid.Children.Add(kind); grid.Children.Add(fix); grid.Children.Add(del);
-
-            return new ListBoxItem { Content = grid, Tag = layer, Padding = new Thickness(4, 4, 4, 4), Foreground = (SolidColorBrush)FindResource("Text"), HorizontalContentAlignment = HorizontalAlignment.Stretch }; // stretch: the kind sits at the right, not glued to the name
-        }
-
         private static string LayerKindLabel(LayerKind kind) => kind switch
         {
             LayerKind.Background => L.T("Background"),
@@ -1433,7 +1403,11 @@ namespace EasyEngine
                         FontSize = 10, FontWeight = FontWeights.SemiBold, Padding = new Thickness(6, 6, 6, 2)
                     });
                 foreach (var obj in g)
-                    ObjectsList.Items.Add(new ListBoxItem { Content = ObjectRowContent(obj), Tag = obj, Padding = new Thickness(anyGroup ? 18 : 8, 5, 8, 5), Foreground = (SolidColorBrush)FindResource("Text") });
+                {
+                    var row = new ListBoxItem { Content = ObjectRowContent(obj), Tag = obj, Padding = new Thickness(anyGroup ? 18 : 8, 5, 8, 5), Foreground = (SolidColorBrush)FindResource("Text") };
+                    TextSearch.SetText(row, ObjectRowText(obj)); // found by its text, not by the toggles on the row
+                    ObjectsList.Items.Add(row);
+                }
             }
         }
 
@@ -1462,6 +1436,7 @@ namespace EasyEngine
 
             Section(L.T("OBJECT"));
             LockRow(obj); // 🔒/🔓 — the only thing left editable on a locked object (MainWindow.LockZ.cs)
+            ActiveRow(obj); // Active — exists in the game (MainWindow.Layers.cs)
             TextRow(L.T("Name"), obj.Name, v => { obj.Name = v; RefreshObjects(); Dirty(); });
             InfoRow(L.T("Type"), L.T(obj.Type));
             TextRow(L.T("Group"), obj.Group, v => { obj.Group = v.Trim(); RefreshObjects(); Dirty(); });
@@ -1805,7 +1780,7 @@ namespace EasyEngine
                 {
                     PushUndo();
                     // apply to EVERY selected object, not just the primary; skip ones that already have it
-                    var targets = _selection.Count > 1 ? _selection.Where(o => !o.Locked).ToList() : new List<GameObjectData> { obj }; // locked ones are skipped
+                    var targets = _selection.Count > 1 ? _selection.Where(o => !IsLockedObj(o)).ToList() : new List<GameObjectData> { obj }; // locked ones are skipped
                     int added = 0;
                     foreach (var t in targets)
                     {
@@ -1910,7 +1885,7 @@ namespace EasyEngine
             if (active && ReferenceEquals(obj, _tmObj)) { ts = _tmSize; cols = _tmCols; rows = _tmRows; cells = _tmCells; pal = _tmPalette; }
             else { var t = ReadTilemap(bh); ts = t.ts; cols = t.cols; rows = t.rows; cells = t.cells; pal = t.pal; }
             var fills = TileFills(pal); // one shared brush per tile kind (MainWindow.Tiles.cs)
-            double opacity = Math.Clamp(obj.Opacity, 0, 1);
+            double opacity = EditorAlpha(obj); // × its layer's opacity, dimmed when off in the game (MainWindow.Layers.cs)
 
             for (int r = 0; r < rows; r++)
                 for (int c = 0; c < cols; c++)
@@ -1951,7 +1926,7 @@ namespace EasyEngine
             int val = _tmCells[idx];
             if (val > 0 && val <= _tmPalette.Count)
             {
-                var rect = TileRect(TileFill(_tmPalette[val - 1]), _tmSize, Math.Clamp(_tmObj.Opacity, 0, 1));
+                var rect = TileRect(TileFill(_tmPalette[val - 1]), _tmSize, EditorAlpha(_tmObj));
                 Canvas.SetLeft(rect, _tmObj.X + c * _tmSize); Canvas.SetTop(rect, _tmObj.Y + r * _tmSize);
                 SceneCanvas.Children.Add(rect);
                 _tmCellRects[idx] = rect;

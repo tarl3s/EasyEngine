@@ -32,6 +32,7 @@ namespace EasyEngine
             project.Scenes.Add(VariableTypesTest()); // TestScenarios.VarTypes.cs
             project.Scenes.Add(HitboxTest(project)); // TestScenarios.Hitbox.cs
             project.Scenes.Add(TilesTest(project));  // TestScenarios.Tiles.cs
+            project.Scenes.Add(LayersTest());        // TestScenarios.Layers.cs
             project.StartScene = "Axe Test";
             ProjectIO.Save(project);
             return project.FilePath!;

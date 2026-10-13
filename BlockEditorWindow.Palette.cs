@@ -105,6 +105,8 @@ namespace EasyEngine
             new("destroy",   L.T("Destroy itself"), Array.Empty<Field>()),
             new("hide",      L.T("Hide"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self") }, L.T("Makes it invisible — it is still there and still touches things. \"Show\" brings it back.")),
             new("show",      L.T("Show"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self") }, L.T("Makes a hidden object visible again.")),
+            new("setactive", L.T("Turn on or off in the game"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self"), new Field("layer", L.T("Or a whole layer"), "layer"), new Field("on", L.T("Turn"), "choice", "on", OnOff) },
+                L.T("Off: it is taken out of the game (a layer: all its objects). On: an object or layer that is off comes in, where the scene has it.")),
             new("goscene",   L.T("Go to another scene"), new[] { new Field("scene", L.T("Scene"), "scene") }),
             new("setvar",    L.T("Set a variable"), new[] { new Field("var", L.T("Variable"), "numvar"), new Field("to", L.T("To"), "val", "0") }),
             new("addvar",    L.T("Add to a variable"), new[] { new Field("var", L.T("Variable"), "numvar"), new Field("amount", L.T("Amount"), "val", "1") }),

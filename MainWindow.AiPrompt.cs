@@ -170,6 +170,8 @@ namespace EasyEngine
               "Pushable behavior.", BehaviorKind.Pushable),
             H("checkpoint bandeira flag respawn",
               "Checkpoint behavior.", BehaviorKind.Checkpoint),
+            H("activate ativa ativar ativo deactivate desativa desativar enable disable layer camada secret secreto secreta",
+              "Turn an object or a whole layer on or off in the game: {\"do\":\"setactive\",\"target\":\"Bridge\",\"on\":\"on\"} (an OFF object doesn't exist until then); \"layer\":\"Secret\" switches every object of that layer; \"on\":\"off\" takes it away."),
             H("night noite day dia sun sol moon lua",
               "Day and night: a DayNight object. In rules: {\"when\":\"isnight\",…} or \"cond\":\"isNight >= 1\" (\"isNight < 1\" = day).",
               BehaviorKind.DayNight),
@@ -290,7 +292,7 @@ namespace EasyEngine
 
             // the scene
             sb.AppendLine($"SCENE \"{_scene.Name}\" {_scene.Width:0}x{_scene.Height:0}" + (GroundTop() is double g ? $", ground top y={g:0}" : "") +
-                          $". Layers: {string.Join(", ", _scene.Layers.Select(l => l.Name + (l.ScreenSpace || l.Kind == LayerKind.UI ? "(fixed UI)" : "")))}. Scenes: {string.Join(", ", _project.Scenes.Select(s => s.Name))}.");
+                          $". Layers: {string.Join(", ", _scene.Layers.Select(LayerNote))}. Scenes: {string.Join(", ", _project.Scenes.Select(s => s.Name))}.");
             int ruleBudget = 1200; // a big project must not blow the free tiers' token limits
             foreach (var o in _scene.Layers.SelectMany(l => l.Objects))
             {
@@ -299,8 +301,10 @@ namespace EasyEngine
                 var rules = script.Length <= 2 ? "" : shown.Length <= ruleBudget ? " custom=" + shown : " custom=(has rules)"; // so a change can keep or retune them
                 if (script.Length > 2 && shown.Length <= ruleBudget) ruleBudget -= shown.Length;
                 var ov = VarScope.Of(o).Count > 0 ? " vars{" + VarScope.Of(o).Describe() + "}" : "";
-                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Where(b => b.Kind != BehaviorKind.Custom).Select(b => b.Kind))}] at {o.X:0},{o.Y:0}{ov}{(o.Locked ? " LOCKED" : "")}{(o.Z != 0 ? $" z{o.Z}" : "")}{rules}");
+                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Where(b => b.Kind != BehaviorKind.Custom).Select(b => b.Kind))}] at {o.X:0},{o.Y:0}{ov}{(IsLockedObj(o) ? " LOCKED" : "")}{(IsOffInGame(o) ? " OFF" : "")}{(o.Z != 0 ? $" z{o.Z}" : "")}{rules}");
             }
+            if (_scene.Layers.SelectMany(l => l.Objects).Any(o => IsLockedObj(o) || IsOffInGame(o)))
+                sb.AppendLine("LOCKED = never change or delete it. OFF = not in the game until a rule turns it on (setactive).");
             if (VarScope.Of(_project).Count > 0) sb.AppendLine("Global variables: " + VarScope.Of(_project).Describe());
             if (VarScope.Of(_scene).Count > 0) sb.AppendLine("Scene variables: " + VarScope.Of(_scene).Describe());
             var prefabs = _project.Prefabs.Select(p => p.Name).Where(n => !DefaultPrefabs.Contains(n)).ToList();

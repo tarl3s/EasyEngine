@@ -701,16 +701,16 @@ namespace EasyEngine
             SizeDarkness();
 
             _worldBackgroundEnd = 0;
-            foreach (var layer in _scene.Layers)
+            for (int li = 0; li < _scene.Layers.Count; li++)
             {
+                var layer = _scene.Layers[li];
+                if (!layer.Active) continue; // a layer turned off for the game: none of its objects exist (PlayWindow.Layers.cs)
                 bool sky = layer.Kind == LayerKind.Sky;
                 bool screen = layer.ScreenSpace || layer.Kind == LayerKind.UI || sky;
                 _zLoading = true; // copies spawned later are ordered by Z among the other spawned copies (PlayWindow.ZOrder.cs)
                 foreach (var obj in ZOrder.InDrawOrder(layer.Objects)) // Z orders objects inside their layer
-                {
-                    var en = AddEntity(obj, screen);
-                    if (sky) PutInSky(en); // the Sky layer is drawn behind every other layer
-                }
+                    if (obj.Active) // an object turned off stays as data (a spawn template, a "setactive" target)
+                        CreateLayerObject(layer, li, obj, obj, screen, sky); // the Sky layer is drawn behind every other layer
                 _zLoading = false;
                 if (layer.Kind == LayerKind.Background && !screen) _worldBackgroundEnd = World.Children.Count; // a terrain goes right after these
             }
@@ -2079,6 +2079,7 @@ namespace EasyEngine
                     break;
                 }
                 case "destroy": en.Dead = true; break;
+                case "setactive": SetActiveRule(en, r); break; // an object or a whole layer on/off (PlayWindow.Layers.cs)
                 case "hide": case "show": // Scratch-style: invisible / visible again (this object, or "target")
                 {
                     var who = r.Str("target", "self");
@@ -2681,7 +2682,7 @@ namespace EasyEngine
             var host = screenSpace ? Hud : World;
             bool Solid(int r, int c) { int v = cells[r * cols + c]; return v > 0 && v <= pal.Count && pal[v - 1].Solid; }
             var fills = TileFills(pal); // one shared brush per tile kind; an animated kind's brush is swapped by TilesLogic (PlayWindow.Tiles.cs)
-            double opacity = Math.Clamp(obj.Opacity, 0, 1), size = opacity < 1 ? ts : ts + 0.5; // the overlap hides seams, but would darken them when see-through
+            double opacity = Math.Clamp(obj.Opacity, 0, 1) * _layerAlpha, size = opacity < 1 ? ts : ts + 0.5; // × its layer's opacity (PlayWindow.Layers.cs); the overlap hides seams, but would darken them when see-through
 
             // draw cells
             for (int r = 0; r < rows; r++)
@@ -2691,6 +2692,7 @@ namespace EasyEngine
                     if (v <= 0 || v > pal.Count) continue;
                     var rect = new System.Windows.Shapes.Rectangle { Width = size, Height = size, Fill = fills[v - 1], IsHitTestVisible = false };
                     if (opacity < 1) rect.Opacity = opacity;
+                    (en.TileRects ??= new List<UIElement>()).Add(rect);
                     if (fills[v - 1] is ImageBrush) RenderOptions.SetBitmapScalingMode(rect, BitmapScalingMode.NearestNeighbor);
                     Canvas.SetLeft(rect, obj.X + c * ts); Canvas.SetTop(rect, obj.Y + r * ts);
                     host.Children.Add(rect);

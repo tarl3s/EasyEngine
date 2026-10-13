@@ -50,8 +50,9 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 ## O que ela faz
 
 - **Editor visual de cenas** — arrastar e soltar, redimensionar (mantendo as proporções se quiser), mover com as setas,
-  grade/snap, camadas (inclusive de UI fixas na tela), ordem frente/trás dentro da camada, travar objetos no lugar,
-  zoom, painéis móveis, desfazer/refazer, várias cenas.
+  grade/snap, camadas (inclusive de UI fixas na tela) que você reordena, tranca, deixa transparentes ou desliga no
+  jogo, ordem frente/trás dentro da camada, travar objetos no lugar, desligar objetos até uma regra trazê-los, zoom,
+  painéis móveis, desfazer/refazer, várias cenas (duplique uma cena para fazer a próxima fase).
 - **A IA faz a lógica** — selecione um objeto, descreva o que ele faz, e a IA aplica comportamentos de verdade.
   **🔨 Build** mexe no jogo, **💡 Brainstorm** conversa sobre ideias, **🎓 Learn** ensina a usar qualquer coisa
   (cada comportamento tem um **?** que pergunta direto pra ela).

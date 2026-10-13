@@ -36,6 +36,7 @@
                     <ComboBox x:Name="SceneCombo" local:L.Skip="True" Width="140" Height="28" VerticalAlignment="Center" SelectionChanged="SceneCombo_SelectionChanged"/>
                     <Button Content="＋" ToolTip="Add a scene" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Margin="4,0,0,0" Click="AddScene_Click"/>
                     <Button Content="✏" ToolTip="Rename this scene" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Click="RenameScene_Click"/>
+                    <Button Content="⧉" ToolTip="Duplicate this scene (a copy right after it, then you are in the copy)" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Click="DuplicateScene_Click"/>
                     <Button Content="🗑" ToolTip="Delete this scene" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Foreground="{StaticResource Danger}" Click="DeleteScene_Click"/>
                     <Button Content="★" ToolTip="Make this the start scene (the game begins here)" Style="{StaticResource GhostButton}" Height="28" Padding="8,0" FontSize="13" Click="SetStartScene_Click"/>
                 </StackPanel>
@@ -224,7 +225,7 @@
                 <DockPanel>
                     <Border DockPanel.Dock="Top" Background="{StaticResource Bg2}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1">
                         <Grid Height="26">
-                            <TextBlock Text="SCENE LAYERS" Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <TextBlock Text="SCENE LAYERS" ToolTip="Lower in the list = drawn in front (here and in the game). Right-click a layer or use ⋯ for more." Foreground="{StaticResource TextDim}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Button Content="＋" Style="{StaticResource GhostButton}" Width="28" Height="22" Padding="0" ToolTip="Add layer" Click="AddLayer_Click"/>
                                 <Button Tag="layers" Content="⋯" Click="DockMenu_Click" ToolTip="Move / float this panel" Width="30" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextDim}" FontSize="15"/>

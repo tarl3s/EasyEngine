@@ -50,8 +50,9 @@ namespace EasyEngine
             bool checkpoint = B("checkpoint");
             if (platforms + coins + enemies + spikes + stairs == 0 && door.Length == 0 && !topdown) return;
 
+            var layer = AiLayer(_scene.Layers.FirstOrDefault(l => l.Kind == LayerKind.Base));
+            if (layer == null) return; // every layer is locked
             ensureUndo();
-            var layer = _scene.Layers.FirstOrDefault(l => l.Kind == LayerKind.Base) ?? _activeLayer ?? _scene.Layers.First();
             var made = new List<string>();
             GameObjectData Add(string name, double x, double y, double w, double h, string color, PhysicsMode phys, params BehaviorKind[] kinds)
             {
@@ -130,7 +131,7 @@ namespace EasyEngine
             // coins count somewhere you can see
             if (coins > 0 && !_scene.Layers.SelectMany(l => l.Objects).Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Label && b.Text("text", "").Contains("{score}"))))
             {
-                var ui = _scene.Layers.FirstOrDefault(l => l.Kind == LayerKind.UI || l.ScreenSpace);
+                var ui = _scene.Layers.FirstOrDefault(l => (l.Kind == LayerKind.UI || l.ScreenSpace) && !l.Locked);
                 if (ui != null)
                 {
                     var lbl = new GameObjectData { Id = _project.NextId, Name = UniqueName("ScoreText"), Type = "Label", X = 20, Y = 16, Width = 220, Height = 32, Color = "#00000000" };

@@ -39,10 +39,11 @@ namespace EasyEngine
             btn.Click += (s, e) => SetLocked(_selection.Count > 1 && _selection.Contains(obj) ? _selection.ToList() : new List<GameObjectData> { obj }, !obj.Locked);
             row.Children.Add(btn);
             InspectorRoot.Children.Add(row);
-            if (obj.Locked)
+            var layer = SceneTools.LayerOf(_scene, obj);
+            if (obj.Locked || layer?.Locked == true)
                 InspectorRoot.Children.Add(new TextBlock
                 {
-                    Tag = LockTag, Text = L.T("Locked — unlock to edit"), Foreground = (SolidColorBrush)FindResource("TextDim"),
+                    Tag = LockTag, Text = obj.Locked ? L.T("Locked — unlock to edit") : L.F("Its layer \"{0}\" is locked — unlock the layer to edit", layer!.Name), Foreground = (SolidColorBrush)FindResource("TextDim"),
                     FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6)
                 });
         }
@@ -63,7 +64,7 @@ namespace EasyEngine
         /// <summary>A locked object's inspector: every row but the lock is disabled (and dimmed).</summary>
         private void ApplyInspectorLock(GameObjectData obj)
         {
-            if (!obj.Locked) return;
+            if (!IsLockedObj(obj)) return;
             foreach (UIElement c in InspectorRoot.Children)
             {
                 if (c is FrameworkElement fe && (fe.Tag as string) == LockTag) continue;
@@ -72,21 +73,32 @@ namespace EasyEngine
             }
         }
 
-        /// <summary>An Objects-list row: "Name · Type" (+ "· z2" when Z isn't 0), and a 🔒 button on a locked object.</summary>
+        private string ObjectRowText(GameObjectData obj) => $"{obj.Name}   ·   {L.T(obj.Type)}" + (obj.Z != 0 ? $"   ·   z{obj.Z}" : "");
+
+        /// <summary>An Objects-list row: "Name · Type" (+ "· z2" when Z isn't 0), the ▶ on/off-in-the-game toggle
+        /// (MainWindow.Layers.cs), and a 🔒 button on a locked object. An object that is off is listed dimmed.</summary>
         private object ObjectRowContent(GameObjectData obj)
         {
-            string text = $"{obj.Name}   ·   {L.T(obj.Type)}" + (obj.Z != 0 ? $"   ·   z{obj.Z}" : "");
-            if (!obj.Locked) return text;
             var dock = new DockPanel { LastChildFill = true };
-            var lockBtn = new Button
+            var active = ObjectActiveToggle(obj);
+            DockPanel.SetDock(active, Dock.Right);
+            dock.Children.Add(active);
+            if (obj.Locked)
             {
-                Content = "🔒", Style = (Style)FindResource("GhostButton"), Height = 22, FontSize = 11,
-                Padding = new Thickness(4, 0, 4, 0), Margin = new Thickness(6, 0, 0, 0), ToolTip = L.T("Locked — click to unlock")
-            };
-            lockBtn.Click += (s, e) => { SetLocked(new List<GameObjectData> { obj }, false); e.Handled = true; };
-            DockPanel.SetDock(lockBtn, Dock.Right);
-            dock.Children.Add(lockBtn);
-            dock.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+                var lockBtn = new Button
+                {
+                    Content = "🔒", Style = (Style)FindResource("GhostButton"), Height = 22, FontSize = 11,
+                    Padding = new Thickness(4, 0, 4, 0), Margin = new Thickness(6, 0, 0, 0), ToolTip = L.T("Locked — click to unlock")
+                };
+                lockBtn.Click += (s, e) => { SetLocked(new List<GameObjectData> { obj }, false); e.Handled = true; };
+                DockPanel.SetDock(lockBtn, Dock.Right);
+                dock.Children.Add(lockBtn);
+            }
+            dock.Children.Add(L.Keep(new TextBlock
+            {
+                Text = ObjectRowText(obj), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                Foreground = (SolidColorBrush)FindResource(obj.Active ? "Text" : "TextDim"), FontStyle = obj.Active ? FontStyles.Normal : FontStyles.Italic
+            }));
             return dock;
         }
 
@@ -129,7 +141,7 @@ namespace EasyEngine
 
         private void SetZ(GameObjectData obj, int z)
         {
-            if (obj.Locked || obj.Z == z) return;
+            if (IsLockedObj(obj) || obj.Z == z) return;
             PushUndo();
             obj.Z = z;
             RefreshObjects();
@@ -162,7 +174,7 @@ namespace EasyEngine
         /// half a second apart on the same objects are one undo step.</summary>
         private void Nudge(int dx, int dy, bool big)
         {
-            var targets = _selection.Where(o => !o.Locked).ToList();
+            var targets = _selection.Where(o => !IsLockedObj(o)).ToList();
             if (targets.Count == 0) { Status(L.T("Locked — unlock to edit")); return; }
             double step = big ? (_snap ? GridSize : 10) : 1;
             string ids = string.Join(",", targets.Select(o => o.Id));
@@ -235,7 +247,7 @@ namespace EasyEngine
         /// <summary>Width or Height typed in the inspector (undo already pushed); Keep proportions sets the other one.</summary>
         private void SetSize(GameObjectData obj, double? w, double? h)
         {
-            if (obj.Locked) return;
+            if (IsLockedObj(obj)) return;
             double W = Math.Max(2, w ?? obj.Width), H = Math.Max(2, h ?? obj.Height);
             double? ratio = obj.KeepAspect ? AspectOf(obj, new Rect(0, 0, obj.Width, obj.Height)) : null;
             bool keep = ratio != null;
@@ -275,7 +287,7 @@ namespace EasyEngine
 
         private void SetKeepAspect(GameObjectData obj, bool on)
         {
-            if (obj.Locked || obj.KeepAspect == on) return;
+            if (IsLockedObj(obj) || obj.KeepAspect == on) return;
             PushUndo();
             obj.KeepAspect = on;
             if (on && obj.Height > 0) obj.Aspect = obj.Width / obj.Height; // kept when there is no picture
@@ -285,7 +297,7 @@ namespace EasyEngine
         /// <summary>Sets the box to the picture's real pixel size (the top-left corner stays).</summary>
         private void OriginalSize(GameObjectData obj)
         {
-            if (obj.Locked || ImageSize(obj) is not (int w, int h)) return;
+            if (IsLockedObj(obj) || ImageSize(obj) is not (int w, int h)) return;
             if (obj.Width == w && obj.Height == h) return;
             PushUndo();
             obj.Width = w; obj.Height = h;
@@ -308,7 +320,7 @@ namespace EasyEngine
         internal void TestSetZ(GameObjectData o, int z) => SetZ(o, z);
         internal void TestSetKeepAspect(GameObjectData o, bool on) => SetKeepAspect(o, on);
         internal void TestTypeSize(GameObjectData o, double? w, double? h) { PushUndo(); SetSize(o, w, h); }
-        internal string TestObjectRow(GameObjectData o) => ObjectRowContent(o) is string s ? s : "🔒 " + (((DockPanel)ObjectRowContent(o)).Children.OfType<TextBlock>().First().Text);
+        internal string TestObjectRow(GameObjectData o) => (o.Locked ? "🔒 " : "") + ((DockPanel)ObjectRowContent(o)).Children.OfType<TextBlock>().First().Text;
 
         /// <summary>Presses the mouse on the object's picture in the scene; true = a drag started.</summary>
         internal bool TestPressOn(GameObjectData o)
