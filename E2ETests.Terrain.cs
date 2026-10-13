@@ -26,6 +26,7 @@ public partial class App
         var pw = new PlayWindow(project, "World");
         try
         {
+            pw.TSeed(5); // the night slimes come out on a random side: seeded, so a slime that falls into the dug shaft can't make the run flaky
             pw.TLoad();
             pw.TSteps(30);
             long seq = 0;

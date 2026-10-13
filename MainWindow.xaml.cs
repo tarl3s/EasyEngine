@@ -1666,6 +1666,9 @@ namespace EasyEngine
             Grid.SetColumn(title, 0); Grid.SetColumn(help, 1); Grid.SetColumn(remove, 2);
             header.Children.Add(title); header.Children.Add(help); header.Children.Add(remove);
             panel.Children.Add(header);
+            // two behaviors that can't work together on this object: say so gently, right on the card (BehaviorCombos.cs)
+            if (BehaviorCombos.Warning(obj, bh) is string clash)
+                panel.Children.Add(new TextBlock { Text = "⚠ " + clash, TextWrapping = TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 0, 0, 8), Tag = "combo-warning" });
 
             if (bh.Kind == BehaviorKind.Tilemap)
             {

@@ -84,6 +84,8 @@ namespace EasyEngine
         public static bool BlockLighting(Scene s) =>
             s.Layers.SelectMany(l => l.Objects).SelectMany(o => o.Behaviors).Any(b => b.Kind == BehaviorKind.DayNight && b.Num("lightStyle", 0) >= 0.5);
         private static readonly Func<ParamCtx, bool> Never = _ => false; // stored and edited by another field's editor
+        // Chase / Smart Chase: chase only while the target is this near (0 = always) — with a Patrol on it, it patrols the rest of the time
+        private static NumParam ChaseRange() => new("range", "Only when closer than", 0, "0|Always (any distance)", "150|150 px — very close", "300|300 px — near", "500|500 px — far", "800|800 px — very far");
 
         private static TextParam T(string k, string l, string d, PickKind p = PickKind.Text, params string[] o) => new(k, l, d, p, o);
         private static TextParam TNone(string k, string l, string d, PickKind p) => new(k, l, d, p) { AllowNone = true };
@@ -156,8 +158,8 @@ namespace EasyEngine
                 Texts = { T("path","Path points (drawn)","", PickKind.Special) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Chase, Name = "Chase", Icon = "🎯",
-                Desc = "Chases another object by name.",
-                Nums = { new("speed","Speed",140) },
+                Desc = "Chases another object by name (with gravity it runs after it on the ground instead of flying). 'Only when closer than' makes it chase only while the target is that near — add a Patrol too and it patrols until the target comes close, then chases.",
+                Nums = { new("speed","Speed",140), ChaseRange() },
                 Texts = { T("target","Chases","Player", PickKind.Object) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Spin, Name = "Spin", Icon = "↻",
@@ -415,7 +417,7 @@ namespace EasyEngine
 
             new BehaviorInfo { Kind = BehaviorKind.PathChase, Name = "Smart Chase (pathfinding)", Icon = "🧭",
                 Desc = "Chases a target but navigates AROUND walls/obstacles using grid pathfinding (unlike plain Chase, which goes in a straight line). Best for top-down enemies. 'cell' is the grid resolution.",
-                Nums = { new("speed","Speed",140), new("cell","Grid cell size",32), new("recalc","Recalc interval (s)",0.3) },
+                Nums = { new("speed","Speed",140), new("cell","Grid cell size",32), new("recalc","Recalc interval (s)",0.3), ChaseRange() },
                 Texts = { T("target","Chases","Player", PickKind.Object) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Spring, Name = "Spring / Bounce Pad", Icon = "🔼",
