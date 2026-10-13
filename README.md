@@ -46,7 +46,7 @@ old version and opens again. Your projects are never touched. The sample games a
 
 ## What it can do
 
-- **Visual scene editor** — drag and drop, resize (keeping proportions if you want), arrow-key nudge, grid/snap, layers
+- **Visual scene editor** — Ctrl+C / Ctrl+V, lock a finished scene, drag and drop, resize (keeping proportions if you want), arrow-key nudge, grid/snap, layers
   (including UI layers fixed to the screen) that you can reorder, lock, fade (opacity) or turn off in the game,
   front/back order inside a layer, lock objects so they stay put, turn objects off until a rule brings them in, zoom,
   movable panels, undo/redo, multiple scenes (duplicate a scene to make the next level).
@@ -58,7 +58,8 @@ old version and opens again. Your projects are never touched. The sample games a
   hotbar, shops and crafting, collectibles (worth points), doors between scenes, springs, pushable blocks, turrets that
   aim, keeping things inside the screen, and more. Movers, turrets, spawners and hazards can work **only while**
   something is true (the player is near, it is night, a switch was pressed).
-  Every setting is **picked from a list** — no syntax to learn.
+  Every setting is **picked from a list** — no syntax to learn. Some behaviors can be added twice (two Interacts
+  make an on/off switch), and "Only while" conditions are picked too (a key is held, a variable is…, the player is near…).
 - **🧩 Blocks for custom logic** — Scratch-style *when → do* blocks, with global, scene and per-object variables
   (numbers, yes/no, text, colours and lists), an inventory and dialogue. Describe what you want and **✨ the AI adds the
   blocks**, or start from a **📚 recipe** (fade out, blink, follow the mouse, move in a circle, a countdown…).

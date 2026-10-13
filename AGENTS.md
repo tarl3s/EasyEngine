@@ -15,7 +15,7 @@ that game needs come first (rotational physics/ragdolls/vehicles come last). Lon
 - Repo: `github.com/tarl3s/EasyEngine` — **public** (MIT, since v0.11.0), branch `main`. Everything you push is public:
   no secrets, no personal paths in docs meant for players. `README.md` (English) and `README.pt-BR.md` are the public
   face — keep both in sync when features change.
-- Version: `0.13.0` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
+- Version: `0.13.1` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
 - The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
   this file are in **English** (the editor UI is 100% English by request; only `README.pt-BR.md` is Portuguese).
 

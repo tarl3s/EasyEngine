@@ -49,7 +49,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 
 ## O que ela faz
 
-- **Editor visual de cenas** — arrastar e soltar, redimensionar (mantendo as proporções se quiser), mover com as setas,
+- **Editor visual de cenas** — Ctrl+C / Ctrl+V, trancar uma cena pronta, arrastar e soltar, redimensionar (mantendo as proporções se quiser), mover com as setas,
   grade/snap, camadas (inclusive de UI fixas na tela) que você reordena, tranca, deixa transparentes ou desliga no
   jogo, ordem frente/trás dentro da camada, travar objetos no lugar, desligar objetos até uma regra trazê-los, zoom,
   painéis móveis, desfazer/refazer, várias cenas (duplique uma cena para fazer a próxima fase).
@@ -60,7 +60,8 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   perseguição, patrulha (até por um caminho que você desenha), vida/dano/knockback, itens que você usa (espada,
   machado, picareta, os seus), hotbar, lojas e crafting, coletáveis (que valem pontos), portas entre cenas, molas,
   blocos de empurrar, torres que miram, manter coisas dentro da tela e muito mais. Coisas que andam, torres, geradores e
-  perigos podem funcionar **só enquanto** algo for verdade (o jogador está perto, é noite, um botão foi apertado). Toda opção é **escolhida numa lista** — nada de sintaxe pra decorar.
+  perigos podem funcionar **só enquanto** algo for verdade (o jogador está perto, é noite, um botão foi apertado). Toda opção é **escolhida numa lista** — nada de sintaxe pra decorar. Alguns comportamentos podem ser colocados duas vezes
+  (dois Interact viram um liga/desliga), e as condições "Only while" também são escolhidas (tecla pressionada, variável é…, jogador perto…).
 - **🧩 Blocos pra lógica própria** — blocos no estilo Scratch (*quando → faça*), com variáveis globais, de cena e
   por objeto (números, sim/não, texto, cores e listas), inventário e diálogos. Descreva o que quer e **✨ a IA adiciona
   os blocos**, ou comece por uma **📚 receita** (sumir aos poucos, piscar, seguir o mouse, andar em círculo, contagem…).
