@@ -2150,7 +2150,7 @@ namespace EasyEngine
                 case "mousedown": return _mouseDown ? 1 : 0;
                 case "rightdown": return _rmbDown ? 1 : 0;
                 case "wheel": return _wheelDelta > 0 ? 1 : (_wheelDelta < 0 ? -1 : 0);
-                case "time": return _clock.Elapsed.TotalSeconds;
+                case "time": return _gameTime; // seconds of play (stops while paused; the same headless)
                 case "true": return 1;
                 case "false": return 0;
                 case "pi": return Math.PI;
@@ -2177,6 +2177,8 @@ namespace EasyEngine
                     case "w": case "width": return e.W; case "h": case "height": return e.H;
                     case "cx": return e.CX; case "cy": return e.CY;
                     case "rot": return e.Rot; case "facing": return e.Facing;
+                    case "opacity": case "alpha": return e.Visual.Opacity; case "scale": return e.TweenScale;
+                    case "speed": return e.SpeedScale; case "maxhealth": case "maxhp": return e.MaxHealth;
                     case "health": case "hp": return e.CurHealth;
                     case "grounded": return e.Grounded ? 1 : 0;
                     case "dead": return e.Dead ? 1 : 0;

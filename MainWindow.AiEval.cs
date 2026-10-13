@@ -21,6 +21,7 @@ namespace EasyEngine
 
         public Task<(bool ok, string summary, string reply)> EvalBuild(string prompt) => AiBuildAsync(prompt);
         public void EvalReset() => ResetTestScene();
+        public bool EvalCompact { get; set; } // --aitest --compact: the cloud's shorter prompt on a local model too
         public Project EvalProject => _project;
         public Scene EvalScene => _scene;
         public string EvalDump() => DumpState();

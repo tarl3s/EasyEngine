@@ -2558,7 +2558,7 @@ namespace EasyEngine
         // 🔨 Build: ask the AI for a project spec and apply it (one retry with a firmer nudge). Shared by the panel and --aieval.
         private async Task<(bool ok, string summary, string reply)> AiBuildAsync(string prompt)
         {
-            var sys = BuildProjectPrompt(compact: _useCloud); // leaner prompt on the cloud (token limits); full detail on local
+            var sys = BuildProjectPrompt(compact: _useCloud || EvalCompact); // leaner prompt on the cloud (token limits); full detail on local
             var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
             bool ok = ApplyProjectSpec(reply, prompt, out var summary);
             if (ok) return (true, summary, reply);
@@ -2918,6 +2918,11 @@ namespace EasyEngine
             if (bounce is double bv) { target.Physics.Bounciness = Math.Clamp(bv, 0, 1); changed = true; }
             if (grav is double gv) { target.Physics.GravityScale = Math.Clamp(gv, -5, 5); changed = true; }
             if (HasK(BehaviorKind.Platformer) || gravityIntent || customJumps) desired = PhysicsMode.Dynamic;
+            else if (bounce > 0 && askedMode != PhysicsMode.Static) // a bouncy ball: it falls and bounces (a wall never bounces)
+            {
+                desired = PhysicsMode.Dynamic;
+                if (result.RemoveAll(b => b.Kind == BehaviorKind.Solid) > 0) changed = true;
+            }
             else if (HasK(BehaviorKind.Solid) && !hasMover) desired = PhysicsMode.Static;
             // the model's own "physics" is trusted only where it can't pin a HUD/door/pickup to gravity by mistake
             else if ((askedMode == PhysicsMode.Dynamic || bounce > 0) && !result.Any(b => StaysPut.Contains(b.Kind))) desired = PhysicsMode.Dynamic;

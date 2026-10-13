@@ -38,6 +38,7 @@ namespace EasyEngine
                 Directory.CreateDirectory(temp);
                 var editor = new MainWindow(ProjectIO.CreateNew("AiTest", temp)); // constructed, not shown
                 editor.EvalUseAi(choice);
+                editor.EvalCompact = args.Contains("--compact");
                 var cases = AiEvalCases().Where(k => only.Length == 0 || only.Any(o => k.Id.Contains(o, StringComparison.OrdinalIgnoreCase))).ToList();
                 _ = RunAiEvalAsync(editor, cases, log, choice.StartsWith("cloud:")).ContinueWith(t => Dispatcher.Invoke(() =>
                 {
@@ -271,7 +272,11 @@ namespace EasyEngine
                 AiEvalKit.Run(pw, 4, p => { minX = Math.Min(minX, p.TX("Box")); maxX = Math.Max(maxX, p.TX("Box")); minY = Math.Min(minY, p.TY("Box")); maxY = Math.Max(maxY, p.TY("Box")); });
                 return Need(maxX - minX > 40 && maxY - minY > 40, $"x range {maxX - minX:0}, y range {maxY - minY:0}");
             }, box);
-            C("invisible", "make the Box invisible", k => Need(k.Obj("Box") is { } b && b.Opacity < 0.05, "Box still visible"), box);
+            C("invisible", "make the Box invisible", k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.3);
+                return Need(pw.TOpacity("Box") < 0.05 || pw.TDead("Box") == false && !pw.TVisible("Box"), $"Box opacity {pw.TOpacity("Box"):0.00}");
+            }, box);
             C("ball-bounces", "make a ball that bounces", k =>
                 Need(k.New.Any(o => o.Physics.Mode == PhysicsMode.Dynamic && o.Physics.Bounciness >= 0.4), "no new dynamic object with bounciness"));
             C("pt-wall-right", "coloque uma parede no lado direito da tela", k =>

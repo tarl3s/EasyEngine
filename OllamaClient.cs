@@ -64,7 +64,7 @@ namespace EasyEngine
                 System = system,
                 Stream = false,
                 Format = json ? "json" : null,   // forces valid JSON output (huge reliability win on small models)
-                Options = new GenerateOptions { Temperature = temperature }
+                Options = new GenerateOptions { Temperature = temperature, NumCtx = ContextFor(system.Length + prompt.Length) }
             };
             var content = new StringContent(JsonSerializer.Serialize(body, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }), Encoding.UTF8, "application/json");
 
@@ -107,9 +107,15 @@ namespace EasyEngine
             [JsonPropertyName("options")] public GenerateOptions? Options { get; set; }
         }
 
+        // Ollama runs a model with a small window (often 4096 tokens) unless asked: a longer prompt is silently cut and the
+        // model never sees the start of its instructions. Ask for room for the whole prompt (~3 characters a token) plus
+        // the answer, in steps of 2048 so the model isn't reloaded for every small change.
+        internal static int ContextFor(int promptChars) => Math.Clamp((promptChars / 3 + 2500 + 2047) / 2048 * 2048, 4096, 32768);
+
         private class GenerateOptions
         {
             [JsonPropertyName("temperature")] public double Temperature { get; set; }
+            [JsonPropertyName("num_ctx")] public int NumCtx { get; set; }
         }
 
         private class GenerateResponse
