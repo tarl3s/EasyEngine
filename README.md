@@ -46,7 +46,8 @@ old version and opens again. Your projects are never touched. The sample games a
 
 ## What it can do
 
-- **Visual scene editor** — drag and drop, resize, grid/snap, layers (including UI layers fixed to the screen), zoom,
+- **Visual scene editor** — drag and drop, resize (keeping proportions if you want), arrow-key nudge, grid/snap, layers
+  (including UI layers fixed to the screen), front/back order inside a layer, lock objects so they stay put, zoom,
   movable panels, undo/redo, multiple scenes.
 - **The AI does the logic** — select an object, describe what it should do, and the AI applies real behaviors.
   **🔨 Build** edits the game, **💡 Brainstorm** talks ideas through, **🎓 Learn** teaches you how to use anything

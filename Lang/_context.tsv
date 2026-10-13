@@ -1381,3 +1381,27 @@ y	step camera, step move, step moveto, step spawn
 ＋ New…	Dropdown.cs
 ＋ adds to all {0} selected objects.	MainWindow.xaml.cs
 ／ Line	SpriteEditorWindow.cs
+A locked object can't be moved, resized, deleted or edited in the editor. The game ignores the lock.	MainWindow.LockZ.cs
+APPEARANCE	MainWindow.xaml.cs
+Arrows: move · Shift: 10 px	MainWindow.xaml.cs
+Choose image	MainWindow.xaml.cs
+Error: {0}	MainWindow.Params.cs, MainWindow.xaml.cs
+Give it a picture first: this sets the size to the picture's real pixels.	MainWindow.LockZ.cs
+Higher draws in front of the other objects in this layer (it never moves above another layer).	MainWindow.LockZ.cs
+Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.xaml.cs
+Locked {0}	MainWindow.LockZ.cs
+Locked — click to unlock	MainWindow.LockZ.cs
+Locked — unlock to edit	MainWindow.LockZ.cs, MainWindow.xaml.cs
+Original size	MainWindow.LockZ.cs
+PHYSICS	MainWindow.xaml.cs
+Resizing keeps the picture's proportions. Hold Shift while dragging a handle to keep them just once.	MainWindow.LockZ.cs
+Size set to the picture's {0} × {1} px	MainWindow.LockZ.cs
+Skipped "{0}": it's locked (unlock it to let the AI change it)	MainWindow.LockZ.cs
+To back	MainWindow.LockZ.cs
+To front	MainWindow.LockZ.cs
+Unlocked {0}	MainWindow.LockZ.cs
+Use the picture's real size: {0} × {1} px	MainWindow.LockZ.cs
+Z layer	MainWindow.LockZ.cs
+🔒 Locked	MainWindow.LockZ.cs
+🔓 Unlocked	MainWindow.LockZ.cs
+🔗 Keep proportions	MainWindow.LockZ.cs

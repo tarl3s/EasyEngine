@@ -68,6 +68,12 @@ public partial class App
             // and the blocks scrolled to the end (colour and list blocks); the readability check below then measures them
             foreach (var sv in Descendants(blocks).OfType<System.Windows.Controls.ScrollViewer>().Take(1)) { sv.ScrollToEnd(); blocks.UpdateLayout(); }
             c.Snapshot(blocks, "block_editor_end");
+            // the player locked: the 🔒 button and its note stay readable, the other rows are read-only (dimmed), the
+            // Objects list shows the 🔒 (MainWindow.LockZ.cs); the readability check below measures it too
+            editor.TestClickLock();
+            editor.InspectorScroll.ScrollToTop(); editor.UpdateLayout();
+            c.Snapshot(editor, "editor_locked");
+            editor.TestMarkClean(); // a throwaway project: closing it mustn't ask to save
 
             // every editor window open right now (the game windows are the game's own look)
             int texts = 0, faint = 0;
