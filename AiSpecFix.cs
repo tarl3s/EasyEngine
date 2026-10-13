@@ -31,7 +31,7 @@ namespace EasyEngine
             "removeitem", "boost", "setspeed", "say", "save", "load", "emit", "tween", "setvolume", "breaktile", "settime", "playsound", "log",
         };
 
-        private static readonly Dictionary<string, string> WhenSynonyms = new(StringComparer.OrdinalIgnoreCase)
+        internal static readonly Dictionary<string, string> WhenSynonyms = new(StringComparer.OrdinalIgnoreCase)
         {
             ["wait"] = "after", ["delay"] = "after", ["afterseconds"] = "after", ["aftertime"] = "after", ["once"] = "after", ["later"] = "after",
             ["every"] = "timer", ["interval"] = "timer", ["repeat"] = "timer", ["periodic"] = "timer", ["everyseconds"] = "timer",
@@ -46,12 +46,14 @@ namespace EasyEngine
             ["update"] = "always", ["frame"] = "always", ["forever"] = "always", ["tick"] = "always", ["loop"] = "always", ["everyframe"] = "always",
             ["condition"] = "expr", ["if"] = "expr", ["while"] = "expr", ["when"] = "expr",
             ["variable"] = "ifvar", ["var"] = "ifvar", ["ifvariable"] = "ifvar", ["whenvar"] = "ifvar",
+            ["timeout"] = "after", ["leftclick"] = "click", ["ready"] = "start", ["keyhold"] = "key", ["keyup"] = "keypress",
+            ["touching"] = "touch", ["touched"] = "touch", ["hover"] = "mouseover", ["mouseenter"] = "mouseover", ["night"] = "isnight", ["day"] = "isday",
         };
 
-        private static readonly Dictionary<string, string> DoSynonyms = new(StringComparer.OrdinalIgnoreCase)
+        internal static readonly Dictionary<string, string> DoSynonyms = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["print"] = "say", ["message"] = "say", ["dialog"] = "say", ["dialogue"] = "say", ["talk"] = "say", ["speak"] = "say", ["showmessage"] = "say",
-            ["showtext"] = "say", ["text"] = "say",
+            ["message"] = "say", ["dialog"] = "say", ["dialogue"] = "say", ["talk"] = "say", ["speak"] = "say", ["showmessage"] = "say",
+            ["showtext"] = "say", ["text"] = "say", ["print"] = "log",
             ["kill"] = "destroy", ["remove"] = "destroy", ["delete"] = "destroy", ["die"] = "destroy", ["despawn"] = "destroy",
             ["changescene"] = "goscene", ["loadscene"] = "goscene", ["scene"] = "goscene", ["nextlevel"] = "goscene", ["gotoscene"] = "goscene", ["gotolevel"] = "goscene",
             ["add"] = "addvar", ["increment"] = "addvar", ["increase"] = "addvar", ["addscore"] = "addvar", ["changevar"] = "addvar",
@@ -64,12 +66,15 @@ namespace EasyEngine
             ["particles"] = "emit", ["explode"] = "emit", ["explosion"] = "emit", ["burst"] = "emit",
             ["animate"] = "tween", ["glide"] = "tween", ["ease"] = "tween", ["fade"] = "tween", ["fadeout"] = "tween", ["fadein"] = "tween",
             ["grow"] = "tween", ["shrink"] = "tween",
-            ["speed"] = "boost", ["multiplyspeed"] = "boost", ["speedup"] = "boost",
+            ["speed"] = "velocity", ["multiplyspeed"] = "boost", ["speedup"] = "boost",
             ["fire"] = "shoot", ["shot"] = "shoot", ["bullet"] = "shoot",
             ["create"] = "spawn", ["instantiate"] = "spawn", ["clone"] = "spawn",
             ["setproperty"] = "set", ["setprop"] = "set", ["property"] = "set",
             ["impulse"] = "velocity", ["setvelocity"] = "velocity", ["push"] = "velocity",
-            ["giveitem"] = "additem", ["takeitem"] = "removeitem",
+            ["giveitem"] = "additem", ["takeitem"] = "removeitem", ["give"] = "additem",
+            ["particle"] = "emit", ["sparks"] = "emit", ["emitparticles"] = "emit", ["rotation"] = "rotate", ["destroyself"] = "destroy",
+            ["addvariable"] = "addvar", ["console"] = "log", ["debug"] = "log", ["sfx"] = "playsound", ["moveat"] = "velocity",
+            ["projectile"] = "shoot", ["hop"] = "jump", ["volume"] = "setvolume", ["accel"] = "accelerate",
         };
 
         private static readonly Dictionary<string, string> OpSynonyms = new(StringComparer.OrdinalIgnoreCase)

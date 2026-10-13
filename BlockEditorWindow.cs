@@ -80,6 +80,8 @@ namespace EasyEngine
             new("spawn",     L.T("Spawn an object"), new[] { new Field("object", L.T("Object"), "obj"), new Field("at", L.T("From"), "choice", "", new[] { "", "top", "near" }) },
                 L.T("From (empty) = at this object · top = falling from the top of the screen · near = on the ground, a little to the left or right.")),
             new("destroy",   L.T("Destroy itself"), Array.Empty<Field>()),
+            new("hide",      L.T("Hide"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self") }, L.T("Makes it invisible — it is still there and still touches things. \"Show\" brings it back.")),
+            new("show",      L.T("Show"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self") }, L.T("Makes a hidden object visible again.")),
             new("goscene",   L.T("Go to another scene"), new[] { new Field("scene", L.T("Scene"), "scene") }),
             new("setvar",    L.T("Set a variable"), new[] { new Field("var", L.T("Variable"), "numvar"), new Field("to", L.T("To"), "val", "0") }),
             new("addvar",    L.T("Add to a variable"), new[] { new Field("var", L.T("Variable"), "numvar"), new Field("amount", L.T("Amount"), "val", "1") }),

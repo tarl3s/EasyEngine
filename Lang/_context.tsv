@@ -495,6 +495,7 @@ Heavy (no knockback) (0/1)	behavior BossAI
 Height	MainWindow.xaml.cs, step jump
 Heights in blocks from the ground level: up (sky) is +, down is −.	MainWindow.TerrainBlocks.cs
 Hexagon	SpriteEditorWindow.cs
+Hide	BlockEditorWindow.cs
 Hide an object	step hide
 Higher draws in front of the other objects in this layer (it never moves above another layer).	MainWindow.LockZ.cs
 Hills	behavior Terrain
@@ -618,6 +619,8 @@ Make an attack first (Attacks tab).	SequenceEditorWindow.cs
 Make it	MainWindow.Sequences.cs
 Make this the start scene (the game begins here)	MainWindow.xaml
 Make your own tool or weapon. It goes into this hotbar, and clicking uses it like the axe or the sword.	NewItemDialog.cs
+Makes a hidden object visible again.	BlockEditorWindow.cs
+Makes it invisible — it is still there and still touches things. "Show" brings it back.	BlockEditorWindow.cs
 Makes text and buttons bigger or smaller in every window.	SettingsWindow.cs
 Map	behavior Generator
 Map width (px)	behavior Minimap
@@ -915,7 +918,7 @@ Shoot	BlockEditorWindow.cs, step shoot
 Shooter	behavior Shooter
 Shop / Crafting bench	behavior Shop
 Shovel	ToolArt.cs
-Show	MainWindow.xaml.cs
+Show	BlockEditorWindow.cs, MainWindow.xaml.cs
 Show a message	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.cs
 Show an object	step show
 Show one more thing on the map, with its own colour	MainWindow.Minimap.cs

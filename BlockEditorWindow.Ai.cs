@@ -175,40 +175,9 @@ namespace EasyEngine
 
         // ------------------------------------------------------------ reading the reply
 
-        // what models write instead of the block ids (letters only, lower case)
-        private static readonly Dictionary<string, string> WhenSynonyms = new()
-        {
-            ["wait"] = "after", ["delay"] = "after", ["afterseconds"] = "after", ["aftertime"] = "after", ["timeout"] = "after", ["once"] = "after", ["later"] = "after",
-            ["every"] = "timer", ["interval"] = "timer", ["repeat"] = "timer", ["everyseconds"] = "timer", ["periodic"] = "timer", ["loop"] = "timer",
-            ["clicked"] = "click", ["tap"] = "click", ["mouseclick"] = "click", ["leftclick"] = "click",
-            ["spawn"] = "start", ["spawned"] = "start", ["begin"] = "start", ["created"] = "start", ["create"] = "start", ["init"] = "start", ["ready"] = "start", ["load"] = "start", ["appear"] = "start",
-            ["update"] = "always", ["tick"] = "always", ["frame"] = "always", ["everyframe"] = "always", ["forever"] = "always",
-            ["keydown"] = "key", ["keyheld"] = "key", ["hold"] = "key", ["held"] = "key", ["whilekey"] = "key", ["keyhold"] = "key",
-            ["press"] = "keypress", ["keypressed"] = "keypress", ["keyup"] = "keypress",
-            ["collide"] = "touch", ["collision"] = "touch", ["hit"] = "touch", ["overlap"] = "touch", ["touching"] = "touch", ["touches"] = "touch", ["contact"] = "touch", ["touched"] = "touch",
-            ["die"] = "death", ["dies"] = "death", ["dead"] = "death", ["destroyed"] = "death",
-            ["hover"] = "mouseover", ["mouseenter"] = "mouseover",
-            ["variable"] = "ifvar", ["var"] = "ifvar", ["night"] = "isnight", ["day"] = "isday", ["condition"] = "expr", ["if"] = "expr",
-        };
-
-        private static readonly Dictionary<string, string> DoSynonyms = new()
-        {
-            ["fade"] = "tween", ["fadeout"] = "tween", ["fadein"] = "tween", ["disappear"] = "tween", ["vanish"] = "tween", ["glide"] = "tween", ["animate"] = "tween", ["moveto"] = "tween",
-            ["particles"] = "emit", ["particle"] = "emit", ["burst"] = "emit", ["explode"] = "emit", ["explosion"] = "emit", ["sparks"] = "emit", ["emitparticles"] = "emit",
-            ["spin"] = "rotate", ["turn"] = "rotate", ["rotation"] = "rotate",
-            ["kill"] = "destroy", ["die"] = "destroy", ["remove"] = "destroy", ["delete"] = "destroy", ["destroyself"] = "destroy", ["despawn"] = "destroy",
-            ["increment"] = "addvar", ["add"] = "addvar", ["increase"] = "addvar", ["addvariable"] = "addvar", ["addscore"] = "addvar", ["changevar"] = "addvar",
-            ["setvariable"] = "setvar", ["assign"] = "setvar",
-            ["message"] = "say", ["show"] = "say", ["dialog"] = "say", ["dialogue"] = "say", ["talk"] = "say", ["speak"] = "say", ["showmessage"] = "say",
-            ["print"] = "log", ["console"] = "log", ["debug"] = "log",
-            ["sound"] = "playsound", ["play"] = "playsound", ["sfx"] = "playsound",
-            ["speed"] = "velocity", ["setvelocity"] = "velocity", ["moveat"] = "velocity",
-            ["fire"] = "shoot", ["projectile"] = "shoot",
-            ["create"] = "spawn", ["instantiate"] = "spawn", ["clone"] = "spawn",
-            ["scene"] = "goscene", ["gotoscene"] = "goscene", ["loadscene"] = "goscene", ["changescene"] = "goscene",
-            ["giveitem"] = "additem", ["give"] = "additem", ["takeitem"] = "removeitem",
-            ["accel"] = "accelerate", ["hop"] = "jump", ["setproperty"] = "set", ["volume"] = "setvolume",
-        };
+        // what models write instead of the block ids: the same table the Build mode uses (AiSpecFix)
+        private static Dictionary<string, string> WhenSynonyms => AiSpecFix.WhenSynonyms;
+        private static Dictionary<string, string> DoSynonyms => AiSpecFix.DoSynonyms;
 
         // a field a block doesn't have → the first of these it does have (only when that one isn't given too)
         private static readonly Dictionary<string, string[]> KeySynonyms = new()
@@ -359,7 +328,7 @@ namespace EasyEngine
         private static void FixTween(string raw, Dictionary<string, JsonElement> dv)
         {
             static JsonElement J(string json) { using var d = JsonDocument.Parse(json); return d.RootElement.Clone(); }
-            bool fade = raw is "fade" or "fadeout" or "fadein" or "disappear" or "vanish";
+            bool fade = raw is "fade" or "fadeout" or "fadein";
             if (fade) dv["prop"] = J("\"opacity\"");
             if (fade && !dv.ContainsKey("to")) dv["to"] = J(raw == "fadein" ? "1" : "0");
             if (fade && !dv.ContainsKey("duration")) dv["duration"] = J("1");
