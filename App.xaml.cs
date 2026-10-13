@@ -51,7 +51,7 @@ public partial class App : Application
         if (playIdx >= 0 && playIdx + 1 < e.Args.Length) { RunStandalone(e.Args[playIdx + 1]); return; }
 
         // test modes create many throwaway projects — keep them out of the user's Recent list
-        string[] testModes = { "--selftest", "--aitest", "--blocktest", "--exprtest", "--behtest", "--aijsontest", "--fulltest", "--e2e" };
+        string[] testModes = { "--selftest", "--aitest", "--blocktest", "--exprtest", "--behtest", "--aijsontest", "--fulltest", "--e2e", "--pairtest" };
         if (e.Args.Any(a => testModes.Contains(a))) ProjectIO.SuppressRecent = true;
 
         if (e.Args.Contains("--restore-recent")) { RunRestoreRecent(); return; }
@@ -75,6 +75,8 @@ public partial class App : Application
         if (e.Args.Contains("--aijsontest")) { RunAiJsonTest(); return; }
 
         if (e.Args.Contains("--fulltest")) { RunFullTest(); return; }
+
+        if (e.Args.Contains("--pairtest")) { RunPairTest(e.Args); return; } // dev tool: every pair of behaviors on one object (App.PairTest.cs)
 
         if (e.Args.Contains("--mining")) { RunDemoBuild("mining", "Mining Demo", MiningGame.Build); return; }
 
