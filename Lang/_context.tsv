@@ -142,6 +142,7 @@ Belongs to this scene. Reset every time the scene loads.	VariablesWindow.xaml.cs
 Big (32 px)	behavior DayNight
 Big title	step title
 Blink	behavior Label
+Blink forever	BlockEditorWindow.Recipes.cs
 Block size	behavior Terrain
 Block {0}	BlockEditorWindow.cs, MainWindow.TerrainBlocks.cs
 Blocks (light per block)	behavior DayNight
@@ -229,6 +230,7 @@ Click a pixel to take its colour.	SpriteEditorWindow.cs
 Click an area to fill it with the colour.	SpriteEditorWindow.cs
 Click each corner, then click the first point again to close it (or double-click / Enter). Esc cancels.	SpriteEditorWindow.cs
 Click it	behavior Switch
+Click it: +1 score	BlockEditorWindow.Recipes.cs
 Click or drag to draw.	SpriteEditorWindow.cs
 Click or drag to erase.	SpriteEditorWindow.cs
 Click to add to the selected layer	MainWindow.xaml
@@ -269,6 +271,7 @@ Could not start {0}	MainWindow.xaml.cs
 Couldn't reach {0}. Check your internet connection.	CloudClient.cs
 Couldn't talk to Ollama. Is it installed and running? (server at localhost:11434)	OllamaClient.cs
 Couldn't use that picture:	LookPicker.cs
+Countdown from 60 (show it with a Label "{timer}")	BlockEditorWindow.Recipes.cs
 Create	LauncherWindow.xaml, NewItemDialog.cs
 Create a layer first	MainWindow.xaml.cs
 Create an object	step spawn
@@ -340,6 +343,7 @@ Dirt color	behavior Terrain
 Dirt depth (blocks)	behavior Terrain
 Dirt drops	behavior Terrain
 Disappear (for enemies)	behavior Health
+Disappear when the Player touches it	BlockEditorWindow.Recipes.cs
 Disappears after hitting (0/1)	behavior Damager
 Disappears when the Player touches it. It can add points to a variable (a coin worth 10 adds 10 to score).	behavior Collectible
 Distance	behavior Patrol
@@ -401,6 +405,7 @@ Every (s)	behavior Spawner, step shoot
 Every few seconds	BlockEditorWindow.cs
 Every frame (always)	BlockEditorWindow.cs
 Every free AI is out of quota for now (it comes back during the day). Try again later, add a key for another free provider (⚙), or switch to the local AI.	MainWindow.xaml.cs
+Explode when it dies	BlockEditorWindow.Recipes.cs
 Export	App.xaml.cs, MainWindow.xaml, MainWindow.xaml.cs
 Export complete	MainWindow.xaml.cs
 Export failed	MainWindow.xaml.cs
@@ -417,6 +422,7 @@ FPS	AnimationWindow.xaml
 FRAMES	AnimationWindow.xaml
 Fade back in	step fadein
 Fade in/out	behavior Label
+Fade out after 5 seconds	BlockEditorWindow.Recipes.cs
 Fade to a colour	step fadeout
 Failed	MainWindow.xaml.cs
 Falling from the top of the screen	behavior Spawner
@@ -444,6 +450,7 @@ Floating	MainWindow.xaml.cs
 Flower grass	MainWindow.TerrainBlocks.cs
 Flying (no gravity)	behavior BossAI
 Follow Camera	behavior FollowCamera
+Follow the mouse	BlockEditorWindow.Recipes.cs
 Follows a path you draw with the mouse, using platformer physics — it walks the route, jumps up steps, and hops over obstacles in its way. Select it, click 'Draw path', then click points on the scene.	behavior AdvancedPatrol
 Font	MainWindow.xaml.cs
 Font size	behavior Label
@@ -557,6 +564,7 @@ Items that swing	behavior ToolUse
 Its own	BlockEditorWindow.cs
 Its target (player)	SequenceEditorWindow.cs
 Jump	BlockEditorWindow.cs, step jump
+Jump every 2 seconds	BlockEditorWindow.Recipes.cs
 Jump force	behavior Platformer
 Jump over obstacles (0/1)	behavior AdvancedPatrol
 Jump strength (platform)	behavior AdvancedPatrol
@@ -647,6 +655,7 @@ Move / float this panel	MainWindow.xaml
 Move an object	step move
 Move at a speed	BlockEditorWindow.cs
 Move down	BlockEditorWindow.cs, SequenceEditorWindow.cs
+Move in a circle	BlockEditorWindow.Recipes.cs
 Move the camera	step camera
 Move up	BlockEditorWindow.cs, SequenceEditorWindow.cs
 Movement format	behavior AdvancedPatrol
@@ -811,6 +820,7 @@ Projectile	behavior Projectile
 Property	BlockEditorWindow.cs
 Puff of particles when broken (0/1)	behavior Tilemap
 Pulse	behavior Label
+Pulse (grow and shrink)	BlockEditorWindow.Recipes.cs
 Pushable Block	behavior Pushable
 Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'); hold the button to keep using it, one swing per cooldown. Each use: the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe, or your own (shovel…). Far away = a miss; wrong tool = refused; something solid in between (wall, water, a block) = blocked, the swing only hits what is in front. 'itemDamage' = damage per item (e.g. sword=2,axe=1), 'tools' = only these items swing (comma list, empty = all), 'toolLook' = look of the fixed tool. Everything shows in the F1 console.	behavior ToolUse
 Puts a colour in a colour variable. Use it in "Change the colour" or in particles.	BlockEditorWindow.cs
@@ -821,6 +831,7 @@ Radius	behavior LightSource
 Rare	MainWindow.TerrainBlocks.cs
 Reach (px from the player)	behavior ToolUse
 Ready	MainWindow.xaml, MainWindow.xaml.cs
+Ready-made blocks for common things — add one, then change it as you like	BlockEditorWindow.Recipes.cs
 Recalc interval (s)	behavior PathChase
 Recent projects	LauncherWindow.xaml
 Rectangle	SpriteEditorWindow.cs
@@ -863,6 +874,7 @@ Rough	behavior Terrain
 Route: {0} point(s). Tip: the grid turns on while drawing so clicks snap to it.	MainWindow.xaml.cs
 Rows	MainWindow.xaml.cs
 Rules (JSON)	behavior Custom
+Run away from the player	BlockEditorWindow.Recipes.cs
 SCENE	MainWindow.xaml, MainWindow.xaml.cs
 SCENE LAYERS	MainWindow.xaml
 SELECTION	SpriteEditorWindow.cs
@@ -880,6 +892,7 @@ Saved "{0}" as a prefab under "{1}"	MainWindow.xaml.cs
 Saved to {0}	MainWindow.xaml.cs
 Saves the spot for	behavior Checkpoint
 Say (waits for Enter)	step say
+Say something when the scene starts	BlockEditorWindow.Recipes.cs
 Scattered at random	behavior Generator
 Scene	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.cs, MainWindow.xaml, step goscene
 Scene name:	MainWindow.xaml.cs
@@ -935,6 +948,7 @@ Size	BlockEditorWindow.cs
 Size set to the picture's {0} × {1} px	MainWindow.LockZ.cs
 Skip key	behavior Cutscene
 Skipped "{0}": it's locked (unlock it to let the AI change it)	MainWindow.LockZ.cs
+Skipped a rule that couldn't be read.	AiSpecFix.cs
 Skipped a rule: "{0}" isn't an action the game knows.	AiSpecFix.cs
 Skipped a rule: "{0}" isn't an event the game knows.	AiSpecFix.cs
 Sky	MainWindow.xaml.cs
@@ -970,6 +984,7 @@ Speed	behavior AdvancedPatrol, behavior Chase, behavior Particles, behavior Path
 Speed in each direction.  sideways: + = right, − = left.   up/down: + = down, − = up.   e.g. −250 sideways = move left.	BlockEditorWindow.cs
 Speed up over time	BlockEditorWindow.cs
 Spin	behavior Spin, BlockEditorWindow.cs
+Spin while R is held	BlockEditorWindow.Recipes.cs
 Spread (°)	BlockEditorWindow.cs
 Spread angle (deg)	behavior Particles
 Spring / Bounce Pad	behavior Spring
@@ -1135,6 +1150,7 @@ Wait	step wait
 Wait until it arrives	step move
 Wait until it's gone	step title
 Waiting for EasyEngine to close...	Updater.cs
+Walk toward the player	BlockEditorWindow.Recipes.cs
 Walk toward the target	step walk
 Wall jump	behavior AbilityPickup
 Wall jump (0/1)	behavior Platformer
@@ -1388,6 +1404,7 @@ y	step camera, step move, step moveto, step spawn
 📈 Phases	SequenceEditorWindow.cs
 📋 Copy look	MainWindow.xaml.cs
 📎 Add files (images / audio)	MainWindow.xaml
+📚  Recipes	BlockEditorWindow.Recipes.cs
 📥 Paste look	MainWindow.xaml.cs
 🔍  Interface size	SettingsWindow.cs
 🔒 Locked	MainWindow.LockZ.cs

@@ -186,7 +186,9 @@ namespace EasyEngine
 
             var add = new Button { Content = L.T("➕  Add a block"), Height = 34, Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 0, 14, 0), Style = Theme.Style("CardButton") };
             add.Click += (s, e) => { _rules.Add(new RuleModel()); RenderRules(); };
-            root.Children.Add(Docked(add, Dock.Bottom));
+            var addRow = new StackPanel { Orientation = Orientation.Horizontal };
+            addRow.Children.Add(add); addRow.Children.Add(RecipesButton()); // ready-made blocks (BlockEditorWindow.Recipes.cs)
+            root.Children.Add(Docked(addRow, Dock.Bottom));
 
             _list = new StackPanel();
             root.Children.Add(_scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _list });

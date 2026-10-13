@@ -137,6 +137,18 @@ public partial class App
             return noCam && noKey && keptKey && ball?.Physics.Mode == PhysicsMode.Dynamic && ball.Physics.Bounciness == 0.8
                    && Is(tint[0], "do", "tint") && Is(tint[0], "color", "#0000FF") && !tint[0].ContainsKey("var");
         });
+        t.Test("blocks: every 📚 recipe survives the block editor, and they do what they say (blink, circle, countdown)", () =>
+        {
+            var recipes = BlockEditorWindow.Recipes().Select(r => r.json).ToArray();
+            if (recipes.Any(j => App.AiEvalKit.RulesOf(t.RT(j)).Count != App.AiEvalKit.RulesOf(j).Count)) return false;
+            var blink = t.Sim(t.RT(recipes[1]), PhysicsMode.None, null); double lo = 1;
+            for (int i = 0; i < 60; i++) { blink.TStep(); lo = Math.Min(lo, blink.TOpacity("A")); }
+            var circle = t.Sim(t.RT(recipes[4]), PhysicsMode.None, null); double x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+            for (int i = 0; i < 200; i++) { circle.TStep(); x0 = Math.Min(x0, circle.TX("A")); x1 = Math.Max(x1, circle.TX("A")); y0 = Math.Min(y0, circle.TY("A")); y1 = Math.Max(y1, circle.TY("A")); }
+            var count = t.Sim(t.RT(recipes[12]), PhysicsMode.None, null);
+            count.TSteps(30); double start = count.TVar("timer"); count.TSteps(40);
+            return lo < 0.2 && x1 - x0 > 100 && y1 - y0 > 100 && start == 60 && count.TVar("timer") == 59;
+        });
         t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
         {
             var sys = NewEditor().TestBuildPrompt();
