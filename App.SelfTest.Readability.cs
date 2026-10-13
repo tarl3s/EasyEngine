@@ -48,6 +48,8 @@ public partial class App
         var sprite = Open(new SpriteEditorWindow(project, 16) { Owner = editor });
         var newItem = Open(new NewItemDialog(project) { Owner = editor });
         var input = Open(new InputDialog("Rename project", "New name:", "My Game") { Owner = editor });
+        var beep = Enumerable.Range(0, 22050).Select(i => (float)(0.5 * Math.Sin(i * 0.125) * Math.Exp(-i / 8000.0))).ToArray();
+        var audio = Open(new AudioEditorWindow(project, new AudioData(22050, new[] { beep }), "beep") { Owner = editor });
 
         c.LateChecks.Add(() =>
         {
@@ -56,6 +58,7 @@ public partial class App
             {
                 (c.Editor, "editor"), (editor, "editor_inspector"), (launcher, "launcher"), (settings, "settings"),
                 (blocks, "block_editor"), (sprite, "sprite_editor"), (newItem, "new_item"), (input, "input_dialog"),
+                (audio, "audio_editor"),
             };
             foreach (var w in Windows.OfType<AnimationWindow>().Take(1)) shots.Add((w, "animation"));
             foreach (var w in Windows.OfType<VariablesWindow>().Take(1)) shots.Add((w, "variables"));
