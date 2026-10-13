@@ -2459,12 +2459,25 @@ namespace EasyEngine
                 ? L.T("No free cloud key set. Add one in the AI settings (⚙).")
                 : L.T("Add the API key for this provider in the AI settings (⚙)."));
 
+            // Auto: any failure moves on to the next free provider. When every one is only busy for a few seconds
+            // (a per-minute limit), wait that long once and go round again instead of giving up.
+            bool auto = _cloudProvider == "auto";
             CloudException? last = null;
-            for (int i = 0; i < order.Count; i++)
+            for (int round = 0; round < 2; round++)
             {
-                var p = order[i];
-                try { return await _cloud.GenerateAsync(p, prompt, system, AiSettings.Key(p.Id), json, temperature, ct); }
-                catch (CloudException ex) when (ex.RateLimited && i < order.Count - 1) { last = ex; } // out of quota → try the next provider; other errors surface
+                double wait = double.MaxValue;
+                foreach (var p in order)
+                {
+                    try { return await _cloud.GenerateAsync(p, prompt, system, AiSettings.Key(p.Id), json, temperature, ct); }
+                    catch (CloudException ex) when (auto || ex.RateLimited)
+                    {
+                        last = ex;
+                        wait = ex.RateLimited ? Math.Min(wait, ex.RetryAfter > 0 ? ex.RetryAfter : 10) : wait;
+                    }
+                }
+                if (round > 0 || wait > 30) break;
+                Status(L.F("The free AI is busy — trying again in {0} s…", Math.Ceiling(wait)));
+                await Task.Delay(TimeSpan.FromSeconds(wait + 0.5), ct);
             }
             throw last ?? new CloudException(L.T("All free providers are out of quota right now. Try again later."));
         }
@@ -2606,31 +2619,6 @@ namespace EasyEngine
         // ============================================================
         //  AI TEST HARNESS (run many prompts through the real pipeline)
         // ============================================================
-        public async Task RunAiBatchAsync(List<string> prompts, string logPath, string model)
-        {
-            _model = model;
-            await OllamaManager.EnsureRunningAsync();
-            var sb = new StringBuilder();
-            sb.AppendLine($"AI BATCH TEST — model {model} — {DateTime.Now}");
-            int i = 0;
-            foreach (var prompt in prompts)
-            {
-                i++;
-                ResetTestScene();
-                sb.AppendLine("\n============================================================");
-                sb.AppendLine($"#{i} PROMPT: {prompt}");
-                string reply;
-                try { reply = await _ollama.GenerateAsync(_model, prompt, BuildProjectPrompt(), json: true, temperature: 0.1); }
-                catch (Exception ex) { sb.AppendLine("  GEN ERROR: " + ex.Message); continue; }
-                bool ok;
-                try { ok = ApplyProjectSpec(reply, prompt, out var summary); sb.AppendLine("  APPLIED: " + (ok ? "yes — " + summary.Replace("\n", " | ") : "NO")); }
-                catch (Exception ex) { sb.AppendLine("  APPLY ERROR: " + ex.Message); sb.AppendLine("  RAW: " + Compact(reply)); continue; }
-                sb.AppendLine("  STATE: " + DumpState());
-                if (!ok) sb.AppendLine("  RAW: " + Compact(reply));
-            }
-            try { File.WriteAllText(logPath, sb.ToString()); } catch { }
-        }
-
         private void ResetTestScene()
         {
             _project.Prefabs = PrefabFactory.Defaults();
@@ -2689,6 +2677,7 @@ namespace EasyEngine
             sb.AppendLine("  \"create\": [ {\"name\",\"x\",\"y\",\"width\",\"height\",\"color\",\"layer\",\"physics\":\"None|Static|Dynamic\",\"behaviors\":[{\"kind\",\"nums\":{},\"texts\":{}}],\"custom\":[...],\"animations\":[{\"name\",\"frames\":[],\"fps\"}],\"sprite\":\"file.png\"} ],");
             sb.AppendLine("  \"edit\":   [ {\"name\":\"<existing object>\",\"behaviors\":[...],\"remove\":[\"Kind\"],\"custom\":[...],\"animations\":[...],\"color\",\"width\",\"height\"} ],");
             sb.AppendLine("  \"layers\": [ {\"name\",\"screenSpace\":true,\"visible\":true} ],");
+            sb.AppendLine("  \"delete\": [\"<existing object name>\"],");
             sb.AppendLine("  \"variables\": {\"global\":{\"name\":value}, \"scene\":{\"name\":value}}, \"removeVariables\": {\"global\":[\"name\"], \"scene\":[\"name\"]}");
             sb.AppendLine("}");
             sb.AppendLine("Only include the fields/arrays you need. Omit empty ones.");
@@ -2696,7 +2685,7 @@ namespace EasyEngine
             sb.AppendLine();
             sb.AppendLine("KEY RULES:");
             sb.AppendLine("- To make a NEW thing (player, enemy, boss, coin, platform…), add it to \"create\" and it will be placed in the scene. ONE object can and should have MANY behaviors.");
-            sb.AppendLine("- To change an EXISTING object, add it to \"edit\" by its name. Behaviors are ADDED/UPDATED; keep existing ones unless you list them in \"remove\".");
+            sb.AppendLine("- To change an EXISTING object, add it to \"edit\" by its name. Behaviors are ADDED/UPDATED; keep existing ones unless you list them in \"remove\". Its \"custom\" rules are ADDED to the ones it has (a rule with the same event+action replaces the old one); to rewrite them all, send the full list with \"replaceCustom\":true. To delete objects: \"delete\":[\"Name\"].");
             sb.AppendLine("- If the user talks about \"the player\" but there is an object with Platformer/TopDown, that IS the player — edit it by its name. Don't require it to be selected.");
             sb.AppendLine("- If an object with that name ALREADY EXISTS in the scene, put it in \"edit\" (never create a duplicate).");
             sb.AppendLine("- To SPAWN objects during play (rocks falling, enemies appearing on a key/timer): create the thing with \"asPrefab\":true (it stays OUT of the scene until spawned; give it physics Dynamic if it should fall), then spawn it with a Spawner behavior or a custom spawn rule.");
@@ -2781,7 +2770,9 @@ namespace EasyEngine
             else foreach (var o in allObjs)
             {
                 var ov = VarScope.Of(o).Count > 0 ? " vars{" + VarScope.Of(o).Describe() + "}" : "";
-                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Select(b => b.Kind))}]{ov}");
+                var script = Compact(o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom)?.Text("script", "") ?? "");
+                var rules = script.Length > 2 ? " custom=" + (script.Length > 600 ? script[..600] + "…" : script) : ""; // so a change can keep or retune them
+                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Select(b => b.Kind))}]{ov}{rules}");
             }
             if (VarScope.Of(_project).Count > 0) sb.AppendLine("Global variables: " + VarScope.Of(_project).Describe());
             if (VarScope.Of(_scene).Count > 0) sb.AppendLine("Scene variables: " + VarScope.Of(_scene).Describe());
@@ -2849,7 +2840,8 @@ namespace EasyEngine
             {
                 var existing = result.FirstOrDefault(x => x.Kind == BehaviorKind.Custom);
                 var data = existing ?? new BehaviorData { Kind = BehaviorKind.Custom };
-                data.Texts["script"] = cust.GetRawText();
+                bool replace = spec.TryGetProperty("replaceCustom", out var rc) && LooseJson.IsTrue(rc);
+                data.Texts["script"] = existing == null || replace ? cust.GetRawText() : MergeRules(existing.Text("script", "[]"), cust);
                 if (existing == null) result.Add(data);
                 changed = true;
             }
@@ -3286,6 +3278,7 @@ namespace EasyEngine
                 var changes = new List<string>();
                 bool pushed = false;
                 void EnsureUndo() { if (!pushed) { PushUndo(); pushed = true; } }
+                ApplyDeletes(root, EnsureUndo, changes);
 
                 bool hasCreate = root.TryGetProperty("create", out var cr) && cr.ValueKind == JsonValueKind.Array;
                 bool hasEdit = root.TryGetProperty("edit", out var ed) && ed.ValueKind == JsonValueKind.Array;

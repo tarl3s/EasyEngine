@@ -1088,6 +1088,7 @@ namespace EasyEngine
                                 if (en.OnZeroHealth?.Invoke(en) == true) break; // e.g. a boss plays its death sequence first (PlayWindow.Boss.cs)
                                 if (bh.Num("respawn", 1) >= 0.5)
                                 {
+                                    RunDeathRules(en, dt); // "when it dies" also fires for one that comes back (the player)
                                     en.CurHealth = en.MaxHealth;
                                     en.X = en.RespawnX; en.Y = en.RespawnY; en.VX = 0; en.VY = 0;
                                     en.InvTimer = Math.Max(0.5, bh.Num("invincible", 1));
@@ -1343,6 +1344,8 @@ namespace EasyEngine
                             {
                                 var item = bh.Text("item", "");
                                 if (!string.IsNullOrEmpty(item)) _vars["item:" + item] = Var("item:" + item) + bh.Num("amount", 1);
+                                var pv = bh.Text("var", "");
+                                if (pv.Length > 0) _vars[pv] = Var(pv) + bh.Num("points", 1); // a coin worth N points
                                 MarkCollected(bh);
                                 en.Dead = true;
                             }

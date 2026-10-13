@@ -35,6 +35,15 @@ namespace EasyEngine
             return false;
         }
 
+        /// <summary>A yes: true, 1, "true", "yes" or "1" (models write flags every way).</summary>
+        public static bool IsTrue(JsonElement e) => e.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.Number => e.GetDouble() >= 0.5,
+            JsonValueKind.String => (e.GetString() ?? "").Trim().ToLowerInvariant() is "true" or "yes" or "1",
+            _ => false
+        };
+
         /// <summary>Number text: never with thousands separators; a lone ',' (no '.') is the decimal point ("0,5" = 0.5).
         /// A trailing '%' is allowed only with <paramref name="percent"/> and is kept as-is ("40%" = 40).</summary>
         public static bool TryParse(string s, out double value, bool percent = false)

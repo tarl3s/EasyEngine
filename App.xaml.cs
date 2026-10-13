@@ -197,63 +197,6 @@ public partial class App : Application
         }
     }
 
-    // Batch-test MANY AI prompts through the real pipeline; writes a report to %TEMP%\easyengine_aitest.log
-    private void RunAiTest(string[] args)
-    {
-        ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        string model = "qwen2.5-coder:1.5b";
-        var mi = Array.IndexOf(args, "--model");
-        if (mi >= 0 && mi + 1 < args.Length) model = args[mi + 1];
-        var log = Path.Combine(Path.GetTempPath(), "easyengine_aitest.log");
-        try { File.WriteAllText(log, "starting " + DateTime.Now + "\n"); } catch { }
-        try
-        {
-            var temp = Path.Combine(Path.GetTempPath(), "EE_AiTest_" + Guid.NewGuid().ToString("N").Substring(0, 6));
-            Directory.CreateDirectory(temp);
-            var project = ProjectIO.CreateNew("AiTest", temp);
-            var editor = new MainWindow(project); // constructed, not shown
-            _ = editor.RunAiBatchAsync(AiTestPrompts(), log, model).ContinueWith(t =>
-                Dispatcher.Invoke(() => { if (t.Exception != null) { try { File.AppendAllText(log, "\nBATCH EXCEPTION: " + t.Exception); } catch { } } Shutdown(); }));
-        }
-        catch (Exception ex) { try { File.AppendAllText(log, "FATAL: " + ex); } catch { } Shutdown(); }
-    }
-
-    private static List<string> AiTestPrompts() => new()
-    {
-        "make a player that walks and jumps",
-        "give the player a dash and a double jump",
-        "give the player 5 hearts of health",
-        "make the player able to wall jump",
-        "create an enemy that patrols back and forth",
-        "create an enemy that chases the player",
-        "make an enemy that jumps and every 3 jumps dashes forward",
-        "add a melee sword attack on the J key",
-        "the player shoots bullets in all directions when pressing space",
-        "when the player presses Y, spawn rocks that fall from the sky",
-        "spawn an enemy every 2 seconds",
-        "when the player touches a spike it loses one life",
-        "make a coin that gives 1 point when the player collects it",
-        "show the score as a HUD label at the top",
-        "create a global variable score starting at 0 and lives at 3",
-        "make the UI layer stay fixed on the screen",
-        "when the player touches the crystal, it moves twice as fast",
-        "create a door that goes to the next scene when touched",
-        "make a moving platform that goes left and right",
-        "make a one-way platform you can jump through from below",
-        "create a boss with 20 health that chases the player and hurts it on touch",
-        "give the player 3 lives and make it respawn at a checkpoint",
-        "make the background scroll slower than the camera for parallax",
-        "create an NPC that says hello when you press E",
-        "make an enemy that shoots at the player every 2 seconds",
-        "make an object that spins forever",
-        "make an object that disappears when it leaves the screen",
-        "when the score reaches 10 go to the next scene",
-        "add a light that glows around the player",
-        "make a platform the player can stand on",
-        "double the player's speed",
-        "make the enemy explode into particles when it dies",
-    };
-
     // Verify the expression evaluator (Phase 1 foundation) — writes pass/fail to %TEMP%\easyengine_exprtest.log
     private void RunExprTest()
     {

@@ -189,8 +189,9 @@ namespace EasyEngine
                 Nums = { new("margin","Margin",120) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Collectible, Name = "Collectible", Icon = "⭐",
-                Desc = "Disappears when the Player touches it.",
-                Texts = { T("collector","Picked up by","Player", PickKind.Object) } },
+                Desc = "Disappears when the Player touches it. It can add points to a variable (a coin worth 10 adds 10 to score).",
+                Nums = { NIf(new("points","Points it gives",1), c => c.Bh.Text("var", "").Length > 0) },
+                Texts = { T("collector","Picked up by","Player", PickKind.Object), TNone("var","Adds the points to","", PickKind.Variable) } },
 
             new BehaviorInfo { Kind = BehaviorKind.GoToScene, Name = "Go To Scene", Icon = "🚪",
                 Desc = "Switches to another scene when the trigger touches it or it's clicked. Great for doors and menu buttons.",

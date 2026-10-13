@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,8 +28,8 @@ namespace EasyEngine
         {
             // free tiers (Auto rotates these)
             new("groq",       "Groq",       "https://api.groq.com/openai/v1",                         "openai/gpt-oss-120b",                    true,  "console.groq.com/keys"),
-            new("gemini",     "Gemini",     "https://generativelanguage.googleapis.com/v1beta/openai","gemini-2.5-flash",                       false, "aistudio.google.com/apikey"),
-            new("openrouter", "OpenRouter", "https://openrouter.ai/api/v1",                           "meta-llama/llama-3.3-70b-instruct:free", true,  "openrouter.ai/keys"),
+            new("gemini",     "Gemini",     "https://generativelanguage.googleapis.com/v1beta/openai","gemini-3.8-flash",                       true,  "aistudio.google.com/apikey"),
+            new("openrouter", "OpenRouter", "https://openrouter.ai/api/v1",                           "nvidia/nemotron-3-super-120b-a12b:free", true,  "openrouter.ai/keys"),
             new("mistral",    "Mistral",    "https://api.mistral.ai/v1",                              "mistral-small-latest",                   true,  "console.mistral.ai/api-keys"),
             // paid — your own account, billed per use (never used by Auto)
             new("openai",     "OpenAI (ChatGPT)",   "https://api.openai.com/v1", "gpt-4o-mini",      true,  "platform.openai.com/api-keys",            Free: false),
@@ -39,7 +42,67 @@ namespace EasyEngine
 
         private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(2) };
 
+        // Free model ids get retired (a 404 "no longer available"). For a built-in provider on its default model, the
+        // client then asks the provider which models it has, picks the best fit (PickModel) and remembers it.
+        private static readonly Dictionary<string, string> Discovered = new();
+
         public async Task<string> GenerateAsync(CloudProvider p, string prompt, string system, string apiKey, bool json, double temperature, CancellationToken ct = default)
+        {
+            bool builtIn = Provider(p.Id) is { } def && def.Model == p.Model && p.Id != "custom";
+            if (builtIn && Discovered.TryGetValue(p.Id, out var known)) p = p with { Model = known };
+            try { return await GenerateWith(p, prompt, system, apiKey, json, temperature, ct); }
+            catch (CloudException ex) when (ex.ModelMissing && builtIn && !Discovered.ContainsKey(p.Id))
+            {
+                var alt = await DiscoverModel(p, apiKey, ct);
+                if (alt == null || alt == p.Model) throw;
+                Discovered[p.Id] = alt;
+                return await GenerateWith(p with { Model = alt }, prompt, system, apiKey, json, temperature, ct);
+            }
+        }
+
+        private async Task<string?> DiscoverModel(CloudProvider p, string apiKey, CancellationToken ct)
+        {
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, p.BaseUrl.TrimEnd('/') + "/models");
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+                using var resp = await Http.SendAsync(req, ct);
+                if (!resp.IsSuccessStatusCode) return null;
+                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+                var ids = new List<string>();
+                if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+                    foreach (var m in data.EnumerateArray())
+                        if (m.TryGetProperty("id", out var id) && id.GetString() is { Length: > 0 } s) ids.Add(s.StartsWith("models/") ? s[7..] : s);
+                return PickModel(p.Id, ids);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>The best chat model for the engine among a provider's current ids (null = none fits).</summary>
+        public static string? PickModel(string providerId, IReadOnlyList<string> ids)
+        {
+            static bool Chat(string id) => !Regex.IsMatch(id, "tts|whisper|guard|safety|image|embed|audio|transcribe|orpheus|robotics|computer-use|lyria|omni|vision", RegexOptions.IgnoreCase);
+            var chat = ids.Where(Chat).ToList();
+            if (providerId == "gemini")
+            {
+                // the newest numbered "gemini-N-flash", else the moving alias
+                var best = chat.Select(id => (id, m: Regex.Match(id, @"^gemini-(d+(?:.d+)?)-flash$")))
+                               .Where(x => x.m.Success).OrderByDescending(x => double.Parse(x.m.Groups[1].Value, CultureInfo.InvariantCulture)).Select(x => x.id).FirstOrDefault();
+                return best ?? chat.FirstOrDefault(id => id == "gemini-flash-latest");
+            }
+            string[] prefer = providerId switch
+            {
+                "openrouter" => new[] { "nemotron-3-super", "gpt-oss-120b", "llama-3.3-70b", "gemma-4-31b", "qwen", "deepseek", "gemma" },
+                "groq" => new[] { "gpt-oss-120b", "llama-3.3-70b", "qwen", "gpt-oss-20b", "llama" },
+                "mistral" => new[] { "mistral-small-latest", "mistral-medium-latest", "mistral-large-latest" },
+                _ => Array.Empty<string>()
+            };
+            if (providerId == "openrouter") chat = chat.Where(id => id.EndsWith(":free")).ToList(); // Auto never spends money
+            foreach (var want in prefer) { var hit = chat.FirstOrDefault(id => id.Contains(want, StringComparison.OrdinalIgnoreCase)); if (hit != null) return hit; }
+            return prefer.Length > 0 ? chat.FirstOrDefault() : null;
+        }
+
+        private async Task<string> GenerateWith(CloudProvider p, string prompt, string system, string apiKey, bool json, double temperature, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new CloudException(L.F("No API key for {0}. Paste your key in the AI settings (get one at {1}).", p.Name, p.KeyUrl));
@@ -87,10 +150,10 @@ namespace EasyEngine
                 var detail = TryGetErrorMessage(text);
                 if (resp.StatusCode == HttpStatusCode.Unauthorized)
                     throw new CloudException(L.F("{0} API key is invalid. Check it in the AI settings ({1}).", p.Name, p.KeyUrl));
-                if (resp.StatusCode == (HttpStatusCode)429)
-                    throw new CloudException(L.F("{0} limit reached for now.", p.Name) + (detail != null ? $" ({detail})" : "")) { RateLimited = true };
+                if (resp.StatusCode is (HttpStatusCode)429 or HttpStatusCode.ServiceUnavailable or HttpStatusCode.BadGateway) // busy / out of quota for now
+                    throw new CloudException(L.F("{0} limit reached for now.", p.Name) + (detail != null ? $" ({detail})" : "")) { RateLimited = true, RetryAfter = RetryAfterSeconds(resp, detail) };
                 if (resp.StatusCode == HttpStatusCode.NotFound || (detail?.Contains("model", StringComparison.OrdinalIgnoreCase) ?? false))
-                    throw new CloudException(L.F("Model \"{0}\" isn't available on {1}.", model, p.Name) + (detail != null ? $"\n({detail})" : ""));
+                    throw new CloudException(L.F("Model \"{0}\" isn't available on {1}.", model, p.Name) + (detail != null ? $"\n({detail})" : "")) { ModelMissing = true };
                 throw new CloudException(L.F("{0} error ({1}): {2}", p.Name, (int)resp.StatusCode, detail ?? text));
             }
 
@@ -129,9 +192,9 @@ namespace EasyEngine
             {
                 var detail = TryGetErrorMessage(text);
                 if (resp.StatusCode == HttpStatusCode.Unauthorized) throw new CloudException(L.F("{0} API key is invalid ({1}).", p.Name, p.KeyUrl));
-                if (resp.StatusCode == (HttpStatusCode)429) throw new CloudException(L.F("{0} rate limit reached.", p.Name) + (detail != null ? $" ({detail})" : "")) { RateLimited = true };
+                if (resp.StatusCode is (HttpStatusCode)429 or HttpStatusCode.ServiceUnavailable or (HttpStatusCode)529) throw new CloudException(L.F("{0} rate limit reached.", p.Name) + (detail != null ? $" ({detail})" : "")) { RateLimited = true, RetryAfter = RetryAfterSeconds(resp, detail) };
                 if (resp.StatusCode == HttpStatusCode.NotFound || (detail?.Contains("model", StringComparison.OrdinalIgnoreCase) ?? false))
-                    throw new CloudException(L.F("Model \"{0}\" isn't available on {1}.", model, p.Name) + (detail != null ? $"\n({detail})" : ""));
+                    throw new CloudException(L.F("Model \"{0}\" isn't available on {1}.", model, p.Name) + (detail != null ? $"\n({detail})" : "")) { ModelMissing = true };
                 throw new CloudException(L.F("{0} error ({1}): {2}", p.Name, (int)resp.StatusCode, detail ?? text));
             }
 
@@ -145,6 +208,16 @@ namespace EasyEngine
             }
             catch { }
             return "";
+        }
+
+        // how long a busy provider asks to wait: the Retry-After header, or "try again in 7.1s" / "in 1m3s" / "in 250ms" in its message
+        private static double RetryAfterSeconds(HttpResponseMessage resp, string? detail)
+        {
+            if (resp.Headers.RetryAfter?.Delta is TimeSpan d) return d.TotalSeconds;
+            var m = Regex.Match(detail ?? "", @"(?:try again|retry) in (?:(d+)m)?([d.]+)(ms|s)", RegexOptions.IgnoreCase);
+            if (!m.Success) return 0;
+            double v = double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
+            return (m.Groups[1].Success ? int.Parse(m.Groups[1].Value) * 60 : 0) + (m.Groups[3].Value == "ms" ? v / 1000 : v);
         }
 
         private static string? TryGetErrorMessage(string text)
@@ -183,7 +256,9 @@ namespace EasyEngine
 
     public class CloudException : AiException
     {
-        public bool RateLimited { get; init; }
+        public bool RateLimited { get; init; }   // busy or out of quota for now: another provider may answer
+        public double RetryAfter { get; init; }   // seconds the provider asked to wait (0 = unknown)
+        public bool ModelMissing { get; init; }   // the model id is gone (retired / renamed)
         public CloudException(string message) : base(message) { }
     }
 
