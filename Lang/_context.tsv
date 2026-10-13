@@ -181,6 +181,7 @@ Build behavior with blocks	BlockEditorWindow.cs
 Build failed (exit {0}).	MainWindow.xaml.cs
 Build it	MainWindow.xaml, MainWindow.xaml.cs
 Builds a whole world by itself: grassy hills, dirt, stone, caves, ore and trees, made of blocks you can dig. Put it on ONE empty object — the world starts at that object's X and goes right (and left too when it's endless: walk forever, it is built as you go). The same 'seed' always makes the same world (0 = a new world every game). 'Ground level' is how far down the grass starts; 'Start this object on the ground' puts the player on the grass at its X. Mining: click a block with the item in hand (Use Item), the 'Break a tile' block, or bullets; dirt takes 1 hit, stone 2, ore 3, the bottom row (bedrock) never breaks; each block gives its drop item (dirt/stone/ore), and 'Only breaks when' (e.g. holding:pickaxe) limits it to the right tool. Trees are a tree object or prefab (e.g. a Harvestable tree) planted on the grass. 'More blocks' adds your own blocks, each growing in the sky, on the surface, underground, around caves or in an area (heights in blocks from the ground level, up = +, down = −; columns from the generator) — clouds to jump on, a deeper ore, a sand biome. The world is endless, or has a size to the left and right that ends in an invisible wall or an edge you can fall off. For the AI: make the scene tall enough (height ≥ ground level + depth × block size), spawn night enemies with a custom rule {"do":"spawn","object":"Slime","at":"near"} (near = on the ground a little to the left/right of the spawner).	behavior Terrain
+Built a level: {0}	MainWindow.AiLevel.cs
 Bullet	behavior Shooter, BlockEditorWindow.cs
 Bullet (optional)	step shoot
 Bullet life (s)	behavior Shooter
@@ -1226,6 +1227,7 @@ Yoyo (0/1)	BlockEditorWindow.cs
 Z layer	MainWindow.LockZ.cs
 Zoom in (Ctrl + wheel / Ctrl +)	MainWindow.xaml
 Zoom out (Ctrl + wheel / Ctrl -)	MainWindow.xaml
+a door to {0}	MainWindow.AiLevel.cs
 above	BlockEditorWindow.cs
 added a Sky layer under all the others	Model.cs
 animated	MainWindow.xaml.cs
@@ -1247,6 +1249,7 @@ error	BlockEditorWindow.cs
 exactly	behavior Gate
 fixed	MainWindow.xaml.cs
 front	BlockEditorWindow.cs
+ground	MainWindow.AiLevel.cs
 has at least (items)	BlockEditorWindow.cs
 has exactly (items)	BlockEditorWindow.cs
 hidden	MainWindow.xaml.cs
@@ -1283,6 +1286,7 @@ touching	BlockEditorWindow.cs
 v0.11.1	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
+walls all around	MainWindow.AiLevel.cs
 warn	BlockEditorWindow.cs
 x	step camera, step move, step moveto, step spawn
 y	step camera, step move, step moveto, step spawn
@@ -1293,6 +1297,8 @@ y	step camera, step move, step moveto, step spawn
 {0} added to "{1}"	MainWindow.xaml.cs
 {0} animation(s) · default: {1}	MainWindow.xaml.cs
 {0} attacks	SequenceModel.cs
+{0} coins	MainWindow.AiLevel.cs
+{0} enemies	MainWindow.AiLevel.cs
 {0} error ({1}): {2}	CloudClient.cs
 {0} frame(s)	AnimationWindow.xaml.cs
 {0} frames · {1} per second	TilePalette.cs
@@ -1300,8 +1306,10 @@ y	step camera, step move, step moveto, step spawn
 {0} items	VariablesWindow.xaml.cs
 {0} limit reached for now.	CloudClient.cs
 {0} phases	SequenceModel.cs
+{0} platforms	MainWindow.AiLevel.cs
 {0} rate limit reached.	CloudClient.cs
-{0} steps	SequenceModel.cs
+{0} spikes	MainWindow.AiLevel.cs
+{0} steps	MainWindow.AiLevel.cs, SequenceModel.cs
 {0} took too long and was cancelled.	CloudClient.cs
 — updated ✓	LauncherWindow.xaml.cs
 …or an advanced condition (expression — overrides the boxes above)	BlockEditorWindow.cs
