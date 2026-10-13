@@ -1183,6 +1183,7 @@ namespace EasyEngine
                             break;
                         }
                         // (Melee is gone: projects are converted to Tool Use when they load — see ProjectIO.MigrateLegacy)
+                        case BehaviorKind.Lives: UpdateLives(en, bh, dt); break; // PlayWindow.Lives.cs
                         case BehaviorKind.Checkpoint:
                         {
                             var t = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("target", "Player"));
@@ -3247,6 +3248,7 @@ namespace EasyEngine
                 if (en.LightVisual != null) Lights.Children.Remove(en.LightVisual);
                 if (en.HotbarCanvas != null) Hud.Children.Remove(en.HotbarCanvas);
                 if (en.ChecklistPanel != null) Hud.Children.Remove(en.ChecklistPanel);
+                if (en.LivesHud != null) Hud.Children.Remove(en.LivesHud); // PlayWindow.Lives.cs
                 MinimapEntityRemoved(en);
                 if (en.HeldVisual != null) { Hud.Children.Remove(en.HeldVisual); World.Children.Remove(en.HeldVisual); }
                 if (en.HeldArm != null) { Hud.Children.Remove(en.HeldArm); World.Children.Remove(en.HeldArm); }

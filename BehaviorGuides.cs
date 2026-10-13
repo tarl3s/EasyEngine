@@ -184,6 +184,13 @@ namespace EasyEngine
                 "4. To show it: a ▭ Bar on the UI layer that shows the same variable (health), or a 🔤 Label with \"HP: {health}\".\n" +
                 "5. Give each enemy its own variable name so their bars don't mix. Press ▶ Test.",
 
+            [BehaviorKind.Lives] =
+                "1. Select the player → Inspector → ＋ Add behavior → 💗 Lives. Set Lives at the start (e.g. 3); hearts show at the top right.\n" +
+                "2. Loses one when it touches: pick the hazard (e.g. Lava — its numbered copies Lava_2, Lava3 count too). Its Health running out or falling out of the level also costs a life.\n" +
+                "3. After losing one it goes back to: the last 🚩 Checkpoint (or the start), the start, or stays where it is; it blinks and is safe for a moment.\n" +
+                "4. When none are left, go to: pick your Game Over scene — or leave it empty to start this scene again.\n" +
+                "5. The count is the variable lives: a 🔤 Label \"Lives: {lives}\" shows it, a rule \"touch Heart → Add to a variable lives 1\" gives one back. Press ▶ Test.",
+
             [BehaviorKind.Damager] =
                 "1. Select the spikes/enemy → Inspector → ＋ Add behavior → 💢 Damager / Hazard.\n" +
                 "2. Pick who it Hurts (usually Player), the Damage and the Knockback.\n" +

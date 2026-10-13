@@ -225,6 +225,7 @@ namespace EasyEngine
             ["particles"] = new[] { "count" }, ["number"] = new[] { "count", "amount" }, ["button"] = new[] { "key" }, ["file"] = new[] { "sound" },
             ["times"] = new[] { "factor" }, ["multiplier"] = new[] { "factor" }, ["easing"] = new[] { "ease" }, ["level"] = new[] { "scene", "to" },
             ["x"] = new[] { "vx", "dx", "ax" }, ["y"] = new[] { "vy", "dy", "ay" }, ["colour"] = new[] { "color" },
+            ["distance"] = new[] { "radius" }, ["range"] = new[] { "radius" }, ["within"] = new[] { "radius" }, ["near"] = new[] { "name" }, ["who"] = new[] { "name", "target" },
         };
 
         // choice values written another way (tween's property names)
