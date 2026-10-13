@@ -132,14 +132,18 @@ public partial class App
         var project = ProjectIO.CreateNew("Parity", dir);
         Check("parity: the block AI prompt lists every event and action block with its fields", () =>
         {
-            var prompt = new BlockEditorWindow(project, project.GetStartScene(), "[]", null, (u, s) => Task.FromResult("[]")).AiSystemPrompt();
+            // every block is always named; a request that names one gets its line with every field
+            var win = new BlockEditorWindow(project, project.GetStartScene(), "[]", null, (u, s) => Task.FromResult("[]"));
+            var ids = win.AiSystemPrompt().Split('\n').Where(l => l.StartsWith("EVENTS:") || l.StartsWith("ACTIONS:")).SelectMany(l => l[(l.IndexOf(':') + 1)..].Split(',').Select(x => x.Trim())).ToHashSet();
             var gaps = new List<string>();
             foreach (var d in events.Concat(actions))
             {
-                var line = prompt.Split('\n').FirstOrDefault(l => l.StartsWith("- " + d.Id + " ("));
-                if (line == null) { gaps.Add($"block AI prompt misses '{d.Id}'"); continue; }
+                if (!ids.Contains(d.Id)) { gaps.Add($"block AI prompt misses '{d.Id}'"); continue; }
+                var line = win.AiSystemPrompt("use " + d.Id).Split('\n').FirstOrDefault(l => l.StartsWith("- " + d.Id + " ("));
+                if (line == null) { gaps.Add($"block AI prompt has no params for '{d.Id}' when asked for it"); continue; }
                 gaps.AddRange(d.Fields.Where(f => !line.Contains(f.Key)).Select(f => $"block AI prompt line '{d.Id}' misses field '{f.Key}'"));
             }
+            win.Close();
             return gaps;
         });
 

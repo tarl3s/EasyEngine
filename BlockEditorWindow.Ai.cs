@@ -72,7 +72,7 @@ namespace EasyEngine
             _aiStatus.Text = L.T("Asking the AI…");
             try
             {
-                var system = AiSystemPrompt();
+                var system = AiSystemPrompt(request);
                 var got = ReadAiReply(await _generate("Make blocks for: " + request + "\nAnswer with the JSON only.", system));
                 if (got.Count == 0) // one firmer try
                     got = ReadAiReply(await _generate("Make blocks for: " + request + "\nYour last answer had no usable rule. Answer ONLY with JSON like "
@@ -100,22 +100,30 @@ namespace EasyEngine
 
         // ------------------------------------------------------------ the prompt (from the palette itself)
 
-        internal string AiSystemPrompt()
+        // Made for each request like the 🔨 Build prompt (MainWindow.AiPrompt.cs): every block by id, the params of the ones
+        // that matter here, and the same how-to hints — so the blocks' AI knows what the panel's AI knows, in few tokens.
+        private static readonly HashSet<string> CommonBlocks = new() { "start", "always", "timer", "after", "keypress", "touch", "click", "velocity", "set", "addvar", "tween", "say", "destroy" };
+
+        internal string AiSystemPrompt(string request = "")
         {
             var (events, actions) = L.InEnglish(() => (MakeEvents(), MakeActions()));
+            var hints = MainWindow.HintsFor(request).Where(h => h.Text.Contains("\"when\"") || h.Text.Contains("\"do\"")).ToList();
+            var asked = request.ToLowerInvariant();
+            var used = hints.SelectMany(h => System.Text.RegularExpressions.Regex.Matches(h.Text, "\"(?:when|do)\":\"(\\w+)\"").Select(m => m.Groups[1].Value))
+                            .Concat(events.Concat(actions).Select(d => d.Id).Where(id => System.Text.RegularExpressions.Regex.IsMatch(asked, $@"\b{id}\b"))).ToHashSet(); // a block named in the request
+            if (used.Count == 0) used = CommonBlocks;
             var sb = new StringBuilder();
             sb.AppendLine("You write behavior rules for ONE object of a 2D game made with EasyEngine. Each rule is a block: WHEN an event happens -> DO an action.");
-            sb.AppendLine("Answer ONLY with JSON, no other text: {\"rules\":[{\"when\":\"<event id>\", <event fields>, \"do\":\"<action id>\", <action fields>}]}");
-            sb.AppendLine("Use ONLY the ids and field names listed below. One action per rule: two actions on the same event = two rules. Numbers are plain JSON numbers; "
-                + "any number field may instead be a formula written as a string, e.g. \"vx\":\"sign(Player.cx - self.cx) * 120\" or \"every\":\"rand(1,3)\". "
-                + "A field you leave out takes its default (after =). Optional on any rule: \"cond\":\"coins >= 10\" (the rule only runs while that is true).");
-            sb.AppendLine("x grows to the right, y grows DOWN (a negative vy goes up). Times are in seconds. opacity goes from 0 (invisible) to 1. \"self\" is this object.");
-            sb.AppendLine();
-            sb.AppendLine("EVENTS (when):");
-            foreach (var d in events) sb.AppendLine(BlockDoc(d));
-            sb.AppendLine("ACTIONS (do):");
-            foreach (var d in actions) sb.AppendLine(BlockDoc(d));
-            sb.AppendLine("Keys: Space, A to Z, D0 to D9, Up, Down, Left, Right, Enter, LeftShift.");
+            sb.AppendLine("Answer ONLY with JSON: {\"rules\":[{\"when\":\"<event id>\", <event fields>, \"do\":\"<action id>\", <action fields>}]}. One action per rule (two actions = two rules).");
+            sb.AppendLine("Any number field may be a formula string: \"sign(Player.cx - self.cx) * 120\", \"rand(1,3)\". Formulas know self.x/y/cx/cy/w/h/vx/vy/health, Name.x/cx/… of any object, "
+                + "dist(x1,y1,x2,y2), abs, sign, min, max, sin, cos, time, mousex, mousey, variables, item:Name. Optional on any rule: \"cond\":\"<formula>\" (runs only while true).");
+            sb.AppendLine("x grows right, y grows DOWN (negative vy = up). Seconds. opacity 0..1. \"self\" is this object.");
+            sb.AppendLine("EVENTS: " + string.Join(", ", events.Select(d => d.Id)));
+            sb.AppendLine("ACTIONS: " + string.Join(", ", actions.Select(d => d.Id)));
+            sb.AppendLine("PARAMS:");
+            foreach (var d in events.Concat(actions).Where(d => used.Contains(d.Id))) sb.AppendLine(BlockDoc(d));
+            if (hints.Count > 0) { sb.AppendLine("HOW TO:"); foreach (var h in hints) sb.AppendLine("- " + h.Text); }
+            sb.AppendLine("Keys: Space, A-Z, D0-D9, Up, Down, Left, Right, Enter, LeftShift.");
             sb.AppendLine();
             if (_obj != null) sb.AppendLine($"These rules belong to the object \"{_obj.Name}\".");
             sb.AppendLine("Objects in the scene: " + Listed(ParamSources.Objects(_scene)));

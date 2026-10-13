@@ -73,7 +73,7 @@ namespace EasyEngine
         //  local models read it fast and aren't distracted; free cloud tiers spend far fewer tokens.
         // ================================================================================================================
 
-        private record PromptHint(string[] Tags, string Text, BehaviorKind[] Kinds);
+        internal record PromptHint(string[] Tags, string Text, BehaviorKind[] Kinds);
         private static PromptHint H(string tags, string text, params BehaviorKind[] kinds) => new(tags.Split(' ', StringSplitOptions.RemoveEmptyEntries), text, kinds);
 
         // The words of a hint are compared as 5-letter stems with the request (MainWindow.AiRules.cs Words: "coins" = "coin",
@@ -173,7 +173,7 @@ namespace EasyEngine
         internal static string HintsText => string.Join("\n", Hints.Select(h => h.Text));
 
         // the most relevant hints for the request (by shared word stems), at most 6, in library order
-        private static List<PromptHint> HintsFor(string request)
+        internal static List<PromptHint> HintsFor(string request)
         {
             var asked = Words(request);
             return Hints.Select((h, i) => (h, i, score: h.Tags.Count(t => Words(t).Overlaps(asked))))

@@ -55,13 +55,13 @@ public partial class App
         {
             var player = new GameObjectData { Name = "Hero" };
             var w = new BlockEditorWindow(project, scene, "[]", player, (p, s) => Task.FromResult("[]"));
-            var en = w.AiSystemPrompt();
+            var en = w.AiSystemPrompt("make it fade out, then setvolume");
             L.UseTableForTests("pt-BR", new Dictionary<string, string> { ["Glide a property"] = "Deslizar uma propriedade", ["When clicked"] = "Ao clicar" });
             string pt;
-            try { pt = w.AiSystemPrompt(); } finally { L.UseTableForTests("en", null); }
+            try { pt = w.AiSystemPrompt("make it fade out"); } finally { L.UseTableForTests("en", null); }
             w.Close();
             string[] ids = { "start", "timer", "after", "touch", "ifvar", "iflocal", "hasitem", "click", "death", "tween", "setvar", "addlocal", "additem", "emit", "setvolume", "settext", "listadd" };
-            return ids.All(id => en.Contains("- " + id + " (")) && en.Contains("- tween (Glide a property): prop=x (x|y|opacity|rot|w|h|scale)")
+            return ids.All(id => System.Text.RegularExpressions.Regex.IsMatch(en, $@"\b{id}\b")) && en.Contains("tween (Glide a property): prop=x (x|y|opacity|rot|w|h|scale)")
                    && en.Contains("channel=master (master|music|sfx)") && en.Contains($"\"{player.Name}\"") && en.Contains("\"rules\"") && en.Contains("fade out after 5 seconds")
                    && pt.Contains("Glide a property") && !pt.Contains("Deslizar") && pt.Contains("Brazilian Portuguese");
         });
