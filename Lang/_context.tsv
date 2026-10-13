@@ -128,6 +128,7 @@ Auto	MainWindow.xaml.cs
 Axe	ToolArt.cs
 BEHAVIORS	MainWindow.Params.cs, MainWindow.xaml.cs
 Back and forth (retrace)	MainWindow.xaml.cs
+Back and forth (yoyo)	BlockEditorWindow.cs
 Back to a plain colour	MainWindow.Tiles.cs
 Background	MainWindow.xaml.cs
 Background color	behavior Bar
@@ -621,8 +622,8 @@ Look of {0} copied	MainWindow.xaml.cs
 Look pasted on {0}	MainWindow.xaml.cs
 Looking it up…	MainWindow.xaml.cs
 Looks	step category
-Loop	AnimationWindow.xaml
-Loop (0/1)	behavior SoundEmitter, BlockEditorWindow.cs
+Loop	AnimationWindow.xaml, BlockEditorWindow.cs
+Loop (0/1)	behavior SoundEmitter
 Loop (straight back to start)	MainWindow.xaml.cs
 Lots of models, smaller daily limit.	MainWindow.xaml.cs
 Make an attack first (Attacks tab).	SequenceEditorWindow.cs
@@ -1223,7 +1224,6 @@ You (selected: {0})	MainWindow.xaml.cs
 You can keep using this version.	UpdatePrompt.cs
 You have unsaved changes. Do you want to save before closing?	MainWindow.xaml.cs
 Your projects and settings were not touched.	SettingsWindow.cs
-Yoyo (0/1)	BlockEditorWindow.cs
 Z layer	MainWindow.LockZ.cs
 Zoom in (Ctrl + wheel / Ctrl +)	MainWindow.xaml
 Zoom out (Ctrl + wheel / Ctrl -)	MainWindow.xaml
@@ -1283,7 +1283,7 @@ shown	MainWindow.xaml.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.cs
 touching	BlockEditorWindow.cs
-v0.11.1	LauncherWindow.xaml
+v0.12.0	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 walls all around	MainWindow.AiLevel.cs
