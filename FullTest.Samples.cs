@@ -175,7 +175,9 @@ public partial class App
             w.ShowTestBar(false, remember: true);              // remember is ignored in tests (the person's settings stay)
             bool hidden = !w.TTopBarVisible && AiSettings.HideTestBar == saved;
             w.ShowTestBar(true, remember: true);
-            return start && hidden && w.TTopBarVisible;
+            bool back = w.TTopBarVisible;
+            w.DevTools = false; w.StartTestBar();              // an exported game: never the bar
+            return start && hidden && back && !w.TTopBarVisible;
         });
         t.Test("corners: an object with a picture has square corners by default (the drawing isn't clipped); a set radius still applies", () =>
         {

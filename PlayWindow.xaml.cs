@@ -217,7 +217,8 @@ namespace EasyEngine
             Lights.RenderTransform = _lightTransform;
 
             // the bar on top of a test run hides with F2 / its ✕, and stays as the person left it (not in tests: they see it)
-            Loaded += (s, e) => { if (DevTools && !ProjectIO.SuppressRecent && AiSettings.HideTestBar) ShowTestBar(false, remember: false); };
+            // (an exported game never shows it: Stop / Console are the editor's test tools)
+            Loaded += (s, e) => StartTestBar();
             Loaded += (s, e) => Start();
             Closed += (s, e) => { WritePlayLog(); Stop(); };
 
@@ -272,7 +273,7 @@ namespace EasyEngine
             Root.SizeChanged += (s, e) => SizeDarkness(); // the game area, not the window (the console takes a column)
             ApplyTheme();
             ConsoleBtn.Visibility = DevTools ? Visibility.Visible : Visibility.Collapsed;
-            if (DevTools) Hint.Text += " · F1 console";
+            if (DevTools) Hint.Text += " · F1 console · F2 hide / show this bar";
             SeedGlobalVars(); // global vars (numbers, Yes/No, texts)
             // continue from a saved game if one exists (metroidvania/RPG progression)
             bool hadSave = LoadGame();

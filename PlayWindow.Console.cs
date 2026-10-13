@@ -25,8 +25,19 @@ namespace EasyEngine
         {
             TopBar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
             if (remember && !ProjectIO.SuppressRecent) { AiSettings.HideTestBar = !show; AiSettings.Save(); }
-            if (!show) Info("Input", "", "Top bar hidden — F2 shows it again");
+            if (!show && remember) Info("Input", "", "Top bar hidden — F2 shows it again");
+            // a test run without the bar says for a few seconds how to bring it back (an exported game never has it)
+            BarHint.Visibility = !show && DevTools ? Visibility.Visible : Visibility.Collapsed;
+            if (BarHint.IsVisible || (!show && DevTools))
+            {
+                var fade = new System.Windows.Media.Animation.DoubleAnimation(1, 0, TimeSpan.FromSeconds(1)) { BeginTime = TimeSpan.FromSeconds(3) };
+                fade.Completed += (s, e) => { if (TopBar.Visibility != Visibility.Visible) BarHint.Visibility = Visibility.Collapsed; BarHint.BeginAnimation(OpacityProperty, null); BarHint.Opacity = 1; };
+                BarHint.BeginAnimation(OpacityProperty, fade);
+            }
         }
+
+        /// <summary>How a run starts: an exported game never shows the bar; a test run as the person left it.</summary>
+        public void StartTestBar() { if (!DevTools || (!ProjectIO.SuppressRecent && AiSettings.HideTestBar)) ShowTestBar(false, remember: false); }
 
         private void HideBar_Click(object sender, RoutedEventArgs e) { ShowTestBar(false, remember: true); FocusGame(); }
         public bool TTopBarVisible => TopBar.Visibility == Visibility.Visible;
