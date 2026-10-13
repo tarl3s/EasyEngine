@@ -28,6 +28,7 @@ A day/night cycle. Add it to one object (a controller, can be invisible). It dim
 A grid of tiles you paint in the editor (ground, walls, level geometry). Solid tiles become collision automatically. Add it to an empty object, then paint with the Tiles panel. Turn on 'Breakable' to let individual tiles be destroyed (by bullets, melee, damagers, stomping, touching, or the 'Break a tile' block).	behavior Tilemap
 A hotbar. Scroll the mouse wheel (or press 1-9) to pick a slot. List the slots in 'items' as name:#color, comma-separated (e.g. pickaxe:#8B5A2B,axe:#B0B0B0,sword:#AEE1FF). ANY name is an item — make your own (shovel, hammer, magic wand…) with the '＋ New item' button, or add ':look' to a slot: a built-in drawing (pickaxe, axe, sword, shovel, hammer, hoe, tile) or a picture file (e.g. wand:#FFFFFF:Assets/sprites/wand.png). A Harvestable whose 'tool' is that name only accepts it. You OWN a slot once you have item:<name> (give it with 'Give an item' / buying). The selected owned slot sets holding:<name>=1 — use that as a tilemap's 'requires' so only the right tool mines it. The held tool is drawn in the player's hand.	behavior Hotbar
 A key is pressed	behavior Cutscene
+A locked object can't be moved, resized, deleted or edited in the editor. The game ignores the lock.	MainWindow.LockZ.cs
 A lot	MainWindow.TerrainBlocks.cs
 A name can't contain , : or ".	PrefabRename.cs
 A new version of EasyEngine is out: v{0} (you have v{1}).	UpdatePrompt.cs
@@ -72,6 +73,7 @@ Add to its own variable	BlockEditorWindow.cs
 Added {0} image(s) and {1} sound(s) for the AI	MainWindow.xaml.cs
 Added {0} to {1} of {2} selected object(s)	MainWindow.xaml.cs
 Adds an item to the end of a list. {name} inside is replaced by that variable's value.	BlockEditorWindow.cs, step listadd
+Adds the points to	behavior Collectible
 Adds to its speed gradually (not instant). + up/down makes it fall faster.	BlockEditorWindow.cs
 Adds up with other lights (0/1)	behavior LightSource
 Adds words to the end of a text variable.	BlockEditorWindow.cs
@@ -80,6 +82,7 @@ Advanced — paid keys, offline AI	MainWindow.xaml.cs
 Advanced — raw rules (JSON). The blocks above edit this for you.	MainWindow.xaml.cs
 After some seconds	BlockEditorWindow.cs
 Aimed at the target	step shoot
+Aims at (none = straight ahead)	behavior Shooter
 Alignment	behavior Label
 All but the bottom	behavior StayInside
 All free providers are out of quota right now. Try again later.	MainWindow.xaml.cs
@@ -105,6 +108,7 @@ Animations	AnimationWindow.xaml, MainWindow.xaml.cs
 Animations — {0}	AnimationWindow.xaml.cs
 Area	behavior StayInside
 Around caves	MainWindow.TerrainBlocks.cs
+Arrows: move · Shift: 10 px	MainWindow.xaml.cs
 Ask	MainWindow.xaml.cs
 Ask how to use anything — the AI explains step by step.	MainWindow.xaml.cs
 Asking {0}…	MainWindow.Sequences.cs, MainWindow.xaml.cs
@@ -316,6 +320,7 @@ Delete scene	MainWindow.xaml.cs
 Delete scene "{0}"?	MainWindow.xaml.cs
 Delete this scene	MainWindow.xaml
 Delete this variable	VariablesWindow.xaml.cs
+Deleted "{0}"	MainWindow.AiRules.cs
 Depth (0 = far, 1 = near) (0-1)	behavior Parallax
 Describe the boss you want… (e.g. a fire golem that charges, spits fireballs and gets faster below half health)	MainWindow.Sequences.cs
 Describe the scene you want… (e.g. the camera shows the castle, the king says hello, then back to the player)	MainWindow.Sequences.cs
@@ -332,7 +337,7 @@ Dirt depth (blocks)	behavior Terrain
 Dirt drops	behavior Terrain
 Disappear (for enemies)	behavior Health
 Disappears after hitting (0/1)	behavior Damager
-Disappears when the Player touches it.	behavior Collectible
+Disappears when the Player touches it. It can add points to a variable (a coin worth 10 adds 10 to score).	behavior Collectible
 Distance	behavior Patrol
 Distance (px)	step summon
 Dock back	MainWindow.xaml.cs
@@ -417,10 +422,10 @@ Fights	behavior BossAI
 Fill color	behavior Bar
 Fill shapes / polygon	SpriteEditorWindow.cs
 Fill the shape	SpriteEditorWindow.cs
-Fire key	behavior Shooter
+Fire key (none = fires by itself)	behavior Shooter
 Fires once per press. Cooldown stops it repeating too fast while held.	BlockEditorWindow.cs
 Fires once, that many seconds after it appears.	BlockEditorWindow.cs
-Fires projectiles when a key is pressed. 'directions' = how many bullets spread around (8 = all directions, 1 = forward).	behavior Shooter
+Fires projectiles when a key is pressed — or, with no key, by itself every 'cooldown' seconds (a turret, an enemy that shoots). 'directions' = how many bullets spread around (8 = all directions, 1 = forward). 'Aims at' points the shots at an object, e.g. the Player.	behavior Shooter
 Fires projectiles. 1 direction = straight ahead; more = spread all around.	BlockEditorWindow.cs
 Fires the moment it starts touching that object (once per touch).	BlockEditorWindow.cs
 Fit	MainWindow.xaml
@@ -454,6 +459,7 @@ Gate / Locked Door	behavior Gate
 Generation failed	MainWindow.xaml.cs
 Gentle	behavior Terrain
 Give an item	BlockEditorWindow.cs
+Give it a picture first: this sets the size to the picture's real pixels.	MainWindow.LockZ.cs
 Give it an image first: the hitbox follows the picture's visible pixels.	MainWindow.Hitbox.cs
 Give the item a name.	NewItemDialog.cs
 Give the project a name.	LauncherWindow.xaml.cs
@@ -486,6 +492,7 @@ Height	MainWindow.xaml.cs, step jump
 Heights in blocks from the ground level: up (sky) is +, down is −.	MainWindow.TerrainBlocks.cs
 Hexagon	SpriteEditorWindow.cs
 Hide an object	step hide
+Higher draws in front of the other objects in this layer (it never moves above another layer).	MainWindow.LockZ.cs
 Hills	behavior Terrain
 Hit an enemy	MainWindow.Params.cs
 Hit sound	behavior Harvestable
@@ -575,7 +582,7 @@ Left-drag paints · Right-drag erases	MainWindow.xaml.cs
 Level	BlockEditorWindow.cs
 Level (0-1)	BlockEditorWindow.cs
 Life (s)	BlockEditorWindow.cs, step shoot
-Lifetime (s)	behavior Projectile
+Lifetime (s, 0 = forever)	behavior Projectile
 Light	behavior LightSource
 Light block size	behavior DayNight
 Light mode	SettingsWindow.cs
@@ -590,6 +597,9 @@ Local (scene)	VariablesWindow.xaml.cs
 Location	LauncherWindow.xaml
 Lock the player	step lock
 Lock the player (0/1)	behavior Cutscene
+Locked {0}	MainWindow.LockZ.cs
+Locked — click to unlock	MainWindow.LockZ.cs
+Locked — unlock to edit	MainWindow.LockZ.cs, MainWindow.xaml.cs
 Look for a new version when EasyEngine starts	SettingsWindow.cs
 Look of {0} copied	MainWindow.xaml.cs
 Look pasted on {0}	MainWindow.xaml.cs
@@ -727,6 +737,7 @@ Order	SequenceEditorWindow.cs
 Ore color	behavior Terrain
 Ore drops	behavior Terrain
 Ores (0/1)	behavior Terrain
+Original size	MainWindow.LockZ.cs
 Over (s)	BlockEditorWindow.cs
 Owns {0}	MainWindow.Params.cs
 PHYSICS	MainWindow.Tiles.cs, MainWindow.xaml.cs
@@ -776,6 +787,7 @@ Plays a sound file from the project's Assets/sounds folder.	BlockEditorWindow.cs
 Plays when	behavior Cutscene
 Plays when the {0} hits an enemy	MainWindow.Params.cs
 Plays when the {0} is swung	MainWindow.Params.cs
+Points it gives	behavior Collectible
 Prefab "{0}"	MainWindow.xaml.cs
 Prefab "{0}" is now "{1}"	MainWindow.xaml.cs
 Prefab "{0}" is now "{1}" ({2} places that use it updated)	MainWindow.xaml.cs
@@ -830,6 +842,7 @@ Rename this scene	MainWindow.xaml
 Repeat	behavior AdvancedPatrol, MainWindow.xaml.cs
 Repeats forever on this interval.	BlockEditorWindow.cs
 Reset layout to default	MainWindow.xaml.cs
+Resizing keeps the picture's proportions. Hold Shift while dragging a handle to keep them just once.	MainWindow.LockZ.cs
 Resources dropped	behavior Harvestable
 Respawn (for the player)	behavior Health
 Right	behavior Label, MainWindow.xaml.cs
@@ -910,7 +923,11 @@ Shows variable	behavior Bar
 Shrinks the object's own box to its drawing once (the images are cropped to match). Undo with Ctrl+Z.	MainWindow.Hitbox.cs
 Sides	behavior StayInside
 Size	BlockEditorWindow.cs
+Size set to the picture's {0} × {1} px	MainWindow.LockZ.cs
 Skip key	behavior Cutscene
+Skipped "{0}": it's locked (unlock it to let the AI change it)	MainWindow.LockZ.cs
+Skipped a rule: "{0}" isn't an action the game knows.	AiSpecFix.cs
+Skipped a rule: "{0}" isn't an event the game knows.	AiSpecFix.cs
 Sky	MainWindow.xaml.cs
 Slides the object in a straight line to another object or to a point.	step move
 Slot size (px)	behavior Hotbar
@@ -1011,6 +1028,7 @@ The download doesn't contain EasyEngine.exe.	Updater.cs
 The drawing already fills the box.	MainWindow.Hitbox.cs
 The easiest 2D game engine — you bring the art, the AI writes the code.	LauncherWindow.xaml
 The editor's language. The AI also answers you in it. Your games keep their own texts.	SettingsWindow.cs
+The free AI is busy — trying again in {0} s…	MainWindow.xaml.cs
 The game shows {0} × {1} of the scene at a time, scaled to fit the window (the same in tests and exported games).	MainWindow.xaml.cs
 The image file is missing.	ProjectIO.cs
 The image is fully transparent.	MainWindow.Hitbox.cs
@@ -1049,7 +1067,9 @@ Times	BlockEditorWindow.cs
 Tip: to make something need it, give that object a Harvestable and set its Tool to this name (e.g. a dirt mound that only the shovel digs).	NewItemDialog.cs
 Title	behavior Checklist
 To	BlockEditorWindow.cs, step camera, step move, step moveto, step settext, step setvar
+To back	MainWindow.LockZ.cs
 To column	MainWindow.TerrainBlocks.cs
+To front	MainWindow.LockZ.cs
 To height	MainWindow.TerrainBlocks.cs
 Toggles a variable between 0 and 1. mode=click (click it), touch (trigger touches it), or interact (trigger stands on it and presses the key). stayOn=1 makes it a one-time switch that can't turn back off.	behavior Switch
 Tool needed	behavior Harvestable
@@ -1085,11 +1105,13 @@ Undo (Ctrl+Z)	SpriteEditorWindow.cs
 Ungrouped	MainWindow.xaml.cs
 Unique id (keeps 'once' maps stable)	behavior Generator
 Unlock the player	step unlock
+Unlocked {0}	MainWindow.LockZ.cs
 Update EasyEngine	UpdatePrompt.cs
 Updating EasyEngine	UpdatePrompt.cs
 Updating EasyEngine...	Updater.cs
 Use Item (swing / attack)	behavior ToolUse
 Use a picture file for this tile	MainWindow.Tiles.cs
+Use the picture's real size: {0} × {1} px	MainWindow.LockZ.cs
 Uses attacks	SequenceEditorWindow.cs
 Value	BlockEditorWindow.cs
 Variable	behavior Area, behavior BossAI, behavior Cutscene, behavior Interact, behavior UIButton, BlockEditorWindow.cs, step addvar, step setvar
@@ -1176,6 +1198,7 @@ You can keep using this version.	UpdatePrompt.cs
 You have unsaved changes. Do you want to save before closing?	MainWindow.xaml.cs
 Your projects and settings were not touched.	SettingsWindow.cs
 Yoyo (0/1)	BlockEditorWindow.cs
+Z layer	MainWindow.LockZ.cs
 Zoom in (Ctrl + wheel / Ctrl +)	MainWindow.xaml
 Zoom out (Ctrl + wheel / Ctrl -)	MainWindow.xaml
 above	BlockEditorWindow.cs
@@ -1356,6 +1379,9 @@ y	step camera, step move, step moveto, step spawn
 📎 Add files (images / audio)	MainWindow.xaml
 📥 Paste look	MainWindow.xaml.cs
 🔍  Interface size	SettingsWindow.cs
+🔒 Locked	MainWindow.LockZ.cs
+🔓 Unlocked	MainWindow.LockZ.cs
+🔗 Keep proportions	MainWindow.LockZ.cs
 🔥 Local — needs GPU/RAM (14b)	MainWindow.xaml
 🔨 Build	MainWindow.xaml
 🗂  Temporary files	SettingsWindow.cs
@@ -1381,27 +1407,3 @@ y	step camera, step move, step moveto, step spawn
 ＋ New…	Dropdown.cs
 ＋ adds to all {0} selected objects.	MainWindow.xaml.cs
 ／ Line	SpriteEditorWindow.cs
-A locked object can't be moved, resized, deleted or edited in the editor. The game ignores the lock.	MainWindow.LockZ.cs
-APPEARANCE	MainWindow.xaml.cs
-Arrows: move · Shift: 10 px	MainWindow.xaml.cs
-Choose image	MainWindow.xaml.cs
-Error: {0}	MainWindow.Params.cs, MainWindow.xaml.cs
-Give it a picture first: this sets the size to the picture's real pixels.	MainWindow.LockZ.cs
-Higher draws in front of the other objects in this layer (it never moves above another layer).	MainWindow.LockZ.cs
-Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.xaml.cs
-Locked {0}	MainWindow.LockZ.cs
-Locked — click to unlock	MainWindow.LockZ.cs
-Locked — unlock to edit	MainWindow.LockZ.cs, MainWindow.xaml.cs
-Original size	MainWindow.LockZ.cs
-PHYSICS	MainWindow.xaml.cs
-Resizing keeps the picture's proportions. Hold Shift while dragging a handle to keep them just once.	MainWindow.LockZ.cs
-Size set to the picture's {0} × {1} px	MainWindow.LockZ.cs
-Skipped "{0}": it's locked (unlock it to let the AI change it)	MainWindow.LockZ.cs
-To back	MainWindow.LockZ.cs
-To front	MainWindow.LockZ.cs
-Unlocked {0}	MainWindow.LockZ.cs
-Use the picture's real size: {0} × {1} px	MainWindow.LockZ.cs
-Z layer	MainWindow.LockZ.cs
-🔒 Locked	MainWindow.LockZ.cs
-🔓 Unlocked	MainWindow.LockZ.cs
-🔗 Keep proportions	MainWindow.LockZ.cs
