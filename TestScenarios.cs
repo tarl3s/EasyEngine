@@ -29,6 +29,7 @@ namespace EasyEngine
             project.ConsoleOnStart = true;
             project.Scenes.Add(AxeTest(project));
             project.Scenes.Add(LightingTest());
+            project.Scenes.Add(LightShapesTest()); // TestScenarios.Lights.cs
             project.Scenes.Add(VariableTypesTest()); // TestScenarios.VarTypes.cs
             project.Scenes.Add(HitboxTest(project)); // TestScenarios.Hitbox.cs
             project.Scenes.Add(TilesTest(project));  // TestScenarios.Tiles.cs

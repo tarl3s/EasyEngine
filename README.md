@@ -75,8 +75,9 @@ old version and opens again. Your projects are never touched. The sample games a
   platforms, tilemaps (breakable, with tiles you draw or animate), **procedural generation**, and a
   **terrain generator** (hills, caves, ores, trees, plus your own blocks — clouds, deeper ores, biomes) you can mine,
   endless or with a size you choose.
-- **Day & night and lighting** — sun and moon, torches and lamps, darker underground, and **pixel-style
-  block lighting** where walls stop the light and torches colour what they touch. **Minimap** with a big map on a key.
+- **Day & night and lighting** — sun and moon, torches and lamps, **light shapes** (flashlight beams that follow
+  where you face, lit windows, neon tubes, wall lamps) that can flicker, pulse or blink, darker underground, and
+  **pixel-style block lighting** where walls stop the light and torches colour what they touch. **Minimap** with a big map on a key.
 - **Look and feel** — sprite animations, a built-in **pixel-art editor**, particles, tweens with easing, bars,
   text effects, dialogue box styles, sound with volume channels and a small **sound editor** (cut, speed, pitch,
   volume, fades, reverse, echo).

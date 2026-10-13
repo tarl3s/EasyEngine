@@ -46,7 +46,7 @@ namespace EasyEngine
             (new[] { "plataforma", "pular", "pulo", "jump", "platform" }, new[] { BehaviorKind.Platformer }),
             (new[] { "inimigo que persegue", "perseguir", "persegue", "chase", "enemy that follows" }, new[] { BehaviorKind.Chase, BehaviorKind.PathChase }),
             (new[] { "patrulha", "patrulhar", "patrol", "caminho", "path" }, new[] { BehaviorKind.AdvancedPatrol }),
-            (new[] { "luz", "tocha", "lampada", "light", "torch" }, new[] { BehaviorKind.LightSource }),
+            (new[] { "luz", "tocha", "lampada", "lanterna", "farol", "light", "torch", "flashlight", "lamp", "neon" }, new[] { BehaviorKind.LightSource }),
             (new[] { "particula", "explosao", "fumaca", "particle" }, new[] { BehaviorKind.Particles }),
             (new[] { "texto", "placar", "pontuacao", "pontos", "score", "text", "hud" }, new[] { BehaviorKind.Label }),
             (new[] { "vida", "barra de vida", "health", "life" }, new[] { BehaviorKind.Health, BehaviorKind.Bar }),

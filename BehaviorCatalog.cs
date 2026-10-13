@@ -76,6 +76,8 @@ namespace EasyEngine
         private static readonly Func<ParamCtx, bool> LightBlocks = IfOn("lightStyle"); // Day/Night "Blocks" lighting
         // a Light's block options (stopped by blocks, colours, adds up) only exist in the scene's "Blocks" lighting
         private static readonly Func<ParamCtx, bool> InBlockLighting = c => BlockLighting(c.Scene);
+        // a Light's beam options (which way, how wide) only for those shapes (any word the shape reader knows: "flashlight" = beam)
+        private static Func<ParamCtx, bool> LightShaped(params string[] shapes) => c => shapes.Contains(LightShapes.Shape(c.Bh.Text("shape", "")));
 
         /// <summary>The scene's Day/Night uses "Blocks" lighting (light computed block by block) — the only style where a
         /// Light can be stopped by blocks, colour what it touches and add up with other lights.</summary>
@@ -174,11 +176,19 @@ namespace EasyEngine
                 Texts = { T("asset","Sound file","", PickKind.Sound), T("channel","Channel","sfx", PickKind.Choice, "sfx|Sound effects", "music|Music") } },
 
             new BehaviorInfo { Kind = BehaviorKind.LightSource, Name = "Light", Icon = "💡",
-                Desc = "Lights up the darkness around it (things near it show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).",
+                Desc = "Lights up the darkness around it (things in its light show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). Shape: circle (all around), beam (a cone like a flashlight or a car's headlights — it points where the object faces, or right/left/up/down, or at the mouse; Cone width = how wide), half circle (a wall lamp lighting one side), area (the object's whole rectangle is lit — a window, a lit room, a light shaft; Radius = how far the light spreads past its edges) or bar (a long glow along the object's length — a neon tube, a lamp strip). Radius = how far it reaches. Effect: flicker (a candle or torch), pulse (slowly grows and shrinks) or blink (on and off, like an alarm). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).",
                 Nums = { new("radius","Radius",200), new("intensity","Intensity (0-1)",0.9),
+                         NIf(new("spread","Cone width",40, "20|Narrow (20°)", "40|Normal (40°)", "60|Wide (60°)", "90|Very wide (90°)"), LightShaped(LightShapes.Beam)),
+                         new("softness","Soft edge (0-1)",0.5),
+                         NIf(new("speed","Effect speed",1, "0.5|Slow", "1|Normal", "2|Fast", "4|Very fast"), c => LightShapes.Effect(c.Bh.Text("effect", "")) != LightShapes.None),
                          NIf(new("stopByBlocks","Solid blocks stop this light (0/1)",1), InBlockLighting), NIf(new("tint","Colours what it touches (0/1)",1), InBlockLighting),
                          NIf(new("addUp","Adds up with other lights (0/1)",1), InBlockLighting) },
-                Texts = { T("color","Color","#FFA040", PickKind.Color) } },
+                Texts = { T("shape","Shape","circle", PickKind.Choice, "circle|Circle (all around)", "beam|Beam (flashlight cone)", "half|Half circle (wall lamp)",
+                            "area|Area (its whole rectangle)", "bar|Bar (neon tube glow)"),
+                          TIf(T("direction","Direction","facing", PickKind.Choice, "facing|Where it faces", "right|Right", "left|Left", "up|Up", "down|Down", "mouse|Toward the mouse"),
+                              LightShaped(LightShapes.Beam, LightShapes.Half)),
+                          T("effect","Effect","none", PickKind.Choice, "none|Steady", "flicker|Flicker (candle, torch)", "pulse|Pulse (slowly grows and shrinks)", "blink|Blink (on and off, alarm)"),
+                          T("color","Color","#FFA040", PickKind.Color) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Parallax, Name = "Parallax", Icon = "🏔",
                 Desc = "Background that scrolls slower than the camera.",
