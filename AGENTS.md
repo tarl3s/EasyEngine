@@ -1,7 +1,7 @@
 # AGENTS.md — EasyEngine
 
 Context for AI coding assistants (Codex, Claude Code, Cursor, Copilot, Gemini…). Read this before changing anything.
-`README.md` is the user-facing description (in Portuguese); this file is the working knowledge behind it.
+`README.md` (English) and `README.pt-BR.md` are the user-facing description; this file is the working knowledge behind it.
 
 ## The project in one paragraph
 
@@ -17,7 +17,7 @@ that game needs come first (rotational physics/ragdolls/vehicles come last). Lon
   face — keep both in sync when features change.
 - Version: `0.12.1` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
 - The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
-  this file are in **English** (the editor UI is 100% English by request; only `README.md` is Portuguese).
+  this file are in **English** (the editor UI is 100% English by request; only `README.pt-BR.md` is Portuguese).
 
 ## Build, run, test
 

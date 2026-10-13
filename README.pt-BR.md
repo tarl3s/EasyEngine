@@ -58,10 +58,13 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 - **Comportamentos prontos** — plataforma (pulo variável, coyote time, pulo duplo, wall jump, dash), top-down,
   perseguição, patrulha (até por um caminho que você desenha), vida/dano/knockback, itens que você usa (espada,
   machado, picareta, os seus), hotbar, lojas e crafting, coletáveis (que valem pontos), portas entre cenas, molas,
-  blocos de empurrar, torres que miram, manter coisas dentro da tela e muito mais. Toda opção é **escolhida numa lista** — nada de sintaxe pra decorar.
+  blocos de empurrar, torres que miram, manter coisas dentro da tela e muito mais. Coisas que andam, torres, geradores e
+  perigos podem funcionar **só enquanto** algo for verdade (o jogador está perto, é noite, um botão foi apertado). Toda opção é **escolhida numa lista** — nada de sintaxe pra decorar.
 - **🧩 Blocos pra lógica própria** — blocos no estilo Scratch (*quando → faça*), com variáveis globais, de cena e
   por objeto (números, sim/não, texto, cores e listas), inventário e diálogos. Descreva o que quer e **✨ a IA adiciona
   os blocos**, ou comece por uma **📚 receita** (sumir aos poucos, piscar, seguir o mouse, andar em círculo, contagem…).
+  Qualquer número pode ser uma fórmula (`score * 2`, `Player.x - self.x`). Os blocos e a IA falam a mesma língua: o que
+  a IA faz abre como blocos que você edita, e vice-versa.
 - **👑 Boss AI** — chefões com **fases pela vida**, ataques montados com passos (avisar, investida, pulo com onda de
   choque, tiros em anel/leque/mirados, invocar lacaios, invulnerável…), sequência de morte e barra de vida do chefe.
 - **🎬 Cinemáticas** — falas, câmera que viaja, títulos grandes, fades, barras de cinema, mover personagens, travar
@@ -98,8 +101,10 @@ Abra o painel da IA e escolha **Which AI to use**:
 - **Sua própria conta paga** (OpenAI, Claude, DeepSeek, Mistral, ou qualquer endpoint compatível com OpenAI).
 
 A IA nunca escreve código dentro do seu jogo: ela responde com os comportamentos e as opções da própria engine, que o
-editor confere — e arruma — antes de aplicar. Ela é medida com ~80 pedidos típicos (mover coisas, timers,
-inimigos, chefões, uma fase inteira, perguntas…) jogados de verdade pra ver se funcionam. As chaves ficam no seu computador (`%APPDATA%\EasyEngine\settings.json`).
+editor confere — e arruma — antes de aplicar. Cada pedido vai com um prompt curto, só com o que ele precisa (os
+exemplos e dicas mais parecidos), então a cota grátis dura mais e a IA offline responde mais rápido. Ela é medida com
+~125 pedidos típicos (mover coisas, timers, inimigos, chefões, uma loja, uma fase inteira, perguntas, o ✨ Ask the AI
+dos blocos, conversas curtas…) jogados de verdade pra ver se funcionam. As chaves ficam no seu computador (`%APPDATA%\EasyEngine\settings.json`).
 
 ## Compilar a partir do código
 

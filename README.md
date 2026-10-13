@@ -55,11 +55,14 @@ old version and opens again. Your projects are never touched. The sample games a
 - **Ready-made behaviors** — platformer (variable jump, coyote time, double jump, wall jump, dash), top-down, chase,
   patrol (even along a route you draw), health/damage/knockback, items you swing (sword, axe, pickaxe, your own),
   hotbar, shops and crafting, collectibles (worth points), doors between scenes, springs, pushable blocks, turrets that
-  aim, keeping things inside the screen, and more.
+  aim, keeping things inside the screen, and more. Movers, turrets, spawners and hazards can work **only while**
+  something is true (the player is near, it is night, a switch was pressed).
   Every setting is **picked from a list** — no syntax to learn.
 - **🧩 Blocks for custom logic** — Scratch-style *when → do* blocks, with global, scene and per-object variables
   (numbers, yes/no, text, colours and lists), an inventory and dialogue. Describe what you want and **✨ the AI adds the
   blocks**, or start from a **📚 recipe** (fade out, blink, follow the mouse, move in a circle, a countdown…).
+  Any number can be a formula (`score * 2`, `Player.x - self.x`). Blocks and the AI speak the same language: whatever
+  the AI makes opens as blocks you can edit, and the other way round.
 - **👑 Boss AI** — bosses with **phases by health**, attacks built from steps (warn, dash, jump with a shockwave,
   ring/spread/aimed shots, summon minions, invulnerable…), a death sequence and a boss health bar.
 - **🎬 Cutscenes** — dialogue, camera moves, big titles, fades, cinema bars, moving characters, locking the controls;
@@ -95,8 +98,10 @@ Open the AI panel and pick **Which AI to use**:
 - **Your own paid account** (OpenAI, Claude, DeepSeek, Mistral, or any OpenAI-compatible endpoint).
 
 The AI never writes code into your game: it answers with the engine's own behaviors and settings, which the editor
-checks — and tidies up — before applying. It is measured against ~80 typical requests (moving things, timers,
-enemies, bosses, a whole level, questions…) played back to see that they really work. Keys stay on your computer (`%APPDATA%\EasyEngine\settings.json`).
+checks — and tidies up — before applying. Each request gets a short prompt with only what it needs (the closest
+examples and how-tos), so free tiers last longer and offline models answer faster. It is measured against ~125 typical
+requests (moving things, timers, enemies, bosses, a shop, a whole level, questions, the blocks' ✨ Ask the AI, short
+conversations…) played back to see that they really work. Keys stay on your computer (`%APPDATA%\EasyEngine\settings.json`).
 
 ## Build from source
 
