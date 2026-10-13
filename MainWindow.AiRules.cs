@@ -60,6 +60,55 @@ namespace EasyEngine
             }
         }
 
+        // things that stay where they are put: the model asking for "Dynamic" on them is ignored
+        private static readonly HashSet<BehaviorKind> StaysPut = new()
+        {
+            BehaviorKind.Label, BehaviorKind.UIButton, BehaviorKind.Bar, BehaviorKind.Minimap, BehaviorKind.Parallax, BehaviorKind.DayNight,
+            BehaviorKind.Generator, BehaviorKind.Area, BehaviorKind.GoToScene, BehaviorKind.Checkpoint, BehaviorKind.Spawner, BehaviorKind.Solid,
+            BehaviorKind.Gate, BehaviorKind.Switch, BehaviorKind.Spring, BehaviorKind.Collectible, BehaviorKind.AbilityPickup, BehaviorKind.Interact,
+        };
+
+        // "physics":"Dynamic" or {"mode":"Dynamic","bounciness":0.8,"gravity":0.5}; "bounciness"/"gravity" may also sit on the object
+        private static (PhysicsMode? mode, double? bounce, double? gravity) SpecPhysics(JsonElement spec)
+        {
+            PhysicsMode? mode = null; double? bounce = null, grav = null;
+            void Read(JsonElement o)
+            {
+                foreach (var k in new[] { "bounciness", "bounce", "restitution" })
+                    if (o.TryGetProperty(k, out var b) && LooseJson.TryNumber(b, out var bv)) bounce = bv;
+                foreach (var k in new[] { "gravity", "gravityScale" })
+                    if (o.TryGetProperty(k, out var g) && LooseJson.TryNumber(g, out var gv)) grav = gv;
+                foreach (var k in new[] { "mode", "physics" })
+                    if (o.TryGetProperty(k, out var m) && m.ValueKind == JsonValueKind.String && Enum.TryParse<PhysicsMode>(m.GetString(), true, out var pm)) mode = pm;
+            }
+            Read(spec);
+            if (spec.TryGetProperty("physics", out var ph) && ph.ValueKind == JsonValueKind.Object) Read(ph);
+            return (mode, bounce, grav);
+        }
+
+        // Short, exact shapes for the requests people make most (the --aitest cases): small models copy them well,
+        // big ones stop guessing. Shared by the cloud (compact) and local prompts.
+        internal const string Recipes =
+            "RECIPES (copy these shapes):\n" +
+            "- coin worth 10 points: {\"create\":[{\"name\":\"Coin\",\"width\":24,\"height\":24,\"color\":\"#FFD700\",\"behaviors\":[{\"kind\":\"Collectible\",\"texts\":{\"var\":\"score\"},\"nums\":{\"points\":10}}]}]} — show it with a Label \"Score: {score}\" on the UI layer.\n" +
+            "- score / timer on screen: {\"create\":[{\"name\":\"ScoreText\",\"layer\":\"UI\",\"x\":20,\"y\":16,\"width\":220,\"height\":32,\"behaviors\":[{\"kind\":\"Label\",\"texts\":{\"text\":\"Score: {score}\",\"align\":\"left\"}}]}]} (a Label's {name} shows a variable live — no rule needed).\n" +
+            "- 60 s countdown: {\"variables\":{\"scene\":{\"timer\":60}},\"create\":[{\"name\":\"TimerText\",\"layer\":\"UI\",\"x\":20,\"y\":16,\"behaviors\":[{\"kind\":\"Label\",\"texts\":{\"text\":\"Time: {timer}\"}}],\"custom\":[{\"when\":\"timer\",\"every\":1,\"cond\":\"timer > 0\",\"do\":\"addvar\",\"var\":\"timer\",\"amount\":-1}]}]}\n" +
+            "- fade out after 5 s: {\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":3}. Blink: {\"when\":\"start\",\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":0.5,\"loop\":1,\"yoyo\":1}. Invisible now: \"opacity\":0 on the object (or do:hide / do:show in a rule).\n" +
+            "- keeps moving right: {\"when\":\"always\",\"do\":\"velocity\",\"vx\":150,\"vy\":0}. Follow the mouse: {\"when\":\"always\",\"do\":\"set\",\"prop\":\"x\",\"expr\":\"mousex - self.w/2\"} (+ the same for y). Move in a circle: {\"when\":\"always\",\"do\":\"set\",\"prop\":\"x\",\"expr\":\"400 + cos(time*2)*120\"} and prop y with sin. Run away from the player: {\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(self.cx - Player.cx) * 160\"}.\n" +
+            "- enemy that shoots at the player every 2 s: Shooter texts{key:\"\",aim:\"Player\"} nums{directions:1,cooldown:2,speed:300} (no key = fires by itself).\n" +
+            "- platform moving up and down: Solid + Patrol nums{axis:1,distance:150,speed:80}. Bouncy ball: \"physics\":{\"mode\":\"Dynamic\",\"bounciness\":0.8}.\n" +
+            "- locked door + key: door = Gate texts{var:\"hasKey\"}; key = AbilityPickup texts{var:\"hasKey\"}.\n" +
+            "- door to another scene: GoToScene texts{scene:\"Level2\"} (texts.trigger is WHO walks in, normally Player).\n" +
+            "- when the Boss dies go to Level2: on the Boss {\"when\":\"death\",\"do\":\"goscene\",\"scene\":\"Level2\"}. When the player dies → the same rule on the player.\n" +
+            "- when the score reaches 10: {\"when\":\"ifvar\",\"var\":\"score\",\"op\":\">=\",\"value\":10,\"do\":\"goscene\",\"scene\":\"Level2\"}.\n" +
+            "- message when touching: {\"when\":\"touch\",\"name\":\"Player\",\"do\":\"say\",\"text\":\"Welcome!\"} (touch's \"name\" is the OTHER object).\n" +
+            "- delete objects: {\"delete\":[\"Enemy\"]}.\n" +
+            "Numbers in rules may be expressions (\"rand(1,3)\", \"Player.x - self.x\"). move dx/dy are pixels PER SECOND. Bosses: BossAI (moves=fly for a flying one) + Health respawn=0 + Damager.\n";
+
+        // what the AI asked for that couldn't be used (a made-up event or action) — shown under the change summary
+        private readonly List<string> _aiNotes = new();
+        private string SummaryOf(List<string> changes) => string.Join("\n", changes.Concat(_aiNotes.Distinct().Select(n => "⚠ " + n)));
+
         private static string Squash(string s) => new string(s.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToLowerInvariant();
 
         private static string RuleKeyOf(string raw)

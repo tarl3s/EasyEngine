@@ -2706,7 +2706,7 @@ namespace EasyEngine
             sb.AppendLine();
             if (compact)
             {
-                sb.AppendLine("For logic the kinds can't do, use a \"custom\" rule list: [{\"when\":<start|always|key|keypress|timer|after|touch|death|ifvar|iflocal|iftext|iflist|hasitem|expr|click|rightclick|mouseover|mousepress>,...params...,\"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|goscene|setvar|addvar|setlocal|addlocal|settext|toggle|setcolor|tint|listadd|listremove|listclear|set|additem|removeitem|boost|setspeed|say|save|load|tween|emit>,...params...}]. Params by name: key, every, name, var/op/value, force, speed, vx/vy, dx/dy, to, amount, factor, text, scene, item, directions, prop. Texts: settext(var,to:\"Hi {name}\"), toggle(var) flips a Yes/No, iftext(var,op:is|isnot|contains|empty,value). Colours: setcolor(var,to:\"#FF8800\"), tint(color,target) paints an object; any colour param can be \"{colourVar}\". Lists: listadd/listremove(var,value), listclear(var), iflist(var,op:contains|notcontains|empty|notempty|countis|countatleast,value); {quests} shows the items, count:quests is how many. ANY value can be an \"expr\" string (math; reads self.x/self.cx/self.health, OtherObj.cx, a variable, item:NAME, count:LIST, mousex, time, dist(x1,y1,x2,y2)). Guard any rule with \"cond\":\"<expr>\". timer repeats; after(seconds) fires once. Fade/grow/slide = do:tween(prop=opacity|scale|x|y, to, duration), e.g. {\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":3}. setcolor only sets a Colour variable. 'WHEN X happens, effect' is ALWAYS a custom rule (condition→action), never a static param.");
+                sb.AppendLine("For logic the kinds can't do, use a \"custom\" rule list: [{\"when\":<start|always|key|keypress|timer|after|touch|death|ifvar|iflocal|iftext|iflist|hasitem|expr|click|rightclick|mouseover|mousepress>,...params...,\"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|hide|show|goscene|setvar|addvar|setlocal|addlocal|settext|toggle|setcolor|tint|listadd|listremove|listclear|set|additem|removeitem|boost|setspeed|say|save|load|tween|emit>,...params...}]. Params by name: key, every, name, var/op/value, force, speed, vx/vy, dx/dy, to, amount, factor, text, scene, item, directions, prop. Texts: settext(var,to:\"Hi {name}\"), toggle(var) flips a Yes/No, iftext(var,op:is|isnot|contains|empty,value). Colours: setcolor(var,to:\"#FF8800\"), tint(color,target) paints an object; any colour param can be \"{colourVar}\". Lists: listadd/listremove(var,value), listclear(var), iflist(var,op:contains|notcontains|empty|notempty|countis|countatleast,value); {quests} shows the items, count:quests is how many. ANY value can be an \"expr\" string (math; reads self.x/self.cx/self.health, OtherObj.cx, a variable, item:NAME, count:LIST, mousex, time, dist(x1,y1,x2,y2)). Guard any rule with \"cond\":\"<expr>\". timer repeats; after(seconds) fires once. Fade/grow/slide = do:tween(prop=opacity|scale|x|y, to, duration), e.g. {\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":3}. setcolor only sets a Colour variable. 'WHEN X happens, effect' is ALWAYS a custom rule (condition→action), never a static param.");
                 sb.AppendLine("Player = Platformer, physics Dynamic, controls=1 (dash/doubleJump/wallJump are 0/1 nums). Enemies: controls=0; prefer Patrol/Chase/custom. Killable enemy = Health respawn=0; player = respawn=1. Moving platform = Solid+Patrol. To spawn during play: make it asPrefab:true, then a Spawner or a custom spawn rule. Per-object looks: opacity, cornerRadius, borderColor+borderWidth, color, font. Draw art: \"pixelArt\":{\"palette\":{\"X\":\"#RRGGBB\"},\"rows\":[\"..XX..\"]} ('.'=transparent, <=16px). Image with empty space around the drawing: \"fitHitbox\":true (collides with the drawing, not the box). Only touch the exact object(s)/layer(s) the user names.");
             }
             else
@@ -2744,7 +2744,7 @@ namespace EasyEngine
             sb.AppendLine();
             sb.AppendLine("CUSTOM behavior — for ANY special/unique logic the kinds can't do (enemy patterns, dialogue, variables, inventory, conditions). ALWAYS use \"custom\" for things like 'every N do X', timed attacks, phases:");
             sb.AppendLine("CRUCIAL: 'WHEN <something> happens, <effect>' (e.g. 'when the player hits X, go 2x faster', 'when touch spike, lose a life') is ALWAYS a custom rule (condition → action). NEVER express it by changing a static param — a static param would apply from the start, not on the event.");
-            sb.AppendLine("\"custom\":[{\"when\":<start|always|key|keypress|timer|after|touch|death|ifvar|iflocal|iftext|iflist|hasitem|expr|click|rightclick|mousedown|mouseover|mousepress>, ...params, \"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|goscene|setvar|addvar|setlocal|addlocal|settext|addtext|toggle|setcolor|tint|listadd|listremove|listclear|set|additem|removeitem|boost|setspeed|say|save|load|tween|emit>, ...params}]");
+            sb.AppendLine("\"custom\":[{\"when\":<start|always|key|keypress|timer|after|touch|death|ifvar|iflocal|iftext|iflist|hasitem|expr|click|rightclick|mousedown|mouseover|mousepress>, ...params, \"do\":<velocity|move|accelerate|jump|rotate|shoot|spawn|destroy|hide|show|goscene|setvar|addvar|setlocal|addlocal|settext|addtext|toggle|setcolor|tint|listadd|listremove|listclear|set|additem|removeitem|boost|setspeed|say|save|load|tween|emit>, ...params}]");
             sb.AppendLine("Condition params: key(key); keypress(key,cooldown); timer(every); touch(name) [fires once when contact starts]; death [fires when this object's health hits 0]; ifvar/iflocal(var,op,value); iftext(var,op=is|isnot|contains|empty,value) [compares a Text variable]; iflist(var,op=contains|notcontains|empty|notempty|countis|countatleast,value) [checks a List: an item, or how many]; hasitem(item); expr(expr) [any expression truthy]; click/rightclick/mousedown/mouseover [mouse over THIS object]; mousepress [mouse clicked anywhere].");
             sb.AppendLine("Action params: velocity(vx,vy); move(dx,dy); accelerate(ax,ay); jump(force); rotate(speed); shoot(directions,speed); spawn(object); goscene(scene); setvar/setlocal(var,to); addvar/addlocal(var,amount); settext/addtext(var,to) [to = words, {name} puts a variable in: \"Hello {playerName}!\"]; toggle(var) [flips a Yes/No]; setcolor(var,to) [to = \"#RRGGBB\": a Colour variable]; tint(color,[target]) [paints a plain-colour object, default target=self; color can be \"{teamColor}\" — so can emit's color]; listadd/listremove(var,value) [adds an item / removes the first equal one; value may hold {name}]; listclear(var); {quests} in a text shows a List's items, count:quests (in an expr or {count:quests}) is how many; settext/toggle/iftext/setcolor/list actions/iflist take \"local\":true for the object's own variable; set(prop,to,[target]) [prop=x|y|vx|vy|rot|facing|health|w|h — set a property, default target=self]; boost(factor); setspeed(factor); say(text,speaker). Timing: when:timer(every) REPEATS; when:after(seconds) fires ONCE that many seconds after the object appears. Gradual changes (fade, grow, slide) are do:tween(prop=opacity|scale|x|y|rot|w|h, to, duration) — e.g. fade out after 5 s over 3 s: {\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":3}. setcolor only stores a colour in a Colour VARIABLE; it never changes how an object looks (use tint or tween).");
             sb.AppendLine("EXPRESSIONS (the big unlock): any set/add/compare value can be an \"expr\" string instead of a fixed number. Supports + - * / %, comparisons > < >= <= == !=, logic && || !, parentheses, functions abs min max floor ceil round sqrt sign sin cos atan2 clamp(x,lo,hi) rand(a,b) randi(a,b) dist(x1,y1,x2,y2). Read values: a variable name (score), item:NAME, self.x/self.y/self.vx/self.cx/self.health/self.facing/local.NAME, OtherObjectName.x/.cy/..., mousex/mousey (world), mousescreenx/y, time, scenew/sceneh.");
@@ -2760,6 +2760,7 @@ namespace EasyEngine
             sb.AppendLine("Example — \"spawn rocks that fall from the sky when I press Y\":");
             sb.AppendLine("{\"create\":[{\"name\":\"Rock\",\"width\":40,\"height\":40,\"color\":\"#8A7A6A\",\"physics\":\"Dynamic\",\"asPrefab\":true}],\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Spawner\",\"texts\":{\"target\":\"Rock\",\"key\":\"Y\",\"at\":\"top\"},\"nums\":{\"max\":0}}]}]}");
             }
+            sb.Append(Recipes);
             sb.AppendLine();
 
             // scene inventory so the AI can target/avoid-dup
@@ -2808,14 +2809,21 @@ namespace EasyEngine
         {
             var result = target.Behaviors.Select(JsonClone).ToList();
             bool changed = false;
+            var impliedRules = new System.Text.Json.Nodes.JsonArray(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
 
             if (spec.TryGetProperty("behaviors", out var arr) && arr.ValueKind == JsonValueKind.Array)
             {
-                foreach (var item in arr.EnumerateArray())
+                foreach (var raw in arr.EnumerateArray())
                 {
-                    if (!item.TryGetProperty("kind", out var kindEl)) continue;
-                    var kindOpt = ResolveKind(kindEl.GetString());
+                    if (raw.ValueKind != JsonValueKind.Object || !raw.TryGetProperty("kind", out var kindEl)) continue;
+                    var kindOpt = ResolveKind(kindEl.ValueKind == JsonValueKind.String ? kindEl.GetString() : null);
                     if (kindOpt is not BehaviorKind kind || kind == BehaviorKind.Tilemap) continue;
+                    if (kind == BehaviorKind.Custom) { AiSpecFix.CustomAsBehavior(raw, impliedRules); continue; }
+                    var node = (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse(raw.GetRawText())!;
+                    AiSpecFix.Behavior(BehaviorCatalog.Info(kind), node, impliedRules);
+                    if (node.ContainsKey("drop")) continue;
+                    using var fixedDoc = JsonDocument.Parse(node.ToJsonString());
+                    var item = fixedDoc.RootElement.Clone();
 
                     var existing = result.FirstOrDefault(x => x.Kind == kind);
                     var data = existing ?? BehaviorCatalog.Info(kind).CreateData();
@@ -2836,14 +2844,22 @@ namespace EasyEngine
                     if (r.ValueKind == JsonValueKind.String && ResolveKind(r.GetString()) is BehaviorKind rk)
                         if (result.RemoveAll(x => x.Kind == rk) > 0) changed = true;
 
-            if (spec.TryGetProperty("custom", out var cust) && cust.ValueKind == JsonValueKind.Array && cust.GetArrayLength() > 0)
+            // the rules: "custom" (also "rules"/"script", a single rule object, or a JSON string of them) plus the implied ones, cleaned up
+            foreach (var key in new[] { "custom", "rules", "script" })
+                if (spec.TryGetProperty(key, out var c)) { AiSpecFix.CollectRules(c, impliedRules); break; }
+            if (impliedRules.Count > 0)
             {
-                var existing = result.FirstOrDefault(x => x.Kind == BehaviorKind.Custom);
-                var data = existing ?? new BehaviorData { Kind = BehaviorKind.Custom };
-                bool replace = spec.TryGetProperty("replaceCustom", out var rc) && LooseJson.IsTrue(rc);
-                data.Texts["script"] = existing == null || replace ? cust.GetRawText() : MergeRules(existing.Text("script", "[]"), cust);
-                if (existing == null) result.Add(data);
-                changed = true;
+                using var rulesDoc = JsonDocument.Parse(AiSpecFix.Rules(JsonDocument.Parse(impliedRules.ToJsonString()).RootElement, _aiNotes));
+                var cust = rulesDoc.RootElement;
+                if (cust.GetArrayLength() > 0)
+                {
+                    var existing = result.FirstOrDefault(x => x.Kind == BehaviorKind.Custom);
+                    var data = existing ?? new BehaviorData { Kind = BehaviorKind.Custom };
+                    bool replace = spec.TryGetProperty("replaceCustom", out var rc) && LooseJson.IsTrue(rc);
+                    data.Texts["script"] = existing == null || replace ? cust.GetRawText() : MergeRules(existing.Text("script", "[]"), cust);
+                    if (existing == null) result.Add(data);
+                    changed = true;
+                }
             }
 
             if (ApplyBasics(target, spec)) changed = true;
@@ -2879,8 +2895,13 @@ namespace EasyEngine
             var low = userPrompt.ToLowerInvariant();
             bool gravityIntent = new[] { "gravity", "gravid", "fall", "falling", "cair", "queda" }.Any(low.Contains);
             PhysicsMode desired = target.Physics.Mode;
+            var (askedMode, bounce, grav) = SpecPhysics(spec);
+            if (bounce is double bv) { target.Physics.Bounciness = Math.Clamp(bv, 0, 1); changed = true; }
+            if (grav is double gv) { target.Physics.GravityScale = Math.Clamp(gv, -5, 5); changed = true; }
             if (HasK(BehaviorKind.Platformer) || gravityIntent || customJumps) desired = PhysicsMode.Dynamic;
             else if (HasK(BehaviorKind.Solid) && !hasMover) desired = PhysicsMode.Static;
+            // the model's own "physics" is trusted only where it can't pin a HUD/door/pickup to gravity by mistake
+            else if ((askedMode == PhysicsMode.Dynamic || bounce > 0) && !result.Any(b => StaysPut.Contains(b.Kind))) desired = PhysicsMode.Dynamic;
             if (desired != target.Physics.Mode) { target.Physics.Mode = desired; changed = true; }
 
             target.Behaviors = result;
@@ -3101,7 +3122,9 @@ namespace EasyEngine
         private static readonly string[] ThingNouns =
         {
             "coin","platform","enemy","boss","npc","door","spike","wall","obstacle","bullet","item","powerup",
-            "crystal","orb","gem","rock","block","trap","portal","chest","monster","slime","ghost","turret","hazard","pickup","collectible"
+            "crystal","orb","gem","rock","block","trap","portal","chest","monster","slime","ghost","turret","hazard","pickup","collectible",
+            "ball","box","crate","flag","checkpoint","sign","button","trampoline","lever","star","ladder","cloud","tree","label","bar",
+            "moeda","plataforma","inimigo","chefe","porta","espinho","parede","bola","caixa","bandeira","chave","placa","botão","botao","estrela","pedra","bloco","armadilha","baú","bau","monstro"
         };
 
         private static readonly string[] AbilityWords =
@@ -3265,6 +3288,7 @@ namespace EasyEngine
         {
             summary = "";
             _aiSpecObjects.Clear();
+            _aiNotes.Clear();
             var json = LooseJson.Extract(reply);
             if (json == null) return false;
             JsonDocument doc;
@@ -3312,7 +3336,7 @@ namespace EasyEngine
                     ApplyGlobalSceneVars(root, EnsureUndo, changes);
 
                     if (changes.Count == 0) return false;
-                    summary = string.Join("\n", changes);
+                    summary = SummaryOf(changes);
                     return true;
                 }
 
@@ -3342,7 +3366,9 @@ namespace EasyEngine
                         if (!asPrefab && !IsNewIntent(userPrompt))
                         {
                             existing = _scene.Layers.SelectMany(l => l.Objects).FirstOrDefault(o => o.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-                            if (existing == null && IsModifyIntent(userPrompt)) existing = ResolveTarget(name, userPrompt);
+                            // a "create" named like the player (Hero, Jogador…) is the player; any other new name is a NEW thing,
+                            // even when the request mentions the player ("an enemy that chases the player")
+                            if (existing == null && IsModifyIntent(userPrompt) && NameLooksPlayer(name ?? "")) existing = FindPlayer();
                         }
 
                         EnsureUndo();
@@ -3407,7 +3433,7 @@ namespace EasyEngine
                 }
 
                 if (changes.Count == 0) return false;
-                summary = string.Join("\n", changes);
+                summary = SummaryOf(changes);
                 return true;
             }
         }

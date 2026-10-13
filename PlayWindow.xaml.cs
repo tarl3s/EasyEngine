@@ -185,11 +185,28 @@ namespace EasyEngine
             // action reads: the action bucket, falling back to the trigger bucket ONLY for keys
             // the WHEN event does not itself consume (so a param written before "do" is still
             // found, without ever reading a value that belongs to the trigger — e.g. touch's "name").
-            public double Num(string k, double d = 0) => N.TryGetValue(k, out var v) ? v : (!TriggerConsumes(When, k) && WN.TryGetValue(k, out var v2) ? v2 : d);
+            public double Num(string k, double d = 0)
+            {
+                if (N.TryGetValue(k, out var v)) return v;
+                if (T.TryGetValue(k, out var s)) return Calc(s, d);
+                if (TriggerConsumes(When, k)) return d;
+                return WN.TryGetValue(k, out var v2) ? v2 : WT.TryGetValue(k, out var s2) ? Calc(s2, d) : d;
+            }
             public string Str(string k, string d = "") => T.TryGetValue(k, out var v) ? v : (!TriggerConsumes(When, k) && WT.TryGetValue(k, out var v2) ? v2 : d);
             // trigger reads: the trigger bucket only (default when absent) — never the action bucket,
             // so an omitted trigger param uses its default instead of an action param of the same name.
-            public double WNum(string k, double d = 0) => WN.TryGetValue(k, out var v) ? v : d;
+            public double WNum(string k, double d = 0) => WN.TryGetValue(k, out var v) ? v : WT.TryGetValue(k, out var s) ? Calc(s, d) : d;
+            private static readonly System.Text.RegularExpressions.Regex ExprWrap = new(@"^\s*expr\s*[:=(]?\s*[""']?(.*?)[""')]?\s*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            // a value written as words: an expression ("rand(1,3)", "mousex - self.x", "expr:…"), worked out for this object
+            // when it is read (numbers written in quotes were already stored as numbers by ParseCustom)
+            public System.Func<string, double>? Eval;
+            private double Calc(string s, double d)
+            {
+                if (s.TrimStart().StartsWith("expr", System.StringComparison.OrdinalIgnoreCase)) s = ExprWrap.Match(s).Groups[1].Value; // "expr: a-b", expr "a-b"
+                return Eval != null && !string.IsNullOrWhiteSpace(s) ? Eval(s) : d;
+            }
+            public bool HasValue(string k) => N.ContainsKey(k) || T.ContainsKey(k);
             public string WStr(string k, string d = "") => WT.TryGetValue(k, out var v) ? v : d;
 
             // which param keys each WHEN event reads for itself (so action reads skip these on fallback)
@@ -834,7 +851,7 @@ namespace EasyEngine
             {
                 double ang = proj.Num("angle") * Math.PI / 180.0, spd = proj.Num("speed", 420);
                 en.VX = Math.Cos(ang) * spd; en.VY = Math.Sin(ang) * spd;
-                en.Life = proj.Num("life", 3);
+                en.Life = proj.Num("life", 3) is var lf && lf > 0 ? lf : -1; // 0 = flies forever (until something removes it)
             }
 
             var light = en.Beh(BehaviorKind.LightSource);
@@ -847,7 +864,11 @@ namespace EasyEngine
             if (bar != null) BuildBar(en, bar);
 
             var customB = en.Beh(BehaviorKind.Custom);
-            if (customB != null) en.Custom = ParseCustom(customB.Text("script", "[]"), obj.Name);
+            if (customB != null)
+            {
+                en.Custom = ParseCustom(customB.Text("script", "[]"), obj.Name);
+                foreach (var r in en.Custom) r.Eval = x => EvalExpr(x, en); // values written as expressions
+            }
 
             var solidB = en.Beh(BehaviorKind.Solid);
             en.OneWay = solidB != null && solidB.Num("oneWay") >= 0.5;
@@ -1366,17 +1387,11 @@ namespace EasyEngine
                         case BehaviorKind.Shooter:
                         {
                             if (en.ShootTimer > 0) en.ShootTimer -= dt;
-                            var key = ParseKey(bh.Text("key", "T"));
-                            if (en.ShootTimer <= 0 && _keys.Contains(key))
+                            var keyName = bh.Text("key", "T");
+                            bool auto = string.IsNullOrWhiteSpace(keyName) || keyName.Equals("none", StringComparison.OrdinalIgnoreCase); // no key: fires by itself
+                            if (en.ShootTimer <= 0 && (auto || _keys.Contains(ParseKey(keyName))))
                             {
-                                int dirs = Math.Max(1, (int)Math.Round(bh.Num("directions", 8)));
-                                double spd = bh.Num("speed", 420), life = bh.Num("life", 2);
-                                var bulletName = bh.Text("bullet", "Bullet");
-                                for (int i = 0; i < dirs; i++)
-                                {
-                                    double ang = dirs == 1 ? (en.Facing >= 0 ? 0 : 180) : i * 360.0 / dirs;
-                                    SpawnBullet(en, ang, spd, life, bulletName);
-                                }
+                                FireVolley(en, (int)Math.Round(bh.Num("directions", 8)), bh.Num("speed", 420), bh.Num("life", 2), bh.Text("bullet", "Bullet"), bh.Text("aim", ""));
                                 en.ShootTimer = Math.Max(0.05, bh.Num("cooldown", 0.3));
                             }
                             break;
@@ -1848,6 +1863,7 @@ namespace EasyEngine
                         {
                             string v = p.Value.GetString() ?? "";
                             if (toTrigger) r.WT[name] = v; else r.T[name] = v;
+                            if (LooseJson.TryParse(v, out var qn)) { if (toTrigger) r.WN[name] = qn; else r.N[name] = qn; } // "2" is also the number 2
                         }
                         else if (p.Value.ValueKind is JsonValueKind.True or JsonValueKind.False) // a Yes/No: true = 1, false = 0
                         {
@@ -1908,9 +1924,10 @@ namespace EasyEngine
                         r.Timer -= dt;
                         if (_keys.Contains(ParseKey(r.WStr("key", "Space"))) && r.Timer <= 0) { fire = true; r.Timer = Math.Max(0.05, r.WNum("cooldown", 0.3)); }
                         break;
-                    case "timer":
+                    case "timer": // every N seconds — the first time N seconds after it appears (a countdown shows its start value first)
+                        if (!r.Started) { r.Started = true; r.Timer = Math.Max(0.05, r.WNum("every", 1)); }
                         r.Timer -= dt;
-                        if (r.Timer <= 0) { fire = true; r.Timer = Math.Max(0.05, r.WNum("every", 1)); }
+                        if (r.Timer <= 0) { fire = true; r.Timer += Math.Max(0.05, r.WNum("every", 1)); }
                         break;
                     case "after": // once, N seconds after it appears
                         if (!r.Started) { r.Timer += dt; if (r.Timer >= r.WNum("seconds", r.WNum("every", 1))) { fire = true; r.Started = true; } }
@@ -1984,15 +2001,8 @@ namespace EasyEngine
                 case "jump": if (en.Grounded) en.VY = -r.Num("force", 600); break;
                 case "rotate": en.Rot += r.Num("speed", 90) * dt; break;
                 case "shoot":
-                {
-                    int dirs = Math.Max(1, (int)Math.Round(r.Num("directions", 8)));
-                    for (int i = 0; i < dirs; i++)
-                    {
-                        double ang = dirs == 1 ? (en.Facing >= 0 ? 0 : 180) : i * 360.0 / dirs;
-                        SpawnBullet(en, ang, r.Num("speed", 420), r.Num("life", 2), r.Str("bullet", "Bullet"));
-                    }
+                    FireVolley(en, (int)Math.Round(r.Num("directions", 8)), r.Num("speed", 420), r.Num("life", 2), r.Str("bullet", "Bullet"), r.Str("at", r.Str("aim", r.Str("target", ""))));
                     break;
-                }
                 case "spawn":
                 {
                     string what = r.T.ContainsKey("object") ? r.Str("object") : r.Str("name", "Enemy"), at = r.Str("at", "").ToLowerInvariant();
@@ -2001,6 +2011,13 @@ namespace EasyEngine
                     break;
                 }
                 case "destroy": en.Dead = true; break;
+                case "hide": case "show": // Scratch-style: invisible / visible again (this object, or "target")
+                {
+                    var who = r.Str("target", "self");
+                    var tgt = who.Equals("self", StringComparison.OrdinalIgnoreCase) ? en : _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
+                    if (tgt != null) TweenApply(tgt, "opacity", r.Do == "hide" ? 0 : tgt.Data.Opacity > 0.05 ? tgt.Data.Opacity : 1);
+                    break;
+                }
                 case "goscene":
                 {
                     var sc = r.Str("scene");
@@ -2008,9 +2025,9 @@ namespace EasyEngine
                     break;
                 }
                 case "setvar": _vars[r.Str("var")] = RuleValue(en, r, 0, "to", "value"); break;
-                case "addvar": _vars[r.Str("var")] = Var(r.Str("var")) + RuleValue(en, r, 1, "amount"); break;
+                case "addvar": _vars[r.Str("var")] = Var(r.Str("var")) + RuleValue(en, r, 1, "amount", "value", "by"); break;
                 case "setlocal": en.Locals[r.Str("var")] = RuleValue(en, r, 0, "to", "value"); break;
-                case "addlocal": en.Locals[r.Str("var")] = (en.Locals.TryGetValue(r.Str("var"), out var cl) ? cl : 0) + RuleValue(en, r, 1, "amount"); break;
+                case "addlocal": en.Locals[r.Str("var")] = (en.Locals.TryGetValue(r.Str("var"), out var cl) ? cl : 0) + RuleValue(en, r, 1, "amount", "value", "by"); break;
                 case "settext": case "addtext": case "toggle": case "setcolor": DoTextAction(en, r); break; // PlayWindow.Texts.cs
                 case "tint": DoTint(en, r); break;
                 case "listadd": case "listremove": case "listclear": DoListAction(en, r); break; // PlayWindow.Lists.cs
@@ -2019,7 +2036,10 @@ namespace EasyEngine
                     var who = r.Str("target", "self");
                     var tgt = who.Equals("self", StringComparison.OrdinalIgnoreCase) ? en
                         : _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
-                    if (tgt != null) SetProp(tgt, r.Str("prop").ToLowerInvariant(), RuleValue(en, r, 0, "to", "value"));
+                    var prop = r.Str("prop").ToLowerInvariant();
+                    if (tgt == null) break;
+                    if (prop is "opacity" or "scale" or "w" or "width" or "h" or "height") TweenApply(tgt, prop, RuleValue(en, r, 0, "to", "value")); // these also redraw it
+                    else SetProp(tgt, prop, RuleValue(en, r, 0, "to", "value"));
                     break;
                 }
                 case "additem": _vars["item:" + r.Str("item")] = Var("item:" + r.Str("item")) + r.Num("amount", 1); break;
@@ -2080,6 +2100,16 @@ namespace EasyEngine
             }
         }
 
+        // One shot of a Shooter or a "shoot" rule: 1 bullet ahead (or straight at the "aim" object), or a ring of them
+        // (turned so one of them still points at the aim object).
+        private void FireVolley(Entity en, int dirs, double speed, double life, string bullet, string aim)
+        {
+            dirs = Math.Max(1, dirs);
+            var target = string.IsNullOrWhiteSpace(aim) ? null : _entities.FirstOrDefault(x => x != en && !x.Dead && x.Data.Name.Equals(aim, StringComparison.OrdinalIgnoreCase));
+            double baseAng = target != null ? Math.Atan2(target.CY - en.CY, target.CX - en.CX) * 180 / Math.PI : (dirs == 1 ? (en.Facing >= 0 ? 0 : 180) : 0);
+            for (int i = 0; i < dirs; i++) SpawnBullet(en, baseAng + i * 360.0 / dirs, speed, life, bullet);
+        }
+
         private double Var(string name) => _vars.TryGetValue(name, out var v) ? v : 0;
         private static bool CompareVar(double a, string op, double b) => op switch
         {
@@ -2093,7 +2123,7 @@ namespace EasyEngine
         private double RuleValue(Entity en, CustomRule r, double fallback, params string[] numKeys)
         {
             if (r.T.ContainsKey("expr")) return EvalExpr(r.Str("expr"), en);
-            foreach (var k in numKeys) if (r.N.ContainsKey(k)) return r.Num(k);
+            foreach (var k in numKeys) if (r.HasValue(k)) return r.Num(k, fallback);
             return fallback;
         }
 

@@ -125,7 +125,7 @@ namespace EasyEngine
                 Desc = "Flies in a direction at a speed and disappears after a while.",
                 Nums = { new("speed","Speed",420),
                          new("angle","Direction",0, "0|→ Right", "45|↘ Down-right", "90|↓ Down", "135|↙ Down-left", "180|← Left", "225|↖ Up-left", "270|↑ Up", "315|↗ Up-right"),
-                         new("life","Lifetime (s)",3) } },
+                         new("life","Lifetime (s, 0 = forever)",3) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Patrol, Name = "Patrol", Icon = "↔",
                 Desc = "Moves back and forth automatically. Good for enemies. Patrols horizontally or vertically, and can ease to a smooth stop at the ends.",
@@ -198,9 +198,9 @@ namespace EasyEngine
                 Texts = { T("scene","Target scene","", PickKind.Scene), T("trigger","Who uses it","Player", PickKind.Object) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Shooter, Name = "Shooter", Icon = "🔫",
-                Desc = "Fires projectiles when a key is pressed. 'directions' = how many bullets spread around (8 = all directions, 1 = forward).",
+                Desc = "Fires projectiles when a key is pressed — or, with no key, by itself every 'cooldown' seconds (a turret, an enemy that shoots). 'directions' = how many bullets spread around (8 = all directions, 1 = forward). 'Aims at' points the shots at an object, e.g. the Player.",
                 Nums = { new("directions","Bullets per shot",8, "1|1 — forward", "4|4 — a cross", "8|8 — all around"), new("speed","Bullet speed",420), new("cooldown","Cooldown (s)",0.3), new("life","Bullet life (s)",2) },
-                Texts = { T("key","Fire key","T", PickKind.Key), T("bullet","Bullet","Bullet", PickKind.ObjectOrPrefab) } },
+                Texts = { TNone("key","Fire key (none = fires by itself)","T", PickKind.Key), T("bullet","Bullet","Bullet", PickKind.ObjectOrPrefab), TNone("aim","Aims at (none = straight ahead)","", PickKind.Object) } },
 
             new BehaviorInfo { Kind = BehaviorKind.Custom, Name = "Custom (AI script)", Icon = "✨",
                 Desc = "A custom behavior written as a tiny rule script (when → do). Usually created by the AI when the request is too complex for the other behaviors.",
