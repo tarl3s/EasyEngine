@@ -13,7 +13,8 @@ namespace EasyEngine
     // no darkness, so lights show nothing; at night they reveal the world around them with a soft warm tint.
     public partial class PlayWindow
     {
-        private readonly List<(Entity en, RadialGradientBrush mask)> _lightMasks = new();
+        private readonly List<(Entity en, RadialGradientBrush? mask)> _lightMasks = new(); // mask null = a shaped light (PlayWindow.LightShapes.cs)
+        private readonly List<Entity> _lit = new();
         private int _darkIndex = -1;           // where the darkness sits in Root.Children
         private string _darkColor = "#000000";
 
@@ -57,20 +58,28 @@ namespace EasyEngine
         {
             if (_skyBodies.Contains(en)) return (Math.Max(en.W, en.H) * 0.62, 1.0);
             var lb = en.Beh(BehaviorKind.LightSource);
-            return (lb?.Num("radius", 200) ?? 200, Math.Clamp(lb?.Num("intensity", 0.9) ?? 0.9, 0, 1));
+            double scale = en.Look?.Scale ?? 1, level = en.Look?.Level ?? 1; // effects (flicker, pulse, blink); 1 for a plain light
+            return ((lb?.Num("radius", 200) ?? 200) * scale, Math.Clamp(lb?.Num("intensity", 0.9) ?? 0.9, 0, 1) * level);
         }
 
         // Called every rendered frame (and by the tests): keep one hole per visible light, at its screen position.
         private void UpdateLighting()
         {
-            var lit = _entities.Where(e => !e.Dead && !_skyBodies.Contains(e) && e.LightVisual != null && e.LightVisual.Visibility == Visibility.Visible)
-                      .Concat(_skyBodies.Where(e => !e.Dead && e.Visual.Visibility == Visibility.Visible)).ToList();
-            if (lit.Count != _lightMasks.Count || lit.Where((e, i) => _lightMasks[i].en != e).Any()) RebuildDarkStack(lit);
+            UpdateLightShapes(); // aim + effects of shaped lights, and notice changed settings (PlayWindow.LightShapes.cs)
+            _lit.Clear(); // the lights, then the sun and moon (a reused list: no allocation per frame)
+            foreach (var e in _entities)
+                if (!e.Dead && !_skyBodies.Contains(e) && e.LightVisual != null && e.LightVisual.Visibility == Visibility.Visible) _lit.Add(e);
+            foreach (var e in _skyBodies)
+                if (!e.Dead && e.Visual.Visibility == Visibility.Visible) _lit.Add(e);
+            bool same = !_lightsDirty && _lit.Count == _lightMasks.Count;
+            for (int i = 0; same && i < _lit.Count; i++) same = _lightMasks[i].en == _lit[i];
+            if (!same) { _lightsDirty = false; RebuildDarkStack(_lit); }
 
             foreach (var (en, mask) in _lightMasks)
             {
-                double r = LightParams(en).radius;
                 double sx = en.CX + (en.ScreenSpace ? 0 : _camX), sy = en.CY + (en.ScreenSpace ? 0 : _camY);
+                if (mask == null) { PlaceShapedMask(en.Look!, sx, sy); continue; }
+                double r = LightParams(en).radius;
                 mask.Center = mask.GradientOrigin = new Point(sx, sy);
                 mask.RadiusX = mask.RadiusY = r;
             }
@@ -112,6 +121,14 @@ namespace EasyEngine
             UIElement chain = Darkness;
             foreach (var en in lit)
             {
+                if (IsShaped(en) && !_skyBodies.Contains(en)) // beam, area, bar… or any light with an effect: its own picture
+                {
+                    var l = en.Look!;
+                    if (l.Pics == null) PicsFor(l);
+                    chain = new Border { IsHitTestVisible = false, Child = chain, OpacityMask = l.Mask ?? ShapedMask(l) };
+                    _lightMasks.Add((en, null));
+                    continue;
+                }
                 double intensity = LightParams(en).intensity;
                 byte A(double darkness) => (byte)Math.Round(255 * Math.Clamp(darkness, 0, 1));
                 var mask = new RadialGradientBrush { MappingMode = BrushMappingMode.Absolute };

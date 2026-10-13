@@ -26,6 +26,7 @@ public partial class App
             AddE2EScenariosVarTypes(scenarios); // E2ETests.VarTypes.cs
             AddE2EScenariosHitbox(scenarios);   // E2ETests.Hitbox.cs
             AddE2EScenariosTiles(scenarios);    // E2ETests.Tiles.cs
+            AddE2EScenariosLights(scenarios);   // E2ETests.Lights.cs
             foreach (var (title, run) in scenarios)
             {
                 sb.AppendLine($"===== {title} =====");
@@ -51,6 +52,7 @@ public partial class App
     partial void AddE2EScenariosVarTypes(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosHitbox(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosTiles(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
+    partial void AddE2EScenariosLights(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
 
     /// <summary>Plays the "Lighting Test" scene headless: sky colour, daylight, N → night, M → morning, the cycle on its own.</summary>
     internal static List<(string step, bool ok, List<string> lines)> RunLightingE2E()

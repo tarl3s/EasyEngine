@@ -166,9 +166,10 @@ namespace EasyEngine
 
             [BehaviorKind.LightSource] =
                 "1. Select the torch/lamp → Inspector → ＋ Add behavior → 💡 Light.\n" +
-                "2. Set Radius, Intensity and Color.\n" +
-                "3. Lights only show when it is dark: lower the scene's Ambient light (click an empty spot of the scene → LIGHT) or add a 🌗 Day / Night cycle.\n" +
-                "4. Press ▶ Test (at night).",
+                "2. Pick its Shape: Circle (all around), Beam (a flashlight or headlight cone — Direction: Where it faces follows the player, or Toward the mouse; Cone width = how wide), Half circle (a wall lamp), Area (the whole rectangle glows — a window or a lit room) or Bar (a neon tube glow along its length).\n" +
+                "3. Set Radius (how far it reaches), Intensity, Soft edge and Color. Effect: Flicker for a candle or torch, Pulse to slowly grow and shrink, Blink for an alarm (Effect speed sets how fast).\n" +
+                "4. Lights only show when it is dark: lower the scene's Ambient light (click an empty spot of the scene → LIGHT) or add a 🌗 Day / Night cycle.\n" +
+                "5. Press ▶ Test (at night).",
 
             [BehaviorKind.FollowCamera] =
                 "1. Select the player → Inspector → ＋ Add behavior → 🎥 Follow Camera.\n" +

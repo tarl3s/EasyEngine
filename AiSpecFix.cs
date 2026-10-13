@@ -384,6 +384,20 @@ namespace EasyEngine
                 }
             }
 
+            // a Light's shape / direction / effect in words ("flashlight" → beam, "cursor" → mouse, "candle" → flicker),
+            // its shape under another name ("type":"flashlight") and its cone under another name ("angle":60)
+            if (info.Kind == BehaviorKind.LightSource)
+            {
+                foreach (var k in new[] { "type", "style", "form", "mode", "kind" })
+                    if (texts["shape"] == null && KeyOf(texts, k) is string real && LightShapes.Shape(Str(texts[real])) != LightShapes.Circle)
+                    { texts["shape"] = Str(texts[real]); texts.Remove(real); }
+                foreach (var k in new[] { "angle", "coneAngle", "cone", "fov", "beamWidth", "coneWidth" })
+                    if (nums["spread"] == null && KeyOf(nums, k) is string real && nums[real] is JsonNode sv) { nums["spread"] = sv.DeepClone(); nums.Remove(real); }
+                if (texts["shape"] is JsonNode sh) texts["shape"] = LightShapes.Shape(Str(sh));
+                if (texts["direction"] is JsonNode dir) texts["direction"] = LightShapes.Direction(Str(dir));
+                if (texts["effect"] is JsonNode fx) texts["effect"] = LightShapes.Effect(Str(fx));
+            }
+
             // Go To Scene "trigger" is WHO uses the door; "death"/"touch" there are the model's guesses at WHEN
             if (info.Kind == BehaviorKind.GoToScene && texts["trigger"] is JsonNode trig)
             {

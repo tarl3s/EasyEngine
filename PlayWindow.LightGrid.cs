@@ -63,7 +63,7 @@ namespace EasyEngine
 
             double maxR = 0;
             foreach (var en in _entities)
-                if (IsGridLight(en)) maxR = Math.Max(maxR, LightParams(en).radius);
+                if (IsGridLight(en)) maxR = Math.Max(maxR, LightParams(en).radius + (en.Look?.Shape is LightShapes.Area or LightShapes.Bar ? Math.Max(en.W, en.H) / 2 : 0));
             int margin = (int)Math.Ceiling(maxR / cs) + 1; // lights just off-screen still reach in
 
             _gridOffX = _terrain != null ? _terrain.X0 - Math.Floor(_terrain.X0 / cs) * cs : 0;
@@ -129,13 +129,38 @@ namespace EasyEngine
         private static readonly (int dx, int dy, float cost)[] GridSteps =
             { (1, 0, 1f), (-1, 0, 1f), (0, 1, 1f), (0, -1, 1f), (1, 1, 1.4142f), (1, -1, 1.4142f), (-1, 1, 1.4142f), (-1, -1, 1.4142f) };
 
+        private void LightSourceCell(int idx)
+        {
+            if (_gDist[idx] == 0) return;
+            if (float.IsPositiveInfinity(_gDist[idx])) _gTouched.Add(idx);
+            _gDist[idx] = 0; _gQueue.Enqueue(idx, 0);
+        }
+
         private void SpreadLight(Entity en)
         {
             int cs = _gridCell;
-            var (radius, intensity) = LightParams(en);
+            var (radius, intensity) = LightParams(en); // with its effect (flicker, pulse, blink)
             double wx = en.ScreenSpace ? en.CX - _camX : en.CX, wy = en.ScreenSpace ? en.CY - _camY : en.CY;
+            var look = en.Look;
+            string shape = look?.Shape ?? LightShapes.Circle;
+            bool cone = shape is LightShapes.Beam or LightShapes.Half;
+
+            // where the light starts: its centre block, or every block of its rectangle (area) / along its length (bar)
+            _gTouched.Clear(); _gQueue.Clear();
             int si = (int)Math.Floor((wx - _gridOffX) / cs) - _gx0, sj = (int)Math.Floor(wy / cs) - _gy0;
-            if (si < 0 || sj < 0 || si >= _gCols || sj >= _gRows) return;
+            if (shape is LightShapes.Area or LightShapes.Bar)
+            {
+                double hw = en.W / 2, hh = en.H / 2;
+                if (shape == LightShapes.Bar) { if (hw >= hh) hh = 0; else hw = 0; }
+                int i0 = (int)Math.Ceiling((wx - hw - _gridOffX) / cs - 0.5) - _gx0, i1 = (int)Math.Floor((wx + hw - _gridOffX) / cs - 0.5) - _gx0;
+                int j0 = (int)Math.Ceiling((wy - hh) / cs - 0.5) - _gy0, j1 = (int)Math.Floor((wy + hh) / cs - 0.5) - _gy0;
+                if (i0 > i1) i0 = i1 = si;
+                if (j0 > j1) j0 = j1 = sj;
+                for (int j = Math.Max(0, j0); j <= Math.Min(_gRows - 1, j1); j++)
+                    for (int i = Math.Max(0, i0); i <= Math.Min(_gCols - 1, i1); i++) LightSourceCell(j * _gCols + i);
+            }
+            else if (si >= 0 && sj >= 0 && si < _gCols && sj < _gRows) LightSourceCell(sj * _gCols + si);
+            if (_gTouched.Count == 0) return;
 
             // each Light's own options: solid blocks stop it, it colours what it touches, it adds up with other lights
             var lb = en.Beh(BehaviorKind.LightSource);
@@ -150,9 +175,6 @@ namespace EasyEngine
                 cr = c.R / m; cg = c.G / m; cb = c.B / m; // the light's hue at full strength
             }
 
-            int src = sj * _gCols + si;
-            _gTouched.Clear(); _gQueue.Clear();
-            _gDist[src] = 0; _gTouched.Add(src); _gQueue.Enqueue(src, 0);
             while (_gQueue.TryDequeue(out int idx, out float d))
             {
                 if (d > _gDist[idx]) continue; // a stale entry
@@ -170,10 +192,24 @@ namespace EasyEngine
                 }
             }
 
+            // a beam / half circle only lights the blocks inside its cone (plus, for a beam, a little around its holder)
+            double ca = 0, sa = 0, holder = 0;
+            if (cone)
+            {
+                double a = -look!.Angle * Math.PI / 180; ca = Math.Cos(a); sa = Math.Sin(a);
+                if (shape == LightShapes.Beam) holder = LightShapes.HolderRadius(radius);
+            }
             foreach (int idx in _gTouched)
             {
                 float b = (float)intensity * Math.Clamp((R - _gDist[idx]) / (R * (1 - FullUntil)), 0, 1);
                 _gDist[idx] = float.PositiveInfinity; // ready for the next light
+                if (cone && b > 0)
+                {
+                    double dx = _gridOffX + (_gx0 + idx % _gCols + 0.5) * cs - wx, dy = (_gy0 + idx / _gCols + 0.5) * cs - wy;
+                    double f = LightShapes.Cone(shape, dx * ca - dy * sa, dx * sa + dy * ca, look!.Spread, look.Soft);
+                    if (holder > 0) f = Math.Max(f, 0.85 * Math.Clamp((holder - Math.Sqrt(dx * dx + dy * dy)) / (holder * 0.5), 0, 1));
+                    b *= (float)f;
+                }
                 if (tint) _gTint[idx] = add ? _gTint[idx] + b : Math.Max(_gTint[idx], b);
                 if (add) { _gR[idx] += b * cr; _gG[idx] += b * cg; _gB[idx] += b * cb; }
                 else { _gR[idx] = Math.Max(_gR[idx], b * cr); _gG[idx] = Math.Max(_gG[idx], b * cg); _gB[idx] = Math.Max(_gB[idx], b * cb); }

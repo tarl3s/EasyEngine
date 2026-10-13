@@ -93,7 +93,7 @@ namespace EasyEngine
             // per-entity variables (counters for custom scripts — each copy has its own)
             public Dictionary<string, double> Locals = new(StringComparer.OrdinalIgnoreCase);
             public double SpeedScale = 1; // movement speed multiplier (changed by boost/setspeed)
-            public Ellipse? LightVisual;
+            public FrameworkElement? LightVisual; // the coloured glow: an Ellipse (plain circle) or the shaped light's glow picture
             public int Facing = 1;
             public int InputFacing;       // -1/0/1: which way the player's controls push this tick (Platformer/TopDown)
 
@@ -860,7 +860,7 @@ namespace EasyEngine
             }
 
             var light = en.Beh(BehaviorKind.LightSource);
-            if (light != null) { en.LightVisual = MakeLight(light); Lights.Children.Add(en.LightVisual); }
+            if (light != null) { en.LightVisual = MakeLight(en, light); Lights.Children.Add(en.LightVisual); }
 
             var mini = en.Beh(BehaviorKind.Minimap);
             if (mini != null) BuildMinimap(en, mini);
@@ -1051,6 +1051,7 @@ namespace EasyEngine
             UpdateTweens(dt);
             UpdateParticles(dt);
             UpdateFacing();
+            LightsLogic();             // a top-down character's light follows the way it walks (PlayWindow.LightShapes.cs)
             TilesLogic();              // animated tilemap tiles: one shared clock per tile kind
             SequencesAfterLogic(dt);   // e.g. hand the keys back after a locked tick
         }
@@ -1058,6 +1059,7 @@ namespace EasyEngine
         // ---- feature hooks: each is implemented (or not) in its own PlayWindow.<Feature>.cs file ----
         partial void SequencesBeforeLogic(double dt);
         partial void SequencesAfterLogic(double dt);
+        partial void LightsLogic();
         partial void TerrainBeforeLogic(double dt);
         partial void StayInsideLogic();
         partial void MinimapLogic();
@@ -3177,9 +3179,8 @@ namespace EasyEngine
 
                 if (en.LightVisual != null)
                 {
-                    double r = en.LightVisual.Width / 2;
-                    Canvas.SetLeft(en.LightVisual, en.CX - r);
-                    Canvas.SetTop(en.LightVisual, en.CY - r);
+                    Canvas.SetLeft(en.LightVisual, en.CX - en.LightVisual.Width / 2); // centred on the object (a shaped light's glow picture too)
+                    Canvas.SetTop(en.LightVisual, en.CY - en.LightVisual.Height / 2);
                 }
             }
             RenderHeldTool();

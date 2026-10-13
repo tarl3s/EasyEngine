@@ -1696,9 +1696,18 @@ namespace EasyEngine
             {
                 TilemapRow(obj, bh, panel);
             }
+            else if (bh.Kind == BehaviorKind.LightSource)
+            {
+                LightStyleRow(obj, info, panel);
+                // shape first, then what that shape needs (which way, how wide), then reach, look and effect
+                foreach (var key in LightCardOrder)
+                {
+                    if (info.Texts.FirstOrDefault(t => t.Key == key) is TextParam tp) ParamRow(obj, bh, info, tp, panel);
+                    else if (info.Nums.FirstOrDefault(n => n.Key == key) is NumParam np) NumParamRow(obj, bh, info, np, panel);
+                }
+            }
             else
             {
-                if (bh.Kind == BehaviorKind.LightSource) LightStyleRow(obj, info, panel);
                 foreach (var np in info.Nums)
                 {
                     if (bh.Kind == BehaviorKind.AdvancedPatrol && np.Key == "mode")
@@ -1738,6 +1747,10 @@ namespace EasyEngine
                 Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 8), Child = panel
             });
         }
+
+        // the Light card's fields in reading order (a field missing here would not show: FullTest.Lights checks it)
+        internal static readonly string[] LightCardOrder =
+            { "shape", "direction", "spread", "radius", "intensity", "softness", "color", "effect", "speed", "stopByBlocks", "tint", "addUp" };
 
         // On a Light: the scene's lighting style (it lives on the Day/Night, but this is where it matters), both ways —
         // a Light's block options only exist in Blocks; in Smooth the card says so. With no Day/Night, how lights work.
