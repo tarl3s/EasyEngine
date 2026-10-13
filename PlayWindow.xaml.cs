@@ -666,6 +666,7 @@ namespace EasyEngine
             _hotbarOwner = _hotbarPlayer = null; _heldItem = _heldSlotName = ""; _heldOwned = false; _heldSlot = 0;
             SequencesSceneReset();
             TerrainSceneReset();
+            TilesSceneReset();
 
             var original = _project.FindScene(name) ?? _project.Scenes[0];
             _sceneName = original.Name;
@@ -1023,6 +1024,7 @@ namespace EasyEngine
             UpdateTweens(dt);
             UpdateParticles(dt);
             UpdateFacing();
+            TilesLogic();              // animated tilemap tiles: one shared clock per tile kind
             SequencesAfterLogic(dt);   // e.g. hand the keys back after a locked tick
         }
 
@@ -1036,6 +1038,8 @@ namespace EasyEngine
         partial void UpdateCutscene(Entity en, BehaviorData bh, double dt);
         partial void SequencesSceneReset();          // LoadScene, before the scene's objects are created
         partial void TerrainSceneReset();
+        partial void TilesSceneReset();              // LoadScene: forget the last scene's animated tile kinds
+        partial void TilesLogic();                   // StepLogic: advance animated tilemap tiles
         partial void TerrainSceneLoaded();           // LoadScene, after every object (and generator) exists
         partial void BossEntityAdded(Entity en);
         partial void TerrainEntityAdded(Entity en);
@@ -2524,20 +2528,7 @@ namespace EasyEngine
             var bh = obj.Behaviors.First(b => b.Kind == BehaviorKind.Tilemap);
 
             double ts = Math.Max(4, bh.Num("tileSize", 32));
-            var pal = new List<(string color, bool solid)>();
-            try
-            {
-                var pj = bh.Text("palette", "");
-                if (!string.IsNullOrWhiteSpace(pj))
-                    using (var doc = JsonDocument.Parse(pj))
-                        foreach (var e in doc.RootElement.EnumerateArray())
-                        {
-                            string color = e.TryGetProperty("color", out var c) ? (c.GetString() ?? "#888888") : "#888888";
-                            bool solid = e.TryGetProperty("solid", out var s) && (s.ValueKind == JsonValueKind.True || (s.ValueKind == JsonValueKind.Number && s.GetDouble() >= 0.5));
-                            pal.Add((color, solid));
-                        }
-            }
-            catch { }
+            var pal = TilePalette.Parse(bh.Text("palette", ""));
 
             int cols = 0, rows = 0; int[] cells = Array.Empty<int>();
             try
@@ -2565,7 +2556,9 @@ namespace EasyEngine
             }
 
             var host = screenSpace ? Hud : World;
-            bool Solid(int r, int c) { int v = cells[r * cols + c]; return v > 0 && v <= pal.Count && pal[v - 1].solid; }
+            bool Solid(int r, int c) { int v = cells[r * cols + c]; return v > 0 && v <= pal.Count && pal[v - 1].Solid; }
+            var fills = TileFills(pal); // one shared brush per tile kind; an animated kind's brush is swapped by TilesLogic (PlayWindow.Tiles.cs)
+            double opacity = Math.Clamp(obj.Opacity, 0, 1), size = opacity < 1 ? ts : ts + 0.5; // the overlap hides seams, but would darken them when see-through
 
             // draw cells
             for (int r = 0; r < rows; r++)
@@ -2573,12 +2566,14 @@ namespace EasyEngine
                 {
                     int v = cells[r * cols + c];
                     if (v <= 0 || v > pal.Count) continue;
-                    var rect = new System.Windows.Shapes.Rectangle { Width = ts + 0.5, Height = ts + 0.5, Fill = Brush(pal[v - 1].color), IsHitTestVisible = false };
+                    var rect = new System.Windows.Shapes.Rectangle { Width = size, Height = size, Fill = fills[v - 1], IsHitTestVisible = false };
+                    if (opacity < 1) rect.Opacity = opacity;
+                    if (fills[v - 1] is ImageBrush) RenderOptions.SetBitmapScalingMode(rect, BitmapScalingMode.NearestNeighbor);
                     Canvas.SetLeft(rect, obj.X + c * ts); Canvas.SetTop(rect, obj.Y + r * ts);
                     host.Children.Add(rect);
                     if (en.Tiles != null) // breakable: keep each painted cell so we can remove it later
                     {
-                        var cell = new TileCell { R = r, C = c, X = obj.X + c * ts, Y = obj.Y + r * ts, W = ts, H = ts, Solid = Solid(r, c), Hp = Math.Max(1, (int)bh.Num("breakHits", 1)), Color = pal[v - 1].color, Visual = rect };
+                        var cell = new TileCell { R = r, C = c, X = obj.X + c * ts, Y = obj.Y + r * ts, W = ts, H = ts, Solid = Solid(r, c), Hp = Math.Max(1, (int)bh.Num("breakHits", 1)), Color = pal[v - 1].Color, Visual = rect };
                         en.Tiles.Add(cell);
                         en.TileGrid![r * cols + c] = cell;
                     }

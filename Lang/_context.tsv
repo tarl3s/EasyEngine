@@ -56,7 +56,7 @@ AI: Ollama not installed (get it at ollama.com)	LauncherWindow.xaml.cs
 AI: Ollama started ✓	LauncherWindow.xaml.cs
 AI: checking…	LauncherWindow.xaml
 ANIMATIONS	AnimationWindow.xaml
-APPEARANCE	MainWindow.xaml.cs
+APPEARANCE	MainWindow.Tiles.cs, MainWindow.xaml.cs
 ATTACKS are lists of steps. PHASES choose which attacks the boss uses — the next phase starts when its health drops to a percentage. WHEN IT DIES plays at 0 health.	SequenceEditorWindow.cs
 Ability / Key Pickup	behavior AbilityPickup
 Add	behavior Area, behavior Interact, behavior UIButton, VariablesWindow.xaml.cs
@@ -98,6 +98,7 @@ An invisible wall (the camera stops)	behavior Terrain
 An invisible zone. When the target enters it, fires an effect: goscene, setvar, addvar or say. once=1 fires a single time. Use for level exits, cutscene triggers, hidden-room reveals, kill-zones.	behavior Area
 An on-screen checklist for testing. Each line is 'Text => condition' (one per line or separated by ';'). A line ticks ✓ by itself when its condition becomes true (e.g. holding:axe >= 1, stat:hits >= 1, item:wood >= 5) and stays ticked. Logs to the F1 console and sets check:done / check:total / check:all.	behavior Checklist
 Angle (°)	BlockEditorWindow.cs
+Animated tile	AnimationWindow.xaml.cs
 Animation name (e.g. idle, walk):	AnimationWindow.xaml.cs
 Animation name (e.g. idle, walk, jump):	AnimationWindow.xaml.cs
 Animations	AnimationWindow.xaml, MainWindow.xaml.cs
@@ -120,6 +121,7 @@ Auto	MainWindow.xaml.cs
 Axe	ToolArt.cs
 BEHAVIORS	MainWindow.Params.cs, MainWindow.xaml.cs
 Back and forth (retrace)	MainWindow.xaml.cs
+Back to a plain colour	MainWindow.Tiles.cs
 Background	MainWindow.xaml.cs
 Background color	behavior Bar
 Background that scrolls slower than the camera.	behavior Parallax
@@ -208,7 +210,8 @@ Checks a list: has an item (capital letters don't matter), is empty, or has a nu
 Choose a folder to export the game into	MainWindow.xaml.cs
 Choose an AI model first (AI panel)	MainWindow.xaml.cs
 Choose frames	AnimationWindow.xaml.cs
-Choose image	MainWindow.xaml.cs
+Choose image	MainWindow.Tiles.cs, MainWindow.xaml.cs
+Choose image…	MainWindow.Tiles.cs
 Choose sound	MainWindow.xaml.cs
 Choose…	MainWindow.xaml.cs
 Cinema bars	step bars
@@ -347,6 +350,7 @@ Drag to scatter the pixels.	SpriteEditorWindow.cs
 Drag to select, then drag the selection to move it. R turns it, Ctrl+C / Ctrl+V copy and paste, Esc lets it go.	SpriteEditorWindow.cs
 Drag to soften the pixels.	SpriteEditorWindow.cs
 Draw mode: click points on the scene, then click Finish.	MainWindow.xaml.cs
+Draw this tile in the sprite editor ({0}×{0} pixels)	MainWindow.Tiles.cs
 Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done.	MainWindow.xaml.cs
 Draws a small map in a corner showing the whole scene (in an endless world: the area around the player, with the ground), with a dot for the player and optional dots for other things, each in its own colour. Put it on a UI layer. 'markers' = comma-separated 'Name:#RRGGBB' entries; a name matches an object (and every copy of a prefab) or a whole group (empty = just the player). With 'canMax' on, a key opens a big map in the middle of the screen (press it again to close).	behavior Minimap
 Drops	behavior Harvestable, behavior Tilemap, MainWindow.TerrainBlocks.cs
@@ -358,6 +362,7 @@ Dusk	step settime
 Dynamic	MainWindow.xaml.cs
 EFFECTS	SpriteEditorWindow.cs
 Each block runs:  WHEN something happens  →  DO something.  Add as many as you like.	BlockEditorWindow.cs
+Each tile's colour, picture or animation is set in the Tilemap card below.	MainWindow.xaml.cs
 Earlier	SequenceEditorWindow.cs
 Ease	BlockEditorWindow.cs
 EasyEngine	InputDialog.xaml, LauncherWindow.xaml, MainWindow.xaml
@@ -381,7 +386,7 @@ Error importing {0}: {1}	MainWindow.xaml.cs
 Error opening: {0}	MainWindow.xaml.cs
 Error saving:	SpriteEditorWindow.cs
 Error saving: {0}	MainWindow.xaml.cs
-Error: {0}	MainWindow.Params.cs, MainWindow.xaml.cs
+Error: {0}	MainWindow.Params.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs
 European. A good backup.	MainWindow.xaml.cs
 Every (s)	behavior Spawner, step shoot
 Every few seconds	BlockEditorWindow.cs
@@ -453,6 +458,7 @@ Give it an image first: the hitbox follows the picture's visible pixels.	MainWin
 Give the item a name.	NewItemDialog.cs
 Give the project a name.	LauncherWindow.xaml.cs
 Give this object the look you copied (its size, behaviors and name stay)	MainWindow.xaml.cs
+Give this tile frames that play in the game (water, lava, torches…) — every copy of it moves together	MainWindow.Tiles.cs
 Give variables a starting value. A variable is a Number, a Yes/No, a Text, a Colour or a List. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object; settext/toggle/iftext for texts and Yes/No; setcolor for colours; listadd/listremove/iflist for lists) and show them in a Label with {name}.	VariablesWindow.xaml
 Gives hit points. When they reach 0: respawn=1 → respawn at last checkpoint/start (for the player); respawn=0 → the object is destroyed (for enemies). Writes the value to a variable for a Label or a Bar — 'health' is the player's: an enemy only shows its health in a variable of its own (e.g. bossHP).	behavior Health
 Glide a property	BlockEditorWindow.cs
@@ -513,7 +519,7 @@ I-frames (s)	behavior Health
 Image copied to {0}	MainWindow.xaml.cs
 Image fit	MainWindow.xaml.cs
 Image set on {0}	MainWindow.xaml.cs
-Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.xaml.cs
+Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs
 Images & audio	MainWindow.xaml.cs
 In order	SequenceEditorWindow.cs
 In the sky	MainWindow.TerrainBlocks.cs
@@ -723,7 +729,7 @@ Ore drops	behavior Terrain
 Ores (0/1)	behavior Terrain
 Over (s)	BlockEditorWindow.cs
 Owns {0}	MainWindow.Params.cs
-PHYSICS	MainWindow.xaml.cs
+PHYSICS	MainWindow.Tiles.cs, MainWindow.xaml.cs
 PREFABS	MainWindow.xaml
 PREVIEW	AnimationWindow.xaml
 Paid keys — your own account, billed per use	MainWindow.xaml
@@ -756,6 +762,7 @@ Pick a color	SpriteEditorWindow.cs
 Pickaxe	ToolArt.cs
 Picked up by	behavior AbilityPickup, behavior Collectible
 Picture of the item	LookPicker.cs
+Plain colour	TilePalette.cs
 Platform (stand on it, jump up through it)	MainWindow.TerrainBlocks.cs
 Platformer (gravity + jumps)	MainWindow.xaml.cs
 Platformer (side view, sun + moon)	behavior DayNight
@@ -1031,6 +1038,8 @@ This object has no image to trim to.	MainWindow.Hitbox.cs
 Tight platformer movement: run, jump (variable height), coyote time, jump buffer, optional double jump, wall jump and dash. 'controls' = respond to the default keys (arrows/A-D/Space). Turn it off for enemies so they don't copy the player — then set custom keys or move it with a script.	behavior Platformer
 Tile (repeat)	MainWindow.xaml.cs
 Tile color	MainWindow.xaml.cs
+Tile frames	AnimationWindow.xaml.cs
+Tile picture	MainWindow.Tiles.cs
 Tile size	behavior Tilemap, MainWindow.xaml.cs
 Tilemap	behavior Tilemap
 Tiles (JSON)	behavior Tilemap
@@ -1080,6 +1089,7 @@ Update EasyEngine	UpdatePrompt.cs
 Updating EasyEngine	UpdatePrompt.cs
 Updating EasyEngine...	Updater.cs
 Use Item (swing / attack)	behavior ToolUse
+Use a picture file for this tile	MainWindow.Tiles.cs
 Uses attacks	SequenceEditorWindow.cs
 Value	BlockEditorWindow.cs
 Variable	behavior Area, behavior BossAI, behavior Cutscene, behavior Interact, behavior UIButton, BlockEditorWindow.cs, step addvar, step setvar
@@ -1170,6 +1180,7 @@ Zoom in (Ctrl + wheel / Ctrl +)	MainWindow.xaml
 Zoom out (Ctrl + wheel / Ctrl -)	MainWindow.xaml
 above	BlockEditorWindow.cs
 added a Sky layer under all the others	Model.cs
+animated	MainWindow.xaml.cs
 at least	behavior Gate
 at most	behavior Gate
 at the mouse	BlockEditorWindow.cs
@@ -1236,6 +1247,7 @@ y	step camera, step move, step moveto, step spawn
 {0} attacks	SequenceModel.cs
 {0} error ({1}): {2}	CloudClient.cs
 {0} frame(s)	AnimationWindow.xaml.cs
+{0} frames · {1} per second	TilePalette.cs
 {0} hits	MainWindow.TerrainBlocks.cs
 {0} items	VariablesWindow.xaml.cs
 {0} limit reached for now.	CloudClient.cs
@@ -1321,9 +1333,11 @@ y	step camera, step move, step moveto, step spawn
 🌼 Flowers on the surface	MainWindow.TerrainBlocks.cs
 🍄 Moss around caves	MainWindow.TerrainBlocks.cs
 🎓 Learn	MainWindow.xaml
+🎞 Animate	MainWindow.Tiles.cs
 🎞 Edit Animations…	MainWindow.xaml.cs
 🎨  Draw a sprite	AnimationWindow.xaml
 🎨  Theme	SettingsWindow.cs
+🎨 Draw	MainWindow.Tiles.cs
 🎨 Draw frame	AnimationWindow.xaml
 🎬 Cutscene — Advanced Scratch	SequenceEditorWindow.cs
 🏜 A sand biome (an area of columns)	MainWindow.TerrainBlocks.cs

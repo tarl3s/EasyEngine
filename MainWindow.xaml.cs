@@ -72,7 +72,7 @@ namespace EasyEngine
         private int _tmCols, _tmRows, _tmActive = 1;
         private double _tmSize = 32;
         private int[] _tmCells = Array.Empty<int>();
-        private readonly List<(string color, bool solid)> _tmPalette = new();
+        private readonly List<TileKind> _tmPalette = new();
         private bool _tmPainting;
         private readonly Dictionary<int, Rectangle> _tmCellRects = new();
 
@@ -1467,16 +1467,25 @@ namespace EasyEngine
             NumRow(L.T("Rotation"), obj.Rotation, v => { obj.Rotation = v; RenderScene(); Dirty(); });
 
             Section(L.T("APPEARANCE"));
-            LookCopyRow(obj);
-            ColorRow(L.T("Color"), obj.Color, v => { obj.Color = v; RenderScene(); Dirty(); });
-            AnimationsRow(obj);
-            SpriteRow(obj);
-            if (obj.SpritePath != null || obj.Animations.Count > 0)
-                ComboRow(L.T("Image fit"), new[] { L.T("Stretch"), L.T("Tile (repeat)") }, obj.TileImage ? 1 : 0, i => { obj.TileImage = i == 1; RenderScene(); Dirty(); });
+            // a tilemap looks like its painted tiles (each tile's colour / picture is set in its card): only Opacity applies
+            bool tilemap = obj.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap);
+            if (!tilemap)
+            {
+                LookCopyRow(obj);
+                ColorRow(L.T("Color"), obj.Color, v => { obj.Color = v; RenderScene(); Dirty(); });
+                AnimationsRow(obj);
+                SpriteRow(obj);
+                if (obj.SpritePath != null || obj.Animations.Count > 0)
+                    ComboRow(L.T("Image fit"), new[] { L.T("Stretch"), L.T("Tile (repeat)") }, obj.TileImage ? 1 : 0, i => { obj.TileImage = i == 1; RenderScene(); Dirty(); });
+            }
             SliderRow(L.T("Opacity"), obj.Opacity, 0, 1, v => { obj.Opacity = Math.Clamp(v, 0, 1); RenderScene(); Dirty(); }, percent: true);
-            NumRow(L.T("Corner radius"), obj.EffectiveCorner(), v => { obj.CornerRadius = Math.Max(0, v); RenderScene(); Dirty(); });
-            ColorRow(L.T("Border color"), obj.BorderColor ?? "#000000", v => { obj.BorderColor = v; Dirty(); });
-            NumRow(L.T("Border width"), obj.BorderWidth, v => { obj.BorderWidth = Math.Max(0, v); Dirty(); });
+            if (!tilemap)
+            {
+                NumRow(L.T("Corner radius"), obj.EffectiveCorner(), v => { obj.CornerRadius = Math.Max(0, v); RenderScene(); Dirty(); });
+                ColorRow(L.T("Border color"), obj.BorderColor ?? "#000000", v => { obj.BorderColor = v; Dirty(); });
+                NumRow(L.T("Border width"), obj.BorderWidth, v => { obj.BorderWidth = Math.Max(0, v); Dirty(); });
+            }
+            else InspectorRoot.Children.Add(new TextBlock { Text = L.T("Each tile's colour, picture or animation is set in the Tilemap card below."), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
             if (obj.Behaviors.Any(b => b.Kind == BehaviorKind.Label))
             {
                 TextRow(L.T("Font"), obj.FontFamily ?? "", v => { obj.FontFamily = string.IsNullOrWhiteSpace(v) ? null : v; Dirty(); });
@@ -1822,24 +1831,11 @@ namespace EasyEngine
         // ============================================================
         //  TILEMAP EDITING
         // ============================================================
-        private (double ts, int cols, int rows, int[] cells, List<(string color, bool solid)> pal) ReadTilemap(BehaviorData bh)
+        private (double ts, int cols, int rows, int[] cells, List<TileKind> pal) ReadTilemap(BehaviorData bh)
         {
             double ts = Math.Max(4, bh.Num("tileSize", 32));
-            var pal = new List<(string, bool)>();
-            try
-            {
-                var pj = bh.Text("palette", "");
-                if (!string.IsNullOrWhiteSpace(pj))
-                    using (var doc = JsonDocument.Parse(pj))
-                        foreach (var e in doc.RootElement.EnumerateArray())
-                        {
-                            string color = e.TryGetProperty("color", out var c) ? (c.GetString() ?? "#888888") : "#888888";
-                            bool solid = e.TryGetProperty("solid", out var s) && (s.ValueKind == JsonValueKind.True || (s.ValueKind == JsonValueKind.Number && s.GetDouble() >= 0.5));
-                            pal.Add((color, solid));
-                        }
-            }
-            catch { }
-            if (pal.Count == 0) { pal.Add(("#5BA862", true)); pal.Add(("#6B5A45", true)); pal.Add(("#3A3A46", true)); }
+            var pal = TilePalette.Parse(bh.Text("palette", ""));
+            if (pal.Count == 0) { pal.Add(new("#5BA862", true)); pal.Add(new("#6B5A45", true)); pal.Add(new("#3A3A46", true)); }
 
             int cols = Math.Max(1, (int)Math.Ceiling(_scene.Width / ts));
             int rows = Math.Max(1, (int)Math.Ceiling(_scene.Height / ts));
@@ -1877,7 +1873,7 @@ namespace EasyEngine
         private void SerializeTilemap()
         {
             if (_tmBh == null) return;
-            _tmBh.Texts["palette"] = JsonSerializer.Serialize(_tmPalette.Select(p => new { color = p.color, solid = p.solid }));
+            _tmBh.Texts["palette"] = TilePalette.Serialize(_tmPalette);
             _tmBh.Texts["data"] = JsonSerializer.Serialize(new { cols = _tmCols, rows = _tmRows, cells = _tmCells });
             _tmBh.Nums["tileSize"] = _tmSize;
         }
@@ -1885,16 +1881,18 @@ namespace EasyEngine
         private void DrawTilemap(GameObjectData obj, bool active)
         {
             var bh = obj.Behaviors.First(b => b.Kind == BehaviorKind.Tilemap);
-            double ts; int cols, rows; int[] cells; List<(string color, bool solid)> pal;
+            double ts; int cols, rows; int[] cells; List<TileKind> pal;
             if (active && ReferenceEquals(obj, _tmObj)) { ts = _tmSize; cols = _tmCols; rows = _tmRows; cells = _tmCells; pal = _tmPalette; }
             else { var t = ReadTilemap(bh); ts = t.ts; cols = t.cols; rows = t.rows; cells = t.cells; pal = t.pal; }
+            var fills = TileFills(pal); // one shared brush per tile kind (MainWindow.Tiles.cs)
+            double opacity = Math.Clamp(obj.Opacity, 0, 1);
 
             for (int r = 0; r < rows; r++)
                 for (int c = 0; c < cols; c++)
                 {
                     int val = cells[r * cols + c];
                     if (val <= 0 || val > pal.Count) continue;
-                    var rect = new Rectangle { Width = ts, Height = ts, Fill = Theme.Hex(pal[val - 1].color, "#888"), IsHitTestVisible = false };
+                    var rect = TileRect(fills[val - 1], ts, opacity);
                     Canvas.SetLeft(rect, obj.X + c * ts); Canvas.SetTop(rect, obj.Y + r * ts);
                     SceneCanvas.Children.Add(rect);
                     if (active) _tmCellRects[r * cols + c] = rect;
@@ -1928,7 +1926,7 @@ namespace EasyEngine
             int val = _tmCells[idx];
             if (val > 0 && val <= _tmPalette.Count)
             {
-                var rect = new Rectangle { Width = _tmSize, Height = _tmSize, Fill = Theme.Hex(_tmPalette[val - 1].color, "#888"), IsHitTestVisible = false };
+                var rect = TileRect(TileFill(_tmPalette[val - 1]), _tmSize, Math.Clamp(_tmObj.Opacity, 0, 1));
                 Canvas.SetLeft(rect, _tmObj.X + c * _tmSize); Canvas.SetTop(rect, _tmObj.Y + r * _tmSize);
                 SceneCanvas.Children.Add(rect);
                 _tmCellRects[idx] = rect;
@@ -1959,17 +1957,18 @@ namespace EasyEngine
             wrap.Children.Add(TileSwatch(0));
             for (int i = 1; i <= _tmPalette.Count; i++) wrap.Children.Add(TileSwatch(i));
             var add = new Border { Width = 34, Height = 34, Margin = new Thickness(0, 0, 6, 6), Cursor = Cursors.Hand, CornerRadius = new CornerRadius(4), Background = (SolidColorBrush)FindResource("Bg2"), BorderBrush = (SolidColorBrush)FindResource("Border"), BorderThickness = new Thickness(1), Child = new TextBlock { Text = "+", Foreground = (SolidColorBrush)FindResource("Text"), FontSize = 18, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
-            add.MouseLeftButtonUp += (s, e) => { _tmPalette.Add(("#8A8A8A", true)); _tmActive = _tmPalette.Count; SerializeTilemap(); BuildInspector(obj); };
+            add.MouseLeftButtonUp += (s, e) => { _tmPalette.Add(new("#8A8A8A", true)); _tmActive = _tmPalette.Count; SerializeTilemap(); BuildInspector(obj); };
             wrap.Children.Add(add);
             panel.Children.Add(wrap);
 
             if (_tmActive >= 1 && _tmActive <= _tmPalette.Count)
             {
                 var cur = _tmPalette[_tmActive - 1];
-                ColorRow(L.T("Tile color"), cur.color, v => { _tmPalette[_tmActive - 1] = (v, _tmPalette[_tmActive - 1].solid); SerializeTilemap(); RenderScene(); Dirty(); }, panel);
-                var chk = new CheckBox { Content = L.T("Solid (collision)"), IsChecked = cur.solid, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(0, 2, 0, 6) };
-                chk.Checked += (s, e) => { _tmPalette[_tmActive - 1] = (_tmPalette[_tmActive - 1].color, true); SerializeTilemap(); Dirty(); };
-                chk.Unchecked += (s, e) => { _tmPalette[_tmActive - 1] = (_tmPalette[_tmActive - 1].color, false); SerializeTilemap(); Dirty(); };
+                ColorRow(L.T("Tile color"), cur.Color, v => { cur.Color = v; SerializeTilemap(); RenderScene(); Dirty(); }, panel);
+                TilePictureRow(obj, cur, panel); // 🎨 Draw · Choose image… · 🎞 Animate · ✕ (MainWindow.Tiles.cs)
+                var chk = new CheckBox { Content = L.T("Solid (collision)"), IsChecked = cur.Solid, Foreground = (SolidColorBrush)FindResource("Text"), Margin = new Thickness(0, 2, 0, 6) };
+                chk.Checked += (s, e) => { cur.Solid = true; SerializeTilemap(); Dirty(); };
+                chk.Unchecked += (s, e) => { cur.Solid = false; SerializeTilemap(); Dirty(); };
                 panel.Children.Add(chk);
                 var rem = new Button { Content = L.T("Remove this tile"), Height = 28, FontSize = 11, Style = (Style)FindResource("CardButton"), Foreground = (SolidColorBrush)FindResource("Danger"), HorizontalContentAlignment = HorizontalAlignment.Center };
                 rem.Click += (s, e) => { _tmPalette.RemoveAt(_tmActive - 1); _tmActive = _tmPalette.Count >= 1 ? 1 : 0; SerializeTilemap(); RenderScene(); BuildInspector(obj); Dirty(); };
@@ -1984,10 +1983,12 @@ namespace EasyEngine
                 Width = 34, Height = 34, Margin = new Thickness(0, 0, 6, 6), Cursor = Cursors.Hand, CornerRadius = new CornerRadius(4),
                 BorderThickness = new Thickness(_tmActive == index ? 2.5 : 1),
                 BorderBrush = (SolidColorBrush)FindResource(_tmActive == index ? "Accent" : "Border"),
-                Background = index == 0 ? (SolidColorBrush)FindResource("Bg2") : Theme.Hex(_tmPalette[index - 1].color, "#888")
+                Background = index == 0 ? (SolidColorBrush)FindResource("Bg2") : TileFill(_tmPalette[index - 1]) // its picture (first frame) or colour
             };
+            if (index > 0 && _tmPalette[index - 1].HasPicture) RenderOptions.SetBitmapScalingMode(b, BitmapScalingMode.NearestNeighbor);
             if (index == 0) b.Child = new TextBlock { Text = "⌫", Foreground = (SolidColorBrush)FindResource("Text"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            b.ToolTip = index == 0 ? L.T("Eraser") : (_tmPalette[index - 1].solid ? L.T("Solid tile") : L.T("Decoration"));
+            b.ToolTip = index == 0 ? L.T("Eraser") : (_tmPalette[index - 1].Solid ? L.T("Solid tile") : L.T("Decoration"))
+                        + (index > 0 && _tmPalette[index - 1].Animated ? " · " + L.T("animated") : "");
             b.MouseLeftButtonUp += (s, e) => { _tmActive = index; if (_tmObj != null) BuildInspector(_tmObj); };
             return b;
         }

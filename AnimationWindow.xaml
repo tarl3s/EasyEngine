@@ -6,13 +6,13 @@
         Background="{StaticResource Bg0}" FontFamily="Segoe UI">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="260"/>
-            <ColumnDefinition Width="1"/>
+            <ColumnDefinition x:Name="ListColumn" Width="260"/>
+            <ColumnDefinition x:Name="SplitColumn" Width="1"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <!-- LEFT: animation list + ADD ANIMATION -->
-        <Border Grid.Column="0" Background="{StaticResource Bg1}">
+        <Border x:Name="ListPane" Grid.Column="0" Background="{StaticResource Bg1}">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="ANIMATIONS" Style="{StaticResource SectionHeader}"/>
                 <StackPanel DockPanel.Dock="Bottom" Margin="12,8,12,14">
@@ -40,9 +40,9 @@
                 <Grid DockPanel.Dock="Top">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock x:Name="AnimTitle" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Text}" VerticalAlignment="Center"/>
-                        <Button Content="rename" Style="{StaticResource GhostButton}" Height="26" Margin="8,0,0,0" FontSize="11" Foreground="{StaticResource TextDim}" Click="Rename_Click"/>
+                        <Button x:Name="RenameBtn" Content="rename" Style="{StaticResource GhostButton}" Height="26" Margin="8,0,0,0" FontSize="11" Foreground="{StaticResource TextDim}" Click="Rename_Click"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <StackPanel x:Name="HeaderButtons" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="DefaultBtn" Content="☆ Set as default" Style="{StaticResource CardButton}" Height="32" Padding="12,0" HorizontalContentAlignment="Center" Click="SetDefault_Click"/>
                         <Button Content="⧉ Duplicate animation" Style="{StaticResource CardButton}" Height="32" Padding="12,0" Margin="8,0,0,0" HorizontalContentAlignment="Center" ToolTip="A copy of this animation (e.g. to make a variation)" Click="DuplicateAnim_Click"/>
                         <Button Content="🗑 Delete animation" Style="{StaticResource CardButton}" Height="32" Padding="12,0" Margin="8,0,0,0" HorizontalContentAlignment="Center" Foreground="{StaticResource Danger}" Click="DeleteAnim_Click"/>

@@ -36,8 +36,33 @@ namespace EasyEngine
             FpsBox.LostFocus += (s, e) => CommitFps();
             LoopBox.Checked += (s, e) => { if (_cur != null) _cur.Loop = true; RestartPreview(); };
             LoopBox.Unchecked += (s, e) => { if (_cur != null) _cur.Loop = false; RestartPreview(); };
+            Closing += (s, e) => CommitFps(); // a speed typed just before closing still counts
             Closed += (s, e) => _preview.Stop();
         }
+
+        // ---------------- a Tilemap tile's animation ----------------
+        // The same window focused on one tile: just its frames (drawn at the tile's size or imported) and its speed —
+        // no animation list, names, default or loop (a tile always loops, every copy in sync).
+        private bool _tileMode;
+        private int _drawSize = 32;
+
+        public static AnimationWindow ForTile(Project project, int tileSize, IEnumerable<string> frames, double fps)
+        {
+            var holder = new GameObjectData { Name = "Tile" }; // never shown
+            var anim = new SpriteAnimation { Name = L.T("Tile frames"), Frames = new List<string>(frames), Fps = Math.Clamp(fps, 1, 60), Loop = true };
+            holder.Animations.Add(anim); holder.DefaultAnimation = anim.Name;
+            var w = new AnimationWindow(project, holder) { _tileMode = true, _drawSize = Math.Clamp(tileSize, 4, 256) };
+            w.Title = L.T("Animated tile");
+            w.ListColumn.Width = new GridLength(0); w.SplitColumn.Width = new GridLength(0); w.ListPane.Visibility = Visibility.Collapsed;
+            w.HeaderButtons.Visibility = Visibility.Collapsed; w.RenameBtn.Visibility = Visibility.Collapsed; w.LoopBox.Visibility = Visibility.Collapsed;
+            w.Width = 680;
+            return w;
+        }
+
+        /// <summary>Tile mode: the frames and speed when the window closed.</summary>
+        public List<string> TileFrames => _obj.Animations.Count > 0 ? _obj.Animations[0].Frames : new List<string>();
+        public double TileFps => _obj.Animations.Count > 0 ? _obj.Animations[0].Fps : 8;
+        internal bool TestTileMode => _tileMode;
 
         // ---------------- animation list ----------------
         private void RefreshAnimList()
@@ -227,7 +252,7 @@ namespace EasyEngine
         // ---------------- built-in sprite editor ----------------
         private string? DrawSprite(string? editAbsolute = null)
         {
-            var win = new SpriteEditorWindow(_project, 32, editAbsolute) { Owner = this };
+            var win = new SpriteEditorWindow(_project, _drawSize, editAbsolute) { Owner = this };
             return win.ShowDialog() == true ? win.SavedRelativePath : null;
         }
 
