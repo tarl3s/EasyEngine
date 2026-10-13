@@ -331,5 +331,33 @@ public partial class App
             s.TSteps(2); s.TSetHp("A", 0); s.TSteps(240);
             return s.TVar("deaths") == 1 && !s.TDead("A") && !s.TDead("Arrow") && s.TX("Arrow") > 1000;
         });
+        t.Test("ai fix: a second action written into a rule becomes its own rule (same event and cond); cond in nums goes to texts", () =>
+        {
+            var r = Fix("[{\"when\":\"keypress\",\"key\":\"E\",\"cond\":\"coins >= 10\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":-10,\"additem\":\"Sword\"}," +
+                        "{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"score\",\"amount\":1,\"destroy\":true}]");
+            var ed = NewEditor();
+            ed.TestApplySpec("{\"create\":[{\"name\":\"Spawner1\",\"behaviors\":[{\"kind\":\"Spawner\",\"nums\":{\"interval\":2,\"cond\":\"isnight\"}}]}]}");
+            var sp = ed.TestFindObject("Spawner1")?.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Spawner);
+            return r.Count == 4 && Is(r[0], "do", "addvar") && !r[0].ContainsKey("additem") && Is(r[1], "when", "keypress") && Is(r[1], "key", "E") && Is(r[1], "cond", "coins >= 10")
+                   && Is(r[1], "do", "additem") && Is(r[1], "item", "Sword") && Is(r[3], "when", "touch") && Is(r[3], "name", "Player") && Is(r[3], "do", "destroy")
+                   && sp?.Text("cond", "") == "isNight >= 1" && !sp.Nums.ContainsKey("cond");
+        });
+        t.Test("ai fix: 'after 5 seconds' isn't 'a second one' (create of an existing name edits it); a Gate asked with a key gets one", () =>
+        {
+            var ed = NewEditor(s => s.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(new GameObjectData { Id = 92, Name = "Box", X = 400, Y = 200, Width = 64, Height = 64 }));
+            ed.TestApplySpec("{\"create\":[{\"name\":\"Box\",\"custom\":[{\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0}]}]}", "after 5 seconds, fade the Box out");
+            bool noCopy = ed.TestFindObject("Box_2") == null && App.AiEvalKit.Rules(ed.TestFindObject("Box")).Count == 1;
+            ed.TestApplySpec("{\"create\":[{\"name\":\"LockedDoor\",\"x\":700,\"y\":364,\"behaviors\":[{\"kind\":\"Gate\",\"texts\":{\"var\":\"hasKey\"}}]}]}", "make a locked door that opens when the player picks up a key");
+            var key = ed.TestFindObject("Key");
+            return noCopy && key?.Behaviors.Any(b => b.Kind == BehaviorKind.AbilityPickup && b.Text("var", "") == "hasKey") == true;
+        });
+        t.Test("ai fix: a level keeps only the pieces the request asks for, with its numbers", () =>
+        {
+            var ed = NewEditor();
+            ed.TestApplySpec("{\"level\":{\"platforms\":3,\"coins\":5,\"enemies\":1,\"spikes\":1,\"door\":\"Level2\"}}", "build a level with 2 platforms and 3 coins");
+            var all = ed.TestAllObjects();
+            return all.Count(o => o.Name.StartsWith("Coin")) == 3 && !all.Any(o => o.Name.StartsWith("Spike")) && !all.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.GoToScene))
+                   && !all.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Patrol && o.Name.StartsWith("Enemy")));
+        });
     }
 }

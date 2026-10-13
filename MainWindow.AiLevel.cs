@@ -11,11 +11,31 @@ namespace EasyEngine
     // model builds a playable level, and anything special can still come in the same reply's "create"/"edit".
     public partial class MainWindow
     {
-        private void ApplyLevel(JsonElement root, Action ensureUndo, List<string> changes)
+        private void ApplyLevel(JsonElement root, string userPrompt, Action ensureUndo, List<string> changes)
         {
             if (!root.TryGetProperty("level", out var lv) || lv.ValueKind != JsonValueKind.Object) return;
-            ApplyLevelSpec(lv, ensureUndo, changes);
+            // A request that lists what it wants ("2 platforms and 3 coins"): its numbers win, and what a small model copies from
+            // the hint but nobody asked for ("spikes":1, "door":"Level2") is left out. A vague "build a level" keeps the model's.
+            if (LevelFromPrompt(userPrompt, _project.Scenes.Select(s => s.Name)) is not { } want || LooseJson.Node(lv) is not System.Text.Json.Nodes.JsonObject spec)
+            { ApplyLevelSpec(lv, ensureUndo, changes); return; }
+            var p = userPrompt.ToLowerInvariant();
+            foreach (var (key, words) in LevelPieceWords)
+                if (KeyIn(spec, key) is string real && !System.Text.RegularExpressions.Regex.IsMatch(p, words)) spec.Remove(real);
+            foreach (var (k, v) in want) { if (KeyIn(spec, k) is string real) spec.Remove(real); spec[k] = JsonSerializer.SerializeToNode(v); }
+            if (KeyIn(spec, "platforms") is string pl && KeyIn(spec, "stairs") is string st && spec[pl]?.ToJsonString() == spec[st]?.ToJsonString())
+                spec.Remove(pl); // "a staircase of 5 platforms" is the stairs themselves
+            using var doc = JsonDocument.Parse(spec.ToJsonString());
+            ApplyLevelSpec(doc.RootElement, ensureUndo, changes);
         }
+        private static string? KeyIn(System.Text.Json.Nodes.JsonObject o, string key) => o.Select(kv => kv.Key).FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
+        private static readonly (string key, string words)[] LevelPieceWords =
+        {
+            ("spikes", @"spike|espinho|pincho|trap|armadilha|hazard|lava|danger"),
+            ("enemies", @"enem|inimig|monst|slime|boss|chefe|bad guy"),
+            ("door", @"door|porta|puerta|exit|sa[ií]da|next|level ?\d|fase ?\d|scene|cena|goal"),
+            ("checkpoint", @"checkpoint|bandeira|flag|respawn"),
+            ("stairs", @"stair|escada|escalera|steps|degrau"),
+        };
 
         private void ApplyLevelSpec(JsonElement lv, Action ensureUndo, List<string> changes)
         {

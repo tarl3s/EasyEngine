@@ -206,15 +206,40 @@ namespace EasyEngine
             if (act is "setvar" or "setlocal" && !Has("to") && !Has("expr")) foreach (var k in new[] { "value", "amount" }) if (Has(k) && !(when is "ifvar" or "iflocal" && k == "value")) { Rename(k, "to"); break; }
             if (act is "setvar" or "addvar" or "setlocal" or "addlocal" && !Has("var")) foreach (var k in new[] { "variable", "name" }) if (Has(k) && !(when == "touch" && k == "name")) { Rename(k, "var"); break; }
 
+            // a second action written into the same rule ({"do":"addvar",…,"additem":"Sword"}): its own rule, same event and cond
+            var seconds = new List<List<(string key, JsonNode? val)>>();
+            foreach (var (key, param) in SecondActions)
+            {
+                if (key == act || props.FindIndex(p => p.key == key) is var xi && xi < 0) continue;
+                var v = Str(props[xi].val);
+                props.RemoveAt(xi);
+                int di = props.FindIndex(p => p.key == "do");
+                if (v is "" or "false" or "0") continue;
+                var two = props.Take(di).Where(p => p.key is not "do").Select(p => (p.key, p.val?.DeepClone())).ToList();
+                if (!two.Any(p => p.key == "cond") && props.FirstOrDefault(p => p.key == "cond").val is JsonNode c) two.Add(("cond", c.DeepClone()));
+                two.Add(("do", key));
+                if (param != null && !(key == "emit" && !LooseJson.TryParse(v, out _)) && v != "true") two.Add((param, JsonValue.Create(v)));
+                if (key is "additem" or "removeitem") two.Add(("amount", JsonValue.Create(1)));
+                seconds.Add(two);
+            }
+
             // "expr: a - b" / expr "a - b" → the bare expression, once here instead of every frame in the game
             for (int i = 0; i < props.Count; i++)
                 if (props[i].val is JsonValue sv && sv.TryGetValue<string>(out var text) && UnwrapExpr(text) is string inner) props[i] = (props[i].key, JsonValue.Create(inner));
 
             // "when" first, so a rule that wrote it last still reads its event params right
-            int wi = props.FindIndex(p => p.key == "when");
-            if (wi > 0) { var wp = props[wi]; props.RemoveAt(wi); props.Insert(0, wp); }
-            yield return props;
+            foreach (var one in seconds.Prepend(props))
+            {
+                int wi = one.FindIndex(p => p.key == "when");
+                if (wi > 0) { var wp = one[wi]; one.RemoveAt(wi); one.Insert(0, wp); }
+                else if (wi < 0) one.Insert(0, ("when", JsonValue.Create(when)));
+                yield return one;
+            }
         }
+
+        // actions a model sometimes adds as a key to a rule that already does something else, and the param their value is
+        private static readonly (string action, string? param)[] SecondActions =
+            { ("additem", "item"), ("removeitem", "item"), ("goscene", "scene"), ("say", "text"), ("tint", "color"), ("destroy", null), ("emit", "count"), ("spawn", "object") };
 
         private static readonly System.Text.RegularExpressions.Regex ExprWrap =
             new(@"^\s*expr\s*(?:[:=]\s*|\(\s*|(?=[""']))[""']?(.*?)[""']?\)?\s*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
@@ -260,6 +285,13 @@ namespace EasyEngine
         {
             var nums = item["nums"] as JsonObject ?? new JsonObject();
             var texts = item["texts"] as JsonObject ?? new JsonObject();
+            // "only while" written on the behavior or in its nums: a formula, kept in texts.cond
+            foreach (var bag in new[] { item, nums })
+                foreach (var k in new[] { "cond", "condition", "onlyWhile", "while" })
+                    if (KeyOf(bag, k) is string real && bag[real] is JsonNode cv) { bag.Remove(real); texts["cond"] = Str(cv); }
+            if (texts["cond"] is JsonNode c0)
+                texts["cond"] = Str(c0).Trim() switch { var f when f.Equals("isnight", StringComparison.OrdinalIgnoreCase) || f.Equals("night", StringComparison.OrdinalIgnoreCase) => "isNight >= 1",
+                                                        var f when f.Equals("isday", StringComparison.OrdinalIgnoreCase) || f.Equals("day", StringComparison.OrdinalIgnoreCase) => "isNight < 1", var f => f };
             // the object's physics written inside a behavior ({"kind":"Solid","nums":{"bounciness":0.8}}): handed to the caller
             foreach (var bag in new[] { item, item["nums"] as JsonObject })
                 foreach (var k in new[] { "bounciness", "gravity", "gravityScale" })

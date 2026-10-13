@@ -314,8 +314,8 @@ namespace EasyEngine
 
         private static bool IsNewIntent(string p)
         {
-            p = p.ToLowerInvariant();
-            return new[] { "another", "a new", "new ", "second", "third", "spawn", "extra", "outro", "outra", "mais um", "mais uma", "novo ", "nova " }.Any(p.Contains);
+            // whole words: "after 5 seconds" is not "a second one"
+            return System.Text.RegularExpressions.Regex.IsMatch(p.ToLowerInvariant(), @"\b(another|new|second|third|spawn|spawns|extra|outro|outra|novo|nova|mais um|mais uma|otro|otra|nuevo|nueva)\b");
         }
 
         private static bool IsModifyIntent(string p)
@@ -565,7 +565,7 @@ namespace EasyEngine
                     if (root.TryGetProperty("layers", out var lyScoped) && lyScoped.ValueKind == JsonValueKind.Array)
                         ApplyLayerArray(lyScoped, EnsureUndo, changes);
                     ApplyGlobalSceneVars(root, EnsureUndo, changes);
-                    ApplyLevel(root, EnsureUndo, changes); // a level is built whatever is selected
+                    ApplyLevel(root, userPrompt, EnsureUndo, changes); // a level is built whatever is selected
 
                     AddLockedNotes(changes);
                     if (changes.Count == 0) return false;
@@ -671,8 +671,10 @@ namespace EasyEngine
                 if (root.TryGetProperty("layers", out var lyArr) && lyArr.ValueKind == JsonValueKind.Array)
                     ApplyLayerArray(lyArr, EnsureUndo, changes);
                 ApplyGlobalSceneVars(root, EnsureUndo, changes);
-                ApplyLevel(root, EnsureUndo, changes); // "level": the engine lays out a whole level (MainWindow.AiLevel.cs)
+                ApplyLevel(root, userPrompt, EnsureUndo, changes); // "level": the engine lays out a whole level (MainWindow.AiLevel.cs)
                 if (promptLevel != null) { using var lvDoc = JsonDocument.Parse(JsonSerializer.Serialize(promptLevel)); ApplyLevelSpec(lvDoc.RootElement, EnsureUndo, changes); }
+
+                AddMissingKey(userPrompt, EnsureUndo, changes);
 
                 if (changes.Count > 0)
                 {
@@ -688,6 +690,31 @@ namespace EasyEngine
         }
 
         // the lines of the AI's change summary; each also records the object it touched (for Ctrl+K, "show the last AI change")
+        // A locked door (Gate) this reply made, in a request about a key, with nothing in the scene that gives its variable:
+        // small models often forget the key. The engine adds one between the player and the door.
+        private void AddMissingKey(string userPrompt, Action ensureUndo, List<string> changes)
+        {
+            if (!System.Text.RegularExpressions.Regex.IsMatch(userPrompt.ToLowerInvariant(), @"\b(key|chave|llave)\b")) return;
+            var all = _scene.Layers.SelectMany(l => l.Objects).ToList();
+            foreach (var gate in all.Where(o => _aiSpecObjects.Contains(o.Name)).ToList())
+            {
+                var g = gate.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Gate);
+                if (g == null) continue;
+                var v = g.Text("var", "");
+                if (v.Length == 0) { v = "hasKey"; g.Texts["var"] = v; }
+                bool given = all.Any(o => o.Behaviors.Any(b => b.Kind is BehaviorKind.AbilityPickup or BehaviorKind.Collectible && b.Text("var", "") == v
+                                                            || b.Kind == BehaviorKind.Custom && b.Text("script", "").Contains("\"" + v + "\"")));
+                if (given) continue;
+                ensureUndo();
+                var player = FindPlayer();
+                double x = player != null ? (player.X + gate.X) / 2 : gate.X - 200, y = gate.Y + gate.Height - 40;
+                var key = new GameObjectData { Id = _project.NextId, Name = UniqueName("Key"), Type = "Key", X = Math.Round(x), Y = Math.Round(y), Width = 24, Height = 24, Color = "#FFD700" };
+                var pick = BehaviorCatalog.Info(BehaviorKind.AbilityPickup).CreateData(); pick.Texts["var"] = v; key.Behaviors.Add(pick);
+                (_scene.Layers.FirstOrDefault(l => l.Objects.Contains(gate)) ?? _activeLayer ?? _scene.Layers[0]).Objects.Add(key);
+                changes.Add(CreatedLine(key));
+            }
+        }
+
         private readonly List<string> _aiSpecObjects = new();
         private string EditedLine(GameObjectData o) { _aiSpecObjects.Add(o.Name); return L.F("Edited \"{0}\"", o.Name); }
         private string PrefabLine(GameObjectData o) { _aiSpecObjects.Add(o.Name); return L.F("Prefab \"{0}\"", o.Name); }
