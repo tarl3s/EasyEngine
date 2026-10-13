@@ -65,7 +65,9 @@ namespace EasyEngine
                 if (spec.TryGetProperty(key, out var c)) { AiSpecFix.CollectRules(c, impliedRules); break; }
             if (impliedRules.Count > 0)
             {
-                using var rulesDoc = JsonDocument.Parse(AiSpecFix.ForRequest(AiSpecFix.Rules(impliedRules, _aiNotes), userPrompt, target.Name));
+                var rulesJson = AiSpecFix.ForRequest(AiSpecFix.Rules(impliedRules, _aiNotes), userPrompt, target.Name);
+                if (ReferenceEquals(target, FindPlayer())) try { rulesJson = HandOverTouchDestroys(rulesJson, target.Name); } catch (Exception) { } // odd JSON (a key twice): as it is
+                using var rulesDoc = JsonDocument.Parse(rulesJson);
                 var cust = rulesDoc.RootElement;
                 if (cust.GetArrayLength() > 0)
                 {
@@ -690,6 +692,34 @@ namespace EasyEngine
         }
 
         // the lines of the AI's change summary; each also records the object it touched (for Ctrl+K, "show the last AI change")
+        // "When the player touches a Star … and the Star disappears" written on the player as touch Star → destroy would destroy
+        // the PLAYER: that rule goes to the Star (and its numbered copies) as touch Player → destroy.
+        private string HandOverTouchDestroys(string rulesJson, string playerName)
+        {
+            System.Text.Json.Nodes.JsonArray? rules;
+            try { rules = System.Text.Json.Nodes.JsonNode.Parse(rulesJson, null, LooseJson.Options) as System.Text.Json.Nodes.JsonArray; }
+            catch (Exception) { return rulesJson; } // a key written twice: left as it is
+            if (rules == null) return rulesJson;
+            bool moved = false;
+            foreach (var r in rules.OfType<System.Text.Json.Nodes.JsonObject>().ToList())
+            {
+                if ((string?)r["when"] != "touch" || (string?)r["do"] != "destroy" || r["name"]?.ToString() is not { Length: > 0 } other) continue;
+                var copies = _scene.Layers.SelectMany(l => l.Objects).Where(o => !o.Locked && o.Name != playerName
+                    && (o.Name.Equals(other, StringComparison.OrdinalIgnoreCase) || System.Text.RegularExpressions.Regex.IsMatch(o.Name, $"^{System.Text.RegularExpressions.Regex.Escape(other)}_?\\d+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))).ToList();
+                if (copies.Count == 0) continue;
+                using var one = JsonDocument.Parse("[{\"when\":\"touch\",\"name\":" + JsonSerializer.Serialize(playerName) + ",\"do\":\"destroy\"}]");
+                foreach (var o in copies)
+                {
+                    var custom = o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
+                    if (custom == null) o.Behaviors.Add(custom = new BehaviorData { Kind = BehaviorKind.Custom });
+                    custom.Texts["script"] = MergeRules(custom.Text("script", "[]"), one.RootElement);
+                    _aiSpecObjects.Add(o.Name);
+                }
+                rules.Remove(r); moved = true;
+            }
+            return moved ? rules.ToJsonString() : rulesJson;
+        }
+
         // A locked door (Gate) this reply made, in a request about a key, with nothing in the scene that gives its variable:
         // small models often forget the key. The engine adds one between the player and the door.
         private void AddMissingKey(string userPrompt, Action ensureUndo, List<string> changes)

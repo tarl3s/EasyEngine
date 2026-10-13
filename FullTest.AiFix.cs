@@ -369,5 +369,14 @@ public partial class App
             return r.Count == 4 && Is(r[0], "name", "Player") && Is(r[1], "do", "setvar") && Is(r[1], "to", "score * 2") && Is(r[2], "when", "key") && !r[2].ContainsKey("cooldown")
                    && !r[3].ContainsKey("loop") && !r[3].ContainsKey("yoyo") && blink.Count == 1 && blink[0].ContainsKey("loop");
         });
+        t.Test("ai fix: 'touch Star → destroy' written on the player goes to the Stars (the player isn't destroyed)", () =>
+        {
+            var ed = NewEditor(s => { var l = s.Layers.First(x => x.Kind == LayerKind.Base); l.Objects.Add(new GameObjectData { Id = 93, Name = "Star", X = 300, Y = 100, Width = 24, Height = 24 }); l.Objects.Add(new GameObjectData { Id = 94, Name = "Star2", X = 500, Y = 100, Width = 24, Height = 24 }); });
+            ed.TestApplySpec("{\"edit\":[{\"name\":\"Player\",\"custom\":[{\"when\":\"touch\",\"name\":\"Star\",\"do\":\"setvar\",\"var\":\"score\",\"to\":\"score * 2\"},{\"when\":\"touch\",\"name\":\"Star\",\"do\":\"destroy\"}]}]}",
+                             "every time the player touches a Star, the score doubles and that Star disappears");
+            var mine = App.AiEvalKit.Rules(ed.TestFindObject("Player"));
+            bool onStars = new[] { "Star", "Star2" }.All(n => App.AiEvalKit.Rules(ed.TestFindObject(n)).Any(r => Is(r, "when", "touch") && Is(r, "name", "Player") && Is(r, "do", "destroy")));
+            return onStars && mine.Count == 1 && Is(mine[0], "do", "setvar");
+        });
     }
 }

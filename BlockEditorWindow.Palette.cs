@@ -160,11 +160,9 @@ namespace EasyEngine
 
         /// <summary>The rule language in English, one short line per block, written from the palette (for the AI prompts):
         /// e.g. <c>tween(prop=x|y|opacity|rot|w|h|scale, to, duration=0.5, ease=linear|easein|easeout|easeinout, loop, yoyo) — glide a property</c>.</summary>
-        internal static IReadOnlyList<(string id, bool isEvent, string doc)> RuleDocs()
-        {
-            var (events, actions) = L.InEnglish(() => (MakeEvents(), MakeActions()));
-            return events.Select(d => (d.Id, true, RuleDoc(d))).Concat(actions.Select(d => (d.Id, false, RuleDoc(d)))).ToList();
-        }
+        internal static IReadOnlyList<(string id, bool isEvent, string doc)> RuleDocs() => _ruleDocs ??= L.InEnglish(() =>
+            MakeEvents().Select(d => (d.Id, true, RuleDoc(d))).Concat(MakeActions().Select(d => (d.Id, false, RuleDoc(d)))).ToList());
+        private static List<(string id, bool isEvent, string doc)>? _ruleDocs; // the same in every language: made once
 
         private static string RuleDoc(BlockDef d)
         {

@@ -76,6 +76,13 @@ namespace EasyEngine
             /// <summary>The events and actions its JSON uses (their params go in the prompt with it).</summary>
             public HashSet<string> RuleIds { get; } = Regex.Matches(Text, "\"(?:when|do)\":\"(\\w+)\"").Select(m => m.Groups[1].Value).ToHashSet();
         }
+        // a hint whose every rule is already in one of the examples shown: no need to pay for it twice
+        private static bool ShownIn(PromptHint h, List<(string ask, string json)> examples)
+        {
+            var rules = Regex.Matches(h.Text, "\\{\"when\"[^{}]*\\}").Select(m => m.Value).ToList();
+            return rules.Count > 0 && rules.All(r => examples.Any(e => e.json.Contains(r)));
+        }
+
         // a behavior the request names exactly ("add a Spring") — not everyday words ("follow" isn't FollowCamera)
         private static IEnumerable<BehaviorKind> NamedKinds(string request)
             => Regex.Matches(request, "[A-Za-z]{4,}").Select(m => Enum.TryParse<BehaviorKind>(m.Value, true, out var k) && !BehaviorCatalog.Info(k).Hidden ? k : (BehaviorKind?)null).OfType<BehaviorKind>();
@@ -267,11 +274,12 @@ namespace EasyEngine
             if (examples.Count > 0) foreach (var (ask, json) in examples) sb.AppendLine($"Example — \"{ask}\" → {json}");
             else sb.AppendLine("Shapes: change a behavior{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":400}}]}]} · a new thing {\"create\":[{\"name\":\"Coin\",\"x\":500,\"y\":420,\"width\":24,\"height\":24,\"color\":\"#FFD700\",\"behaviors\":[{\"kind\":\"Collectible\"}]}]} · a rule {\"edit\":[{\"name\":\"Box\",\"custom\":[{\"when\":\"timer\",\"every\":2,\"do\":\"jump\",\"force\":600}]}]}");
             sb.AppendLine("Behaviors: " + string.Join(", ", kinds.Select(i => i.Kind)));
-            sb.AppendLine("EVENTS: " + string.Join(", ", AiSpecFix.Events.Where(e => e is not ("keydown" or "hover"))));
-            sb.AppendLine("ACTIONS: " + string.Join(", ", AiSpecFix.Actions.Where(a => a != "accel")));
+            // the block palette's ids: what the blocks can show is exactly what the AI may write
+            sb.AppendLine("EVENTS: " + string.Join(", ", BlockEditorWindow.RuleDocs().Where(d => d.isEvent).Select(d => d.id)));
+            sb.AppendLine("ACTIONS: " + string.Join(", ", BlockEditorWindow.RuleDocs().Where(d => !d.isEvent).Select(d => d.id)));
 
             // what the request is about: hints, then the behaviors they (and the request) name
-            var hints = HintsFor(request);
+            var hints = HintsFor(request).Where(h => !ShownIn(h, examples)).ToList();
             if (hints.Count > 0) { sb.AppendLine("HOW TO (for this request):"); foreach (var h in hints) sb.AppendLine("- " + h.Text); }
             var detail = hints.SelectMany(h => h.Kinds).Concat(NamedKinds(request)).Distinct().Take(5).ToList();
             foreach (var k in detail) sb.AppendLine(BehaviorLine(BehaviorCatalog.Info(k)));
