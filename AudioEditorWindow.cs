@@ -131,17 +131,17 @@ namespace EasyEngine
         {
             _effectsHost.Children.Clear();
             double maxFade = Math.Round(Math.Max(0.1, Math.Min(5, _src.Seconds)), 2);
-            _effectsHost.Children.Add(SliderRow(L.T("🐢 Speed"), L.T("Slower is longer and deeper, faster is shorter and higher — like a tape."),
+            _effectsHost.Children.Add(SliderRow("🐢 Speed", L.T("Slower is longer and deeper, faster is shorter and higher — like a tape."),
                 0.5, 2, _fx.Speed, 0.05, v => _fx.Speed = v, v => Math.Abs(v - 1) < 1e-9 ? L.T("Normal") : L.F("{0}×", v.ToString("0.00"))));
-            _effectsHost.Children.Add(SliderRow(L.T("🎵 Pitch"), L.T("Higher or lower voice; the length stays the same."),
+            _effectsHost.Children.Add(SliderRow("🎵 Pitch", L.T("Higher or lower voice; the length stays the same."),
                 -12, 12, _fx.Pitch, 1, v => _fx.Pitch = v, v => v == 0 ? L.T("Normal") : L.F("{0} semitones", (v > 0 ? "+" : "") + v.ToString("0"))));
-            _effectsHost.Children.Add(SliderRow(L.T("🔊 Volume"), L.T("Louder or quieter. A sound that would get too loud is kept just below the limit."),
+            _effectsHost.Children.Add(SliderRow("🔊 Volume", L.T("Louder or quieter. A sound that would get too loud is kept just below the limit."),
                 0, 200, _fx.Volume * 100, 5, v => _fx.Volume = v / 100, v => $"{v:0}%"));
-            _effectsHost.Children.Add(SliderRow(L.T("↗ Fade in"), L.T("Starts silent and grows to full volume."),
+            _effectsHost.Children.Add(SliderRow("↗ Fade in", L.T("Starts silent and grows to full volume."),
                 0, maxFade, Math.Min(_fx.FadeIn, maxFade), 0.05, v => _fx.FadeIn = v, v => v <= 0 ? L.T("Off") : L.F("{0} s", v.ToString("0.00"))));
-            _effectsHost.Children.Add(SliderRow(L.T("↘ Fade out"), L.T("Ends by getting quieter until silent."),
+            _effectsHost.Children.Add(SliderRow("↘ Fade out", L.T("Ends by getting quieter until silent."),
                 0, maxFade, Math.Min(_fx.FadeOut, maxFade), 0.05, v => _fx.FadeOut = v, v => v <= 0 ? L.T("Off") : L.F("{0} s", v.ToString("0.00"))));
-            _effectsHost.Children.Add(SliderRow(L.T("🏔 Echo"), L.T("Repeats the sound, quieter each time, as in a cave."),
+            _effectsHost.Children.Add(SliderRow("🏔 Echo", L.T("Repeats the sound, quieter each time, as in a cave."),
                 0, 100, _fx.Echo * 100, 5, v => _fx.Echo = v / 100, v => v <= 0 ? L.T("Off") : $"{v:0}%"));
 
             var bar = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
@@ -152,7 +152,8 @@ namespace EasyEngine
                 BuildEffects(); Changed();
             };
             DockPanel.SetDock(reset, Dock.Right); bar.Children.Add(reset);
-            var reverse = new CheckBox { Content = L.T("⇆ Reverse (play backwards)"), IsChecked = _fx.Reverse, VerticalAlignment = VerticalAlignment.Center };
+            var reverse = new CheckBox { Content = "⇆ Reverse", ToolTip = L.T("Plays the sound backwards."), IsChecked = _fx.Reverse, VerticalAlignment = VerticalAlignment.Center };
+            L.SetSkip(reverse, true); // effect names stay in English in every language (the owner's choice); their explanations are translated
             reverse.Checked += (s, e) => { _fx.Reverse = true; Changed(); };
             reverse.Unchecked += (s, e) => { _fx.Reverse = false; Changed(); };
             bar.Children.Add(reverse);
@@ -166,6 +167,7 @@ namespace EasyEngine
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
             var name = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, FontSize = 13 };
+            L.SetSkip(name, true); // the effect name, in English everywhere
             var shown = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 12, Margin = new Thickness(10, 0, 0, 0) };
             var slider = SliderBar.Make(min, max, value, v => { set(v); Changed(); }, v => shown.Text = fmt(v), step);
             Grid.SetColumn(slider, 1); Grid.SetColumn(shown, 2);
