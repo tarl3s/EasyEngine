@@ -281,6 +281,7 @@ public partial class App : Application
             try { play.Close(); } catch { }
         }
         catch (Exception ex) { try { File.WriteAllText(log, "FATAL: " + ex); } catch { } }
+        DeleteTempFolders("EE_BehTest_*");
         Shutdown();
     }
 
@@ -366,6 +367,7 @@ public partial class App : Application
         sb.Insert(0, "aijsontest " + DateTime.Now + "\n");
         sb.AppendLine($"\n{pass}/{pass + fail} passed" + (fail == 0 ? "  — ALL PASS" : $"  — {fail} FAILED"));
         try { File.WriteAllText(log, sb.ToString()); } catch { }
+        DeleteTempFolders("EE_AiJson_*");
         Shutdown();
     }
 
@@ -522,6 +524,7 @@ public partial class App : Application
         sb.Insert(0, "blocktest " + DateTime.Now + "\n");
         sb.AppendLine($"\n{pass}/{pass + fail} passed" + (fail == 0 ? "  — ALL PASS" : $"  — {fail} FAILED"));
         try { File.WriteAllText(log, sb.ToString()); } catch { }
+        DeleteTempFolders("EE_Block_*");
         Shutdown();
     }
 

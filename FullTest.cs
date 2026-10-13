@@ -1092,13 +1092,7 @@ public partial class App
         foreach (var s in sims) { try { s.Close(); } catch { } }
 
         // clean up the throwaway project folders this run created
-        try
-        {
-            foreach (var pat in new[] { "EE_Full*", "EE_BehTest_*" })
-                foreach (var dir in Directory.GetDirectories(Path.GetTempPath(), pat))
-                    try { Directory.Delete(dir, true); } catch { }
-        }
-        catch { }
+        DeleteTempFolders("EE_Full*", "EE_BehTest_*");
 
         sb.Insert(0, $"fulltest {DateTime.Now}\n");
         sb.AppendLine($"\n{pass}/{pass + fail} passed" + (fail == 0 ? "  — ALL PASS" : $"  — {fail} FAILED"));
@@ -1126,6 +1120,13 @@ public partial class App
     partial void FeatureTestsLockZ(FullTestKit t);
     partial void FeatureTestsAiFix(FullTestKit t);
     partial void FeatureTestsBlockAi(FullTestKit t);
+
+    /// <summary>Deletes the throwaway project folders a test run left in %TEMP% (by name pattern).</summary>
+    internal static void DeleteTempFolders(params string[] patterns)
+    {
+        foreach (var pat in patterns)
+            try { foreach (var dir in Directory.GetDirectories(Path.GetTempPath(), pat)) try { Directory.Delete(dir, true); } catch { } } catch { }
+    }
 
     // Re-run a script and its block-editor round-trip; the measured outcome must match.
     private static bool SameOutcome(string script, int steps, Func<PlayWindow, double> read, Func<string, string> rt)
