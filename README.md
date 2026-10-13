@@ -62,7 +62,9 @@ old version and opens again. Your projects are never touched. The sample games a
   (numbers, yes/no, text, colours and lists), an inventory and dialogue. Describe what you want and **✨ the AI adds the
   blocks**, or start from a **📚 recipe** (fade out, blink, follow the mouse, move in a circle, a countdown…).
   Any number can be a formula (`score * 2`, `Player.x - self.x`). Blocks and the AI speak the same language: whatever
-  the AI makes opens as blocks you can edit, and the other way round.
+  the AI makes opens as blocks you can edit, and the other way round. One block can react to several events, do several
+  things and check several conditions (all or any); blocks for an object's own behaviors (turn its controls off, change
+  its jump, heal, when it lands, when it gets hurt…) appear only where they make sense.
 - **👑 Boss AI** — bosses with **phases by health**, attacks built from steps (warn, dash, jump with a shockwave,
   ring/spread/aimed shots, summon minions, invulnerable…), a death sequence and a boss health bar.
 - **🎬 Cutscenes** — dialogue, camera moves, big titles, fades, cinema bars, moving characters, locking the controls;
@@ -75,12 +77,15 @@ old version and opens again. Your projects are never touched. The sample games a
 - **Day & night and lighting** — sun and moon, torches and lamps, darker underground, and **pixel-style
   block lighting** where walls stop the light and torches colour what they touch. **Minimap** with a big map on a key.
 - **Look and feel** — sprite animations, a built-in **pixel-art editor**, particles, tweens with easing, bars,
-  text effects, dialogue box styles, sound with volume channels.
+  text effects, dialogue box styles, sound with volume channels and a small **sound editor** (cut, speed, pitch,
+  volume, fades, reverse, echo).
 - **Debug console (F1)** — see what your game is doing: clicks, hits, rules that fired, sounds, warnings.
 - **Export** your game as a standalone `.exe`.
 - **Your language, your look** — the editor speaks English, Portuguese (Brazil and Portugal), Spanish, French, German,
   Japanese and Chinese (Simplified and Traditional), and the AI answers you in it. Dark or light theme, bigger or smaller
-  interface, and a button that clears the engine's temporary files (⚙ Settings).
+  interface, and a button that clears the engine's temporary files (⚙ Settings). Every list can be searched by just
+  typing while it is open, and each project keeps a hidden backup of its pictures and sounds, so a file deleted by
+  mistake comes back.
 
 <p align="center">
   <img src="docs/images/boss-fight.png" width="49%" alt="The Slime King boss fight">

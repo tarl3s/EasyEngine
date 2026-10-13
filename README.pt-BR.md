@@ -64,7 +64,9 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   por objeto (números, sim/não, texto, cores e listas), inventário e diálogos. Descreva o que quer e **✨ a IA adiciona
   os blocos**, ou comece por uma **📚 receita** (sumir aos poucos, piscar, seguir o mouse, andar em círculo, contagem…).
   Qualquer número pode ser uma fórmula (`score * 2`, `Player.x - self.x`). Os blocos e a IA falam a mesma língua: o que
-  a IA faz abre como blocos que você edita, e vice-versa.
+  a IA faz abre como blocos que você edita, e vice-versa. Um bloco pode reagir a vários eventos, fazer várias coisas e
+  conferir várias condições (todas ou qualquer uma); blocos dos comportamentos do próprio objeto (desligar os controles,
+  mudar o pulo, curar, quando cair no chão, quando levar dano…) só aparecem onde fazem sentido.
 - **👑 Boss AI** — chefões com **fases pela vida**, ataques montados com passos (avisar, investida, pulo com onda de
   choque, tiros em anel/leque/mirados, invocar lacaios, invulnerável…), sequência de morte e barra de vida do chefe.
 - **🎬 Cinemáticas** — falas, câmera que viaja, títulos grandes, fades, barras de cinema, mover personagens, travar
@@ -78,12 +80,15 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   blocos**, em que paredes bloqueiam a luz e as tochas colorem o que tocam. **Minimapa** com mapa
   grande numa tecla.
 - **Visual** — animações de sprite, **editor de pixel art** embutido, partículas, tweens com easing, barras, efeitos
-  de texto, estilos de caixa de diálogo, som com canais de volume.
+  de texto, estilos de caixa de diálogo, som com canais de volume e um pequeno **editor de som** (cortar, velocidade,
+  pitch, volume, fades, tocar ao contrário, eco).
 - **Console de debug (F1)** — veja o que o jogo está fazendo: cliques, golpes, regras que dispararam, sons, avisos.
 - **Exporte** o seu jogo como um `.exe` que roda sozinho.
 - **Seu idioma, seu visual** — o editor fala português (do Brasil e de Portugal), inglês, espanhol, francês, alemão,
   japonês e chinês (simplificado e tradicional), e a IA te responde nele. Tema escuro ou claro, interface maior ou menor,
-  e um botão que limpa os arquivos temporários da engine (⚙ Settings / Configurações).
+  e um botão que limpa os arquivos temporários da engine (⚙ Settings / Configurações). Qualquer lista se pesquisa só
+  digitando com ela aberta, e cada projeto guarda uma cópia escondida das suas imagens e sons, então um arquivo apagado
+  sem querer volta.
 
 <p align="center">
   <img src="docs/images/boss-fight.png" width="49%" alt="A luta contra o Slime King">
