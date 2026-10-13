@@ -126,6 +126,27 @@ namespace EasyEngine
         /// <summary>Removes the dead objects like the end of a live frame does (TStep keeps them for the assertions).</summary>
         public void TCleanup() => Cleanup();
 
+        /// <summary>Everything a Custom rule can change, as one text (variables, texts, lists, every object's own state, particles,
+        /// glides, the dialogue, the scene, the sounds) — two plays that end with the same one did the same.</summary>
+        public string TFingerprint()
+        {
+            static string N(double v) => v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            var sb = new System.Text.StringBuilder("scene=" + TScene);
+            foreach (var kv in _vars.OrderBy(k => k.Key, System.StringComparer.OrdinalIgnoreCase)) sb.Append($" {kv.Key}={N(kv.Value)}");
+            foreach (var kv in _texts.OrderBy(k => k.Key, System.StringComparer.OrdinalIgnoreCase)) sb.Append($" {kv.Key}='{kv.Value}'");
+            foreach (var kv in _lists.OrderBy(k => k.Key, System.StringComparer.OrdinalIgnoreCase)) sb.Append($" {kv.Key}=[{string.Join(",", kv.Value)}]");
+            foreach (var e in _entities)
+            {
+                sb.Append($" | {e.Data.Name}{(e.Dead ? " dead" : "")} {N(e.X)},{N(e.Y)} v{N(e.VX)},{N(e.VY)} r{N(e.Rot)} {N(e.W)}x{N(e.H)} o{N(e.Visual.Opacity)}"
+                          + $" s{N(e.SpeedScale)} f{e.Facing} hp{N(e.CurHealth)} k{N(e.TweenScale)} {e.TintRaw}");
+                foreach (var kv in e.Locals.OrderBy(k => k.Key, System.StringComparer.OrdinalIgnoreCase)) sb.Append($" {kv.Key}={N(kv.Value)}");
+                if (e.LocalTexts != null) foreach (var kv in e.LocalTexts.OrderBy(k => k.Key, System.StringComparer.OrdinalIgnoreCase)) sb.Append($" {kv.Key}='{kv.Value}'");
+                if (e.LocalLists != null) foreach (var kv in e.LocalLists.OrderBy(k => k.Key, System.StringComparer.OrdinalIgnoreCase)) sb.Append($" {kv.Key}=[{string.Join(",", kv.Value)}]");
+            }
+            sb.Append($" | particles={_particles.Count} tweens={_tweens.Count} dialog={_dialogOpen}:{DialogText.Text} sounds={string.Join(",", _soundsPlayed)}");
+            return sb.ToString();
+        }
+
         // Build a throwaway 1-scene project for a single Custom-script test.
         public static PlayWindow NewScriptSim(string script, out Project project,
             double w = 64, double h = 64, PhysicsMode phys = PhysicsMode.None,

@@ -170,13 +170,13 @@ namespace EasyEngine
         {
             public string When = "always", Do = "";
             // action params (everything after "do") — read by DoCustom
-            public Dictionary<string, double> N = new(StringComparer.OrdinalIgnoreCase);
-            public Dictionary<string, string> T = new(StringComparer.OrdinalIgnoreCase);
+            public RuleBag<double> N = new(false);
+            public RuleBag<string> T = new(false);
             // trigger params (everything before "do") — read by the WHEN events.
             // Kept separate so an event param and an action param can share a name
             // (e.g. "while var:g >= 5  →  setvar var:ok") without colliding.
-            public Dictionary<string, double> WN = new(StringComparer.OrdinalIgnoreCase);
-            public Dictionary<string, string> WT = new(StringComparer.OrdinalIgnoreCase);
+            public RuleBag<double> WN = new(true);
+            public RuleBag<string> WT = new(true);
             public double Timer; public bool Started; public bool WasTouching;
             // console bookkeeping
             public string Summary = "";
@@ -204,7 +204,8 @@ namespace EasyEngine
                 if (s.Length <= 5) switch (s.Trim().ToLowerInvariant()) { case "yes" or "true" or "on": return 1; case "no" or "false" or "off": return 0; }
                 return Eval != null && !string.IsNullOrWhiteSpace(s) ? Eval(s) : d;
             }
-            public bool HasValue(string k) => N.ContainsKey(k) || T.ContainsKey(k);
+            // an action value: after "do", or written before it when the event doesn't read that key itself (like Num)
+            public bool HasValue(string k) => N.ContainsKey(k) || T.ContainsKey(k) || (!TriggerConsumes(When, k) && (WN.ContainsKey(k) || WT.ContainsKey(k)));
             public string WStr(string k, string d = "") => WT.TryGetValue(k, out var v) ? v : d;
 
             // which param keys each WHEN event reads for itself (so action reads skip these on fallback)
@@ -2129,7 +2130,7 @@ namespace EasyEngine
         // A rule value: use the "expr" text as an expression if present; else the first numeric key found; else fallback.
         private double RuleValue(Entity en, CustomRule r, double fallback, params string[] numKeys)
         {
-            if (r.T.ContainsKey("expr")) return r.Num("expr", fallback); // an expression (also "expr: …"), or a number
+            if (r.HasValue("expr")) return r.Num("expr", fallback); // an expression (also "expr: …"), or a number
             foreach (var k in numKeys) if (r.HasValue(k)) return r.Num(k, fallback);
             return fallback;
         }
