@@ -135,10 +135,24 @@ namespace EasyEngine
         private bool ApplyBasics(GameObjectData obj, JsonElement spec)
         {
             bool changed = false;
-            if (spec.TryGetProperty("x", out var x) && LooseJson.TryNumber(x, out var xv)) { obj.X = xv; changed = true; }
-            if (spec.TryGetProperty("y", out var y) && LooseJson.TryNumber(y, out var yv)) { obj.Y = yv; changed = true; }
-            if (spec.TryGetProperty("width", out var w) && LooseJson.TryNumber(w, out var wv)) { obj.Width = Math.Max(2, wv); changed = true; }
-            if (spec.TryGetProperty("height", out var h) && LooseJson.TryNumber(h, out var hv)) { obj.Height = Math.Max(2, hv); changed = true; }
+            // a number, or a formula about the object itself ("self.w * 2", "width*2", "x + 100")
+            bool Num(string key, out double v)
+            {
+                v = 0;
+                if (!spec.TryGetProperty(key, out var e)) return false;
+                if (LooseJson.TryNumber(e, out v)) return true;
+                if (e.ValueKind != JsonValueKind.String) return false;
+                double Own(string n) => n.ToLowerInvariant().Replace("self.", "") switch
+                {
+                    "x" => obj.X, "y" => obj.Y, "w" or "width" => obj.Width, "h" or "height" => obj.Height, _ => double.NaN
+                };
+                v = Expr.Eval(e.GetString() ?? "", Own, (_, _) => double.NaN);
+                return double.IsFinite(v);
+            }
+            if (Num("x", out var xv)) { obj.X = xv; changed = true; }
+            if (Num("y", out var yv)) { obj.Y = yv; changed = true; }
+            if (Num("width", out var wv)) { obj.Width = Math.Max(2, wv); changed = true; }
+            if (Num("height", out var hv)) { obj.Height = Math.Max(2, hv); changed = true; }
             if (spec.TryGetProperty("color", out var c) && c.ValueKind == JsonValueKind.String) { obj.Color = c.GetString() ?? obj.Color; changed = true; }
             if (spec.TryGetProperty("sprite", out var sp) && sp.ValueKind == JsonValueKind.String)
             {
