@@ -62,7 +62,7 @@ public partial class App
             w.Close();
             string[] ids = { "start", "timer", "after", "touch", "ifvar", "iflocal", "hasitem", "click", "death", "tween", "setvar", "addlocal", "additem", "emit", "setvolume", "settext", "listadd" };
             return ids.All(id => System.Text.RegularExpressions.Regex.IsMatch(en, $@"\b{id}\b")) && en.Contains("tween (Glide a property): prop=x (x|y|opacity|rot|w|h|scale)")
-                   && en.Contains("channel=master (master|music|sfx)") && en.Contains($"\"{player.Name}\"") && en.Contains("\"rules\"") && en.Contains("fade out after 5 seconds")
+                   && en.Contains("channel=master (master|music|sfx)") && en.Contains($"\"{player.Name}\"") && en.Contains("\"rules\"") && en.Contains("slowly fades away")
                    && pt.Contains("Glide a property") && !pt.Contains("Deslizar") && pt.Contains("Brazilian Portuguese");
         });
 

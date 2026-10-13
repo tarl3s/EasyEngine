@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using System.Text.RegularExpressions;
 
 namespace EasyEngine
 {
-    // The 🔨 Build prompt: the JSON shape, the behavior catalog, the rules, recipes and examples, and the scene.
+    // The 🔨 Build prompt: the JSON shape, the behavior catalog, the hints and examples closest to the request, and the scene.
     public partial class MainWindow
     {
         // ============================================================
@@ -48,7 +46,7 @@ namespace EasyEngine
                 if (VarScope.Of(o).Count > 0) sb.Append(" vars(" + VarScope.Of(o).Describe() + ")");
                 sb.Append("} ");
             }
-            var extraPrefabs = _project.Prefabs.Where(p => !new[] { "Player", "Enemy", "Bullet", "Particle", "Platform", "Door", "Tilemap" }.Contains(p.Name)).Select(p => p.Name).ToList();
+            var extraPrefabs = _project.Prefabs.Where(p => !DefaultPrefabs.Contains(p.Name)).Select(p => p.Name).ToList();
             if (extraPrefabs.Count > 0) sb.Append("PREFABS[" + string.Join(",", extraPrefabs) + "] ");
             if (VarScope.Of(_project).Count > 0) sb.Append("GLOBAL(" + VarScope.Of(_project).Describe() + ") ");
             if (VarScope.Of(_scene).Count > 0) sb.Append("SCENE(" + VarScope.Of(_scene).Describe() + ") ");
@@ -73,7 +71,18 @@ namespace EasyEngine
         //  local models read it fast and aren't distracted; free cloud tiers spend far fewer tokens.
         // ================================================================================================================
 
-        internal record PromptHint(string[] Tags, string Text, BehaviorKind[] Kinds);
+        internal record PromptHint(string[] Tags, string Text, BehaviorKind[] Kinds)
+        {
+            /// <summary>The events and actions its JSON uses (their params go in the prompt with it).</summary>
+            public HashSet<string> RuleIds { get; } = Regex.Matches(Text, "\"(?:when|do)\":\"(\\w+)\"").Select(m => m.Groups[1].Value).ToHashSet();
+        }
+        // a behavior the request names exactly ("add a Spring") — not everyday words ("follow" isn't FollowCamera)
+        private static IEnumerable<BehaviorKind> NamedKinds(string request)
+            => Regex.Matches(request, "[A-Za-z]{4,}").Select(m => Enum.TryParse<BehaviorKind>(m.Value, true, out var k) && !BehaviorCatalog.Info(k).Hidden ? k : (BehaviorKind?)null).OfType<BehaviorKind>();
+        /// <summary>What a formula may use (both AI prompts: the Build panel and the block editor).</summary>
+        internal const string FormulaHelp = "Any number may be a formula: \"sign(Player.cx - self.cx) * 120\", \"rand(1,3)\", \"score * 2\" — with self.x/y/cx/cy/w/h/vx/vy/health, "
+            + "Name.x/cx/… of any object, variables, item:Name, time, mousex, mousey, dist(x1,y1,x2,y2), abs, sign, min, max, sin, cos. x grows right, y grows DOWN (negative vy = up).";
+        private static readonly HashSet<string> DefaultPrefabs = PrefabFactory.Defaults().Select(d => d.Name).ToHashSet();
         private static PromptHint H(string tags, string text, params BehaviorKind[] kinds) => new(tags.Split(' ', StringSplitOptions.RemoveEmptyEntries), text, kinds);
 
         // The words of a hint are compared as 5-letter stems with the request (MainWindow.AiRules.cs Words: "coins" = "coin",
@@ -83,7 +92,7 @@ namespace EasyEngine
             H("player jogador hero heroi faster rapido speed velocid jump pula pulo higher health vida hearts coraç dash double duplo wall bigger",
               "The PLAYER is the object with Platformer (or TopDown): change it with \"edit\" by its name, never create another. Platformer nums: speed, jump, doubleJump/wallJump/dash (0 or 1). Hearts = Health nums.max.",
               BehaviorKind.Platformer, BehaviorKind.Health),
-            H("enemy enemies inimigo monster monstro slime patrol patrulha walks anda back forth chase chases persegue follows segue flee foge away near perto",
+            H("enemy enemies inimigo monster monstro slime patrol patrulha walks anda back forth chase chases persegue flee foge away",
               "Enemy = physics Dynamic + Health (respawn 0) + Damager (target Player) + a mover: Patrol (back and forth) or Chase (target Player). Run away from the player (always): {\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"to\":\"sign(self.cx - Player.cx) * 160\"}.",
               BehaviorKind.Health, BehaviorKind.Damager, BehaviorKind.Patrol, BehaviorKind.Chase),
             H("near perto close closer proximo distance distancia within pixels",
@@ -91,27 +100,27 @@ namespace EasyEngine
             H("shoot shoots atira atirar turret torre gun arma bullet bala fire dispara",
               "Shooting by itself: Shooter texts{key:\"\",aim:\"Player\"} nums{directions:1,cooldown:2} (no key = fires on its own). Or a rule {\"when\":\"timer\",\"every\":1,\"do\":\"shoot\",\"directions\":1,\"at\":\"Player\"} (add a \"cond\" to limit it, e.g. \"Player.cx < self.cx\" = player on its left).",
               BehaviorKind.Shooter),
-            H("spawn spawns appear aparec surge rain chuva fall falling cai caem drop rocks pedras every cada wave onda",
+            H("spawn spawns appear aparec surge rain chuva fall falling cai caem drop rocks pedras wave onda",
               "To make things appear during play: create it with \"asPrefab\":true (it waits outside the scene), then a Spawner behavior (texts target, at:\"top\" = falls from a random x at the top; nums interval, max 0 = no limit) or a rule {\"do\":\"spawn\",\"object\":\"Rock\",\"at\":\"top\"}.",
               BehaviorKind.Spawner),
             H("every cada seconds segundos second after depois later wait espera timer countdown contagem time tempo",
               "Timing: {\"when\":\"timer\",\"every\":2,…} repeats (the first time after 2 s); {\"when\":\"after\",\"seconds\":5,…} happens once. 60 s countdown: variables {\"scene\":{\"timer\":60}} + rule {\"when\":\"timer\",\"every\":1,\"cond\":\"timer > 0\",\"do\":\"addvar\",\"var\":\"timer\",\"amount\":-1} + a Label \"Time: {timer}\"."),
-            H("fade sumir some desaparec vanish glide desliz grow cresce shrink encolhe pulse pulsa blink pisca opacity invisible invisivel transpar slowly devagar smooth hide esconde show",
+            H("fade sumir some desaparec vanish glide desliz grow cresce shrink encolhe pulse pulsa blink pisca opacity invisible invisivel transpar slowly devagar smooth hide esconde",
               "Smooth change: {\"do\":\"tween\",\"prop\":\"opacity|scale|x|y|rot|w|h\",\"to\":0,\"duration\":2} (+ \"loop\":1,\"yoyo\":1 to repeat back and forth). Fade out after 5 s: {\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":3}. Blink: {\"when\":\"start\",\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":0.5,\"loop\":1,\"yoyo\":1}. Invisible at once: the object's \"opacity\":0, or do:hide / do:show."),
             H("move moving moves mexe anda right left direita esquerda circle circulo follow follows segue mouse teleport teleporta position posição keeps",
               "Movement rules: keeps moving right {\"when\":\"always\",\"do\":\"velocity\",\"vx\":150,\"vy\":0}; follow the mouse {\"when\":\"always\",\"do\":\"set\",\"prop\":\"x\",\"to\":\"mousex - self.w/2\"} and the same for y; a circle {\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"to\":\"-sin(time*2) * 200\"} plus vy with cos; teleport {\"do\":\"set\",\"prop\":\"x\",\"to\":600}."),
-            H("only while enquanto when after until ate starts comeca begins stops para once quando",
-              "Any behavior can work ONLY WHILE a formula is true: put it in its texts \"cond\", e.g. Shooter texts{cond:\"Player.cx < self.cx\"} (player on its left). Start it later: Patrol texts{cond:\"local.go >= 1\"} + a rule {\"when\":\"touch\",\"name\":\"Player\",\"do\":\"setlocal\",\"var\":\"go\",\"to\":1} (touching includes standing on it)."),
-            H("heal cura curar health vida back recover recupera potion pocao heart coracao",
+            H("only while enquanto until ate starts comeca begins once",
+              "A mover, shooter, spawner or hazard can work ONLY WHILE a formula is true: put it in its texts \"cond\", e.g. Shooter texts{cond:\"Player.cx < self.cx\"} (player on its left). Start it later: Patrol texts{cond:\"local.go >= 1\"} + a rule {\"when\":\"touch\",\"name\":\"Player\",\"do\":\"setlocal\",\"var\":\"go\",\"to\":1} (touching includes standing on it)."),
+            H("heal cura curar health vida recover recupera potion pocao heart coracao",
               "Heal 1 (never above the maximum): {\"do\":\"set\",\"prop\":\"health\",\"to\":\"min(self.health + 1, self.maxhealth)\"} — on the player, e.g. {\"when\":\"touch\",\"name\":\"Heart\",…}; then the Heart can destroy itself with its own touch rule."),
-            H("press presses key tecla aperta apertar hold holds segura near perto button",
+            H("press presses key tecla aperta apertar hold holds segura",
               "Keys: {\"when\":\"keypress\",\"key\":\"E\",…} once per press; {\"when\":\"key\",\"key\":\"R\",…} every moment while held. Only near something (on the player): \"cond\":\"dist(self.cx,self.cy,Shopkeeper.cx,Shopkeeper.cy) < 120\"."),
             H("touch touches encosta encostar toca tocar collect collects coleta pega pegar hit bate collide step steps pisa pisar lands",
               "{\"when\":\"touch\",\"name\":\"Coin\",…} fires once when it starts touching that object (standing on it counts). Put it on either of the two; \"name\" is the OTHER one."),
             H("score pontos pontu points point coin coins moeda counter conta lives vidas variable variavel double dobra reaches chega",
               "Variables: top-level \"variables\":{\"global\":{\"score\":0,\"lives\":3}}. Rules addvar/setvar (var; amount/to may be a formula like \"score * 2\"); {\"when\":\"ifvar\",\"var\":\"score\",\"op\":\">=\",\"value\":10,…}. Show it: a Label text \"Score: {score}\" on the UI layer. A coin worth 10: Collectible texts{var:\"score\"} nums{points:10}.",
               BehaviorKind.Label, BehaviorKind.Collectible),
-            H("scene cena level fase gameover next proxima door porta exit saida go vai",
+            H("scene cena gameover next proxima door porta exit saida",
               "Change scene: rule {\"do\":\"goscene\",\"scene\":\"Level2\"}; a door: GoToScene texts{scene}. Use a scene that exists (see SCENE).",
               BehaviorKind.GoToScene),
             H("die dies morre morrer death morte kill mata explode explodes dead runs out acabam",
@@ -119,7 +128,7 @@ namespace EasyEngine
             H("say says diz dizer fala message mensagem dialog dialogo talk conversa shows mostra hello ola",
               "{\"do\":\"say\",\"text\":\"Hello!\",\"speaker\":\"Bob\"} shows a dialogue box (lines split by |)."),
             H("item items sword espada buy compra shop loja inventory inventario pay paga",
-              "Items: {\"do\":\"additem\",\"item\":\"Sword\",\"amount\":1}, removeitem; check with \"cond\":\"item:Sword >= 1\". Pay 10 coins: two rules on the same key with \"cond\":\"coins >= 10\" — addvar coins -10 and additem (the item rule FIRST)."),
+              "Items: {\"do\":\"additem\",\"item\":\"Sword\",\"amount\":1}, removeitem; check with \"cond\":\"item:Sword >= 1\". Pay 10 coins: two rules on the same key with \"cond\":\"coins >= 10\" — addvar coins -10 and additem."),
             H("color colour cor red vermelho blue azul green verde yellow amarelo black preto white branco purple roxo",
               "Colour: \"color\":\"#RRGGBB\" on the object; during play {\"do\":\"tint\",\"color\":\"#FF0000\"} (\"target\" for another object)."),
             H("big bigger maior small smaller menor size tamanho twice dobro huge",
@@ -134,23 +143,21 @@ namespace EasyEngine
               BehaviorKind.BossAI, BehaviorKind.Health, BehaviorKind.Damager),
             H("bounce bounces quica pula ball bola gravity gravidade float flutua",
               "Physics: \"physics\":{\"mode\":\"Dynamic\",\"bounciness\":0.8,\"gravity\":1} (Dynamic falls; bounciness 0-1)."),
-            H("screen tela leave sai sair inside dentro edge borda wrap",
+            H("leave sair inside dentro edge wrap offscreen escape escapar",
               "Keep it inside the screen/scene: StayInside behavior.", BehaviorKind.StayInside),
-            H("delete deleta apaga apagar remove remova tira destroy",
-              "\"delete\":[\"Name\"] removes objects. In an edit, \"remove\":[\"Health\"] takes a behavior off. Stop a rule: send the object's full new \"custom\" list with \"replaceCustom\":true."),
-            H("stop para parar pare don't nao never",
-              "To STOP something an object does: edit it with \"replaceCustom\":true and its \"custom\" list without that rule (or \"remove\":[\"Spin\"] for a behavior)."),
+            H("delete deleta apaga apagar remove remova tira destroy stop stops parar pare never",
+              "\"delete\":[\"Name\"] removes objects. In an edit, \"remove\":[\"Health\"] takes a behavior off. To STOP a rule: edit the object with \"replaceCustom\":true and its full \"custom\" list without that rule."),
             H("button botao menu start iniciar click clique clicked",
               "Clicked: {\"when\":\"click\",…}. A menu button: UIButton texts{action:\"goscene\",scene} on the UI layer, with a Label for its text.",
               BehaviorKind.UIButton),
-            H("npc sign placa chest bau shopkeeper vendedor",
+            H("npc sign aviso chest bau shopkeeper vendedor",
               "Press E to talk/read/open: Interact behavior.", BehaviorKind.Interact),
             H("lock locked tranca trancada key chave gate portao",
               "Locked door + key: door = Gate texts{var:\"hasKey\"}; key = AbilityPickup texts{var:\"hasKey\"}. Or a rule on the player with \"cond\":\"hasKey >= 1\".",
               BehaviorKind.Gate, BehaviorKind.AbilityPickup),
             H("spike espinho trap armadilha lava hazard hurt hurts dano damage machuca",
               "Hurts on touch: Damager (target Player, nums damage) on the hazard; the player needs Health.", BehaviorKind.Damager),
-            H("trampoline trampolim spring mola jump pad",
+            H("trampoline trampolim spring mola pad",
               "Spring behavior (nums force).", BehaviorKind.Spring),
             H("crate caixa push empurra",
               "Pushable behavior.", BehaviorKind.Pushable),
@@ -178,13 +185,73 @@ namespace EasyEngine
         /// <summary>Every hint's text (tests check that each rule they show survives the block editor).</summary>
         internal static string HintsText => string.Join("\n", Hints.Select(h => h.Text));
 
-        // the most relevant hints for the request (by shared word stems), at most 6, in library order
+        // the most relevant hints for the request, at most 6, in library order
         internal static List<PromptHint> HintsFor(string request)
+            => Match(_hintWords ??= Hints.Select(h => Words(string.Join(' ', h.Tags))).ToArray(), request)
+               .OrderByDescending(x => x.score).ThenBy(x => x.i).Take(6).OrderBy(x => x.i).Select(x => Hints[x.i]).ToList();
+        private static HashSet<string>[]? _hintWords;
+
+        // How well each item's words match the request: the stems they share, a rare one (used by few items) counting far
+        // more than a common one ("player" is in many examples, "trampoline" in one).
+        private static IEnumerable<(int i, double score)> Match(HashSet<string>[] items, string request)
         {
             var asked = Words(request);
-            return Hints.Select((h, i) => (h, i, score: h.Tags.Count(t => Words(t).Overlaps(asked))))
-                        .Where(x => x.score > 0).OrderByDescending(x => x.score).ThenBy(x => x.i).Take(6).OrderBy(x => x.i).Select(x => x.h).ToList();
+            var uses = new Dictionary<string, int>();
+            foreach (var set in items) foreach (var w in set) uses[w] = uses.GetValueOrDefault(w) + 1;
+            for (int i = 0; i < items.Length; i++)
+            {
+                double score = 0;
+                foreach (var w in items[i]) if (asked.Contains(w)) score += Math.Log(1.0 + items.Length / (double)uses[w]);
+                if (score > 0) yield return (i, score);
+            }
         }
+
+        // The words of a text as 5-letter stems ("coins" = "coin"), without the ones every request has ("make", "the"),
+        // other languages' words mapped to the English ones the hints use ("moedas" = "coin"), and a name with a number
+        // ("Level2") read as a scene.
+        private static HashSet<string> Words(string s)
+        {
+            var set = new HashSet<string>();
+            foreach (System.Text.RegularExpressions.Match m in Regex.Matches(s.ToLowerInvariant(), @"[a-zà-ú]{2,}\d*"))
+            {
+                if (char.IsDigit(m.Value[^1])) { set.Add("scene"); continue; }
+                if (m.Value.Length < 3) continue;
+                var stem = m.Value.Length > 5 ? m.Value[..5] : m.Value.TrimEnd('s');
+                if (Stop.Contains(stem)) continue;
+                set.Add(stem);
+                if (ForeignStems.TryGetValue(stem, out var en)) set.Add(en);
+            }
+            return set;
+        }
+        private static readonly HashSet<string> Stop = new()
+        {
+            "the", "and", "make", "when", "with", "that", "this", "for", "from", "its", "add", "creat", "put", "let", "give", "are",
+            "has", "have", "can", "will", "you", "your", "then", "into", "also", "want", "pleas", "some", "one", "him", "her", "them",
+            "uma", "que", "para", "com", "quand", "como", "ele", "ela", "faça", "fazer", "faz", "del", "los", "las", "una", "por",
+            "cuand", "haz", "hace", "mais", "isso", "esse", "essa", "esta", "está", "quero", "coloq", "cria", "criar", "crie", "crea", "nao", "não",
+        };
+        private static readonly Dictionary<string, string> ForeignStems = new()
+        {
+            ["moeda"] = "coin", ["moned"] = "coin", ["ponto"] = "point", ["pont"] = "point", ["placa"] = "score", ["puntu"] = "score", ["punto"] = "point",
+            ["conta"] = "count", ["cronô"] = "timer", ["crono"] = "timer", ["tempo"] = "timer", ["cuent"] = "count",
+            ["porta"] = "door", ["puert"] = "door", ["chave"] = "key", ["llave"] = "key", ["sumir"] = "fade", ["desap"] = "fade", ["desva"] = "fade",
+            ["pisca"] = "blink", ["parpa"] = "blink", ["círcu"] = "circl", ["circu"] = "circl", ["rato"] = "mouse", ["ratón"] = "mouse",
+            ["inimi"] = "enemy", ["enemi"] = "enemy", ["atira"] = "shoot", ["dispa"] = "shoot", ["plata"] = "platf", ["bola"] = "ball", ["pelot"] = "ball",
+            ["quica"] = "bounc", ["rebot"] = "bounc", ["chefe"] = "boss", ["chefã"] = "boss", ["jefe"] = "boss", ["morre"] = "die", ["muere"] = "die",
+            ["mensa"] = "messa", ["apaga"] = "delet", ["remov"] = "delet", ["borra"] = "delet", ["fase"] = "level", ["nível"] = "level",
+            ["nivel"] = "level", ["fugir"] = "away", ["foge"] = "away", ["huir"] = "away", ["segui"] = "follo", ["segue"] = "follo", ["cena"] = "scene",
+            ["jogad"] = "playe", ["jugad"] = "playe", ["perse"] = "chase", ["persi"] = "chase", ["pared"] = "wall", ["direi"] = "right", ["derec"] = "right",
+            ["esque"] = "left", ["izqui"] = "left", ["tela"] = "scree", ["panta"] = "scree", ["segun"] = "secon", ["depoi"] = "after", ["despu"] = "after",
+            ["pula"] = "jump", ["pular"] = "jump", ["pulo"] = "jump", ["salta"] = "jump", ["salto"] = "jump", ["devag"] = "slowl", ["lenta"] = "slowl",
+            ["vida"] = "healt", ["coraç"] = "heart", ["cada"] = "every", ["mostr"] = "show", ["escad"] = "stair", ["escal"] = "stair",
+            ["empur"] = "push", ["caixa"] = "crate", ["noite"] = "night", ["noche"] = "night", ["apare"] = "appea", ["pedra"] = "rock", ["piedr"] = "rock",
+            ["chuva"] = "fall", ["lluvi"] = "fall", ["gira"] = "spin", ["girar"] = "spin", ["espin"] = "spike", ["pinch"] = "spike", ["bau"] = "chest",
+            ["cofre"] = "chest", ["maior"] = "big", ["grand"] = "big", ["dobro"] = "twice", ["doble"] = "twice", ["torre"] = "turre", ["bala"] = "bulle",
+            ["botão"] = "butto", ["botao"] = "butto", ["botón"] = "butto", ["clica"] = "click", ["cliqu"] = "click", ["vende"] = "merch", ["loja"] = "shop",
+            ["tiend"] = "shop", ["compr"] = "buy", ["espad"] = "sword", ["tecla"] = "press", ["apert"] = "press", ["presi"] = "press", ["perto"] = "near",
+            ["cerca"] = "near", ["toca"] = "touch", ["tocar"] = "touch", ["encos"] = "touch", ["pega"] = "touch", ["morte"] = "die",
+            ["verme"] = "red", ["rojo"] = "red", ["azul"] = "blue", ["verde"] = "green",
+        };
 
         private string BuildProjectPrompt(string request)
         {
@@ -195,7 +262,7 @@ namespace EasyEngine
             sb.AppendLine("OBJ = {\"name\",\"x\",\"y\",\"width\",\"height\",\"color\":\"#RRGGBB\",\"layer\",\"physics\":\"None|Static|Dynamic\",\"behaviors\":[{\"kind\",\"nums\":{},\"texts\":{}}],\"custom\":[RULE]}");
             sb.AppendLine("RULE = {\"when\":EVENT, event params, \"do\":ACTION, action params, \"cond\":\"optional formula\"} — custom rules are ADDED to an object's rules.");
             sb.AppendLine("- New thing → \"create\" (inside the scene). Existing object (SCENE below) → \"edit\" with its exact name. Change only what is asked.");
-            sb.AppendLine("- Any number may be a formula: \"Player.x - self.x\", \"rand(1,3)\", \"score * 2\" (self.cx/cy/w/h/health, Name.x, time, mousex). x grows right, y grows DOWN.");
+            sb.AppendLine("- " + FormulaHelp);
             var examples = ExamplesFor(request);
             if (examples.Count > 0) foreach (var (ask, json) in examples) sb.AppendLine($"Example — \"{ask}\" → {json}");
             else sb.AppendLine("Shapes: change a behavior{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":400}}]}]} · a new thing {\"create\":[{\"name\":\"Coin\",\"x\":500,\"y\":420,\"width\":24,\"height\":24,\"color\":\"#FFD700\",\"behaviors\":[{\"kind\":\"Collectible\"}]}]} · a rule {\"edit\":[{\"name\":\"Box\",\"custom\":[{\"when\":\"timer\",\"every\":2,\"do\":\"jump\",\"force\":600}]}]}");
@@ -206,7 +273,7 @@ namespace EasyEngine
             // what the request is about: hints, then the behaviors they (and the request) name
             var hints = HintsFor(request);
             if (hints.Count > 0) { sb.AppendLine("HOW TO (for this request):"); foreach (var h in hints) sb.AppendLine("- " + h.Text); }
-            var detail = hints.SelectMany(h => h.Kinds).Concat(MatchBehaviors(request)).Distinct().Take(7).ToList();
+            var detail = hints.SelectMany(h => h.Kinds).Concat(NamedKinds(request)).Distinct().Take(5).ToList();
             foreach (var k in detail) sb.AppendLine(BehaviorLine(BehaviorCatalog.Info(k)));
             // the params of the events/actions those hints use, from the block palette (the blocks and the AI share one language)
             var used = hints.SelectMany(h => System.Text.RegularExpressions.Regex.Matches(h.Text, "\"(?:when|do)\":\"(\\w+)\"").Select(m => m.Groups[1].Value)).ToHashSet();
@@ -228,7 +295,7 @@ namespace EasyEngine
             }
             if (VarScope.Of(_project).Count > 0) sb.AppendLine("Global variables: " + VarScope.Of(_project).Describe());
             if (VarScope.Of(_scene).Count > 0) sb.AppendLine("Scene variables: " + VarScope.Of(_scene).Describe());
-            var prefabs = _project.Prefabs.Select(p => p.Name).Where(n => !PrefabFactory.Defaults().Any(d => d.Name == n)).ToList();
+            var prefabs = _project.Prefabs.Select(p => p.Name).Where(n => !DefaultPrefabs.Contains(n)).ToList();
             if (prefabs.Count > 0) sb.AppendLine("Prefabs (spawnable): " + string.Join(", ", prefabs));
             if (_selection.Count > 0)
                 sb.AppendLine($"SELECTED: {string.Join(", ", _selection.Select(o => o.Name))} — change ONLY these, with \"edit\".");

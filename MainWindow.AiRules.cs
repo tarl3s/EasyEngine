@@ -97,31 +97,6 @@ namespace EasyEngine
             catch (Exception) { summary = ""; return false; } // the panel then shows the raw reply
         }
 
-        // the words of a text as 5-letter stems ("coins" = "coin"), with the request words of other languages mapped to the
-        // English ones the examples and recipes use (so "uma moeda de 10 pontos" is about the coin recipe)
-        private static HashSet<string> Words(string s)
-        {
-            var set = new HashSet<string>();
-            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(s.ToLowerInvariant(), "[a-zà-ú]{3,}"))
-            {
-                var stem = m.Value.Length > 5 ? m.Value[..5] : m.Value.TrimEnd('s');
-                set.Add(stem);
-                if (ForeignStems.TryGetValue(stem, out var en)) set.Add(en);
-            }
-            return set;
-        }
-        private static readonly Dictionary<string, string> ForeignStems = new()
-        {
-            ["moeda"] = "coin", ["moned"] = "coin", ["ponto"] = "point", ["pont"] = "point", ["placa"] = "score", ["puntu"] = "score", ["punto"] = "point",
-            ["conta"] = "count", ["cronô"] = "timer", ["crono"] = "timer", ["tempo"] = "timer", ["tempor"] = "timer", ["cuent"] = "count",
-            ["porta"] = "door", ["puert"] = "door", ["chave"] = "key", ["llave"] = "key", ["sumir"] = "fade", ["desap"] = "fade", ["desva"] = "fade",
-            ["pisca"] = "blink", ["parpa"] = "blink", ["círcu"] = "circl", ["circu"] = "circl", ["rato"] = "mouse", ["ratón"] = "mouse",
-            ["inimi"] = "enemy", ["enemi"] = "enemy", ["atira"] = "shoot", ["dispa"] = "shoot", ["plata"] = "platf", ["bola"] = "ball", ["pelot"] = "ball",
-            ["quica"] = "bounc", ["rebot"] = "bounc", ["chefe"] = "boss", ["chefã"] = "boss", ["jefe"] = "boss", ["morre"] = "dies", ["muere"] = "dies",
-            ["mensa"] = "messa", ["apaga"] = "delet", ["delet"] = "delet", ["remov"] = "delet", ["borra"] = "delet", ["fase"] = "level", ["nível"] = "level",
-            ["nivel"] = "level", ["fugir"] = "away", ["foge"] = "away", ["huir"] = "away", ["segui"] = "follo", ["segue"] = "follo", ["porta"] = "door",
-        };
-
         // the behavior kinds the current spec added or changed (for StripCopiedHabits)
         private readonly HashSet<BehaviorKind> AiAddedKinds = new(), AiKeyWritten = new();
         private static readonly string[] KeyWords = { "press", "key", "hold", "button", "click", "tecla", "aperta", "apertar", "pressiona", "botão", "segura", "clique" };

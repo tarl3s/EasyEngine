@@ -1103,7 +1103,7 @@ namespace EasyEngine
                 {
                     if (!BehaviorOn(en, bh)) // "only while": a behavior with texts.cond rests while that formula is false
                     {
-                        if (bh.Kind is BehaviorKind.Patrol or BehaviorKind.Chase or BehaviorKind.PathChase or BehaviorKind.AdvancedPatrol)
+                        if (bh.Kind is BehaviorKind.Patrol or BehaviorKind.Chase or BehaviorKind.PathChase or BehaviorKind.AdvancedPatrol or BehaviorKind.TopDown or BehaviorKind.Platformer)
                         { en.VX = 0; if (en.Data.Physics.Mode != PhysicsMode.Dynamic) en.VY = 0; } // a resting mover stands still (gravity still pulls)
                         continue;
                     }
@@ -1934,12 +1934,13 @@ namespace EasyEngine
                 if (InstantWhen(en.Custom[ri].When)) en.Fired[ri] = RuleFires(en, en.Custom[ri], dt);
             for (int ri = 0; ri < en.Custom.Count; ri++)
             {
+                if (en.Dead) break; // an earlier rule destroyed it
                 var r = en.Custom[ri];
                 if (InstantWhen(r.When) ? en.Fired[ri] : RuleFires(en, r, dt)) DoCustom(en, r, dt);
             }
         }
 
-        private static bool InstantWhen(string when) => when is "start" or "keypress" or "timer" or "after" or "touch" or "click" or "rightclick" or "mousepress" or "wheelup" or "wheeldown";
+        private static bool InstantWhen(string when) => when is "keypress" or "timer" or "after" or "touch" or "click" or "rightclick" or "mousepress" or "wheelup" or "wheeldown";
 
         // whether a rule fires this frame: its event, then its guards (and the console line when it starts/fires)
         private bool RuleFires(Entity en, CustomRule r, double dt)
@@ -1965,8 +1966,8 @@ namespace EasyEngine
                     break;
                 case "touch":
                 {
-                    var o = _entities.FirstOrDefault(x => x != en && !x.Dead && x.Data.Name.Equals(r.WStr("name"), StringComparison.OrdinalIgnoreCase) && Touching(en, x));
-                    bool now = o != null;
+                    var other = r.WStr("name"); bool now = false;
+                    foreach (var x in _entities) if (x != en && !x.Dead && Touching(en, x) && x.Data.Name.Equals(other, StringComparison.OrdinalIgnoreCase)) { now = true; break; }
                     fire = now && !r.WasTouching; // only on the frame contact STARTS (not every frame)
                     r.WasTouching = now;
                     break;
@@ -2592,10 +2593,18 @@ namespace EasyEngine
         private static bool Touching(Entity a, Entity b)
             => a.X <= b.X + b.W + 1 && a.X + a.W >= b.X - 1 && a.Y <= b.Y + b.H + 1 && a.Y + a.H >= b.Y - 1;
 
-        // Any behavior can be limited to "only while <formula>" (texts.cond): e.g. a Shooter with cond "Player.cx < self.cx"
-        // fires only while the player is on its left; a Patrol with cond "local.go >= 1" waits for a rule to set go.
+        // A behavior that acts every frame can be limited to "only while <formula>" (texts.cond): e.g. a Shooter with cond
+        // "Player.cx < self.cx" fires only while the player is on its left; a Patrol with cond "local.go >= 1" waits for a
+        // rule to set go. (Health, labels, cameras… always work: resting them would make no sense or break the game.)
+        internal static readonly HashSet<BehaviorKind> OnlyWhileKinds = new()
+        {
+            BehaviorKind.Platformer, BehaviorKind.TopDown, BehaviorKind.Patrol, BehaviorKind.AdvancedPatrol, BehaviorKind.Chase, BehaviorKind.PathChase,
+            BehaviorKind.Spin, BehaviorKind.Shooter, BehaviorKind.Spawner, BehaviorKind.Damager, BehaviorKind.Collectible, BehaviorKind.Spring,
+            BehaviorKind.Interact, BehaviorKind.Pushable, BehaviorKind.Particles, BehaviorKind.ToolUse, BehaviorKind.Shop, BehaviorKind.GoToScene,
+            BehaviorKind.Area, BehaviorKind.Switch, BehaviorKind.Gate, BehaviorKind.AbilityPickup,
+        };
         private bool BehaviorOn(Entity en, BehaviorData bh)
-            => !bh.Texts.TryGetValue("cond", out var c) || string.IsNullOrWhiteSpace(c) || EvalExpr(c, en) != 0;
+            => !bh.Texts.TryGetValue("cond", out var c) || string.IsNullOrWhiteSpace(c) || !OnlyWhileKinds.Contains(bh.Kind) || EvalExpr(c, en) != 0;
 
         private void BuildTilemap(GameObjectData obj, bool screenSpace, Entity en)
         {

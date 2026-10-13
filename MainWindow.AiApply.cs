@@ -141,12 +141,12 @@ namespace EasyEngine
                 v = 0;
                 if (!spec.TryGetProperty(key, out var e)) return false;
                 if (LooseJson.TryNumber(e, out v)) return true;
-                if (e.ValueKind != JsonValueKind.String) return false;
+                if (e.ValueKind != JsonValueKind.String || e.GetString() is not { } f || string.IsNullOrWhiteSpace(f) || !BlockEditorWindow.LooksLikeFormula(f)) return false;
                 double Own(string n) => n.ToLowerInvariant().Replace("self.", "") switch
                 {
                     "x" => obj.X, "y" => obj.Y, "w" or "width" => obj.Width, "h" or "height" => obj.Height, _ => double.NaN
                 };
-                v = Expr.Eval(e.GetString() ?? "", Own, (_, _) => double.NaN);
+                v = Expr.Eval(f, Own, (_, _) => double.NaN);
                 return double.IsFinite(v);
             }
             if (Num("x", out var xv)) { obj.X = xv; changed = true; }

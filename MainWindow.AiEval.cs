@@ -39,12 +39,16 @@ namespace EasyEngine
             var obj = TestFindObject(objectName);
             if (obj == null) return (false, "no object " + objectName, "");
             var custom = obj.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
-            var win = new BlockEditorWindow(_project, _scene, custom?.Text("script", "[]") ?? "[]", obj, (u, s) => AiGenerateAsync(u, s, json: true, temperature: 0.1));
+            CloudException? busy = null;
+            var win = new BlockEditorWindow(_project, _scene, custom?.Text("script", "[]") ?? "[]", obj, async (u, s) =>
+            {
+                try { return await AiGenerateAsync(u, s, json: true, temperature: 0.1); }
+                catch (CloudException ex) when (ex.RateLimited || ex.Message.Contains("quota")) { busy = ex; throw; }
+            });
             var status = await win.TestAskAi(request);
             var json = win.SerializeTest();
             try { win.Close(); } catch { }
-            if (status.StartsWith("⚠") && (status.Contains("limit", StringComparison.OrdinalIgnoreCase) || status.Contains("quota", StringComparison.OrdinalIgnoreCase)))
-                throw new CloudException(status) { RateLimited = true }; // the provider was busy: no answer to grade (the window only shows it)
+            if (busy != null) throw busy; // the provider was busy: no answer to grade (the window only shows it)
             if (custom == null) { custom = new BehaviorData { Kind = BehaviorKind.Custom }; obj.Behaviors.Add(custom); }
             custom.Texts["script"] = json;
             return (status.StartsWith("✓"), status.Replace("\n", " "), json);

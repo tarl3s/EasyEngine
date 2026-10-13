@@ -76,13 +76,11 @@ namespace EasyEngine
 
         internal static string ExamplesText => string.Join("\n", Examples.Select(e => e.json)); // (tests: their rules must survive the blocks)
 
-        /// <summary>The two whole examples closest to the request (none when nothing is close).</summary>
+        /// <summary>The two whole examples closest to the request (none when nothing is close: one common word like
+        /// "player" isn't enough — a wrong example is worse than none, small models copy it).</summary>
         internal static List<(string ask, string json)> ExamplesFor(string request, int count = 2)
-        {
-            var asked = Words(request);
-            return Examples.Select((e, i) => (e, i, score: Words(e.ask).Count(asked.Contains)))
-                           .Where(x => x.score >= 2 || x.score >= 1 && asked.Count <= 3)
-                           .OrderByDescending(x => x.score).ThenBy(x => x.i).Take(count).Select(x => x.e).ToList();
-        }
+            => Match(_exampleWords ??= Examples.Select(e => Words(e.ask)).ToArray(), request)
+               .Where(x => x.score >= 2.5).OrderByDescending(x => x.score).ThenBy(x => x.i).Take(count).Select(x => Examples[x.i]).ToList();
+        private static HashSet<string>[]? _exampleWords;
     }
 }

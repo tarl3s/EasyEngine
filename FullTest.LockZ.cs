@@ -74,10 +74,10 @@ public partial class App
             var (p, layer, ed) = Editor("L3", (_, l) => { l.Objects.Add(Box(10, "Rock", 100, 100, locked: true)); l.Objects.Add(Box(11, "Tree", 300, 100)); });
             var (ok, summary) = ed.TestApplySpec("{\"edit\":[{\"name\":\"Rock\",\"x\":500,\"color\":\"#FF0000\",\"z\":4},{\"name\":\"Tree\",\"z\":\"2\"}]}");
             var rock = ed.TestFindObject("Rock")!; var tree = ed.TestFindObject("Tree")!;
-            string prompt = ed.TestBuildPrompt(), compact = ed.TestBuildPrompt("put the Tree in front of the Rock");
+            string prompt = ed.TestBuildPrompt(), asked = ed.TestBuildPrompt("put the Tree in front of the Rock");
             return ok && rock.X == 100 && rock.Z == 0 && rock.Color != "#FF0000" && tree.Z == 2
                    && summary.Contains("Rock") && summary.Contains("locked")
-                   && prompt.Contains("\"Rock\"") && prompt.Contains("LOCKED") && compact.Contains("\"z\"");
+                   && prompt.Contains("\"Rock\"") && prompt.Contains("LOCKED") && asked.Contains("\"z\"");
         });
 
         // ---------------- arrow-key nudge

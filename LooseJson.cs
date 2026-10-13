@@ -20,7 +20,9 @@ namespace EasyEngine
             if (allowArray)
             {
                 int sa = reply.IndexOf('['), sb = reply.LastIndexOf(']');
-                if (sa >= 0 && sb > sa && (a < 0 || sa < a)) return reply.Substring(sa, sb - sa + 1);
+                var first = sa >= 0 ? reply.AsSpan(sa + 1).TrimStart() : default;
+                bool listOfObjects = first.Length > 0 && first[0] is '{' or ']' or '"'; // not "[Updated] {…}"
+                if (sa >= 0 && sb > sa && (a < 0 || sa < a) && listOfObjects) return reply.Substring(sa, sb - sa + 1);
             }
             return a >= 0 && b > a ? reply.Substring(a, b - a + 1) : null;
         }

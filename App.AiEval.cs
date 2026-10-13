@@ -19,6 +19,7 @@ namespace EasyEngine
     //   --aitest --model qwen2.5-coder:3b
     //   --aitest --cloud [auto|groq|gemini|openrouter[|model]]
     //   --only fade,boss                 run the cases whose id contains any of these
+    //   --showprompt                     the log gets each Build request's prompt
     //   --delay 15000                    milliseconds between cloud requests (Gemini free: a few a minute)
     // Report: %TEMP%\easyengine_aitest.log (pass/fail per case, why, the AI's reply when it failed).
     public partial class App
@@ -41,6 +42,7 @@ namespace EasyEngine
                 editor.EvalUseAi(choice);
                 var cases = AiEvalCases().Where(k => only.Length == 0 || only.Any(o => k.Id.Contains(o, StringComparison.OrdinalIgnoreCase))).ToList();
                 int gap = int.TryParse(Arg("--delay"), out var d) ? d : 6000;
+                _showPrompt = args.Contains("--showprompt");
                 _ = RunAiEvalAsync(editor, cases, log, choice.StartsWith("cloud:"), gap).ContinueWith(t => Dispatcher.Invoke(() =>
                 {
                     if (t.Exception != null) try { File.AppendAllText(log, "\nEVAL EXCEPTION: " + t.Exception); } catch { }
@@ -51,6 +53,7 @@ namespace EasyEngine
             catch (Exception ex) { try { File.AppendAllText(log, "FATAL: " + ex); } catch { } if (temp != null) try { Directory.Delete(temp, true); } catch { } Shutdown(); }
         }
 
+        private static bool _showPrompt; // --showprompt: the log gets each Build request's prompt
         private static async Task RunAiEvalAsync(MainWindow ed, List<AiCase> cases, string log, bool cloud, int gap)
         {
             if (!cloud) await OllamaManager.EnsureRunningAsync();
@@ -63,13 +66,14 @@ namespace EasyEngine
                 n++;
                 ed.EvalReset();
                 var kit = new AiEvalKit(ed);
-                string verdict, detail = "";
+                string verdict, detail = "", shownPrompt = "";
                 var sw = Stopwatch.StartNew();
                 try
                 {
                     c.Setup?.Invoke(kit);
                     kit.Baseline();
                     if (c.Select != null) ed.EvalSelect(c.Select);
+                    if (_showPrompt && c.Blocks == null && !c.Learn && c.Seq == null) shownPrompt = ed.TestBuildPrompt(c.Prompt);
                     var before = c.Learn ? JsonSerializer.Serialize(kit.P) : "";
                     var (ok, summary, reply) = c.Learn ? (true, "", await ed.EvalLearn(c.Prompt))
                                              : c.Seq is SeqMode mode ? await ed.EvalSequence(mode, c.SeqObject, c.Prompt)
@@ -77,7 +81,7 @@ namespace EasyEngine
                                              : await ed.EvalBuild(c.Prompt);
                     foreach (var more in c.Then ?? Array.Empty<string>()) // a conversation: each request builds on the last
                     {
-                        if (cloud) await Task.Delay(1500);
+                        if (cloud) await Task.Delay(gap);
                         var (ok2, summary2, reply2) = await ed.EvalBuild(more);
                         ok &= ok2; summary += "  ⟶  " + summary2; reply += "\n--- then: " + more + " ---\n" + reply2;
                     }
@@ -94,6 +98,7 @@ namespace EasyEngine
                 catch (Exception ex) { verdict = "ERROR"; fails.Add(c.Id); detail = "  " + ex.GetType().Name + ": " + ex.Message; }
                 finally { kit.Dispose(); }
                 var line = $"{verdict}  [{c.Id}] {c.Prompt}  ({sw.Elapsed.TotalSeconds:0.0}s)\n{detail}\n";
+                if (shownPrompt.Length > 0) line += "  PROMPT:\n" + shownPrompt + "\n";
                 try { File.AppendAllText(log, line); } catch { }
                 if (cloud) await Task.Delay(gap); // --delay ms; be gentle with the free tiers' per-minute limits (Groq: ~7k input tokens a minute)
             }

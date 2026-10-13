@@ -92,14 +92,17 @@ namespace EasyEngine
             try
             {
                 var root = JsonNode.Parse(json, null, LooseJson.Options);
-                if (root is JsonArray arr && arr.Count > 0 && arr.All(r => r is JsonObject o && (o.ContainsKey("when") || o.ContainsKey("do"))))
-                    return new JsonObject { ["custom"] = arr.DeepClone() }.ToJsonString();
-                if (root is not JsonObject obj) return json;
-                if (!obj.ContainsKey("create") && !obj.ContainsKey("edit") && (obj.ContainsKey("when") || obj.ContainsKey("do")) && !obj.ContainsKey("custom"))
-                    return new JsonObject { ["custom"] = new JsonArray(obj.DeepClone()) }.ToJsonString();
+                static bool IsRule(JsonNode? n) => n is JsonObject o && (o.ContainsKey("when") || o.ContainsKey("do"));
+                if (root is JsonArray arr && arr.Count > 0 && arr.All(IsRule))
+                    return new JsonObject { ["custom"] = arr }.ToJsonString();
                 bool changed = false;
+                if (root is JsonArray { Count: 1 } wrapped && wrapped[0] is JsonObject inner) { wrapped.Clear(); root = inner; changed = true; } // [{"create":…}]
+                if (root is not JsonObject obj) return json;
+                if (!obj.ContainsKey("create") && !obj.ContainsKey("edit") && IsRule(obj) && !obj.ContainsKey("custom"))
+                    return new JsonObject { ["custom"] = new JsonArray(obj) }.ToJsonString();
+                if (obj["rules"] is JsonArray rules && !obj.ContainsKey("custom")) { obj.Remove("rules"); obj["custom"] = rules; changed = true; } // the block editor's shape
                 foreach (var key in new[] { "create", "edit" })
-                    if (obj[key] is JsonObject one) { obj[key] = new JsonArray(one.DeepClone()); changed = true; }
+                    if (obj[key] is JsonObject one) { obj.Remove(key); obj[key] = new JsonArray(one); changed = true; }
                 return changed ? obj.ToJsonString() : json;
             }
             catch (Exception) { return json; } // a key written twice etc.: read as it is

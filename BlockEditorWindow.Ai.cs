@@ -107,17 +107,15 @@ namespace EasyEngine
         internal string AiSystemPrompt(string request = "")
         {
             var (events, actions) = L.InEnglish(() => (MakeEvents(), MakeActions()));
-            var hints = MainWindow.HintsFor(request).Where(h => h.Text.Contains("\"when\"") || h.Text.Contains("\"do\"")).ToList();
+            var hints = MainWindow.HintsFor(request).Where(h => h.RuleIds.Count > 0).ToList();
             var asked = request.ToLowerInvariant();
-            var used = hints.SelectMany(h => System.Text.RegularExpressions.Regex.Matches(h.Text, "\"(?:when|do)\":\"(\\w+)\"").Select(m => m.Groups[1].Value))
+            var used = hints.SelectMany(h => h.RuleIds)
                             .Concat(events.Concat(actions).Select(d => d.Id).Where(id => System.Text.RegularExpressions.Regex.IsMatch(asked, $@"\b{id}\b"))).ToHashSet(); // a block named in the request
             if (used.Count == 0) used = CommonBlocks;
             var sb = new StringBuilder();
             sb.AppendLine("You write behavior rules for ONE object of a 2D game made with EasyEngine. Each rule is a block: WHEN an event happens -> DO an action.");
             sb.AppendLine("Answer ONLY with JSON: {\"rules\":[{\"when\":\"<event id>\", <event fields>, \"do\":\"<action id>\", <action fields>}]}. One action per rule (two actions = two rules).");
-            sb.AppendLine("Any number field may be a formula string: \"sign(Player.cx - self.cx) * 120\", \"rand(1,3)\". Formulas know self.x/y/cx/cy/w/h/vx/vy/health, Name.x/cx/… of any object, "
-                + "dist(x1,y1,x2,y2), abs, sign, min, max, sin, cos, time, mousex, mousey, variables, item:Name. Optional on any rule: \"cond\":\"<formula>\" (runs only while true).");
-            sb.AppendLine("x grows right, y grows DOWN (negative vy = up). Seconds. opacity 0..1. \"self\" is this object.");
+            sb.AppendLine(MainWindow.FormulaHelp + " Seconds. opacity 0..1. \"self\" is this object. Optional on any rule: \"cond\":\"<formula>\" (runs only while true).");
             sb.AppendLine("EVENTS: " + string.Join(", ", events.Select(d => d.Id)));
             sb.AppendLine("ACTIONS: " + string.Join(", ", actions.Select(d => d.Id)));
             sb.AppendLine("PARAMS:");
