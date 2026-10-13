@@ -169,6 +169,9 @@ namespace EasyEngine
               "Generator behavior: fills its area with prefabs when the scene loads.", BehaviorKind.Generator),
         };
 
+        /// <summary>Every hint's text (tests check that each rule they show survives the block editor).</summary>
+        internal static string HintsText => string.Join("\n", Hints.Select(h => h.Text));
+
         // the most relevant hints for the request (by shared word stems), at most 6, in library order
         private static List<PromptHint> HintsFor(string request)
         {
@@ -197,6 +200,10 @@ namespace EasyEngine
             if (hints.Count > 0) { sb.AppendLine("HOW TO (for this request):"); foreach (var h in hints) sb.AppendLine("- " + h.Text); }
             var detail = hints.SelectMany(h => h.Kinds).Concat(MatchBehaviors(request)).Distinct().Take(7).ToList();
             foreach (var k in detail) sb.AppendLine(BehaviorLine(BehaviorCatalog.Info(k)));
+            // the params of the events/actions those hints use, from the block palette (the blocks and the AI share one language)
+            var used = hints.SelectMany(h => System.Text.RegularExpressions.Regex.Matches(h.Text, "\"(?:when|do)\":\"(\\w+)\"").Select(m => m.Groups[1].Value)).ToHashSet();
+            var docs = BlockEditorWindow.RuleDocs().Where(d => used.Contains(d.id)).Take(10).ToList();
+            if (docs.Count > 0) sb.AppendLine("PARAMS: " + string.Join(" · ", docs.Select(d => d.doc)));
 
             // the scene
             sb.AppendLine($"SCENE \"{_scene.Name}\" {_scene.Width:0}x{_scene.Height:0}" + (GroundTop() is double g ? $", ground top y={g:0}" : "") +
