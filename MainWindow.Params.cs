@@ -149,6 +149,9 @@ namespace EasyEngine
                 case PickKind.Items:
                     MultiPickRow(label, panel, ItemsForTool(obj).Select(i => (i, ToolArt.Title(i))).ToList(), cur, L.T("All items"), Set);
                     break;
+                case PickKind.Font:
+                    FontParamRow(obj, bh, tp, label, cur, panel); // MainWindow.Fonts.cs
+                    break;
                 case PickKind.Color:
                     ColorRow(label, cur, Set, panel);
                     break;

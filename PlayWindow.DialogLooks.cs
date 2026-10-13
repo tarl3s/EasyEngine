@@ -24,12 +24,26 @@ namespace EasyEngine
                 _ => null,
             };
             if (font.Length == 0) return look;
+            return (look ?? ThemeLookWithFont(font)) with { Font = font };
+        }
+        // the game's theme with another font (a Cutscene's Font, an Interact with only its Font set)
+        private DialogLook ThemeLookWithFont(string font)
+        {
             var t = _project.Theme ?? _themeDefaults;
-            return (look ?? new DialogLook(t.DialogBg, t.DialogBorder, t.DialogText, t.DialogSpeaker, t.DialogCorner, "")) with { Font = font };
+            return new DialogLook(t.DialogBg, t.DialogBorder, t.DialogText, t.DialogSpeaker, t.DialogCorner, font);
+        }
+        // a big title (Cutscene "title" step) in the cutscene's font; "" = as it always was
+        private void TitleFont(string font)
+        {
+            if (font.Length == 0) BigTitle.ClearValue(System.Windows.Controls.TextBlock.FontFamilyProperty);
+            else BigTitle.FontFamily = ResolveFont(font);
         }
         private static readonly GameTheme _themeDefaults = new();
         internal string TDialogBg => (DialogBox.Background as SolidColorBrush)?.Color.ToString() ?? ""; // tests
         internal string TDialogFont => DialogText.FontFamily?.Source ?? "";
+        internal FontFamily TDialogFontFamily => DialogText.FontFamily;
+        internal FontFamily TTitleFont => BigTitle.FontFamily;
+        internal FontFamily? TLabelFont(string name) => _entities.Find(e => e.Data.Name == name)?.LabelBlock?.FontFamily;
         internal void TSay(string text, string speaker) => ShowDialog(text, speaker);
 
         // a line is shown: its own look, or back to the game's theme

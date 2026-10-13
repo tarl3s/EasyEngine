@@ -823,6 +823,7 @@ namespace EasyEngine
         private void Canvas_RightUp(object sender, MouseButtonEventArgs e)
         {
             if (_tmPainting) { _tmPainting = false; SceneCanvas.ReleaseMouseCapture(); SerializeTilemap(); Dirty(); e.Handled = true; }
+            else if (!e.Handled) e.Handled = ShowObjectMenu(e); // Copy / Paste / Duplicate / Delete (MainWindow.CopyPaste.cs)
         }
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
@@ -1227,6 +1228,7 @@ namespace EasyEngine
             else if (e.Key == Key.Y && Keyboard.Modifiers == ModifierKeys.Control) { Redo(); e.Handled = true; }
             else if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control) { Save_Click(this, new RoutedEventArgs()); e.Handled = true; }
             else if (e.Key == Key.D && Keyboard.Modifiers == ModifierKeys.Control) { DuplicateSelected(); e.Handled = true; }
+            else if (CopyPasteKey(e)) e.Handled = true; // Ctrl+C / Ctrl+V objects (MainWindow.CopyPaste.cs)
             else if (e.Key == Key.D0 && Keyboard.Modifiers == ModifierKeys.Control) { FitZoom(); e.Handled = true; }
             else if ((e.Key == Key.OemPlus || e.Key == Key.Add) && Keyboard.Modifiers == ModifierKeys.Control) { ZoomButton(1.25); e.Handled = true; }
             else if ((e.Key == Key.OemMinus || e.Key == Key.Subtract) && Keyboard.Modifiers == ModifierKeys.Control) { ZoomButton(1 / 1.25); e.Handled = true; }
@@ -1489,7 +1491,6 @@ namespace EasyEngine
             else InspectorRoot.Children.Add(new TextBlock { Text = L.T("Each tile's colour, picture or animation is set in the Tilemap card below."), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
             if (obj.Behaviors.Any(b => b.Kind == BehaviorKind.Label))
             {
-                TextRow(L.T("Font"), obj.FontFamily ?? "", v => { obj.FontFamily = string.IsNullOrWhiteSpace(v) ? null : v; Dirty(); });
                 ComboRow(L.T("Bold"), new[] { L.T("No"), L.T("Yes") }, obj.Bold ? 1 : 0, i => { obj.Bold = i == 1; Dirty(); });
             }
 
