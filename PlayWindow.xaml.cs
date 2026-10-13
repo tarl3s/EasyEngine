@@ -1374,7 +1374,7 @@ namespace EasyEngine
                         case BehaviorKind.Collectible:
                         {
                             var col = _entities.FirstOrDefault(x => x.Data.Name == bh.Text("collector", "Player") && !x.Dead);
-                            if (col != null && Overlap(en, col))
+                            if (col != null && Touching(en, col)) // contact counts, like a touch rule (a "touch → say" on it must not stop the player short of it)
                             {
                                 var item = bh.Text("item", "");
                                 if (!string.IsNullOrEmpty(item)) _vars["item:" + item] = Var("item:" + item) + bh.Num("amount", 1);
@@ -1930,11 +1930,12 @@ namespace EasyEngine
         {
             if (en.Custom == null) return;
             if (en.Fired == null || en.Fired.Length != en.Custom.Count) en.Fired = new bool[en.Custom.Count];
+            bool deadBefore = en.Dead;
             for (int ri = 0; ri < en.Custom.Count; ri++)
                 if (InstantWhen(en.Custom[ri].When)) en.Fired[ri] = RuleFires(en, en.Custom[ri], dt);
             for (int ri = 0; ri < en.Custom.Count; ri++)
             {
-                if (en.Dead) break; // an earlier rule destroyed it
+                if (en.Dead && !deadBefore) break; // an earlier rule destroyed it (one collected this frame still gets its touch rules)
                 var r = en.Custom[ri];
                 if (InstantWhen(r.When) ? en.Fired[ri] : RuleFires(en, r, dt)) DoCustom(en, r, dt);
             }
