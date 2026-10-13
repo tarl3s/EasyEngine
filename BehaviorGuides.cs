@@ -41,6 +41,13 @@ namespace EasyEngine
                 "5. Give the player 🗡 Use Item + a 🎒 Hotbar with a pickaxe: clicking a block mines it.\n" +
                 "6. Press ▶ Test — the world is generated when the scene starts.",
 
+            [BehaviorKind.Chase] =
+                "1. Select the enemy → Inspector → ＋ Add behavior → 🎯 Chase, and pick who it chases (usually the Player).\n" +
+                "2. With physics Dynamic (gravity) it runs after the target on the ground; without gravity it flies straight at it.\n" +
+                "3. \"Only when closer than\" makes it chase only when the target is that near. Add ↔ Patrol too: it patrols, chases you when you come close, and goes back to patrolling when you get away.\n" +
+                "4. Add 💢 Damager so touching it hurts, and ❤ Health (Disappear) so it can be defeated — a hit knocks it back for a moment.\n" +
+                "5. Around walls, use 🧭 Smart Chase instead (it finds its way). Press ▶ Test.",
+
             [BehaviorKind.AdvancedPatrol] =
                 "1. Select the enemy → Inspector → ＋ Add behavior → ✎ Advanced Patrol.\n" +
                 "2. Pick the Format: Platformer (gravity + jumps), Top-down (free + pathfinding) or Free / flying.\n" +

@@ -89,6 +89,7 @@ namespace EasyEngine
             public double CurHealth, MaxHealth, InvTimer, RespawnX, RespawnY;
             public bool Harmless;                      // its Damager doesn't hurt (e.g. a boss playing its death)
             public bool NoKnockback;                   // hits don't push it (e.g. a heavy boss)
+            public double KnockTimer;                  // a hit's knockback: seconds left while movers leave its speed alone
             public Func<Entity, bool>? OnZeroHealth;   // asked at 0 HP before respawn/destroy: true = handled
             // per-entity variables (counters for custom scripts — each copy has its own)
             public Dictionary<string, double> Locals = new(StringComparer.OrdinalIgnoreCase);
@@ -898,7 +899,7 @@ namespace EasyEngine
             // a Tilemap's collision comes from its tile colliders (merged or per-tile), never the whole-map box
             if (!en.Has(BehaviorKind.Tilemap) &&
                 (obj.Physics.Mode == PhysicsMode.Static || en.Has(BehaviorKind.Solid) || en.Has(BehaviorKind.Gate) || en.Has(BehaviorKind.Pushable) || en.Has(BehaviorKind.Spring)))
-                _solids.Add(en);
+                { _solids.Add(en); en.IsSolid = true; }
             BossEntityAdded(en);
             ZEntityAdded(en);
             TerrainEntityAdded(en);
@@ -1103,14 +1104,22 @@ namespace EasyEngine
             foreach (var en in _entities.ToList())
             {
                 if (en.Dead) continue; // dead this frame or earlier: never run its behaviors (death rules fire once)
+                bool knocked = KnockTick(en, dt);  // a hit's knockback: the movers leave its speed alone for a moment
+                var driver = en.Driver = PickDriver(en); // the one automatic mover that steers it (PlayWindow.Movers.cs)
                 foreach (var bh in en.Data.Behaviors)
                 {
-                    if (!BehaviorOn(en, bh)) // "only while": a behavior with texts.cond rests while that formula is false
+                    if (IsAutoMover(bh.Kind) && bh != driver)
                     {
-                        if (bh.Kind is BehaviorKind.Patrol or BehaviorKind.Chase or BehaviorKind.PathChase or BehaviorKind.AdvancedPatrol or BehaviorKind.TopDown or BehaviorKind.Platformer)
-                        { en.VX = 0; if (en.Data.Physics.Mode != PhysicsMode.Dynamic) en.VY = 0; } // a resting mover stands still (gravity still pulls)
+                        // not the driver: off (or a chaser with nothing near to chase) → it stands still unless another mover drives it
+                        if (driver == null) RestMover(en);
                         continue;
                     }
+                    if (bh != driver && !BehaviorOn(en, bh)) // "only while": a behavior with texts.cond rests while that formula is false
+                    {
+                        if (bh.Kind is BehaviorKind.TopDown or BehaviorKind.Platformer) { en.InputHeld = false; RestMover(en); } // a resting mover stands still (gravity still pulls)
+                        continue;
+                    }
+                    if ((knocked || en.InputHeld) && bh == driver) continue; // knockback, or the player steering it: the driver waits
                     switch (bh.Kind)
                     {
                         case BehaviorKind.Platformer:
@@ -1119,6 +1128,7 @@ namespace EasyEngine
                         case BehaviorKind.Health:
                         {
                             if (en.InvTimer > 0) en.InvTimer -= dt;
+                            if (en.CurHealth < 0) en.CurHealth = 0; // a big hit or a rule never shows a negative health (a Bar, a Label, a "health <" rule)
                             var hpVar = bh.Text("var", "health");
                             if (PublishesHealth(en, hpVar)) _vars[hpVar] = en.CurHealth;
                             if (en.CurHealth <= 0)
@@ -1140,7 +1150,7 @@ namespace EasyEngine
                         {
                             if (en.Harmless) break; // e.g. a boss playing its death
                             var t = DamageTarget(en, bh.Text("target", "Player"));
-                            if (t != null && Overlap(en, t))
+                            if (t != null && Contact(en, t)) // a solid hazard (spikes you stand on) hurts on contact
                             {
                                 bool hits = t.InvTimer <= 0;
                                 DamageEntity(t, bh.Num("damage", 1), bh.Num("knockback", 320), en.CX);
@@ -1189,7 +1199,7 @@ namespace EasyEngine
                         case BehaviorKind.Checkpoint:
                         {
                             var t = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("target", "Player"));
-                            if (t != null && Overlap(en, t)) { t.RespawnX = en.X; t.RespawnY = en.Y; }
+                            if (t != null && Contact(en, t)) { t.RespawnX = en.CX - t.W / 2; t.RespawnY = en.Y + en.H - t.H; } // comes back standing where the checkpoint stands (centred, feet on its bottom), never inside the ground
                             break;
                         }
                         case BehaviorKind.TopDown:
@@ -1202,13 +1212,15 @@ namespace EasyEngine
                             if (KeyHeld(bh, "downKey")) hy += 1;
                             if (KeyHeld(bh, "upKey")) hy -= 1;
                             double sp = bh.Num("speed", 220) * en.SpeedScale;
-                            en.VX = Math.Clamp(hx, -1, 1) * sp; en.VY = Math.Clamp(hy, -1, 1) * sp;
+                            // no key held and a Patrol/Chase drives it (a top-down enemy): leave the speed to it; knocked: wait
+                            if (!knocked && (hx != 0 || hy != 0 || driver == null)) { en.VX = Math.Clamp(hx, -1, 1) * sp; en.VY = Math.Clamp(hy, -1, 1) * sp; }
                             en.InputFacing = Math.Sign(hx);
+                            en.InputHeld = hx != 0 || hy != 0;
                             break;
                         }
                         case BehaviorKind.Patrol:
                         {
-                            double spd = bh.Num("speed", 90), dist = Math.Max(1, bh.Num("distance", 200));
+                            double spd = bh.Num("speed", 90) * en.SpeedScale, dist = Math.Max(1, bh.Num("distance", 200));
                             bool vertical = bh.Num("axis", 0) >= 0.5;
                             bool smooth = bh.Num("smooth", 0) >= 0.5;
                             double pause = Math.Max(0, bh.Num("pause", 0));
@@ -1218,12 +1230,17 @@ namespace EasyEngine
                             double start = vertical ? en.StartY : en.StartX;
                             double end = start + dist;
 
-                            void SetV(double v) { if (vertical) { en.VY = v; en.VX = 0; } else { en.VX = v; if (!IsDynamic(en)) en.VY = 0; } }
+                            void SetV(double v) { if (vertical) { en.VY = v; en.VX = 0; } else { en.VX = v; if (!IsDynamic(en)) en.VY = 0; } en.PatrolWant = v; }
+
+                            // a wall, a block or the scene's edge (Stay Inside) stopped it last tick: turn around instead of pushing forever
+                            bool blocked = en.PatrolFrame == _frameNo - 1 && Math.Abs(en.PatrolWant) * dt > 0.05
+                                           && Math.Sign(en.PatrolWant) == en.Dir && Math.Abs(pos - en.PatrolLast) < Math.Abs(en.PatrolWant) * dt * 0.1;
+                            en.PatrolFrame = _frameNo; en.PatrolLast = pos;
 
                             // stopped at an end (smooth patrol pause)
                             if (en.PatrolPause > 0) { en.PatrolPause -= dt; SetV(0); break; }
 
-                            bool atEnd = (en.Dir > 0 && pos >= end) || (en.Dir < 0 && pos <= start);
+                            bool atEnd = blocked || (en.Dir > 0 && pos >= end) || (en.Dir < 0 && pos <= start);
 
                             if (!smooth)
                             {
@@ -1235,7 +1252,7 @@ namespace EasyEngine
                             if (atEnd)
                             {
                                 double b = en.Dir > 0 ? end : start;
-                                if (vertical) en.Y = b; else en.X = b;
+                                if (!blocked) { if (vertical) en.Y = b; else en.X = b; } // stopped short by a wall: turn where it stands
                                 en.Dir = -en.Dir;
                                 if (pause > 0) { en.PatrolPause = pause; SetV(0); }
                                 else SetV(en.Dir * spd * 0.12); // ease away from the end
@@ -1266,7 +1283,7 @@ namespace EasyEngine
                             var pts = en.PathPts;
                             if (pts == null || pts.Count == 0) { Stop(); break; }
 
-                            double apSpeed = bh.Num("speed", 130), apJump = bh.Num("jump", 640);
+                            double apSpeed = bh.Num("speed", 130) * en.SpeedScale, apJump = bh.Num("jump", 640);
                             bool autoJump = bh.Num("autoJump", 1) >= 0.5;
                             int repeat = (int)Math.Round(bh.Num("repeat", 0)); // 0=back-and-forth, 1=loop, 2=once
                             bool pathfind = bh.Num("pathfind", 0) >= 0.5 && en.APMode == 1; // grid pathfinding fits top-down
@@ -1348,8 +1365,9 @@ namespace EasyEngine
                         }
                         case BehaviorKind.Chase:
                         {
-                            var t = _entities.FirstOrDefault(x => x.Data.Name == bh.Text("target", "Player") && !x.Dead);
-                            if (t != null) { double dx = t.CX - en.CX, dy = t.CY - en.CY, len = Math.Sqrt(dx * dx + dy * dy); if (len > 1) { double spd = bh.Num("speed", 140); en.VX = dx / len * spd; en.VY = dy / len * spd; } }
+                            // the driver (PlayWindow.Movers.cs): it has a target in range; with gravity it walks, never overshoots
+                            var t = ChaseTarget(en, bh);
+                            if (t != null) SteerToward(en, t.CX, t.CY, bh.Num("speed", 140) * en.SpeedScale, dt);
                             break;
                         }
                         case BehaviorKind.Spin: en.Rot += bh.Num("speed", 90) * dt; break;
@@ -1398,7 +1416,7 @@ namespace EasyEngine
                         case BehaviorKind.GoToScene:
                         {
                             var trig = _entities.FirstOrDefault(x => x.Data.Name == bh.Text("trigger", "Player") && !x.Dead);
-                            if (trig != null && Overlap(en, trig)) RequestScene(en);
+                            if (trig != null && Contact(en, trig)) RequestScene(en);
                             break;
                         }
                         case BehaviorKind.Shooter:
@@ -1423,16 +1441,18 @@ namespace EasyEngine
                                 if (vOverlap)
                                 {
                                     double weight = Math.Max(1, bh.Num("weight", 1));
+                                    // the pusher's speed — or, when a wall (this block) stopped it last tick, the speed it pushed with
+                                    double pv = pusher.VX != 0 ? pusher.VX : pusher.BlockedVX;
                                     // pusher on the LEFT moving right into the block
-                                    if (pusher.VX > 10 && pusher.X + pusher.W <= en.X + 10 && pusher.X + pusher.W >= en.X - 8)
+                                    if (pv > 10 && pusher.X + pusher.W <= en.X + 10 && pusher.X + pusher.W >= en.X - 8)
                                     {
-                                        double step = pusher.VX / weight * dt;
+                                        double step = pv / weight * dt;
                                         if (!BlockedHoriz(en, step)) en.X += step;
                                     }
                                     // pusher on the RIGHT moving left into the block
-                                    else if (pusher.VX < -10 && pusher.X >= en.X + en.W - 10 && pusher.X <= en.X + en.W + 8)
+                                    else if (pv < -10 && pusher.X >= en.X + en.W - 10 && pusher.X <= en.X + en.W + 8)
                                     {
-                                        double step = pusher.VX / weight * dt;
+                                        double step = pv / weight * dt;
                                         if (!BlockedHoriz(en, step)) en.X += step;
                                     }
                                 }
@@ -1449,7 +1469,7 @@ namespace EasyEngine
                             else
                             {
                                 var t = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("trigger", "Player"));
-                                bool near = t != null && Overlap(en, t);
+                                bool near = t != null && Contact(en, t); // a solid plate counts when stood on
                                 bool active = mode == "interact" ? (near && _keys.Contains(ParseKey(bh.Text("key", "E")))) : near;
                                 trigger = active && !en.SwitchWas;
                                 en.SwitchWas = active;
@@ -1493,7 +1513,7 @@ namespace EasyEngine
                         case BehaviorKind.AbilityPickup:
                         {
                             var col = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("collector", "Player"));
-                            if (col != null && Overlap(en, col))
+                            if (col != null && Contact(en, col))
                             {
                                 _vars[bh.Text("var", "hasDoubleJump")] = 1;
                                 string grant = bh.Text("grant", "none").ToLowerInvariant();
@@ -1513,7 +1533,7 @@ namespace EasyEngine
                         {
                             en.Visual.Opacity = 0; // trigger zones are invisible in play
                             var t = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("target", "Player"));
-                            bool inside = t != null && Overlap(en, t);
+                            bool inside = t != null && Contact(en, t);
                             bool fire = inside && !en.AreaWas;
                             en.AreaWas = inside;
                             if (fire && !(bh.Num("once", 1) >= 0.5 && en.AreaFired))
@@ -1525,17 +1545,19 @@ namespace EasyEngine
                         }
                         case BehaviorKind.PathChase:
                         {
-                            var t = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("target", "Player"));
+                            var t = ChaseTarget(en, bh); // the driver (PlayWindow.Movers.cs): it has a target in range
                             if (t == null) break;
+                            double sp = bh.Num("speed", 140) * en.SpeedScale;
                             en.PathTimer -= dt;
-                            if (en.PathTimer <= 0)
+                            // a step reached (or about to be) asks for the next one now, so it flows from cell to cell
+                            double sdx = en.PathNX - en.CX, sdy = en.PathNY - en.CY;
+                            if (en.PathTimer <= 0 || sdx * sdx + sdy * sdy <= Math.Max(4, sp * dt * sp * dt))
                             {
                                 en.PathTimer = Math.Max(0.05, bh.Num("recalc", 0.3));
                                 var (nx, ny) = NextPathStep(en, t, Math.Max(8, bh.Num("cell", 32)));
                                 en.PathNX = nx; en.PathNY = ny;
                             }
-                            double dx = en.PathNX - en.CX, dy = en.PathNY - en.CY, len = Math.Sqrt(dx * dx + dy * dy);
-                            if (len > 1) { double sp = bh.Num("speed", 140) * en.SpeedScale; en.VX = dx / len * sp; en.VY = dy / len * sp; }
+                            SteerToward(en, en.PathNX, en.PathNY, sp, dt);
                             break;
                         }
                         case BehaviorKind.Spring:
@@ -1548,6 +1570,9 @@ namespace EasyEngine
                                 // expanded overlap so resting right on top of the pad still triggers
                                 bool near = o.X < en.X + en.W + 4 && o.X + o.W + 4 > en.X && o.Y < en.Y + en.H + 6 && o.Y + o.H + 6 > en.Y;
                                 if (!near) continue;
+                                // a bounce pad launches up only what is ON it (feet above its middle, over it) — walking into its
+                                // side doesn't fling you into the air
+                                if (dir is not ("down" or "left" or "right") && (o.Y + o.H > en.Y + en.H / 2 || o.X + o.W <= en.X || o.X >= en.X + en.W)) continue;
                                 switch (dir)
                                 {
                                     case "down": o.VY = force; break;
@@ -2396,6 +2421,7 @@ namespace EasyEngine
                 bool topDownBehav = en.Has(BehaviorKind.TopDown);
                 bool dyn = (en.Data.Physics.Mode == PhysicsMode.Dynamic || en.Has(BehaviorKind.Platformer) || (en.Has(BehaviorKind.AdvancedPatrol) && en.APMode == 0)) && !topDownBehav && collide;
                 en.FrameCollide = collide;
+                en.BlockedVX = 0;
                 en.FrameDynamic = dyn;
                 en.FrameTopDown = !dyn && collide && (topDownBehav || (en.Has(BehaviorKind.AdvancedPatrol) && en.APMode == 1));
             }
@@ -2441,10 +2467,12 @@ namespace EasyEngine
                 // fell off the world → lose a hit point and respawn (prevents falling forever); a terrain deeper than the scene counts too
                 if (en.Y > Math.Max(_scene.Height, _terrainBottom) + 320)
                 {
-                    if (en.Beh(BehaviorKind.Health) != null)
+                    var hb = en.Beh(BehaviorKind.Health);
+                    if (hb != null && hb.Num("respawn", 1) >= 0.5)
                     {
                         en.CurHealth -= 1; en.X = en.RespawnX; en.Y = en.RespawnY; en.VX = 0; en.VY = 0; en.InvTimer = 1;
                     }
+                    else if (hb != null) { en.CurHealth = 0; en.VX = 0; en.VY = 0; } // "Disappear" (an enemy): it dies — its death rules run next tick — instead of coming back
                     else en.Dead = true;
                 }
             }
@@ -2501,6 +2529,7 @@ namespace EasyEngine
             foreach (var s in SolidsNear(en.X, en.Y, en.W, en.H))
             {
                 if (s == en || s.Dead || s.SolidDisabled || s.OneWay || !Overlap(en, s)) continue;
+                if (en.VX != 0) en.BlockedVX = en.VX; // a Pushable listed before its pusher still sees the push (it reads this next tick)
                 if (en.VX > 0) en.X = s.X - en.W; else if (en.VX < 0) en.X = s.X + s.W;
                 double b = en.Data.Physics.Bounciness;
                 en.VX = (b > 0.01 && Math.Abs(en.VX) > 120) ? -en.VX * b : 0;
@@ -2571,6 +2600,7 @@ namespace EasyEngine
             if (KeyHeld(bh, "leftKey")) h -= 1;
             h = Math.Clamp(h, -1, 1);
             en.InputFacing = Math.Sign(h);
+            en.InputHeld = h != 0;
             speed *= en.SpeedScale;
             bool jumpDown = (ctrl && K(Key.Space, Key.Up, Key.W)) || KeyHeld(bh, "jumpKey");
 
@@ -2590,10 +2620,9 @@ namespace EasyEngine
                 return;
             }
 
-            // If another behavior drives horizontal movement (patrol/chase) and there's no
-            // player input, don't clobber its velocity — lets Patrol+Platformer coexist.
-            bool otherDrivesX = en.Has(BehaviorKind.Patrol) || en.Has(BehaviorKind.Chase) || en.Has(BehaviorKind.PathChase);
-            if (h != 0 || !otherDrivesX) en.VX = h * speed;
+            // If another behavior drives it (patrol/chase — this tick's driver, PlayWindow.Movers.cs) and there's no
+            // player input, don't clobber its velocity — lets Patrol+Platformer coexist. A hit's knockback isn't erased either.
+            if (en.KnockTimer <= 0 && (h != 0 || en.Driver == null)) en.VX = h * speed;
 
             int wall = 0;
             if (wallJump && !en.Grounded)
@@ -2926,9 +2955,12 @@ namespace EasyEngine
             if (t.InvTimer > 0) return;
             t.CurHealth -= amount;
             t.InvTimer = Math.Max(0.3, t.Beh(BehaviorKind.Health)?.Num("invincible", 1) ?? 0.5);
-            if (t.NoKnockback) return;
+            if (t.NoKnockback || kb <= 0) return;
             double dir = t.CX < fromCX ? -1 : 1;
-            t.VX = dir * kb; t.VY = -kb * 0.6;
+            // pushed away (and hopping up when it has gravity — without it, an upward push would just float it off);
+            // for KnockTime its movers don't erase the push, then it stops (PlayWindow.Movers.cs)
+            t.VX = dir * kb; t.VY = IsDynamic(t) ? -kb * 0.6 : 0;
+            t.KnockTimer = KnockTime;
         }
 
         // One object writes each Health variable: alone on it, it always does; when several share it (an enemy left on the
