@@ -156,7 +156,8 @@ namespace EasyEngine
         private async Task<string> TeachAsync(string question, Func<string, string, Task<string>>? generate = null)
         {
             static string Short(string s) => s.Length > 600 ? s[..600] + "…" : s;
-            var sys = BuildTeachPrompt(question, compact: !_useCloud);
+            // free cloud tiers have small per-minute limits: the whole catalog (~12k tokens) would never fit — details of what the question is about only
+            var sys = BuildTeachPrompt(question, compact: !_useCloud || _cloudProvider == "auto" || CloudClient.Provider(_cloudProvider)?.Free == true);
             var prompt = _learnHistory.Count == 0 ? question
                 : "Earlier in this conversation:\n" + string.Join("\n", _learnHistory.Select(h => $"Q: {h.q}\nA: {h.a}")) + "\n\nNew question: " + question;
             var ans = (generate != null ? await generate(prompt, sys) : await AiGenerateAsync(prompt, sys, json: false, temperature: 0.3)).Trim();

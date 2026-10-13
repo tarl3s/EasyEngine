@@ -174,9 +174,9 @@ namespace EasyEngine
                 var detail = TryGetErrorMessage(text);
                 if (resp.StatusCode == HttpStatusCode.Unauthorized)
                     throw new CloudException(L.F("{0} API key is invalid. Check it in the AI settings ({1}).", p.Name, p.KeyUrl));
-                if (resp.StatusCode is (HttpStatusCode)429 or HttpStatusCode.ServiceUnavailable or HttpStatusCode.BadGateway) // busy / out of quota for now
+                if (resp.StatusCode is (HttpStatusCode)429 or (HttpStatusCode)413 or HttpStatusCode.ServiceUnavailable or HttpStatusCode.BadGateway) // busy / out of quota for now
                     throw new CloudException(L.F("{0} limit reached for now.", p.Name) + (detail != null ? $" ({detail})" : "")) { RateLimited = true, RetryAfter = RetryAfterSeconds(resp, detail) };
-                if (resp.StatusCode == HttpStatusCode.NotFound || (detail?.Contains("model", StringComparison.OrdinalIgnoreCase) ?? false))
+                if (resp.StatusCode == HttpStatusCode.NotFound || ModelGone(detail))
                     throw new CloudException(L.F("Model \"{0}\" isn't available on {1}.", model, p.Name) + (detail != null ? $"\n({detail})" : "")) { ModelMissing = true };
                 throw new CloudException(L.F("{0} error ({1}): {2}", p.Name, (int)resp.StatusCode, detail ?? text));
             }
@@ -217,7 +217,7 @@ namespace EasyEngine
                 var detail = TryGetErrorMessage(text);
                 if (resp.StatusCode == HttpStatusCode.Unauthorized) throw new CloudException(L.F("{0} API key is invalid ({1}).", p.Name, p.KeyUrl));
                 if (resp.StatusCode is (HttpStatusCode)429 or HttpStatusCode.ServiceUnavailable or (HttpStatusCode)529) throw new CloudException(L.F("{0} rate limit reached.", p.Name) + (detail != null ? $" ({detail})" : "")) { RateLimited = true, RetryAfter = RetryAfterSeconds(resp, detail) };
-                if (resp.StatusCode == HttpStatusCode.NotFound || (detail?.Contains("model", StringComparison.OrdinalIgnoreCase) ?? false))
+                if (resp.StatusCode == HttpStatusCode.NotFound || ModelGone(detail))
                     throw new CloudException(L.F("Model \"{0}\" isn't available on {1}.", model, p.Name) + (detail != null ? $"\n({detail})" : "")) { ModelMissing = true };
                 throw new CloudException(L.F("{0} error ({1}): {2}", p.Name, (int)resp.StatusCode, detail ?? text));
             }
@@ -244,6 +244,12 @@ namespace EasyEngine
             if (!m.Success || !double.TryParse(m.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var v)) return 0;
             return (m.Groups[1].Success ? int.Parse(m.Groups[1].Value) * 60 : 0) + (m.Groups[3].Value.Equals("ms", StringComparison.OrdinalIgnoreCase) ? v / 1000 : v);
         }
+
+        // the model id itself is the problem (retired, renamed, unknown) — not just any message that says "model"
+        // ("Request too large for model …" is a size/quota limit)
+        private static bool ModelGone(string? detail) => detail != null && Regex.IsMatch(detail,
+            @"not found|does not exist|no longer available|decommissioned|deprecated|not supported|invalid model|unknown model|model_not_found|isn't available|is not available",
+            RegexOptions.IgnoreCase) && !Regex.IsMatch(detail, @"too large|rate limit|quota|tokens per", RegexOptions.IgnoreCase);
 
         private static string? TryGetErrorMessage(string text)
         {
