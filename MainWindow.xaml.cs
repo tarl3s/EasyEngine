@@ -2495,19 +2495,7 @@ namespace EasyEngine
 
             try
             {
-                var sys = BuildProjectPrompt(compact: _useCloud); // leaner prompt on the cloud (token limits); full detail on local
-                var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
-                bool ok = ApplyProjectSpec(reply, prompt, out var summary);
-
-                if (!ok)
-                {
-                    // one retry with a firmer nudge
-                    var reply2 = await AiGenerateAsync(
-                        prompt + "\n\nReturn ONLY the JSON with \"create\"/\"edit\"/\"layers\". Use EXACT behavior kind names from the list. One object can have many behaviors.",
-                        sys, json: true, temperature: 0.1);
-                    ok = ApplyProjectSpec(reply2, prompt, out summary);
-                    if (!ok) reply = reply2;
-                }
+                var (ok, summary, reply) = await AiBuildAsync(prompt);
 
                 AiLog.Children.Remove(thinking);
                 if (ok)
@@ -2534,6 +2522,21 @@ namespace EasyEngine
                 Status(L.T("Generation failed"));
             }
             finally { AiSend.IsEnabled = true; }
+        }
+
+        // 🔨 Build: ask the AI for a project spec and apply it (one retry with a firmer nudge). Shared by the panel and --aieval.
+        private async Task<(bool ok, string summary, string reply)> AiBuildAsync(string prompt)
+        {
+            var sys = BuildProjectPrompt(compact: _useCloud); // leaner prompt on the cloud (token limits); full detail on local
+            var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
+            bool ok = ApplyProjectSpec(reply, prompt, out var summary);
+            if (ok) return (true, summary, reply);
+
+            var reply2 = await AiGenerateAsync(
+                prompt + "\n\nReturn ONLY the JSON with \"create\"/\"edit\"/\"layers\". Use EXACT behavior kind names from the list. One object can have many behaviors.",
+                sys, json: true, temperature: 0.1);
+            ok = ApplyProjectSpec(reply2, prompt, out summary);
+            return (ok, summary, reply2);
         }
 
         private void AddImages_Click(object sender, RoutedEventArgs e)
