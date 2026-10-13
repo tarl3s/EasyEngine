@@ -167,6 +167,35 @@ public partial class App
             w.Close();
             return drawn && undone && redone && cutBack && cancelled;
         });
+        t.Test("after 5 s, fade to 0: the 'after' event fires once and tween opacity glides", () =>
+        {
+            var g = t.Sim("[{\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":2}]", PhysicsMode.None, null);
+            g.TSteps(240); bool still = g.TOpacity("A") > 0.99;
+            g.TSteps(120); double mid = g.TOpacity("A");
+            g.TSteps(120);
+            return still && mid < 0.9 && mid > 0.1 && g.TOpacity("A") < 0.01;
+        });
+        t.Test("stay inside: stops at the scene's edge; wraps to the other side; 'all but the bottom' lets it fall out", () =>
+        {
+            PlayWindow World(string edge, string sides) => t.Sim("[]", PhysicsMode.None, (p, s) =>
+            {
+                var a = s.Layers.SelectMany(l => l.Objects).First(o => o.Name == "A");
+                var b = BehaviorCatalog.Info(BehaviorKind.StayInside).CreateData(); b.Texts["edge"] = edge; b.Texts["sides"] = sides;
+                a.Behaviors.Add(b);
+            });
+            var stop = World("stop", "all");
+            stop.TPlace("A", -80, 100); stop.TSteps(2);
+            bool stopped = Math.Abs(stop.TX("A")) < 0.01;
+            var wrap = World("wrap", "all");
+            var w = wrap.TTerrainBox("A").Width;
+            wrap.TPlace("A", 5000, 100); wrap.TSteps(2);
+            bool wrapped = wrap.TX("A") <= -w + 0.01;
+            var pit = World("stop", "notbottom");
+            pit.TPlace("A", 100, 99999); pit.TSteps(1);
+            bool fellOut = pit.TTerrainBox("A").Y > 9000;
+            pit.TPlace("A", 100, -500); pit.TSteps(1);
+            return stopped && wrapped && fellOut && Math.Abs(pit.TTerrainBox("A").Y) < 0.01;
+        });
         t.Test("rename prefab: every reference follows (whole value, comma list, Name:#color, quoted in scripts); other names stay", () =>
         {
             var p = new Project();

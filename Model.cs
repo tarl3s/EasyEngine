@@ -143,7 +143,8 @@ namespace EasyEngine
         Checklist,        // on-screen test checklist: each line ticks itself when its condition becomes true
         BossAI,           // a boss: phases by health, attack sequences (Advanced Scratch steps), death sequence
         Cutscene,         // a scripted scene: camera, dialogue, moves, fades — steps run one after another
-        Terrain           // procedural terrain (seeded noise), streamed in chunks — can be endless
+        Terrain,          // procedural terrain (seeded noise), streamed in chunks — can be endless
+        StayInside        // keeps the object inside the scene or the screen: it stops, bounces back or comes out the other side
     }
 
     // ======================= DADOS =======================

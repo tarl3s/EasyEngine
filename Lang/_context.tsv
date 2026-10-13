@@ -78,11 +78,14 @@ Adds words to the end of a text variable.	BlockEditorWindow.cs
 Advanced Patrol	behavior AdvancedPatrol
 Advanced — paid keys, offline AI	MainWindow.xaml.cs
 Advanced — raw rules (JSON). The blocks above edit this for you.	MainWindow.xaml.cs
+After some seconds	BlockEditorWindow.cs
 Aimed at the target	step shoot
 Alignment	behavior Label
+All but the bottom	behavior StayInside
 All free providers are out of quota right now. Try again later.	MainWindow.xaml.cs
 All items	MainWindow.Params.cs
 All of it	MainWindow.TerrainBlocks.cs
+All sides	behavior StayInside
 Also show	behavior Minimap
 Also show on the map	MainWindow.Minimap.cs
 Also unlocks	behavior AbilityPickup
@@ -99,12 +102,14 @@ Animation name (e.g. idle, walk):	AnimationWindow.xaml.cs
 Animation name (e.g. idle, walk, jump):	AnimationWindow.xaml.cs
 Animations	AnimationWindow.xaml, MainWindow.xaml.cs
 Animations — {0}	AnimationWindow.xaml.cs
+Area	behavior StayInside
 Around caves	MainWindow.TerrainBlocks.cs
 Ask	MainWindow.xaml.cs
 Ask how to use anything — the AI explains step by step.	MainWindow.xaml.cs
 Asking {0}…	MainWindow.Sequences.cs, MainWindow.xaml.cs
 At	step emit, step spawn
 At random (never twice in a row)	SequenceEditorWindow.cs
+At the edge	behavior StayInside
 At the end of the map	behavior Terrain
 At the start	SequenceEditorWindow.cs
 At this object	behavior Spawner
@@ -146,6 +151,7 @@ Boss health bar (0/1)	behavior BossAI
 Bottom	MainWindow.xaml.cs
 Bottom left	behavior Minimap
 Bottom right	behavior Minimap
+Bounces back	behavior StayInside
 Bounciness	MainWindow.xaml.cs
 Box trimmed to the drawing: {0}×{1} → {2}×{3}.	MainWindow.Hitbox.cs
 Brainstorming…	MainWindow.xaml.cs
@@ -236,6 +242,7 @@ Colour variable	BlockEditorWindow.cs, step setcolor
 Colours what it touches (0/1)	behavior LightSource
 Columns	MainWindow.xaml.cs
 Columns from the generator: right is +, left is −.	MainWindow.TerrainBlocks.cs
+Comes out the other side	behavior StayInside
 Compares words (capital letters don't matter). "Its own" reads this object's own text variable.	BlockEditorWindow.cs
 Condition	BlockEditorWindow.cs
 Control	step category
@@ -407,6 +414,7 @@ Fill shapes / polygon	SpriteEditorWindow.cs
 Fill the shape	SpriteEditorWindow.cs
 Fire key	behavior Shooter
 Fires once per press. Cooldown stops it repeating too fast while held.	BlockEditorWindow.cs
+Fires once, that many seconds after it appears.	BlockEditorWindow.cs
 Fires projectiles when a key is pressed. 'directions' = how many bullets spread around (8 = all directions, 1 = forward).	behavior Shooter
 Fires projectiles. 1 direction = straight ahead; more = spread all around.	BlockEditorWindow.cs
 Fires the moment it starts touching that object (once per touch).	BlockEditorWindow.cs
@@ -535,6 +543,7 @@ Jump over obstacles (0/1)	behavior AdvancedPatrol
 Jump strength (platform)	behavior AdvancedPatrol
 Jumps the Day/Night cycle to that moment (needs a Day/Night cycle object in the scene).	BlockEditorWindow.cs
 Just the player — add things to show below.	MainWindow.Minimap.cs
+Keeps this object from leaving the scene (or the part the camera shows). At the edge it stops, bounces back, or comes out the other side (like Pac-Man). Pick which sides count — e.g. all but the bottom, so it can still fall into a pit.	behavior StayInside
 Key	behavior Cutscene, behavior Interact, behavior Switch, BlockEditorWindow.cs
 Key to open the big map	behavior Minimap
 Knockback	behavior Damager, behavior ToolUse
@@ -555,6 +564,7 @@ Layout	behavior Generator
 Leaps (landing near the target). The shockwave shakes the screen and sends a wave along the ground both ways.	step jump
 Leave empty to always run.  Example:  coins  is at least  15	BlockEditorWindow.cs
 Left	behavior Label, MainWindow.xaml.cs
+Left and right only	behavior StayInside
 Left-drag paints · Right-drag erases	MainWindow.xaml.cs
 Level	BlockEditorWindow.cs
 Level (0-1)	BlockEditorWindow.cs
@@ -891,6 +901,7 @@ Shows a line in the debug console (F1 while playing). Use {variable} to print a 
 Shows text on the object. Use {variableName} to show a variable, e.g. "Score: {score}". Put it on a UI layer to keep it fixed on screen. effect animates the text: typewriter (types out), fade (fades in/out), blink, or pulse.	behavior Label
 Shows variable	behavior Bar
 Shrinks the object's own box to its drawing once (the images are cropped to match). Undo with Ctrl+Z.	MainWindow.Hitbox.cs
+Sides	behavior StayInside
 Size	BlockEditorWindow.cs
 Skip key	behavior Cutscene
 Sky	MainWindow.xaml.cs
@@ -946,12 +957,14 @@ Starts with	MainWindow.Params.cs
 Static	MainWindow.xaml.cs
 Static collider for ground, walls and platforms. oneWay=1 makes a jump-through platform (land on top, pass from below).	behavior Solid
 Static image	MainWindow.xaml.cs
+Stay Inside	behavior StayInside
 Stay inside the scene (0/1)	behavior FollowCamera
 Stay on once flipped (0/1)	behavior Switch
 Steps	behavior Cutscene
 Steps (JSON) — the blocks above edit this for you	MainWindow.Sequences.cs
 Stone color	behavior Terrain
 Stone drops	behavior Terrain
+Stops	behavior StayInside
 Story	step category
 Strength	BlockEditorWindow.cs, step shake
 Stretch	MainWindow.xaml.cs
@@ -1009,6 +1022,7 @@ The scene starts	behavior BossAI, behavior Cutscene
 The steps run one after another, top to bottom. Steps like Say, Wait, Move or Camera wait until they're done.	SequenceEditorWindow.cs
 The target PC needs the free .NET 8 Desktop Runtime (couldn't find the SDK to make a self-contained build).	MainWindow.xaml.cs
 The update couldn't be downloaded:	UpdatePrompt.cs
+The whole scene	behavior StayInside
 The world just ends (you can fall off)	behavior Terrain
 Theme updated	MainWindow.xaml.cs
 These steps play when its health reaches 0 (it can't be hurt and doesn't hurt anymore). Then its Custom 'death' rules run and it disappears. Leave it empty to make it disappear at once.	SequenceEditorWindow.cs
@@ -1030,6 +1044,7 @@ To column	MainWindow.TerrainBlocks.cs
 To height	MainWindow.TerrainBlocks.cs
 Toggles a variable between 0 and 1. mode=click (click it), touch (trigger touches it), or interact (trigger stands on it and presses the key). stayOn=1 makes it a one-time switch that can't turn back off.	behavior Switch
 Tool needed	behavior Harvestable
+Top and bottom only	behavior StayInside
 Top left	behavior Checklist, behavior Minimap
 Top right	behavior Checklist, behavior Minimap
 Top-Down Movement	behavior TopDown
@@ -1086,6 +1101,7 @@ Walls / water in between block the swing (0/1)	behavior ToolUse
 Warn (flash)	step telegraph
 Weight (1=easy, higher=slower)	behavior Pushable
 What happens	behavior Area, behavior Interact
+What the camera shows	behavior StayInside
 What to show on the map (an object, every copy of a prefab, or a whole group)	MainWindow.Minimap.cs
 What to spawn	behavior Spawner
 What to spawn (random mix)	behavior Generator

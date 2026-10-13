@@ -37,6 +37,7 @@ namespace EasyEngine
             new("key",        L.T("While a key is held"), new[] { new Field("key", L.T("Key"), "key", "Space") }),
             new("keypress",   L.T("When a key is pressed"), new[] { new Field("key", L.T("Key"), "key", "Space"), new Field("cooldown", L.T("Cooldown (s)"), "num", "0.3") }, L.T("Fires once per press. Cooldown stops it repeating too fast while held.")),
             new("timer",      L.T("Every few seconds"), new[] { new Field("every", L.T("Seconds"), "num", "1") }, L.T("Repeats forever on this interval.")),
+            new("after",      L.T("After some seconds"), new[] { new Field("seconds", L.T("Seconds"), "num", "5") }, L.T("Fires once, that many seconds after it appears.")),
             new("touch",      L.T("When it touches an object"), new[] { new Field("name", L.T("Object"), "obj") }, L.T("Fires the moment it starts touching that object (once per touch).")),
             new("death",      L.T("When it dies"), Array.Empty<Field>()),
             new("ifvar",      L.T("While a variable is…"), new[] { new Field("var", L.T("Variable"), "text"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") }),

@@ -87,6 +87,13 @@ namespace EasyEngine
                 "4. Set the Buy key and How close the player must stand; \"Buy only once\" for unique items.\n" +
                 "5. Press ▶ Test, walk up to it and press the key.",
 
+            [BehaviorKind.StayInside] =
+                "1. Select the object that must not leave (the player, a ball, an enemy) → Inspector → ＋ Add behavior → 🔲 Stay Inside.\n" +
+                "2. Area: \"The whole scene\" (a Terrain world's edges count too) or \"What the camera shows\" (e.g. a shoot-'em-up ship that can't fly off screen).\n" +
+                "3. Sides: all, left and right only, top and bottom only, or \"All but the bottom\" so it can still fall into a pit.\n" +
+                "4. At the edge: Stops, Bounces back (a ball) or Comes out the other side (like Pac-Man / Asteroids).\n" +
+                "5. Press ▶ Test and walk into the edge.",
+
             [BehaviorKind.Gate] =
                 "1. Make the door/barrier object → Inspector → ＋ Add behavior → 🚧 Gate / Locked Door.\n" +
                 "2. Pick the variable it waits for (\"Opens when variable\", e.g. hasRedKey), \"is\" at least \"…this value\" 1.\n" +

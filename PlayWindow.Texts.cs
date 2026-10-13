@@ -113,6 +113,7 @@ namespace EasyEngine
         private void DoTextAction(Entity en, CustomRule r)
         {
             string name = r.Str("var").Trim();
+            if (name.Length == 0 && r.Do == "setcolor") { DoTint(en, r); return; } // no variable: it meant "paint this object"
             if (name.Length == 0) return;
             bool local = RuleLocal(r, false);
             if (r.Do == "toggle")

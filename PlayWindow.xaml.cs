@@ -196,7 +196,7 @@ namespace EasyEngine
             private static readonly Dictionary<string, string[]> TriggerKeys = new(StringComparer.OrdinalIgnoreCase)
             {
                 ["key"] = new[] { "key" }, ["keydown"] = new[] { "key" }, ["keypress"] = new[] { "key", "cooldown" },
-                ["timer"] = new[] { "every" }, ["touch"] = new[] { "name" },
+                ["timer"] = new[] { "every" }, ["after"] = new[] { "seconds", "every" }, ["touch"] = new[] { "name" },
                 ["ifvar"] = new[] { "var", "op", "value" }, ["iflocal"] = new[] { "var", "op", "value" },
                 ["hasitem"] = new[] { "item" }, ["expr"] = new[] { "expr" },
                 ["iftext"] = new[] { "var", "op", "value", "local" },
@@ -1019,6 +1019,7 @@ namespace EasyEngine
             UpdateBehaviors(dt);
             UpdateBreakables(dt);
             UpdatePhysics(dt);
+            StayInsideLogic();         // objects with Stay Inside are kept in the scene / screen (PlayWindow.StayInside.cs)
             UpdateTweens(dt);
             UpdateParticles(dt);
             UpdateFacing();
@@ -1029,6 +1030,7 @@ namespace EasyEngine
         partial void SequencesBeforeLogic(double dt);
         partial void SequencesAfterLogic(double dt);
         partial void TerrainBeforeLogic(double dt);
+        partial void StayInsideLogic();
         partial void MinimapLogic();
         partial void UpdateBoss(Entity en, BehaviorData bh, double dt);
         partial void UpdateCutscene(Entity en, BehaviorData bh, double dt);
@@ -1861,6 +1863,7 @@ namespace EasyEngine
             {
                 "key" or "keydown" or "keypress" => $"{r.When} {r.WStr("key", "Space")}",
                 "timer" => $"every {r.WNum("every", 1):0.##}s",
+                "after" => $"after {r.WNum("seconds", r.WNum("every", 1)):0.##}s",
                 "touch" => $"touch {r.WStr("name")}",
                 "ifvar" or "iflocal" => $"{r.When} {r.WStr("var")} {r.WStr("op", ">=")} {r.WNum("value"):0.##}",
                 "hasitem" => $"hasitem {r.WStr("item")}",
@@ -1901,6 +1904,9 @@ namespace EasyEngine
                     case "timer":
                         r.Timer -= dt;
                         if (r.Timer <= 0) { fire = true; r.Timer = Math.Max(0.05, r.WNum("every", 1)); }
+                        break;
+                    case "after": // once, N seconds after it appears
+                        if (!r.Started) { r.Timer += dt; if (r.Timer >= r.WNum("seconds", r.WNum("every", 1))) { fire = true; r.Started = true; } }
                         break;
                     case "touch":
                     {

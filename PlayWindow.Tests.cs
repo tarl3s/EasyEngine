@@ -104,6 +104,7 @@ namespace EasyEngine
         public int TAlive(string name) => _entities.Count(z => !z.Dead && z.Data.Name == name);
         public double TX(string name) => TE(name)?.X ?? 0;
         public double TY(string name) => TE(name)?.Y ?? 0;
+        public double TOpacity(string name) => TE(name)?.Visual.Opacity ?? -1;
         public double TVX(string name) => TE(name)?.VX ?? 0;
         public double TVY(string name) => TE(name)?.VY ?? 0;
         public double TRot(string name) => TE(name)?.Rot ?? 0;

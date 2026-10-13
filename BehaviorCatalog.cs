@@ -345,6 +345,12 @@ namespace EasyEngine
                 Texts = { T("item","Sells","pickaxe", PickKind.Item), T("currency","Paid with","coins", PickKind.Currency),
                           T("key","Buy key","E", PickKind.Key), T("player","Buyer","Player", PickKind.Object) } },
 
+            new BehaviorInfo { Kind = BehaviorKind.StayInside, Name = "Stay Inside", Icon = "🔲",
+                Desc = "Keeps this object from leaving the scene (or the part the camera shows). At the edge it stops, bounces back, or comes out the other side (like Pac-Man). Pick which sides count — e.g. all but the bottom, so it can still fall into a pit.",
+                Texts = { T("area","Area","scene", PickKind.Choice, "scene|The whole scene", "screen|What the camera shows"),
+                          T("sides","Sides","all", PickKind.Choice, "all|All sides", "leftright|Left and right only", "topbottom|Top and bottom only", "notbottom|All but the bottom"),
+                          T("edge","At the edge","stop", PickKind.Choice, "stop|Stops", "bounce|Bounces back", "wrap|Comes out the other side") } },
+
             new BehaviorInfo { Kind = BehaviorKind.Pushable, Name = "Pushable Block", Icon = "📦",
                 Desc = "A solid block the player (or 'pusher') can push around. Great for sokoban-style puzzles and block-and-switch puzzles. Give it physics Dynamic if it should also fall.",
                 Nums = { new("weight","Weight (1=easy, higher=slower)",1) },
