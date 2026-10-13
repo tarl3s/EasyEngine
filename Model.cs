@@ -211,6 +211,10 @@ namespace EasyEngine
         private Dictionary<string, List<string>> _lists = new();
         public Dictionary<string, List<string>> Lists { get => _lists; set => _lists = VarScope.NewLists(value); } // list variables (ordered words)
         public string Group { get; set; } = ""; // organization tag (groups objects in the scene list)
+        public bool Locked { get; set; } = false; // editor-only: can't be moved, resized, deleted or edited (the game ignores it)
+        public int Z { get; set; } = 0;           // order inside its layer: higher draws in front; equal Z keeps the list order
+        public bool KeepAspect { get; set; } = false; // editor: resizing keeps the picture's proportions
+        public double Aspect { get; set; } = 0;       // width/height kept by KeepAspect when there is no picture (set when turned on)
 
         /// <summary>The corner radius drawn: the one set, or automatic — square for an object with a picture (rounding
         /// would clip the drawing's corners), round for bullets and particles, a slight 4 px otherwise.</summary>
@@ -222,6 +226,18 @@ namespace EasyEngine
         {
             if (Animations.Count == 0) return null;
             return Animations.Find(a => a.Name == DefaultAnimation) ?? Animations[0];
+        }
+    }
+
+    /// <summary>Drawing order inside a layer (editor and game): by Z, lowest first; equal Z keeps the list order.
+    /// Layers themselves still draw in layer order, so Z never moves an object above another layer.</summary>
+    public static class ZOrder
+    {
+        public static IEnumerable<GameObjectData> InDrawOrder(List<GameObjectData> objects)
+        {
+            foreach (var o in objects)
+                if (o.Z != 0) return objects.OrderBy(x => x.Z); // OrderBy is stable
+            return objects; // all Z 0 (every old project): the list order, untouched
         }
     }
 

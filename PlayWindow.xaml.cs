@@ -666,6 +666,7 @@ namespace EasyEngine
             _hotbarOwner = _hotbarPlayer = null; _heldItem = _heldSlotName = ""; _heldOwned = false; _heldSlot = 0;
             SequencesSceneReset();
             TerrainSceneReset();
+            ZSceneReset();
 
             var original = _project.FindScene(name) ?? _project.Scenes[0];
             _sceneName = original.Name;
@@ -684,11 +685,13 @@ namespace EasyEngine
             {
                 bool sky = layer.Kind == LayerKind.Sky;
                 bool screen = layer.ScreenSpace || layer.Kind == LayerKind.UI || sky;
-                foreach (var obj in layer.Objects)
+                _zLoading = true; // copies spawned later are ordered by Z among the other spawned copies (PlayWindow.ZOrder.cs)
+                foreach (var obj in ZOrder.InDrawOrder(layer.Objects)) // Z orders objects inside their layer
                 {
                     var en = AddEntity(obj, screen);
                     if (sky) PutInSky(en); // the Sky layer is drawn behind every other layer
                 }
+                _zLoading = false;
                 if (layer.Kind == LayerKind.Background && !screen) _worldBackgroundEnd = World.Children.Count; // a terrain goes right after these
             }
 
@@ -873,6 +876,7 @@ namespace EasyEngine
                 (obj.Physics.Mode == PhysicsMode.Static || en.Has(BehaviorKind.Solid) || en.Has(BehaviorKind.Gate) || en.Has(BehaviorKind.Pushable) || en.Has(BehaviorKind.Spring)))
                 _solids.Add(en);
             BossEntityAdded(en);
+            ZEntityAdded(en);
             TerrainEntityAdded(en);
             return en;
         }
@@ -1040,6 +1044,9 @@ namespace EasyEngine
         partial void SequencesEntityRemoved(Entity en); // Cleanup, for a dead entity
         partial void TerrainEntityRemoved(Entity en);
         partial void MinimapEntityRemoved(Entity en);
+        partial void ZSceneReset();                  // PlayWindow.ZOrder.cs: Z order of the scene's objects and spawned copies
+        partial void ZEntityAdded(Entity en);
+        partial void ZEntityRemoved(Entity en);
         partial void SequencesRender(double dt);     // Render: overlays (fade, cinema bars, title, boss bar)
         partial void CameraTargetOverride(ref double tx, ref double ty, ref double smooth); // cutscene camera
         partial void CameraClampOverride(ref bool clampX, ref double worldX0, ref double worldW, ref double worldH); // a terrain's world bounds
@@ -3129,6 +3136,7 @@ namespace EasyEngine
                 _solids.Remove(en);
                 SequencesEntityRemoved(en);
                 TerrainEntityRemoved(en);
+                ZEntityRemoved(en);
                 _entities.RemoveAt(i);
             }
         }

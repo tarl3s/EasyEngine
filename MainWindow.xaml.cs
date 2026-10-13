@@ -600,7 +600,7 @@ namespace EasyEngine
             foreach (var layer in _scene.Layers)
             {
                 if (!layer.Visible) continue;
-                foreach (var obj in layer.Objects)
+                foreach (var obj in ZOrder.InDrawOrder(layer.Objects)) // Z orders objects inside their layer
                 {
                     var el = MakeVisual(obj);
                     _visuals[obj] = el;
@@ -748,8 +748,10 @@ namespace EasyEngine
             border.MouseLeftButtonDown += (s, e) =>
             {
                 if (e.ClickCount == 2) { _dragObj = null; SceneCanvas.ReleaseMouseCapture(); OpenInspector(obj); e.Handled = true; return; } // double-click: its inspector
-                if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) { ToggleSelect(obj); e.Handled = true; return; }
+                if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) { ToggleSelect(obj); FocusScene(); e.Handled = true; return; }
                 Select(obj);
+                FocusScene(); // the arrow keys nudge the selection (MainWindow.LockZ.cs)
+                if (obj.Locked) { e.Handled = true; return; } // locked: selected so it can be inspected, never dragged
                 PushUndo();
                 _dragObj = obj;
                 _dragStart = e.GetPosition(SceneCanvas);
@@ -869,6 +871,7 @@ namespace EasyEngine
         private void AddResizeHandles()
         {
             if (_selected == null || !_visuals.ContainsKey(_selected)) return;
+            if (_selected.Locked) return; // locked objects can't be resized
             if (_selected.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)) return; // tilemaps are painted, not resized
             foreach (Handle h in Enum.GetValues(typeof(Handle)))
             {
@@ -919,9 +922,9 @@ namespace EasyEngine
             _ => Cursors.SizeWE
         };
 
-        private void ApplyResize(Point p)
+        private void ApplyResize(Point p, bool? shift = null)
         {
-            if (_selected == null) return;
+            if (_selected == null || _selected.Locked) return;
             const double min = 8;
             double dx = p.X - _resizeStartMouse.X, dy = p.Y - _resizeStartMouse.Y;
             double L = _resizeRect.X, T = _resizeRect.Y, W = _resizeRect.Width, H = _resizeRect.Height;
@@ -936,7 +939,11 @@ namespace EasyEngine
             if (top) { T = _resizeRect.Y + dy; H = _resizeRect.Height - dy; if (H < min) { H = min; T = _resizeRect.Bottom - min; } }
             if (bottom) { H = _resizeRect.Height + dy; if (H < min) H = min; }
 
-            if (_snap)
+            // "Keep proportions" (or Shift held while dragging): the picture's aspect ratio (MainWindow.LockZ.cs)
+            bool keep = _selected.KeepAspect || (shift ?? (Keyboard.Modifiers & ModifierKeys.Shift) != 0);
+            if (keep && AspectOf(_selected, _resizeRect) is double ratio)
+                (L, T, W, H) = AspectRect(_resizeRect, ratio, left, right, top, bottom, W, H, min);
+            else if (_snap)
             {
                 L = Math.Round(L / GridSize) * GridSize; T = Math.Round(T / GridSize) * GridSize;
                 W = Math.Max(min, Math.Round(W / GridSize) * GridSize); H = Math.Max(min, Math.Round(H / GridSize) * GridSize);
@@ -981,8 +988,10 @@ namespace EasyEngine
         {
             _selected = obj;
             // load tilemap edit state before building the inspector (which reads it)
-            if (obj != null && obj.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)) LoadTilemapEdit(obj);
+            if (obj != null && !obj.Locked && obj.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)) LoadTilemapEdit(obj); // a locked tilemap isn't painted
             else { _tmObj = null; _tmBh = null; }
+            if (obj != null && !ReferenceEquals(obj, _selectedBefore)) Status(obj.Locked ? L.T("Locked — unlock to edit") : L.T("Arrows: move · Shift: 10 px"));
+            _selectedBefore = obj;
 
             UpdateSelectionOutline();
             // rebuild handles for the new primary
@@ -1137,7 +1146,7 @@ namespace EasyEngine
             if (string.IsNullOrWhiteSpace(cat)) cat = "General";
             var icon = _project.Prefabs.FirstOrDefault(p => p.Name == obj.Type)?.Icon ?? "▢";
             var tmpl = JsonClone(obj);
-            tmpl.Id = 0; tmpl.X = 0; tmpl.Y = 0;
+            tmpl.Id = 0; tmpl.X = 0; tmpl.Y = 0; tmpl.Locked = false; // keeps its Z; new copies start unlocked
             _project.Prefabs.Add(new PrefabDef { Name = name, Icon = icon, Category = cat, Template = tmpl });
             RefreshPalette(); Dirty();
             Status(L.F("Saved \"{0}\" as a prefab under \"{1}\"", name, cat));
@@ -1156,8 +1165,10 @@ namespace EasyEngine
         private void DeleteSelected()
         {
             if (_selection.Count == 0) return;
+            var gone = _selection.Where(o => !o.Locked).ToList(); // locked objects are never deleted
+            if (gone.Count == 0) { Status(L.T("Locked — unlock to edit")); return; }
             PushUndo();
-            foreach (var o in _selection.ToList())
+            foreach (var o in gone)
                 _scene.Layers.FirstOrDefault(l => l.Objects.Contains(o))?.Objects.Remove(o);
             Select(null);
             RenderScene(); RefreshObjects(); Dirty();
@@ -1174,6 +1185,7 @@ namespace EasyEngine
             clone.Id = _project.NextId;
             clone.Name = name + " copy";
             clone.X += 24; clone.Y += 24;
+            clone.Locked = false; // the copy is there to be placed
             layer.Objects.Add(clone);
             RenderScene(); RefreshObjects(); Select(clone); Dirty();
             Status(L.F("Duplicated {0}", name));
@@ -1185,6 +1197,7 @@ namespace EasyEngine
             if (Keyboard.FocusedElement is TextBox) return;
 
             if (e.Key == Key.Delete && _selected != null) { DeleteSelected(); e.Handled = true; }
+            else if (NudgeKey(e)) e.Handled = true; // arrows move the selection (MainWindow.LockZ.cs)
             else if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control) { Undo(); e.Handled = true; }
             else if (e.Key == Key.Y && Keyboard.Modifiers == ModifierKeys.Control) { Redo(); e.Handled = true; }
             else if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control) { Save_Click(this, new RoutedEventArgs()); e.Handled = true; }
@@ -1403,7 +1416,7 @@ namespace EasyEngine
                         FontSize = 10, FontWeight = FontWeights.SemiBold, Padding = new Thickness(6, 6, 6, 2)
                     });
                 foreach (var obj in g)
-                    ObjectsList.Items.Add(new ListBoxItem { Content = $"{obj.Name}   ·   {L.T(obj.Type)}", Tag = obj, Padding = new Thickness(anyGroup ? 18 : 8, 5, 8, 5), Foreground = (SolidColorBrush)FindResource("Text") });
+                    ObjectsList.Items.Add(new ListBoxItem { Content = ObjectRowContent(obj), Tag = obj, Padding = new Thickness(anyGroup ? 18 : 8, 5, 8, 5), Foreground = (SolidColorBrush)FindResource("Text") });
             }
         }
 
@@ -1431,6 +1444,7 @@ namespace EasyEngine
             if (obj == null) { BuildSceneInspector(); return; }
 
             Section(L.T("OBJECT"));
+            LockRow(obj); // 🔒/🔓 — the only thing left editable on a locked object (MainWindow.LockZ.cs)
             TextRow(L.T("Name"), obj.Name, v => { obj.Name = v; RefreshObjects(); Dirty(); });
             InfoRow(L.T("Type"), L.T(obj.Type));
             TextRow(L.T("Group"), obj.Group, v => { obj.Group = v.Trim(); RefreshObjects(); Dirty(); });
@@ -1447,9 +1461,11 @@ namespace EasyEngine
             Section(L.T("TRANSFORM"));
             NumRow(L.T("X"), obj.X, v => { obj.X = v; ReposSelected(); Dirty(); });
             NumRow(L.T("Y"), obj.Y, v => { obj.Y = v; ReposSelected(); Dirty(); });
-            NumRow(L.T("Width"), obj.Width, v => { obj.Width = Math.Max(2, v); RenderScene(); Dirty(); });
-            NumRow(L.T("Height"), obj.Height, v => { obj.Height = Math.Max(2, v); RenderScene(); Dirty(); });
+            NumRow(L.T("Width"), obj.Width, v => SetSize(obj, v, null));   // keeps proportions when asked (MainWindow.LockZ.cs)
+            NumRow(L.T("Height"), obj.Height, v => SetSize(obj, null, v));
+            SizeRow(obj);  // Keep proportions + Original size
             NumRow(L.T("Rotation"), obj.Rotation, v => { obj.Rotation = v; RenderScene(); Dirty(); });
+            ZRow(obj);     // Z layer: − n + · To front · To back
 
             Section(L.T("APPEARANCE"));
             LookCopyRow(obj);
@@ -1485,6 +1501,7 @@ namespace EasyEngine
                     FontSize = 11, Margin = new Thickness(0, 4, 0, 2), TextWrapping = TextWrapping.Wrap
                 });
             AddBehaviorControl(obj);
+            ApplyInspectorLock(obj); // a locked object: everything but the lock is read-only (MainWindow.LockZ.cs)
         }
 
         private void BuildSceneInspector()
@@ -1759,7 +1776,7 @@ namespace EasyEngine
                 {
                     PushUndo();
                     // apply to EVERY selected object, not just the primary; skip ones that already have it
-                    var targets = _selection.Count > 1 ? _selection.ToList() : new List<GameObjectData> { obj };
+                    var targets = _selection.Count > 1 ? _selection.Where(o => !o.Locked).ToList() : new List<GameObjectData> { obj }; // locked ones are skipped
                     int added = 0;
                     foreach (var t in targets)
                     {
@@ -2673,6 +2690,7 @@ namespace EasyEngine
             sb.AppendLine("  \"variables\": {\"global\":{\"name\":value}, \"scene\":{\"name\":value}}, \"removeVariables\": {\"global\":[\"name\"], \"scene\":[\"name\"]}");
             sb.AppendLine("}");
             sb.AppendLine("Only include the fields/arrays you need. Omit empty ones.");
+            sb.AppendLine("ORDER: \"z\":n on a create/edit object draws it in front of (higher) or behind (lower) the others in its layer (default 0). Objects marked LOCKED can't be changed — leave them out.");
             sb.AppendLine("VARIABLES: top-level \"variables\".global/.scene create or set the game's global/scene variables (initial values); \"removeVariables\" deletes them. Per-object variables go inside that object's edit/create as \"variables\":{\"name\":value} (and \"removeVariables\":[\"name\"]). You can change ANY variable this way. A value is a number, true/false (a Yes/No), \"words\" (a Text, e.g. \"playerName\":\"Hero\"), a colour \"#RRGGBB\" (a Colour, e.g. \"teamColor\":\"#FF8800\") or an array of words (a List, e.g. \"quests\":[\"Find the key\"]).");
             sb.AppendLine();
             sb.AppendLine("KEY RULES:");
@@ -2762,7 +2780,7 @@ namespace EasyEngine
             else foreach (var o in allObjs)
             {
                 var ov = VarScope.Of(o).Count > 0 ? " vars{" + VarScope.Of(o).Describe() + "}" : "";
-                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Select(b => b.Kind))}]{ov}");
+                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Select(b => b.Kind))}]{ov}{(o.Locked ? " LOCKED" : "")}{(o.Z != 0 ? $" z{o.Z}" : "")}");
             }
             if (VarScope.Of(_project).Count > 0) sb.AppendLine("Global variables: " + VarScope.Of(_project).Describe());
             if (VarScope.Of(_scene).Count > 0) sb.AppendLine("Scene variables: " + VarScope.Of(_scene).Describe());
@@ -2796,6 +2814,7 @@ namespace EasyEngine
         // Applies a behavior/property spec (JsonElement object) to an existing object. Caller handles undo.
         private bool ApplyBehaviorsToObject(GameObjectData target, JsonElement spec, string userPrompt)
         {
+            if (target.Locked) { if (!_aiSkippedLocked.Contains(target.Name)) _aiSkippedLocked.Add(target.Name); return false; } // locked: never edited by the AI
             var result = target.Behaviors.Select(JsonClone).ToList();
             bool changed = false;
 
@@ -2904,6 +2923,7 @@ namespace EasyEngine
             if (spec.TryGetProperty("bold", out var bd) && AsBool(bd, out var bdv)) { obj.Bold = bdv; changed = true; }
             if (spec.TryGetProperty("fitHitbox", out var fh) && AsBool(fh, out var fhv)) { obj.Physics.FitHitbox = fhv; changed = true; } // collide with the drawing (HitboxFit.cs)
             if (spec.TryGetProperty("group", out var gr) && gr.ValueKind == JsonValueKind.String) { obj.Group = gr.GetString() ?? ""; changed = true; }
+            if (spec.TryGetProperty("z", out var zz) && LooseJson.TryNumber(zz, out var zv)) { obj.Z = (int)Math.Round(zv); changed = true; } // order inside its layer
             return changed;
         }
 
@@ -3253,7 +3273,7 @@ namespace EasyEngine
         private bool ApplyProjectSpec(string reply, string userPrompt, out string summary)
         {
             summary = "";
-            _aiSpecObjects.Clear();
+            _aiSpecObjects.Clear(); _aiSkippedLocked.Clear();
             var json = LooseJson.Extract(reply);
             if (json == null) return false;
             JsonDocument doc;
@@ -3299,6 +3319,7 @@ namespace EasyEngine
                         ApplyLayerArray(lyScoped, EnsureUndo, changes);
                     ApplyGlobalSceneVars(root, EnsureUndo, changes);
 
+                    AddLockedNotes(changes);
                     if (changes.Count == 0) return false;
                     summary = string.Join("\n", changes);
                     return true;
@@ -3394,6 +3415,7 @@ namespace EasyEngine
                     if (SkySetup.Ensure(probe) != null) { EnsureUndo(); var sky = SkySetup.Ensure(_scene); if (sky != null) changes.Add(sky); }
                 }
 
+                AddLockedNotes(changes); // locked objects the AI wanted to change (MainWindow.LockZ.cs)
                 if (changes.Count == 0) return false;
                 summary = string.Join("\n", changes);
                 return true;
