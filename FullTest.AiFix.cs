@@ -80,7 +80,9 @@ public partial class App
             var (ok, _) = ed.TestApplySpec("{\"create\":[{\"name\":\"Enemy\",\"behaviors\":[{\"kind\":\"Chase\",\"texts\":{\"target\":\"Player\"}}]}]}", "add an enemy that chases the player");
             var player = ed.TestFindObject("Player")!;
             ed.TestApplySpec("{\"delete\":[\"Rock\"]}", "delete the rock");
-            return ok && ed.TestFindObject("Enemy")?.Behaviors.Any(b => b.Kind == BehaviorKind.Chase) == true && !player.Behaviors.Any(b => b.Kind == BehaviorKind.Chase)
+            ed.TestApplySpec("{\"create\":[{\"name\":\"PlayerHealthBar\",\"layer\":\"UI\",\"behaviors\":[{\"kind\":\"Bar\",\"texts\":{\"var\":\"health\"}}]}]}", "add a health bar for the player");
+            bool bar = ed.TestFindObject("PlayerHealthBar")?.Behaviors.Any(b => b.Kind == BehaviorKind.Bar) == true && !player.Behaviors.Any(b => b.Kind == BehaviorKind.Bar);
+            return ok && bar && ed.TestFindObject("Enemy")?.Behaviors.Any(b => b.Kind == BehaviorKind.Chase) == true && !player.Behaviors.Any(b => b.Kind == BehaviorKind.Chase)
                    && ed.TestFindObject("Rock") == null;
         });
         t.Test("ai review: trailing commas / a key written twice never crash the build; a bouncy platform stays put", () =>

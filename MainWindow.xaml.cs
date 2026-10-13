@@ -3113,6 +3113,9 @@ namespace EasyEngine
             };
         }
 
+        // the name IS a name for the player ("Hero", "Jogador") — not just contains one ("PlayerHealthBar" is a new thing)
+        private static bool NameIsPlayer(string name) => name.Trim().ToLowerInvariant() is "player" or "the player" or "hero" or "jogador" or "personagem" or "character" or "protagonist" or "protagonista" or "pc" or "player1" or "player 1";
+
         private static bool NameLooksPlayer(string name)
         {
             var n = name.ToLowerInvariant();
@@ -3138,7 +3141,7 @@ namespace EasyEngine
             {
                 var exact = all.FirstOrDefault(o => o.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
                 if (exact != null) return exact;
-                if (name.IndexOf("player", StringComparison.OrdinalIgnoreCase) >= 0) { var p = FindPlayer(); if (p != null) return p; }
+                if (NameIsPlayer(name)) { var p = FindPlayer(); if (p != null) return p; }
                 var contains = all.FirstOrDefault(o => o.Name.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf(o.Name, StringComparison.OrdinalIgnoreCase) >= 0);
                 if (contains != null) return contains;
             }
@@ -3417,7 +3420,7 @@ namespace EasyEngine
                             existing = _scene.Layers.SelectMany(l => l.Objects).FirstOrDefault(o => o.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
                             // a "create" named like the player (Hero, Jogador…) is the player; any other new name is a NEW thing,
                             // even when the request mentions the player ("an enemy that chases the player")
-                            if (existing == null && IsModifyIntent(userPrompt) && NameLooksPlayer(name ?? "")) existing = FindPlayer();
+                            if (existing == null && IsModifyIntent(userPrompt) && NameIsPlayer(name ?? "")) existing = FindPlayer();
                         }
 
                         EnsureUndo();
