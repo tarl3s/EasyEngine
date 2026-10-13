@@ -2843,7 +2843,9 @@ namespace EasyEngine
             if (target.Locked) { if (!_aiSkippedLocked.Contains(target.Name)) _aiSkippedLocked.Add(target.Name); return false; } // locked: never edited by the AI
             var result = target.Behaviors.Select(JsonClone).ToList();
             bool changed = false;
-            var impliedRules = new List<string>(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
+            var impliedRules = new List<string>();
+            double? behaviorBounce = null, behaviorGravity = null; // physics the model wrote inside a behavior
+            AiAddedKinds.Clear(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
 
             if (spec.TryGetProperty("behaviors", out var arr) && arr.ValueKind == JsonValueKind.Array)
             {
@@ -2856,6 +2858,9 @@ namespace EasyEngine
                     if (LooseJson.Node(raw) is not System.Text.Json.Nodes.JsonObject node) continue; // unreadable: skipped, never a crash
                     AiSpecFix.Behavior(BehaviorCatalog.Info(kind), node, impliedRules);
                     if (node.ContainsKey("drop")) continue;
+                    if (node["_bounciness"] is System.Text.Json.Nodes.JsonNode nb && LooseJson.TryParse(nb.ToString(), out var nbv)) behaviorBounce = nbv;
+                    if ((node["_gravity"] ?? node["_gravityscale"]) is System.Text.Json.Nodes.JsonNode ng && LooseJson.TryParse(ng.ToString(), out var ngv)) behaviorGravity = ngv;
+                    AiAddedKinds.Add(kind);
                     using var fixedDoc = JsonDocument.Parse(node.ToJsonString());
                     var item = fixedDoc.RootElement.Clone();
 
@@ -2930,6 +2935,8 @@ namespace EasyEngine
             bool gravityIntent = new[] { "gravity", "gravid", "fall", "falling", "cair", "queda" }.Any(low.Contains);
             PhysicsMode desired = target.Physics.Mode;
             var (askedMode, bounce, grav) = SpecPhysics(spec);
+            bounce ??= behaviorBounce; grav ??= behaviorGravity;
+            if (StripCopiedHabits(target, result, userPrompt)) changed = true;
             if (bounce is double bv) { target.Physics.Bounciness = Math.Clamp(bv, 0, 1); changed = true; }
             if (grav is double gv) { target.Physics.GravityScale = Math.Clamp(gv, -5, 5); changed = true; }
             if (HasK(BehaviorKind.Platformer) || gravityIntent || customJumps) desired = PhysicsMode.Dynamic;

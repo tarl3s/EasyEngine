@@ -122,6 +122,21 @@ public partial class App
             s.TSteps(3);
             return s.TLocal("A", "k") == 2;
         });
+        t.Test("ai: habits copied from the examples are dropped (a follow-camera on a box, a Spawner key nobody asked for); physics inside a behavior is used", () =>
+        {
+            var ed = NewEditor(s => s.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(new GameObjectData { Id = 94, Name = "Box" }));
+            ed.TestApplySpec("{\"edit\":[{\"name\":\"Box\",\"behaviors\":[{\"kind\":\"FollowCamera\"}]}]}", "make the Box follow the mouse");
+            bool noCam = !ed.TestFindObject("Box")!.Behaviors.Any(b => b.Kind == BehaviorKind.FollowCamera);
+            ed.TestApplySpec("{\"create\":[{\"name\":\"Gen\",\"behaviors\":[{\"kind\":\"Spawner\",\"texts\":{\"target\":\"Enemy\",\"key\":\"Y\"},\"nums\":{\"interval\":2}}]}]}", "spawn an enemy every 2 seconds");
+            bool noKey = ed.TestFindObject("Gen")?.Behaviors.First(b => b.Kind == BehaviorKind.Spawner).Text("key", "?") == "";
+            ed.TestApplySpec("{\"create\":[{\"name\":\"Gun\",\"behaviors\":[{\"kind\":\"Shooter\",\"texts\":{\"key\":\"J\"}}]}]}", "make a turret that shoots when I press J");
+            bool keptKey = ed.TestFindObject("Gun")?.Behaviors.First(b => b.Kind == BehaviorKind.Shooter).Text("key", "") == "J";
+            ed.TestApplySpec("{\"create\":[{\"name\":\"Ball\",\"physics\":\"Dynamic\",\"behaviors\":[{\"kind\":\"Solid\",\"nums\":{\"bounciness\":0.8}}]}]}", "make a ball that bounces");
+            var ball = ed.TestFindObject("Ball");
+            var tint = Fix("[{\"when\":\"start\",\"do\":\"setcolor\",\"var\":\"color\",\"to\":\"#0000FF\"}]");
+            return noCam && noKey && keptKey && ball?.Physics.Mode == PhysicsMode.Dynamic && ball.Physics.Bounciness == 0.8
+                   && Is(tint[0], "do", "tint") && Is(tint[0], "color", "#0000FF") && !tint[0].ContainsKey("var");
+        });
         t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
         {
             var sys = NewEditor().TestBuildPrompt();

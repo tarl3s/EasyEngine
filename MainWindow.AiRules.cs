@@ -137,6 +137,27 @@ namespace EasyEngine
         }
         private static HashSet<string> Words(string s) => System.Text.RegularExpressions.Regex.Matches(s.ToLowerInvariant(), "[a-zà-ú]{3,}").Select(m => m.Value).ToHashSet();
 
+        // the behavior kinds the current spec added or changed (for StripCopiedHabits)
+        private readonly HashSet<BehaviorKind> AiAddedKinds = new();
+        private static readonly string[] KeyWords = { "press", "key", "hold", "button", "click", "tecla", "aperta", "apertar", "pressiona", "botão", "segura", "clique" };
+        private static readonly string[] CameraWords = { "camera", "câmera", "câmara", "view", "screen follows", "tela segue" };
+
+        // Habits small models copy from the examples into requests that never asked for them: a FollowCamera on anything that
+        // should "follow" (the mouse, the player), a Spawner/Shooter key ("Y") on "every 2 seconds". Only on what this reply added.
+        private bool StripCopiedHabits(GameObjectData target, List<BehaviorData> result, string userPrompt)
+        {
+            var low = (userPrompt ?? "").ToLowerInvariant();
+            if (low.Length == 0) return false; // no request to compare with (tests, replays)
+            bool changed = false;
+            bool isPlayer = NameLooksPlayer(target.Name) || result.Any(b => b.Kind is BehaviorKind.Platformer or BehaviorKind.TopDown);
+            if (AiAddedKinds.Contains(BehaviorKind.FollowCamera) && !isPlayer && !CameraWords.Any(low.Contains))
+                changed |= result.RemoveAll(b => b.Kind == BehaviorKind.FollowCamera) > 0;
+            if (!KeyWords.Any(low.Contains))
+                foreach (var b in result.Where(b => b.Kind is BehaviorKind.Spawner or BehaviorKind.Shooter && AiAddedKinds.Contains(b.Kind)))
+                    if (b.Text("key", "").Length > 0) { b.Texts["key"] = ""; changed = true; }
+            return changed;
+        }
+
         // what the AI asked for that couldn't be used (a made-up event or action) — shown under the change summary
         private readonly List<string> _aiNotes = new();
         private string SummaryOf(List<string> changes) => string.Join("\n", changes.Concat(_aiNotes.Distinct().Select(n => "⚠ " + n)));

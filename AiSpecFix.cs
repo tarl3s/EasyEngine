@@ -146,6 +146,11 @@ namespace EasyEngine
             if (act == "velocity" && sq == "speed" && Has("factor")) act = "boost";
             if (act == "load" && (Has("scene") || Has("level"))) act = "goscene";
             if (act == "say" && sq is "text" or "showtext" && Has("var")) act = "settext";
+            if (act == "setcolor" && Get("var").ToLowerInvariant() is "" or "color" or "colour" or "tint" or "fill") // "set my colour": paint it
+            {
+                act = "tint"; props.RemoveAll(p => p.key == "var");
+                if (!Has("color")) Rename("to", "color");
+            }
             if (!Actions.Contains(act))
             {
                 // "teleport"/"moveto" to x,y = set x (and set y)
@@ -232,10 +237,15 @@ namespace EasyEngine
         {
             var nums = item["nums"] as JsonObject ?? new JsonObject();
             var texts = item["texts"] as JsonObject ?? new JsonObject();
+            // the object's physics written inside a behavior ({"kind":"Solid","nums":{"bounciness":0.8}}): handed to the caller
+            foreach (var bag in new[] { item, item["nums"] as JsonObject })
+                foreach (var k in new[] { "bounciness", "gravity", "gravityScale" })
+                    if (bag != null && bag[k] is JsonNode pv && !info.Nums.Any(n => n.Key.Equals(k, StringComparison.OrdinalIgnoreCase)))
+                    { item["_" + k.ToLowerInvariant()] = pv.DeepClone(); bag.Remove(k); }
             // params written right on the behavior: {"kind":"Patrol","speed":100}
             foreach (var kv in item.ToList())
             {
-                if (kv.Key is "kind" or "nums" or "texts") continue;
+                if (kv.Key is "kind" or "nums" or "texts" || kv.Key.StartsWith('_')) continue;
                 if (info.Nums.Any(n => n.Key.Equals(kv.Key, StringComparison.OrdinalIgnoreCase))) { nums[kv.Key] = kv.Value?.DeepClone(); item.Remove(kv.Key); }
                 else if (info.Texts.Any(t => t.Key.Equals(kv.Key, StringComparison.OrdinalIgnoreCase))) { texts[kv.Key] = kv.Value?.DeepClone(); item.Remove(kv.Key); }
             }
