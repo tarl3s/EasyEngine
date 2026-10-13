@@ -174,9 +174,39 @@ public partial class App
                           && all.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.GoToScene && b.Text("scene", "") == "Level2"))
                           && all.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Label && b.Text("text", "").Contains("{score}")));
             var top = ed.TestAllObjects().First(o => o.Name == "Ground").Y;
-            var pw = new PlayWindow(ed.TestProjectObject, ed.TestSceneName); pw.TSeed(1); pw.TLoad(); t.Sims.Add(pw); pw.TSteps(120);
+            var pw = new PlayWindow(ed.EvalProject, ed.EvalScene.Name); pw.TSeed(1); pw.TLoad(); t.Sims.Add(pw); pw.TSteps(120);
             bool standing = Math.Abs(pw.TY("Enemy") + 48 - top) < 4;
             return ok && summary.Contains("level") && reach && counts && standing;
+        });
+        t.Test("ai review 2: the player's gun keeps its key; 'Scene 2' stays whole; a setvar button keeps its value; an edit of a missing 'PlayerHealthBar' makes it", () =>
+        {
+            var ed = NewEditor();
+            ed.TestApplySpec("{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Shooter\",\"nums\":{\"speed\":600}}]}]}", "make the player's bullets faster");
+            bool gun = ed.TestFindObject("Player")!.Behaviors.First(b => b.Kind == BehaviorKind.Shooter).Text("key", "") == "T";
+            ed.TestApplySpec("{\"create\":[{\"name\":\"Next\",\"behaviors\":[{\"kind\":\"UIButton\",\"texts\":{\"to\":\"Scene 2\"}}]},{\"name\":\"Mute\",\"behaviors\":[{\"kind\":\"UIButton\",\"texts\":{\"action\":\"setvar\",\"var\":\"music\"},\"nums\":{\"to\":0}}]}]}", "menu buttons");
+            bool scene2 = ed.TestFindObject("Next")?.Behaviors.First(b => b.Kind == BehaviorKind.UIButton).Text("scene", "") == "Scene 2";
+            var mute = ed.TestFindObject("Mute")?.Behaviors.First(b => b.Kind == BehaviorKind.UIButton);
+            bool setvar = mute != null && mute.Text("scene", "") == "" && mute.Num("to", 1) == 0;
+            ed.TestApplySpec("{\"edit\":[{\"name\":\"PlayerHealthBar\",\"layer\":\"UI\",\"behaviors\":[{\"kind\":\"Bar\",\"texts\":{\"var\":\"health\"}}]}]}", "show the player's health as a bar");
+            bool bar = ed.TestFindObject("PlayerHealthBar") != null && !ed.TestFindObject("Player")!.Behaviors.Any(b => b.Kind == BehaviorKind.Bar);
+            return gun && scene2 && setvar && bar;
+        });
+        t.Test("ai review 2: a recipe written in another language isn't stripped; level spikes hurt and its door works", () =>
+        {
+            var sys = NewEditor().TestBuildPrompt();
+            var coin = sys.Split('\n').First(l => l.StartsWith("- coin worth 10 points:"));
+            var json = coin[coin.IndexOf('{')..coin.IndexOf("]}]}") ] + "]}]}";
+            var kept = EasyEngine.MainWindow.StripCopies(sys, json, "coloque uma moeda que vale 10 pontos", out var none);
+            var ed = NewEditor(s => { s.Layers.Add(new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true }); });
+            ed.TestFindObject("Player")!.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Health).CreateData());
+            ed.EvalProject.Scenes.Add(new Scene { Name = "Level2", Layers = { new Layer { Name = "Base", Kind = LayerKind.Base } } });
+            ed.TestApplySpec("{\"level\":{\"platforms\":2,\"spikes\":1,\"door\":\"Level2\"}}", "build a level");
+            var spike = ed.TestFindObject("Spike")!; var door = ed.TestFindObject("Door")!;
+            var pw = new PlayWindow(ed.EvalProject, ed.EvalScene.Name); pw.TSeed(1); pw.TLoad(); t.Sims.Add(pw);
+            pw.TSteps(20); double hp = pw.THp("Player"); pw.TPlace("Player", spike.X - 8, spike.Y - 50); pw.TSteps(10);
+            bool hurt = pw.THp("Player") < hp;
+            pw.TPlace("Player", door.X + 4, door.Y + 20); pw.TSteps(10);
+            return !none && kept == json && hurt && pw.TScene == "Level2";
         });
         t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
         {

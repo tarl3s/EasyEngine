@@ -256,7 +256,7 @@ namespace EasyEngine
                     if (catalogKeys.FirstOrDefault(k => k.Equals(kv.Key, StringComparison.OrdinalIgnoreCase)) is string canon && canon != kv.Key && !bag.ContainsKey(canon))
                     { var v = kv.Value?.DeepClone(); bag.Remove(kv.Key); bag[canon] = v; }
             // a button / zone / door whose scene was written under another name ("to":"Level2", "level":"Level2")
-            if (info.Kind is BehaviorKind.UIButton or BehaviorKind.Area or BehaviorKind.GoToScene && texts["scene"] == null)
+            if (info.Kind is BehaviorKind.UIButton or BehaviorKind.Area or BehaviorKind.GoToScene && texts["scene"] == null && Str(texts["action"]) is "" or "goscene") // ("to" is a value for setvar)
                 foreach (var bag in new[] { texts, nums, item })
                     foreach (var k in new[] { "to", "goto", "level", "destination", "target", "onclick", "action", "click" })
                         if (texts["scene"] == null && KeyOf(bag, k) is string real && bag[real] is JsonValue sv && sv.TryGetValue<string>(out var sc) && GoSceneTarget(k, sc) is string sc2
@@ -307,8 +307,8 @@ namespace EasyEngine
         private static string? GoSceneTarget(string key, string value)
         {
             var v = value.Trim();
-            var m = System.Text.RegularExpressions.Regex.Match(v, @"^(?:goscene|go\s*to|goto|load|scene)[\s:]+(.+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            if (m.Success) return m.Groups[1].Value.Trim();
+            var m = System.Text.RegularExpressions.Regex.Match(v, @"^(?:goscene|go\s*to|goto|load)[\s:]+(.+)$|^scene\s*:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success) return (m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value).Trim();
             if (key is "onclick" or "action" or "click") return null; // a plain word there is an action name ("goscene", "say")
             return v.Length > 0 && !LooseJson.TryParse(v, out _) ? v : null;
         }

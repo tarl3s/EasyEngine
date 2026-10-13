@@ -2844,9 +2844,9 @@ namespace EasyEngine
             if (target.Locked) { if (!_aiSkippedLocked.Contains(target.Name)) _aiSkippedLocked.Add(target.Name); return false; } // locked: never edited by the AI
             var result = target.Behaviors.Select(JsonClone).ToList();
             bool changed = false;
-            var impliedRules = new List<string>();
+            var impliedRules = new List<string>(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
             double? behaviorBounce = null, behaviorGravity = null; // physics the model wrote inside a behavior
-            AiAddedKinds.Clear(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
+            AiAddedKinds.Clear(); AiKeyWritten.Clear();
 
             if (spec.TryGetProperty("behaviors", out var arr) && arr.ValueKind == JsonValueKind.Array)
             {
@@ -2861,7 +2861,8 @@ namespace EasyEngine
                     if (node.ContainsKey("drop")) continue;
                     if (node["_bounciness"] is System.Text.Json.Nodes.JsonNode nb && LooseJson.TryParse(nb.ToString(), out var nbv)) behaviorBounce = nbv;
                     if ((node["_gravity"] ?? node["_gravityscale"]) is System.Text.Json.Nodes.JsonNode ng && LooseJson.TryParse(ng.ToString(), out var ngv)) behaviorGravity = ngv;
-                    AiAddedKinds.Add(kind);
+                    if (!target.Behaviors.Any(b => b.Kind == kind)) AiAddedKinds.Add(kind); // new on this object (habits are only stripped from those)
+                    if ((node["texts"] as System.Text.Json.Nodes.JsonObject)?["key"] != null) AiKeyWritten.Add(kind);
                     using var fixedDoc = JsonDocument.Parse(node.ToJsonString());
                     var item = fixedDoc.RootElement.Clone();
 
@@ -3142,8 +3143,8 @@ namespace EasyEngine
                 var exact = all.FirstOrDefault(o => o.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
                 if (exact != null) return exact;
                 if (NameIsPlayer(name)) { var p = FindPlayer(); if (p != null) return p; }
-                var contains = all.FirstOrDefault(o => o.Name.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf(o.Name, StringComparison.OrdinalIgnoreCase) >= 0);
-                if (contains != null) return contains;
+                // a shortened name ("Enemy" for "Enemy 2") — but never a longer one ("PlayerHealthBar" isn't the Player): that's new
+                return all.FirstOrDefault(o => o.Name.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0);
             }
             var low = userPrompt.ToLowerInvariant();
             if (low.Contains("player") || low.Contains("jogador") || low.Contains("character") || low.Contains("personagem")) return FindPlayer();
@@ -3385,6 +3386,7 @@ namespace EasyEngine
                     if (root.TryGetProperty("layers", out var lyScoped) && lyScoped.ValueKind == JsonValueKind.Array)
                         ApplyLayerArray(lyScoped, EnsureUndo, changes);
                     ApplyGlobalSceneVars(root, EnsureUndo, changes);
+                    ApplyLevel(root, EnsureUndo, changes); // a level is built whatever is selected
 
                     AddLockedNotes(changes);
                     if (changes.Count == 0) return false;

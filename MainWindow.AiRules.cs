@@ -133,11 +133,14 @@ namespace EasyEngine
 
             var asked = Words(userPrompt);
             var copies = CopyCandidates(system);
+            bool removedExample = false;
             bool Copied(System.Text.Json.Nodes.JsonNode? n)
             {
                 if (n == null) return false;
                 var sq = Squash(n.ToJsonString());
-                return copies.Any(c => c.squashed == sq && c.about.Count(asked.Contains) < (c.example ? 4 : 1));
+                foreach (var c in copies)
+                    if (c.squashed == sq && c.about.Count(asked.Contains) < (c.example ? 4 : 1)) { removedExample |= c.example; return true; }
+                return false;
             }
 
             int removed = 0;
@@ -149,7 +152,9 @@ namespace EasyEngine
             if (removed == 0) return reply;
 
             bool Empty(string k) => root[k] is not System.Text.Json.Nodes.JsonNode n || n is System.Text.Json.Nodes.JsonArray { Count: 0 };
-            nothingLeft = new[] { "create", "edit", "variables", "delete", "layers", "theme", "behaviors", "custom", "removeVariables" }.All(Empty);
+            bool left = !root.All(kv => Empty(kv.Key)); // whatever else the reply holds ("level", "delete"…) still counts
+            if (!left && !removedExample) return reply; // only a recipe, word for word: the request was probably for it (another language…)
+            nothingLeft = !left;
             return root.ToJsonString();
         }
 
@@ -161,7 +166,7 @@ namespace EasyEngine
             string lastRequest = "";
             foreach (var line in system.Split('\n'))
             {
-                var m = System.Text.RegularExpressions.Regex.Match(line, "^User: \"(.+?)\"");
+                var m = System.Text.RegularExpressions.Regex.Match(line, "^(?:User: |Example — )\"(.+?)\""); // the request an example answers
                 if (m.Success) lastRequest = m.Groups[1].Value;
                 bool recipe = line.StartsWith("- ") && line.Contains(": {");
                 if (!recipe && !line.TrimStart().StartsWith('{') && !m.Success) continue;
@@ -196,10 +201,33 @@ namespace EasyEngine
                 }
             }
         }
-        private static HashSet<string> Words(string s) => System.Text.RegularExpressions.Regex.Matches(s.ToLowerInvariant(), "[a-zà-ú]{3,}").Select(m => m.Value).ToHashSet();
+        // the words of a text as 5-letter stems ("coins" = "coin"), with the request words of other languages mapped to the
+        // English ones the examples and recipes use (so "uma moeda de 10 pontos" is about the coin recipe)
+        private static HashSet<string> Words(string s)
+        {
+            var set = new HashSet<string>();
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(s.ToLowerInvariant(), "[a-zà-ú]{3,}"))
+            {
+                var stem = m.Value.Length > 5 ? m.Value[..5] : m.Value.TrimEnd('s');
+                set.Add(stem);
+                if (ForeignStems.TryGetValue(stem, out var en)) set.Add(en);
+            }
+            return set;
+        }
+        private static readonly Dictionary<string, string> ForeignStems = new()
+        {
+            ["moeda"] = "coin", ["moned"] = "coin", ["ponto"] = "point", ["pont"] = "point", ["placa"] = "score", ["puntu"] = "score", ["punto"] = "point",
+            ["conta"] = "count", ["cronô"] = "timer", ["crono"] = "timer", ["tempo"] = "timer", ["tempor"] = "timer", ["cuent"] = "count",
+            ["porta"] = "door", ["puert"] = "door", ["chave"] = "key", ["llave"] = "key", ["sumir"] = "fade", ["desap"] = "fade", ["desva"] = "fade",
+            ["pisca"] = "blink", ["parpa"] = "blink", ["círcu"] = "circl", ["circu"] = "circl", ["rato"] = "mouse", ["ratón"] = "mouse",
+            ["inimi"] = "enemy", ["enemi"] = "enemy", ["atira"] = "shoot", ["dispa"] = "shoot", ["plata"] = "platf", ["bola"] = "ball", ["pelot"] = "ball",
+            ["quica"] = "bounc", ["rebot"] = "bounc", ["chefe"] = "boss", ["chefã"] = "boss", ["jefe"] = "boss", ["morre"] = "dies", ["muere"] = "dies",
+            ["mensa"] = "messa", ["apaga"] = "delet", ["delet"] = "delet", ["remov"] = "delet", ["borra"] = "delet", ["fase"] = "level", ["nível"] = "level",
+            ["nivel"] = "level", ["fugir"] = "away", ["foge"] = "away", ["huir"] = "away", ["segui"] = "follo", ["segue"] = "follo", ["porta"] = "door",
+        };
 
         // the behavior kinds the current spec added or changed (for StripCopiedHabits)
-        private readonly HashSet<BehaviorKind> AiAddedKinds = new();
+        private readonly HashSet<BehaviorKind> AiAddedKinds = new(), AiKeyWritten = new();
         private static readonly string[] KeyWords = { "press", "key", "hold", "button", "click", "tecla", "aperta", "apertar", "pressiona", "botão", "segura", "clique" };
         private static readonly string[] CameraWords = { "camera", "câmera", "câmara", "view", "screen follows", "tela segue" };
 
@@ -213,8 +241,8 @@ namespace EasyEngine
             bool isPlayer = NameLooksPlayer(target.Name) || result.Any(b => b.Kind is BehaviorKind.Platformer or BehaviorKind.TopDown);
             if (AiAddedKinds.Contains(BehaviorKind.FollowCamera) && !isPlayer && !CameraWords.Any(low.Contains))
                 changed |= result.RemoveAll(b => b.Kind == BehaviorKind.FollowCamera) > 0;
-            if (!KeyWords.Any(low.Contains))
-                foreach (var b in result.Where(b => b.Kind is BehaviorKind.Spawner or BehaviorKind.Shooter && AiAddedKinds.Contains(b.Kind)))
+            if (!isPlayer && !KeyWords.Any(low.Contains)) // only a key the model itself wrote on a new Spawner/Shooter (never the player's gun)
+                foreach (var b in result.Where(b => b.Kind is BehaviorKind.Spawner or BehaviorKind.Shooter && AiAddedKinds.Contains(b.Kind) && AiKeyWritten.Contains(b.Kind)))
                     if (b.Text("key", "").Length > 0) { b.Texts["key"] = ""; changed = true; }
             return changed;
         }

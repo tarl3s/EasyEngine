@@ -39,7 +39,7 @@ namespace EasyEngine
             BehaviorData Beh(GameObjectData o, BehaviorKind k) => o.Behaviors.First(b => b.Kind == k);
 
             // a long level gets a wider scene (≈260 px per platform)
-            double W = Math.Max(_scene.Width, topdown ? _scene.Width : 300 + Math.Max(platforms, stairs) * 260), H = _scene.Height;
+            double W = Math.Max(_scene.Width, topdown ? _scene.Width : 400 + platforms * 260 + stairs * 130), H = _scene.Height;
             if (W > _scene.Width) _scene.Width = W;
 
             var solids = _scene.Layers.SelectMany(l => l.Objects).Where(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Solid)).ToList();
@@ -60,7 +60,7 @@ namespace EasyEngine
                     var e = Add("Enemy", W * (0.45 + 0.45 * i / Math.Max(1, enemies)), H * (0.25 + 0.5 * (i % 2)), 40, 40, "#E5484B", PhysicsMode.None, BehaviorKind.PathChase, BehaviorKind.Health, BehaviorKind.Damager);
                     Beh(e, BehaviorKind.Health).Nums["respawn"] = 0;
                 }
-                if (door.Length > 0) { var d = Add("Door", W - 32 - 48, H / 2 - 48, 48, 96, "#8B5A2B", PhysicsMode.Static, BehaviorKind.GoToScene); Beh(d, BehaviorKind.GoToScene).Texts["scene"] = door; }
+                if (door.Length > 0) { var d = Add("Door", W - 32 - 48, H / 2 - 48, 48, 96, "#8B5A2B", PhysicsMode.None, BehaviorKind.GoToScene); Beh(d, BehaviorKind.GoToScene).Texts["scene"] = door; }
             }
             else
             {
@@ -71,22 +71,23 @@ namespace EasyEngine
                 double top = ground.Y;
                 spots.Add((360, top, W - 560));
 
-                for (int i = 0; i < platforms; i++) // a jump apart (a jump climbs ~100 px): 80 px up, then 70 more, left to right
+                // one-way (jump up through them, nothing gets stuck under them), a jump apart: the jump climbs ~100 px
+                GameObjectData Ledge(string name, double x, double y, double w)
                 {
-                    double x = 260 + i * (W - 520) / Math.Max(1, platforms - (platforms > 1 ? 1 : 0)) - 70, y = top - 80 - (i % 2) * 70;
-                    var p = Add("Platform", x, y, 140, 20, "#6B5B45", PhysicsMode.Static, BehaviorKind.Solid);
+                    var p = Add(name, x, y, w, 20, "#6B5B45", PhysicsMode.Static, BehaviorKind.Solid);
+                    Beh(p, BehaviorKind.Solid).Nums["oneWay"] = 1;
                     spots.Add((p.X, p.Y, p.Width));
+                    return p;
                 }
-                for (int i = 0; i < stairs; i++)
-                {
-                    var p = Add("Step", 180 + i * 120, top - 70 * (i + 1), 110, 20, "#6B5B45", PhysicsMode.Static, BehaviorKind.Solid);
-                    spots.Add((p.X, p.Y, p.Width));
-                }
+                for (int i = 0; i < platforms; i++) Ledge("Platform", 220 + i * 260, top - 80 - (i % 2) * 70, 140); // 80 px up, then 70 more
+                int steps = Math.Min(stairs, (int)((top - 60) / 70)); // a staircase never leaves the top of the scene
+                double stepsX = platforms > 0 ? 220 + platforms * 260 + 60 : 180; // after the platforms, never on them
+                for (int i = 0; i < steps; i++) Ledge("Step", stepsX + i * 130, top - 70 * (i + 1), 110);
 
-                // coins: over the platforms first, then in a row along the ground
-                int placed = 0;
+                // coins: over the platforms first, then in rows along the ground
+                int placed = 0, slots = Math.Max(1, (int)((W - 400) / 48));
                 foreach (var s in spots.Skip(1)) { if (placed >= coins) break; Coin(s.x + s.w / 2 - 12, s.top - 40); placed++; }
-                for (int i = 0; placed < coins; i++, placed++) Coin(320 + i * 48 % Math.Max(48, W - 400), top - 60);
+                for (int i = 0; placed < coins; i++, placed++) Coin(320 + i % slots * 48, top - 60 - i / slots * 40);
                 void Coin(double x, double y) { var c = Add("Coin", x, y, 24, 24, "#FFD700", PhysicsMode.None, BehaviorKind.Collectible); Beh(c, BehaviorKind.Collectible).Texts["var"] = "score"; }
 
                 for (int i = 0; i < enemies; i++)
@@ -96,7 +97,7 @@ namespace EasyEngine
                     Beh(e, BehaviorKind.Health).Nums["respawn"] = 0; Beh(e, BehaviorKind.Health).Nums["max"] = 1;
                     if (!chasers) Beh(e, BehaviorKind.Patrol).Nums["distance"] = 140;
                 }
-                for (int i = 0; i < spikes; i++) Add("Spike", 520 + (i + 0.5) * (W - 800) / Math.Max(1, spikes), top - 20, 32, 20, "#C0C0C8", PhysicsMode.Static, BehaviorKind.Damager);
+                for (int i = 0; i < spikes; i++) Add("Spike", 520 + (i + 0.5) * (W - 800) / Math.Max(1, spikes), top - 20, 32, 20, "#C0C0C8", PhysicsMode.None, BehaviorKind.Damager); // None: a Static one would be a wall nobody can touch
                 if (checkpoint) Add("Checkpoint", W / 2, top - 64, 24, 64, "#3BC97A", PhysicsMode.None, BehaviorKind.Checkpoint);
                 if (door.Length > 0) { var d = Add("Door", W - 120, top - 96, 56, 96, "#8B5A2B", PhysicsMode.None, BehaviorKind.GoToScene); Beh(d, BehaviorKind.GoToScene).Texts["scene"] = door; }
             }

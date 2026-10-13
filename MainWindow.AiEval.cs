@@ -34,8 +34,6 @@ namespace EasyEngine
         public Task<string> EvalLearn(string question) => TeachAsync(question);
         public bool EvalCompact { get; set; } // --aitest --compact: the cloud's shorter prompt on a local model too
         public List<GameObjectData> TestAllObjects() => _scene.Layers.SelectMany(l => l.Objects).ToList();
-        public Project TestProjectObject => _project;
-        public string TestSceneName => _scene.Name;
         public Project EvalProject => _project;
         public Scene EvalScene => _scene;
         public string EvalDump() => DumpState();

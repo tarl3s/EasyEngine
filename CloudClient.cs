@@ -79,7 +79,7 @@ namespace EasyEngine
                     catch (CloudException ex2) when (ex2.RateLimited && IsDaily(ex2)) { Resting[p.Id + "/" + alt] = DateTime.UtcNow.AddSeconds(Math.Max(ex2.RetryAfter, 3600)); last = ex2; }
                 }
                 catch (CloudException ex) when (ex.RateLimited && IsDaily(ex)) { Resting[p.Id + "/" + model] = DateTime.UtcNow.AddSeconds(Math.Max(ex.RetryAfter, 3600)); last = ex; }
-                catch (CloudException ex) when (ex.ModelMissing && model != first) { last = ex; } // a fallback that's gone: the next one
+                catch (CloudException ex) when (ex.ModelMissing) { last = ex; if (model == first) Discovered.Remove(p.Id); } // gone (a fallback, or a model found earlier): the next one
             }
             throw last ?? new CloudException(L.F("{0} limit reached for now.", p.Name)) { RateLimited = true };
         }
@@ -174,7 +174,7 @@ namespace EasyEngine
                 var detail = TryGetErrorMessage(text);
                 if (resp.StatusCode == HttpStatusCode.Unauthorized)
                     throw new CloudException(L.F("{0} API key is invalid. Check it in the AI settings ({1}).", p.Name, p.KeyUrl));
-                if (resp.StatusCode is (HttpStatusCode)429 or (HttpStatusCode)413 or HttpStatusCode.ServiceUnavailable or HttpStatusCode.BadGateway) // busy / out of quota for now
+                if (resp.StatusCode is (HttpStatusCode)429 or HttpStatusCode.ServiceUnavailable or HttpStatusCode.BadGateway) // busy / out of quota for now
                     throw new CloudException(L.F("{0} limit reached for now.", p.Name) + (detail != null ? $" ({detail})" : "")) { RateLimited = true, RetryAfter = RetryAfterSeconds(resp, detail) };
                 if (resp.StatusCode == HttpStatusCode.NotFound || ModelGone(detail))
                     throw new CloudException(L.F("Model \"{0}\" isn't available on {1}.", model, p.Name) + (detail != null ? $"\n({detail})" : "")) { ModelMissing = true };
