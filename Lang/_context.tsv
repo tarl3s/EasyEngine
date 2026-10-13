@@ -201,7 +201,7 @@ Buyer	behavior Shop
 Camera	step category
 Camera back to the player	step cameraback
 Can be maximized (0/1)	behavior Minimap
-Cancel	BlockEditorWindow.cs, InputDialog.xaml, LauncherWindow.xaml, NewItemDialog.cs, SequenceEditorWindow.cs, SpriteEditorWindow.cs
+Cancel	AudioEditorWindow.cs, BlockEditorWindow.cs, InputDialog.xaml, LauncherWindow.xaml, NewItemDialog.cs, SequenceEditorWindow.cs, SpriteEditorWindow.cs
 Cancel = do nothing	LauncherWindow.xaml.cs
 Canvas size	SpriteEditorWindow.cs
 Category	MainWindow.xaml.cs
@@ -273,6 +273,8 @@ Cost	behavior Shop
 Could not apply AI response	MainWindow.xaml.cs
 Could not start the game:	App.xaml.cs
 Could not start {0}	MainWindow.xaml.cs
+Couldn't open the sound: {0}	AudioEditorWindow.cs
+Couldn't play the sound: {0}	AudioEditorWindow.cs
 Couldn't reach {0}. Check your internet connection.	CloudClient.cs
 Couldn't talk to Ollama. Is it installed and running? (server at localhost:11434)	OllamaClient.cs
 Couldn't use that picture:	LookPicker.cs
@@ -290,6 +292,7 @@ Custom (AI script)	behavior Custom
 Custom…	SpriteEditorWindow.cs
 Cut	SpriteEditorWindow.cs, Styles.xaml
 Cut the selection (Ctrl+X)	SpriteEditorWindow.cs
+Cut the sound and add effects (slower, faster, pitch, echo…)	MainWindow.xaml.cs
 Cutscene	behavior Cutscene
 DRAW	SpriteEditorWindow.cs
 Damage	behavior Damager
@@ -396,6 +399,7 @@ Ellipse	SpriteEditorWindow.cs
 Emits particles (sparks, smoke, explosions, trails). on=start bursts once when the scene loads; on=always emits continuously at 'rate'; or trigger a burst from a script with the 'emit' action. spread is the cone angle (360 = all directions).	behavior Particles
 Empty a list	BlockEditorWindow.Palette.cs
 Endless to the left and right (0/1)	behavior Terrain
+Ends by getting quieter until silent.	AudioEditorWindow.cs
 Enemies/hazards break blocks (0/1)	behavior Terrain
 Enter	ParamSources.cs
 Eraser	MainWindow.xaml.cs
@@ -404,7 +408,7 @@ Error importing {0}: {1}	MainWindow.xaml.cs
 Error opening: {0}	MainWindow.xaml.cs
 Error saving:	SpriteEditorWindow.cs
 Error saving: {0}	MainWindow.xaml.cs
-Error: {0}	MainWindow.Params.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs
+Error: {0}	AudioEditorWindow.cs, MainWindow.Params.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs
 European. A good backup.	MainWindow.xaml.cs
 Every (s)	behavior Spawner, step shoot
 Every few seconds	BlockEditorWindow.Palette.cs
@@ -503,6 +507,7 @@ Group	MainWindow.xaml.cs
 Hammer	ToolArt.cs
 Harvestable (tree / rock)	behavior Harvestable
 Health	behavior Health
+Hear the result (Space)	AudioEditorWindow.cs
 Heart	SpriteEditorWindow.cs
 Heavy (no knockback) (0/1)	behavior BossAI
 Height	MainWindow.xaml.cs, step jump
@@ -511,6 +516,7 @@ Hexagon	SpriteEditorWindow.cs
 Hide	BlockEditorWindow.Palette.cs
 Hide an object	step hide
 Higher draws in front of the other objects in this layer (it never moves above another layer).	MainWindow.LockZ.cs
+Higher or lower voice; the length stays the same.	AudioEditorWindow.cs
 Hills	behavior Terrain
 Hit an enemy	MainWindow.Params.cs
 Hit sound	behavior Harvestable
@@ -576,6 +582,7 @@ Jump strength (platform)	behavior AdvancedPatrol
 Jumps the Day/Night cycle to that moment (needs a Day/Night cycle object in the scene).	BlockEditorWindow.Palette.cs
 Just the player — add things to show below.	MainWindow.Minimap.cs
 Keep a backup copy of every picture and sound	SettingsWindow.cs
+Keeping {0} s → {1} s ({2} s)	AudioEditorWindow.cs
 Keeps this object from leaving the scene (or the part the camera shows). At the edge it stops, bounces back, or comes out the other side (like Pac-Man). Pick which sides count — e.g. all but the bottom, so it can still fall into a pit.	behavior StayInside
 Key	behavior Cutscene, behavior Interact, behavior Switch, BlockEditorWindow.Palette.cs
 Key to open the big map	behavior Minimap
@@ -630,6 +637,7 @@ Loop	AnimationWindow.xaml, BlockEditorWindow.Palette.cs
 Loop (0/1)	behavior SoundEmitter
 Loop (straight back to start)	MainWindow.xaml.cs
 Lots of models, smaller daily limit.	MainWindow.xaml.cs
+Louder or quieter. A sound that would get too loud is kept just below the limit.	AudioEditorWindow.cs
 Make an attack first (Attacks tab).	SequenceEditorWindow.cs
 Make it	MainWindow.Sequences.cs
 Make this the start scene (the game begins here)	MainWindow.xaml
@@ -719,9 +727,10 @@ No variables yet.	VariablesWindow.xaml.cs
 Non-stop	behavior Particles
 None	behavior Label, MainWindow.xaml.cs
 Noon	step settime
-Normal	behavior Terrain, MainWindow.TerrainBlocks.cs
+Normal	AudioEditorWindow.cs, behavior Terrain, MainWindow.TerrainBlocks.cs
 Nothing	MainWindow.Params.cs
 Nothing else	behavior AbilityPickup, MainWindow.Params.cs
+Nothing is left to save — keep a longer part.	AudioEditorWindow.cs
 Nothing to clear.	SettingsWindow.cs
 Nothing to redo	MainWindow.xaml.cs
 Nothing to undo	MainWindow.xaml.cs
@@ -735,6 +744,7 @@ OK	InputDialog.xaml, SequenceEditorWindow.cs
 Object	BlockEditorWindow.Palette.cs, step destroy, step face, step hide, step move, step show, step spawn, step summon, VariablesWindow.xaml.cs
 Object (or self)	BlockEditorWindow.Palette.cs
 Objects	MainWindow.xaml.cs
+Off	AudioEditorWindow.cs
 Ollama answered with an error ({0}): {1}	OllamaClient.cs
 Ollama ok, but the model isn't downloaded:\n    ollama pull {0}	MainWindow.xaml.cs
 On	step bars
@@ -744,6 +754,7 @@ On the surface (instead of grass)	MainWindow.TerrainBlocks.cs
 Once (stop at the end)	MainWindow.xaml.cs
 One burst when the scene starts	behavior Particles
 One-way (jump through from below) (0/1)	behavior Solid
+Only WAV sounds can be edited. Turn the MP3 into a WAV (many free programs and websites do it) and choose that file instead.	AudioEditorWindow.cs
 Only between columns	MainWindow.TerrainBlocks.cs
 Only breaks when	behavior Terrain, behavior Tilemap
 Only grass, dirt, stone and ore — add clouds, a deeper ore, a sand biome…	MainWindow.TerrainBlocks.cs
@@ -869,6 +880,7 @@ Rename this prefab (everything that uses it follows the new name)	MainWindow.xam
 Rename this scene	MainWindow.xaml
 Repeat	behavior AdvancedPatrol, MainWindow.xaml.cs
 Repeats forever on this interval.	BlockEditorWindow.Palette.cs
+Repeats the sound, quieter each time, as in a cave.	AudioEditorWindow.cs
 Reset layout to default	MainWindow.xaml.cs
 Resizing keeps the picture's proportions. Hold Shift while dragging a handle to keep them just once.	MainWindow.LockZ.cs
 Resources dropped	behavior Harvestable
@@ -890,6 +902,7 @@ Same as this scene	MainWindow.xaml.cs
 Sand	MainWindow.TerrainBlocks.cs
 Save	App.xaml.cs, MainWindow.xaml
 Save as Prefab	MainWindow.xaml.cs
+Save as new sound	AudioEditorWindow.cs
 Save as prefab	MainWindow.xaml.cs
 Save selection as prefab	MainWindow.xaml
 Save sprite	SpriteEditorWindow.cs
@@ -963,6 +976,7 @@ Sky	MainWindow.xaml.cs
 Slides the object in a straight line to another object or to a point.	step move
 Slot size (px)	behavior Hotbar
 Slow-down steps (0=none)	behavior Patrol
+Slower is longer and deeper, faster is shorter and higher — like a tape.	AudioEditorWindow.cs
 Small (16 px)	behavior DayNight
 Small (24)	behavior Terrain
 Smart Chase (pathfinding)	behavior PathChase
@@ -977,9 +991,11 @@ Solid blocks stop this light (0/1)	behavior LightSource
 Solid tile	MainWindow.xaml.cs
 Something you chop or mine with a tool. It takes 'hits' hits from the right tool (e.g. axe), shaking each time; on the last hit it falls and gives 'amount' of 'drop' (e.g. 5 wood). Needs a player with Tool Use.	behavior Harvestable
 Sound	behavior SoundEmitter, BlockEditorWindow.Palette.cs, step category, step playsound
+Sound editor	AudioEditorWindow.cs
 Sound effects	behavior SoundEmitter, BlockEditorWindow.Palette.cs
 Sound file	behavior SoundEmitter, MainWindow.xaml.cs
 Sound for the {0}	MainWindow.Params.cs
+Sound name:	AudioEditorWindow.cs
 Sounds per item	behavior ToolUse
 Sounds per item (default = the sound above)	MainWindow.Params.cs
 Space	ParamSources.cs
@@ -1008,6 +1024,7 @@ Start at night (0/1)	behavior DayNight
 Start this object on the ground	behavior Terrain
 Starting slot	behavior Hotbar
 Starts	SequenceEditorWindow.cs
+Starts silent and grows to full volume.	AudioEditorWindow.cs
 Starts when	behavior BossAI
 Starts with	MainWindow.Params.cs
 Static	MainWindow.xaml.cs
@@ -1049,6 +1066,8 @@ Text (| = next line)	step say
 Text variable	BlockEditorWindow.Palette.cs, step settext
 Text — {variable} shows a value	behavior Label
 That project file no longer exists.	LauncherWindow.xaml.cs
+The WAV file has no sound data.	AudioEdit.cs
+The WAV file has no sound format.	AudioEdit.cs
 The answer took too long and was cancelled.	OllamaClient.cs
 The boss (self)	SequenceEditorWindow.cs
 The boss glows and shakes so the player sees the attack coming.	step telegraph
@@ -1069,6 +1088,7 @@ The model "{0}" isn't downloaded. Run this in a terminal:	OllamaClient.cs
 The name can't be empty.	PrefabRename.cs
 The name is empty.	ProjectIO.cs
 The new theme is used when EasyEngine starts again.	SettingsWindow.cs
+The original sound is kept; the edited one is saved next to it	AudioEditorWindow.cs
 The player	SequenceEditorWindow.cs
 The player comes close	behavior BossAI
 The player enters this object's area	behavior Cutscene
@@ -1076,6 +1096,7 @@ The player starts with it	NewItemDialog.cs
 The player's keys and clicks stop working (Enter still advances dialogue).	step lock
 The same every time (built once)	behavior Generator
 The scene starts	behavior BossAI, behavior Cutscene
+The sound file is missing.	AudioEditorWindow.cs
 The steps run one after another, top to bottom. Steps like Say, Wait, Move or Camera wait until they're done.	SequenceEditorWindow.cs
 The target PC needs the free .NET 8 Desktop Runtime (couldn't find the SDK to make a self-contained build).	MainWindow.xaml.cs
 The update couldn't be downloaded:	UpdatePrompt.cs
@@ -1083,8 +1104,11 @@ The whole scene	behavior StayInside
 The world just ends (you can fall off)	behavior Terrain
 Theme updated	MainWindow.AiApply.cs
 These steps play when its health reaches 0 (it can't be hurt and doesn't hurt anymore). Then its Custom 'death' rules run and it disappears. Leave it empty to make it disappear at once.	SequenceEditorWindow.cs
+This is not a WAV file.	AudioEdit.cs
+This kind of WAV can't be edited ({0}-bit, format {1}).	AudioEdit.cs
 This object (self)	SequenceEditorWindow.cs
 This object has no image to trim to.	MainWindow.Hitbox.cs
+This sound is empty.	AudioEditorWindow.cs
 Tight platformer movement: run, jump (variable height), coyote time, jump buffer, optional double jump, wall jump and dash. 'controls' = respond to the default keys (arrows/A-D/Space). Turn it off for enemies so they don't copy the player — then set custom keys or move it with a script.	behavior Platformer
 Tile (repeat)	MainWindow.xaml.cs
 Tile color	MainWindow.xaml.cs
@@ -1273,6 +1297,7 @@ left	BlockEditorWindow.Palette.cs
 less than	behavior Gate
 linear	BlockEditorWindow.Palette.cs
 midnight	BlockEditorWindow.Palette.cs
+mono	AudioEditorWindow.cs
 more than	behavior Gate
 moved "{0}" into the Sky layer	Model.cs
 moved the Sky layer to the bottom	Model.cs
@@ -1286,6 +1311,7 @@ right	BlockEditorWindow.Palette.cs
 scroll	MainWindow.xaml.cs
 self	BlockEditorWindow.cs
 shown	MainWindow.xaml.cs
+stereo	AudioEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
@@ -1314,6 +1340,9 @@ y	step camera, step move, step moveto, step spawn
 {0} phases	SequenceModel.cs
 {0} platforms	MainWindow.AiLevel.cs
 {0} rate limit reached.	CloudClient.cs
+{0} s	AudioEditorWindow.cs
+{0} s · {1} Hz · {2}	AudioEditorWindow.cs
+{0} semitones	AudioEditorWindow.cs
 {0} spikes	MainWindow.AiLevel.cs
 {0} steps	MainWindow.AiLevel.cs, SequenceModel.cs
 {0} took too long and was cancelled.	CloudClient.cs
@@ -1338,15 +1367,22 @@ y	step camera, step move, step moveto, step spawn
 ↔ Left and right	behavior Patrol
 ↕ Up and down	behavior Patrol
 ↖ Up-left	behavior Projectile
+↗ Fade in	AudioEditorWindow.cs
 ↗ Up-right	behavior Projectile
 ↘ Down-right	behavior Projectile
+↘ Fade out	AudioEditorWindow.cs
 ↙ Down-left	behavior Projectile
+↺ Keep it all	AudioEditorWindow.cs
+↺ No effects	AudioEditorWindow.cs
 ↻  Restart now	SettingsWindow.cs
+⇆ Reverse (play backwards)	AudioEditorWindow.cs
 ⌫ Eraser	SpriteEditorWindow.cs
 ① Get free key (opens the site)	MainWindow.xaml.cs
 ② Paste your key here:	MainWindow.xaml.cs
+■ Stop	AudioEditorWindow.cs
 ▫ An empty block (underground)	MainWindow.TerrainBlocks.cs
 ▶  Test	MainWindow.xaml
+▶ Play	AudioEditorWindow.cs
 ▸ Advanced — paid keys, offline AI	MainWindow.xaml
 ◆ Shape	SpriteEditorWindow.cs
 ☁ Cloud selected — add a free API key below (any provider works).	MainWindow.xaml.cs
@@ -1374,6 +1410,8 @@ y	step camera, step move, step moveto, step spawn
 ⚠ The JSON couldn't be read ({0}). Saving here replaces it.	SequenceEditorWindow.cs
 ⚠ The scene changed while the AI was working — not applied.	MainWindow.Sequences.cs
 ⚡ Local — fastest (1.5b)	MainWindow.xaml
+✂ CUT — drag the two handles to keep only a part	AudioEditorWindow.cs
+✂ Edit…	MainWindow.xaml.cs
 ✂ Trim box to drawing	MainWindow.Hitbox.cs
 ✎ Draw path	MainWindow.xaml.cs
 ✏ Pencil	SpriteEditorWindow.cs
@@ -1397,6 +1435,7 @@ y	step camera, step move, step moveto, step spawn
 🌼 Flowers on the surface	MainWindow.TerrainBlocks.cs
 🍄 Moss around caves	MainWindow.TerrainBlocks.cs
 🎓 Learn	MainWindow.xaml
+🎛 EFFECTS	AudioEditorWindow.cs
 🎞 Animate	MainWindow.Tiles.cs
 🎞 Edit Animations…	MainWindow.xaml.cs
 🎨  Draw a sprite	AnimationWindow.xaml
@@ -1404,7 +1443,10 @@ y	step camera, step move, step moveto, step spawn
 🎨 Draw	MainWindow.Tiles.cs
 🎨 Draw frame	AnimationWindow.xaml
 🎬 Cutscene — Advanced Scratch	SequenceEditorWindow.cs
+🎵 Pitch	AudioEditorWindow.cs
+🏔 Echo	AudioEditorWindow.cs
 🏜 A sand biome (an area of columns)	MainWindow.TerrainBlocks.cs
+🐢 Speed	AudioEditorWindow.cs
 👑 Boss — Advanced Scratch	SequenceEditorWindow.cs
 💀 When it dies	SequenceEditorWindow.cs
 💉 Pick	SpriteEditorWindow.cs
@@ -1414,12 +1456,15 @@ y	step camera, step move, step moveto, step spawn
 💳 Custom — any OpenAI-compatible (your API key)	MainWindow.xaml
 💳 DeepSeek (your API key)	MainWindow.xaml
 💳 OpenAI / ChatGPT (your API key)	MainWindow.xaml
+💾 Save as new sound	AudioEditorWindow.cs
 📂  Open Project…	LauncherWindow.xaml
 📈 Phases	SequenceEditorWindow.cs
 📋 Copy look	MainWindow.xaml.cs
 📎 Add files (images / audio)	MainWindow.xaml
 📚  Recipes	BlockEditorWindow.Recipes.cs
 📥 Paste look	MainWindow.xaml.cs
+🔊 RESULT	AudioEditorWindow.cs
+🔊 Volume	AudioEditorWindow.cs
 🔍  Interface size	SettingsWindow.cs
 🔒 Locked	MainWindow.LockZ.cs
 🔓 Unlocked	MainWindow.LockZ.cs
