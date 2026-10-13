@@ -43,6 +43,8 @@ namespace EasyEngine
             var status = await win.TestAskAi(request);
             var json = win.SerializeTest();
             try { win.Close(); } catch { }
+            if (status.StartsWith("⚠") && (status.Contains("limit", StringComparison.OrdinalIgnoreCase) || status.Contains("quota", StringComparison.OrdinalIgnoreCase)))
+                throw new CloudException(status) { RateLimited = true }; // the provider was busy: no answer to grade (the window only shows it)
             if (custom == null) { custom = new BehaviorData { Kind = BehaviorKind.Custom }; obj.Behaviors.Add(custom); }
             custom.Texts["script"] = json;
             return (status.StartsWith("✓"), status.Replace("\n", " "), json);

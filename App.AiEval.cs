@@ -94,7 +94,7 @@ namespace EasyEngine
                 finally { kit.Dispose(); }
                 var line = $"{verdict}  [{c.Id}] {c.Prompt}  ({sw.Elapsed.TotalSeconds:0.0}s)\n{detail}\n";
                 try { File.AppendAllText(log, line); } catch { }
-                if (cloud) await Task.Delay(1500); // be gentle with the free tiers' per-minute limits
+                if (cloud) await Task.Delay(6000); // be gentle with the free tiers' per-minute limits (Groq: ~7k input tokens a minute)
             }
             var total = $"\n{pass}/{n - skipped} passed" + (skipped > 0 ? $" ({skipped} skipped: no AI answer)" : "") + (fails.Count > 0 ? "  — failed: " + string.Join(", ", fails) : "  — ALL PASS") + "\n";
             try { File.AppendAllText(log, total); } catch { }

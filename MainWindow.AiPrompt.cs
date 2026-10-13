@@ -84,10 +84,10 @@ namespace EasyEngine
               "The PLAYER is the object with Platformer (or TopDown): change it with \"edit\" by its name, never create another. Platformer nums: speed, jump, doubleJump/wallJump/dash (0 or 1). Hearts = Health nums.max.",
               BehaviorKind.Platformer, BehaviorKind.Health),
             H("enemy enemies inimigo monster monstro slime patrol patrulha walks anda back forth chase chases persegue follows segue flee foge away near perto",
-              "Enemy = physics Dynamic + Health (respawn 0) + Damager (target Player) + a mover: Patrol (back and forth) or Chase (target Player). Run away from the player (always): {\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(self.cx - Player.cx) * 160\"}.",
+              "Enemy = physics Dynamic + Health (respawn 0) + Damager (target Player) + a mover: Patrol (back and forth) or Chase (target Player). Run away from the player (always): {\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"to\":\"sign(self.cx - Player.cx) * 160\"}.",
               BehaviorKind.Health, BehaviorKind.Damager, BehaviorKind.Patrol, BehaviorKind.Chase),
             H("near perto close closer proximo distance distancia within pixels",
-              "Only when the player is near: two rules — {\"when\":\"always\",\"cond\":\"dist(self.cx,self.cy,Player.cx,Player.cy) < 250\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"sign(Player.cx - self.cx) * 150\"} and the same with \"cond\":\"dist(self.cx,self.cy,Player.cx,Player.cy) >= 250\" setting vx to 0."),
+              "Only when the player is near: two rules — {\"when\":\"always\",\"cond\":\"dist(self.cx,self.cy,Player.cx,Player.cy) < 250\",\"do\":\"set\",\"prop\":\"vx\",\"to\":\"sign(Player.cx - self.cx) * 150\"} and the same with \"cond\":\"dist(self.cx,self.cy,Player.cx,Player.cy) >= 250\" setting vx to 0."),
             H("shoot shoots atira atirar turret torre gun arma bullet bala fire dispara",
               "Shooting by itself: Shooter texts{key:\"\",aim:\"Player\"} nums{directions:1,cooldown:2} (no key = fires on its own). Or a rule {\"when\":\"timer\",\"every\":1,\"do\":\"shoot\",\"directions\":1,\"at\":\"Player\"} (add a \"cond\" to limit it, e.g. \"Player.cx < self.cx\" = player on its left).",
               BehaviorKind.Shooter),
@@ -99,7 +99,7 @@ namespace EasyEngine
             H("fade sumir some desaparec vanish glide desliz grow cresce shrink encolhe pulse pulsa blink pisca opacity invisible invisivel transpar slowly devagar smooth hide esconde show",
               "Smooth change: {\"do\":\"tween\",\"prop\":\"opacity|scale|x|y|rot|w|h\",\"to\":0,\"duration\":2} (+ \"loop\":1,\"yoyo\":1 to repeat back and forth). Fade out after 5 s: {\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":3}. Blink: {\"when\":\"start\",\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":0.5,\"loop\":1,\"yoyo\":1}. Invisible at once: the object's \"opacity\":0, or do:hide / do:show."),
             H("move moving moves mexe anda right left direita esquerda circle circulo follow follows segue mouse teleport teleporta position posição keeps",
-              "Movement rules: keeps moving right {\"when\":\"always\",\"do\":\"velocity\",\"vx\":150,\"vy\":0}; follow the mouse {\"when\":\"always\",\"do\":\"set\",\"prop\":\"x\",\"expr\":\"mousex - self.w/2\"} and the same for y; a circle {\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"expr\":\"-sin(time*2) * 200\"} plus vy with cos; teleport {\"do\":\"set\",\"prop\":\"x\",\"to\":600}."),
+              "Movement rules: keeps moving right {\"when\":\"always\",\"do\":\"velocity\",\"vx\":150,\"vy\":0}; follow the mouse {\"when\":\"always\",\"do\":\"set\",\"prop\":\"x\",\"to\":\"mousex - self.w/2\"} and the same for y; a circle {\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"to\":\"-sin(time*2) * 200\"} plus vy with cos; teleport {\"do\":\"set\",\"prop\":\"x\",\"to\":600}."),
             H("press presses key tecla aperta apertar hold holds segura near perto button",
               "Keys: {\"when\":\"keypress\",\"key\":\"E\",…} once per press; {\"when\":\"key\",\"key\":\"R\",…} every moment while held. Only near something (on the player): \"cond\":\"dist(self.cx,self.cy,Shopkeeper.cx,Shopkeeper.cy) < 120\"."),
             H("touch touches encosta encostar toca tocar collect collects coleta pega pegar hit bate collide step steps pisa pisar lands",
@@ -192,7 +192,9 @@ namespace EasyEngine
             sb.AppendLine("RULE = {\"when\":EVENT, event params, \"do\":ACTION, action params, \"cond\":\"optional formula\"} — custom rules are ADDED to an object's rules.");
             sb.AppendLine("- New thing → \"create\" (inside the scene). Existing object (SCENE below) → \"edit\" with its exact name. Change only what is asked.");
             sb.AppendLine("- Any number may be a formula: \"Player.x - self.x\", \"rand(1,3)\", \"score * 2\" (self.cx/cy/w/h/health, Name.x, time, mousex). x grows right, y grows DOWN.");
-            sb.AppendLine("Shapes: change a behavior {\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":400}}]}]} · a new thing {\"create\":[{\"name\":\"Coin\",\"x\":500,\"y\":420,\"width\":24,\"height\":24,\"color\":\"#FFD700\",\"behaviors\":[{\"kind\":\"Collectible\"}]}]} · a rule {\"edit\":[{\"name\":\"Box\",\"custom\":[{\"when\":\"timer\",\"every\":2,\"do\":\"jump\",\"force\":600}]}]}");
+            var examples = ExamplesFor(request);
+            if (examples.Count > 0) foreach (var (ask, json) in examples) sb.AppendLine($"Example — \"{ask}\" → {json}");
+            else sb.AppendLine("Shapes: change a behavior{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":400}}]}]} · a new thing {\"create\":[{\"name\":\"Coin\",\"x\":500,\"y\":420,\"width\":24,\"height\":24,\"color\":\"#FFD700\",\"behaviors\":[{\"kind\":\"Collectible\"}]}]} · a rule {\"edit\":[{\"name\":\"Box\",\"custom\":[{\"when\":\"timer\",\"every\":2,\"do\":\"jump\",\"force\":600}]}]}");
             sb.AppendLine("Behaviors: " + string.Join(", ", kinds.Select(i => i.Kind)));
             sb.AppendLine("EVENTS: " + string.Join(", ", AiSpecFix.Events.Where(e => e is not ("keydown" or "hover"))));
             sb.AppendLine("ACTIONS: " + string.Join(", ", AiSpecFix.Actions.Where(a => a != "accel")));

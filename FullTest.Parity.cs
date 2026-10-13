@@ -160,7 +160,7 @@ public partial class App
         }
         foreach (var (label, json) in BlockEditorWindow.Recipes()) AddRules("recipe " + label, json);
         var ed = NewParityEditor(dir);
-        foreach (var text in new[] { ed.TestBuildPrompt(), EasyEngine.MainWindow.HintsText }) // every rule the build prompt can show
+        foreach (var text in new[] { ed.TestBuildPrompt(), EasyEngine.MainWindow.HintsText, EasyEngine.MainWindow.ExamplesText }) // every rule the build prompt can show
             foreach (var obj in JsonObjectsIn(text)) AddRules("build prompt", obj);
         // what models write: formulas in number fields (quoted or "expr: …"), the game's other key names, choices, aims
         foreach (var r in new[]

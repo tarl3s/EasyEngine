@@ -135,9 +135,27 @@ namespace EasyEngine
             sb.AppendLine("A new variable or item name is fine when the description needs one (short, camelCase).");
             sb.AppendLine();
             sb.AppendLine("EXAMPLES");
-            foreach (var (ask, json) in AiExamples) sb.AppendLine($"\"{ask}\" -> {json}");
+            // the closest whole examples of the Build panel, as rules only — else a few fixed ones
+            var near = MainWindow.ExamplesFor(request, 3).Select(e => (e.ask, json: AsRules(e.json))).Where(e => e.json != null).ToList();
+            foreach (var (ask, json) in near.Count > 0 ? near! : AiExamples.Take(3)) sb.AppendLine($"\"{ask}\" -> {json}");
             if (!L.IsEnglish) sb.AppendLine(L.AiReplyRule + " That includes the words of a say or log action; ids, field names and variable names stay in English.");
             return sb.ToString();
+        }
+
+        // {"edit":[{"name":"Box","custom":[…]}]} → {"rules":[…]} (null when the example has no rules)
+        private static string? AsRules(string buildJson)
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(buildJson);
+                var rules = new List<string>();
+                foreach (var key in new[] { "edit", "create" })
+                    if (doc.RootElement.TryGetProperty(key, out var arr))
+                        foreach (var o in arr.EnumerateArray())
+                            if (o.TryGetProperty("custom", out var c)) rules.AddRange(c.EnumerateArray().Select(r => r.GetRawText()));
+                return rules.Count > 0 ? "{\"rules\":[" + string.Join(",", rules) + "]}" : null;
+            }
+            catch (System.Text.Json.JsonException) { return null; }
         }
 
         private static readonly (string ask, string json)[] AiExamples =
