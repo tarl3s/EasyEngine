@@ -149,6 +149,13 @@ public partial class App
             count.TSteps(30); double start = count.TVar("timer"); count.TSteps(40);
             return lo < 0.2 && x1 - x0 > 100 && y1 - y0 > 100 && start == 60 && count.TVar("timer") == 59;
         });
+        t.Test("ai: a button / door whose scene came under another name (\"to\":\"Level2\") still goes there", () =>
+        {
+            var ed = NewEditor();
+            ed.TestApplySpec("{\"create\":[{\"name\":\"StartButton\",\"behaviors\":[{\"kind\":\"UIButton\",\"nums\":{\"to\":\"Level2\"}}]},{\"name\":\"Door\",\"behaviors\":[{\"kind\":\"GoToScene\",\"texts\":{\"level\":\"Level3\"}}]}]}");
+            return ed.TestFindObject("StartButton")?.Behaviors.First(b => b.Kind == BehaviorKind.UIButton).Text("scene", "") == "Level2"
+                   && ed.TestFindObject("Door")?.Behaviors.First(b => b.Kind == BehaviorKind.GoToScene).Text("scene", "") == "Level3";
+        });
         t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
         {
             var sys = NewEditor().TestBuildPrompt();

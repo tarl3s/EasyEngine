@@ -249,6 +249,13 @@ namespace EasyEngine
                 if (info.Nums.Any(n => n.Key.Equals(kv.Key, StringComparison.OrdinalIgnoreCase))) { nums[kv.Key] = kv.Value?.DeepClone(); item.Remove(kv.Key); }
                 else if (info.Texts.Any(t => t.Key.Equals(kv.Key, StringComparison.OrdinalIgnoreCase))) { texts[kv.Key] = kv.Value?.DeepClone(); item.Remove(kv.Key); }
             }
+            // a button / zone / door whose scene was written under another name ("to":"Level2", "level":"Level2")
+            if (info.Kind is BehaviorKind.UIButton or BehaviorKind.Area or BehaviorKind.GoToScene && texts["scene"] == null)
+                foreach (var bag in new[] { texts, nums, item })
+                    foreach (var k in new[] { "to", "goto", "level", "destination", "target" })
+                        if (texts["scene"] == null && bag[k] is JsonValue sv && sv.TryGetValue<string>(out var sc) && sc.Length > 0 && !LooseJson.TryParse(sc, out _)
+                            && !(k == "target" && info.Kind == BehaviorKind.Area)) // an Area's "target" is who enters
+                        { texts["scene"] = sc; bag.Remove(k); }
             foreach (var kv in nums.ToList())
             {
                 var np = info.Nums.FirstOrDefault(n => n.Key.Equals(kv.Key, StringComparison.OrdinalIgnoreCase));
