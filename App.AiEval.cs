@@ -71,7 +71,15 @@ namespace EasyEngine
                     if (c.Select != null) ed.EvalSelect(c.Select);
                     var before = c.Learn ? JsonSerializer.Serialize(kit.P) : "";
                     var (ok, summary, reply) = c.Learn ? (true, "", await ed.EvalLearn(c.Prompt))
-                                             : c.Seq is SeqMode mode ? await ed.EvalSequence(mode, c.SeqObject, c.Prompt) : await ed.EvalBuild(c.Prompt);
+                                             : c.Seq is SeqMode mode ? await ed.EvalSequence(mode, c.SeqObject, c.Prompt)
+                                             : c.Blocks != null ? await ed.EvalBlocks(c.Blocks, c.Prompt)
+                                             : await ed.EvalBuild(c.Prompt);
+                    foreach (var more in c.Then ?? Array.Empty<string>()) // a conversation: each request builds on the last
+                    {
+                        if (cloud) await Task.Delay(1500);
+                        var (ok2, summary2, reply2) = await ed.EvalBuild(more);
+                        ok &= ok2; summary += "  ⟶  " + summary2; reply += "\n--- then: " + more + " ---\n" + reply2;
+                    }
                     if (c.Learn) { kit.Answer = reply; kit.Changed = JsonSerializer.Serialize(kit.P) != before; }
                     string? why;
                     try { why = ok ? c.Check(kit) : "nothing was applied"; }
@@ -103,8 +111,10 @@ namespace EasyEngine
             public string Id = "", Prompt = "";
             public Action<AiEvalKit>? Setup;
             public string[]? Select;
-            public SeqMode? Seq; public string SeqObject = "";
-            public bool Learn; // 🎓 Learn mode: a question; the check reads the answer (and the project must not change) // a Boss AI / Cutscene card's "✨ Ask the AI" instead of the panel
+            public SeqMode? Seq; public string SeqObject = ""; // a Boss AI / Cutscene card's "✨ Ask the AI" instead of the panel
+            public bool Learn;           // 🎓 Learn mode: a question; the check reads the answer (and the project must not change)
+            public string? Blocks;       // the block editor's "✨ Ask the AI" on this object instead of the panel
+            public string[]? Then;       // more requests after the first, in the same scene (a conversation)
             public Func<AiEvalKit, string?> Check = _ => null; // null = pass, else why it failed
         }
 
@@ -620,6 +630,123 @@ namespace EasyEngine
             Ask("learn-boss", "how do I make a boss with phases?", "Boss AI", "BossAI", "phase");
             Ask("learn-blocks", "what is the block editor for?", "when", "rule");
             Ask("pt-learn-spawn", "como faço inimigos aparecerem a cada 3 segundos?", "Spawner", "spawn", "timer");
+
+            // ---------- harder: several mechanics at once ----------
+            void Touch(AiEvalKit k, PlayWindow pw, string name, double secs = 0.4) { k.PutPlayerOn(pw, k.Obj(name)!); AiEvalKit.Run(pw, secs); }
+            void Press(PlayWindow pw, string key) { pw.TKey(key, true); AiEvalKit.Run(pw, 0.1); pw.TKey(key, false); AiEvalKit.Run(pw, 0.2); }
+            C("near-chase", "the Enemy chases the player only when the player is closer than 250 pixels; otherwise it stands still", k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 1); double x0 = pw.TX("Enemy"); AiEvalKit.Run(pw, 1);
+                if (Math.Abs(pw.TX("Enemy") - x0) > 15) return $"moved {pw.TX("Enemy") - x0:0}px with the player far away";
+                pw.TPlace("Player", pw.TX("Enemy") - 180, 396); AiEvalKit.Run(pw, 0.2); double d0 = AiEvalKit.Dist(pw, "Enemy", "Player"); AiEvalKit.Run(pw, 1.5);
+                return Need(AiEvalKit.Dist(pw, "Enemy", "Player") < d0 - 40, $"didn't chase when near ({d0:0} → {AiEvalKit.Dist(pw, "Enemy", "Player"):0})");
+            }, k => k.AddEnemy("Enemy", 780));
+            C("lava-lives", "the player has 3 lives shown on the screen. Touching the Lava takes away a life and sends the player back to the start. When the lives run out, go to the GameOver scene", k =>
+            {
+                if (!k.Objs.Any(o => AiEvalKit.Beh(o, BehaviorKind.Label)?.Text("text", "").Contains('{') == true)) return "the lives aren't shown";
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.5);
+                for (int i = 0; i < 4 && pw.TScene != "GameOver"; i++) { pw.TPlace("Player", 430, 386); AiEvalKit.Run(pw, 1.6); }
+                return Need(pw.TScene == "GameOver", "4 touches of the Lava didn't end the game");
+            }, k => { k.AddScene("GameOver"); k.Add("Lava", 400, 440, 120, 20, "#FF5500"); });
+            C("all-coins", "when the player has collected all 3 coins, go to Level2", k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.3); Touch(k, pw, "Coin"); Touch(k, pw, "Coin2");
+                if (pw.TScene == "Level2") return "left after 2 coins";
+                Touch(k, pw, "Coin3", 0.6);
+                return Need(pw.TScene == "Level2", "still here after the 3rd coin");
+            }, k => { k.AddScene("Level2"); foreach (var (n, x) in new[] { ("Coin", 300), ("Coin2", 450), ("Coin3", 600) }) k.Add(n, x, 400, 24, 24, "#FFD700", PhysicsMode.None, BehaviorKind.Collectible); });
+            C("turret-front", "the Turret shoots at the player every second, but only while the player is to its left", k =>
+            {
+                var pw = k.Play(); int left = AiEvalKit.Spawned(pw, 3.2);
+                pw.TPlace("Player", 900, 396); AiEvalKit.Run(pw, 0.5); int right = AiEvalKit.Spawned(pw, 3);
+                return Need(left >= 2, $"{left} shots with the player on its left") ?? Need(right == 0, $"{right} shots with the player on its right");
+            }, k => k.Add("Turret", 700, 380, 40, 40, "#777788"));
+            C("star-doubles", "every time the player touches a Star, the score doubles and that Star disappears", k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.2); Touch(k, pw, "Star");
+                double s1 = pw.TVar("score"); Touch(k, pw, "Star2");
+                return Need(s1 == 2 && pw.TVar("score") == 4, $"score 1 → {s1} → {pw.TVar("score")}") ?? Need(pw.TDead("Star") && pw.TDead("Star2"), "a Star is still there");
+            }, k => { k.P.Variables["score"] = 1; k.Add("Star", 300, 380, 32, 32, "#FFE066"); k.Add("Star2", 520, 380, 32, 32, "#FFE066"); });
+            C("platform-after-step", "the Platform starts moving up and down only after the player steps on it", k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 1); double y0 = pw.TY("Platform"); AiEvalKit.Run(pw, 1);
+                if (Math.Abs(pw.TY("Platform") - y0) > 2) return "moved before the player stepped on it";
+                pw.TPlace("Player", 330, 316); double lo = 1e9, hi = -1e9; AiEvalKit.Run(pw, 3, p => { lo = Math.Min(lo, p.TY("Platform")); hi = Math.Max(hi, p.TY("Platform")); });
+                return Need(hi - lo > 20, $"moved {hi - lo:0}px after the player stood on it");
+            }, k => k.Add("Platform", 300, 380, 140, 20, "#6B5B45", PhysicsMode.Static, BehaviorKind.Solid));
+            C("night-spawn", "spawn an Enemy every 2 seconds, but only at night", k =>
+            {
+                var pw = k.Play(); pw.TSetTimeNow("noon"); AiEvalKit.Run(pw, 0.3); int day = AiEvalKit.Spawned(pw, 4.5);
+                pw.TSetTimeNow("midnight"); AiEvalKit.Run(pw, 0.3); int night = AiEvalKit.Spawned(pw, 4.5);
+                return Need(day == 0, $"{day} spawned by day") ?? Need(night >= 1, "nothing spawned at night");
+            }, k => { k.Add("Sky", 0, 0, 10, 10, "#00000000", PhysicsMode.None, BehaviorKind.DayNight); k.AddEnemy("Enemy", 800); });
+            C("shop", "when I press E near the Shopkeeper and have at least 10 coins, I pay 10 coins and get a Sword", k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.3); pw.TPlace("Player", 900, 396); AiEvalKit.Run(pw, 0.2); Press(pw, "E");
+                if (pw.TVar("coins") != 15) return "paid while far from the Shopkeeper";
+                pw.TPlace("Player", 330, 396); AiEvalKit.Run(pw, 0.2); Press(pw, "E");
+                if (pw.TVar("coins") != 5 || pw.TItem("Sword") < 1) return $"near: coins {pw.TVar("coins")}, swords {pw.TItem("Sword")}";
+                Press(pw, "E");
+                return Need(pw.TVar("coins") == 5, "paid again with only 5 coins");
+            }, k => { k.P.Variables["coins"] = 15; k.Add("Shopkeeper", 300, 396, 40, 64, "#8E6CFF"); });
+            C("combo", "every time I press J, add 1 to combo. If I don't press J for 1 second, combo goes back to 0. When combo reaches 3, show the message 'Combo!' and set combo to 0", k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.3); Press(pw, "J"); Press(pw, "J");
+                if (pw.TVar("combo") != 2) return $"combo is {pw.TVar("combo")} after 2 presses";
+                AiEvalKit.Run(pw, 1.5);
+                if (pw.TVar("combo") != 0) return $"combo didn't go back to 0 ({pw.TVar("combo")})";
+                Press(pw, "J"); Press(pw, "J"); Press(pw, "J"); AiEvalKit.Run(pw, 0.2);
+                return Need(pw.TDialog || pw.TDialogQueued > 0, "no 'Combo!' after 3 quick presses");
+            });
+            C("health-pickup", "when the player touches the Heart, the player gets 1 health back (never more than the maximum) and the Heart disappears", k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.3); pw.TSetHp("Player", 1); AiEvalKit.Run(pw, 0.1); Touch(k, pw, "Heart");
+                return Need(pw.THp("Player") == 2, $"health is {pw.THp("Player")}") ?? Need(pw.TDead("Heart") || pw.TOpacity("Heart") < 0.05, "the Heart is still there");
+            }, k => k.Add("Heart", 300, 400, 28, 28, "#FF4D6D"));
+            C("pt-door-key", "quando o jogador apertar F perto da Porta e tiver a chave (hasKey igual a 1), a Porta some", k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.3); pw.TPlace("Player", 450, 396); AiEvalKit.Run(pw, 0.2); Press(pw, "F");
+                if (pw.TDead("Porta") || pw.TOpacity("Porta") < 0.05) return "opened without the key";
+                pw.TSetVar("hasKey", 1); Press(pw, "F"); AiEvalKit.Run(pw, 0.5);
+                return Need(pw.TDead("Porta") || pw.TOpacity("Porta") < 0.05, "didn't open with the key");
+            }, k => { k.P.Variables["hasKey"] = 0; k.Add("Porta", 500, 364, 40, 96, "#8B5A2B"); });
+            C("level-boss", "build a level with 2 platforms and 3 coins, and at the end put a boss with 10 health that chases the player", k =>
+            {
+                int plats = k.NewWith(BehaviorKind.Solid).Count(), coins = k.NewWith(BehaviorKind.Collectible).Count();
+                var boss = k.New.FirstOrDefault(o => AiEvalKit.Beh(o, BehaviorKind.Health)?.Num("max") == 10);
+                return Need(plats >= 2 && coins >= 3, $"platforms {plats}, coins {coins}") ?? Need(boss != null, "no boss with 10 health")
+                    ?? Need(AiEvalKit.Has(boss!, BehaviorKind.Chase) || AiEvalKit.Has(boss!, BehaviorKind.BossAI) || AiEvalKit.Has(boss!, BehaviorKind.PathChase), "the boss doesn't chase");
+            });
+
+            // ---------- conversations: each request builds on the last ----------
+            cases.Add(new AiCase { Id = "talk-slime", Prompt = "create an enemy called Slime that walks back and forth", Then = new[] { "make the Slime faster", "when the Slime dies it explodes into particles" }, Check = k =>
+            {
+                var s = k.Obj("Slime"); if (s == null) return "no Slime";
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.3); pw.TSetHp("Slime", 0); AiEvalKit.Run(pw, 0.2);
+                return Need(AiEvalKit.Beh(s, BehaviorKind.Patrol)?.Num("speed") > AiEvalKit.Default(BehaviorKind.Patrol, "speed") || AiEvalKit.Rules(s).Count > 0, "the Slime isn't faster")
+                    ?? Need(pw.TParticles > 0, "no explosion when it dies");
+            } });
+            cases.Add(new AiCase { Id = "talk-player", Prompt = "give the player a double jump", Then = new[] { "also let the player dash", "and make the player red" }, Check = k =>
+            {
+                var p = AiEvalKit.Beh(k.Player, BehaviorKind.Platformer);
+                return Need(p?.Num("doubleJump") >= 0.5, "lost the double jump") ?? Need(p?.Num("dash") >= 0.5, "no dash") ?? Need(AiEvalKit.Reddish(k.Player.Color), "not red: " + k.Player.Color);
+            } });
+            cases.Add(new AiCase { Id = "talk-stop-spin", Prompt = "make the Box spin", Then = new[] { "stop the Box from spinning" }, Setup = box, Check = k =>
+            {
+                var pw = k.Play(); AiEvalKit.Run(pw, 0.5); double r0 = pw.TRot("Box"); AiEvalKit.Run(pw, 1);
+                return Need(Math.Abs(pw.TRot("Box") - r0) < 2, "still spinning");
+            } });
+
+            // ---------- the same logic through the block editor's ✨ Ask the AI (Scratch must do what the AI does) ----------
+            foreach (var (id, target) in new[] { ("fade-after", "Box"), ("pt-fade", "Box"), ("timer-jump", "Box"), ("follow-mouse", "Box"), ("rotate-hold-key", "Box"), ("circle", "Box"),
+                         ("blink", "Box"), ("grow-on-start", "Box"), ("invisible", "Box"), ("click-score", "Box"), ("enemy-flee", "Enemy"), ("enemy-explodes", "Enemy"),
+                         ("sign-touch-says", "Sign"), ("keep-old-rules", "Enemy"), ("teleport-key", "Player"), ("score-goal", "Player"), ("after-goscene", "Player"),
+                         ("player-dies-gameover", "Player"), ("boss-dies-goscene", "Boss"), ("near-chase", "Enemy"), ("turret-front", "Turret"), ("star-doubles", "Player"),
+                         ("shop", "Shopkeeper"), ("combo", "Player"), ("health-pickup", "Heart"), ("pt-door-key", "Porta") })
+            {
+                var src = cases.First(c => c.Id == id);
+                cases.Add(new AiCase { Id = "blocks-" + id, Prompt = src.Prompt, Setup = src.Setup, Check = src.Check, Blocks = target });
+            }
 
             // ---------- selection ----------
             C("selected-spin", "make it spin", k => Need(AiEvalKit.Has(k.Obj("Box")!, BehaviorKind.Spin) || AiEvalKit.Rules(k.Obj("Box")).Any(r => AiEvalKit.Is(r, "do", "rotate")), "the selected Box doesn't spin")

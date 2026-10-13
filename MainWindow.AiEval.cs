@@ -32,6 +32,21 @@ namespace EasyEngine
             return (result.Ok, ApplySeqAi(bh, mode, result), result.Ok ? result.Json : result.Error);
         }
         public Task<string> EvalLearn(string question) => TeachAsync(question);
+
+        /// <summary>The block editor's "✨ Ask the AI" on an object, as a person would use it: open the blocks, ask, Done.</summary>
+        public async Task<(bool ok, string summary, string reply)> EvalBlocks(string objectName, string request)
+        {
+            var obj = TestFindObject(objectName);
+            if (obj == null) return (false, "no object " + objectName, "");
+            var custom = obj.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
+            var win = new BlockEditorWindow(_project, _scene, custom?.Text("script", "[]") ?? "[]", obj, (u, s) => AiGenerateAsync(u, s, json: true, temperature: 0.1));
+            var status = await win.TestAskAi(request);
+            var json = win.SerializeTest();
+            try { win.Close(); } catch { }
+            if (custom == null) { custom = new BehaviorData { Kind = BehaviorKind.Custom }; obj.Behaviors.Add(custom); }
+            custom.Texts["script"] = json;
+            return (status.StartsWith("✓"), status.Replace("\n", " "), json);
+        }
         public bool EvalCompact { get; set; } // --aitest --compact: the cloud's shorter prompt on a local model too
         public List<GameObjectData> TestAllObjects() => _scene.Layers.SelectMany(l => l.Objects).ToList();
         public Project EvalProject => _project;
