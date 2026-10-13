@@ -1101,6 +1101,12 @@ namespace EasyEngine
                 if (en.Dead) continue; // dead this frame or earlier: never run its behaviors (death rules fire once)
                 foreach (var bh in en.Data.Behaviors)
                 {
+                    if (!BehaviorOn(en, bh)) // "only while": a behavior with texts.cond rests while that formula is false
+                    {
+                        if (bh.Kind is BehaviorKind.Patrol or BehaviorKind.Chase or BehaviorKind.PathChase or BehaviorKind.AdvancedPatrol)
+                        { en.VX = 0; if (en.Data.Physics.Mode != PhysicsMode.Dynamic) en.VY = 0; } // a resting mover stands still (gravity still pulls)
+                        continue;
+                    }
                     switch (bh.Kind)
                     {
                         case BehaviorKind.Platformer:
@@ -1959,7 +1965,7 @@ namespace EasyEngine
                     break;
                 case "touch":
                 {
-                    var o = _entities.FirstOrDefault(x => x != en && !x.Dead && x.Data.Name.Equals(r.WStr("name"), StringComparison.OrdinalIgnoreCase) && Overlap(en, x));
+                    var o = _entities.FirstOrDefault(x => x != en && !x.Dead && x.Data.Name.Equals(r.WStr("name"), StringComparison.OrdinalIgnoreCase) && Touching(en, x));
                     bool now = o != null;
                     fire = now && !r.WasTouching; // only on the frame contact STARTS (not every frame)
                     r.WasTouching = now;
@@ -2581,6 +2587,15 @@ namespace EasyEngine
 
         private static bool Overlap(Entity a, Entity b)
             => a.X < b.X + b.W && a.X + a.W > b.X && a.Y < b.Y + b.H && a.Y + a.H > b.Y;
+
+        // touching: overlapping, or resting against it (standing on a platform is touching it)
+        private static bool Touching(Entity a, Entity b)
+            => a.X <= b.X + b.W + 1 && a.X + a.W >= b.X - 1 && a.Y <= b.Y + b.H + 1 && a.Y + a.H >= b.Y - 1;
+
+        // Any behavior can be limited to "only while <formula>" (texts.cond): e.g. a Shooter with cond "Player.cx < self.cx"
+        // fires only while the player is on its left; a Patrol with cond "local.go >= 1" waits for a rule to set go.
+        private bool BehaviorOn(Entity en, BehaviorData bh)
+            => !bh.Texts.TryGetValue("cond", out var c) || string.IsNullOrWhiteSpace(c) || EvalExpr(c, en) != 0;
 
         private void BuildTilemap(GameObjectData obj, bool screenSpace, Entity en)
         {

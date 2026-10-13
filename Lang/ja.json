@@ -752,6 +752,7 @@
   "Only grass, dirt, stone and ore — add clouds, a deeper ore, a sand biome…": "草・土・石・鉱石だけです — 雲、より深い鉱石、砂のバイオームなどを追加しましょう…",
   "Only once (0/1)": "1 回だけ (0/1)",
   "Only run if… (optional)": "実行する条件…（任意）",
+  "Only while (a formula, optional)": "次の間だけ（数式、任意）",
   "Only works while standing on the ground. Bigger = higher.": "地面に立っているときだけ使えます。大きいほど高く跳びます。",
   "Opacity": "不透明度",
   "Opacity (0-1)": "不透明度 (0-1)",

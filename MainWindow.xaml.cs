@@ -1723,6 +1723,8 @@ namespace EasyEngine
                 }
                 foreach (var tp in info.Texts)
                     ParamRow(obj, bh, info, tp, panel); // every parameter is picked (dropdowns, pickers, item editor) — see MainWindow.Params.cs
+                // "only while": the behavior works only while this formula is true (empty = always) — the AI uses it too
+                TextRow(L.T("Only while (a formula, optional)"), bh.Text("cond", ""), v => { if (string.IsNullOrWhiteSpace(v)) bh.Texts.Remove("cond"); else bh.Texts["cond"] = v.Trim(); Dirty(); }, panel);
             }
 
             InspectorRoot.Children.Add(new Border

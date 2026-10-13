@@ -118,6 +118,30 @@ public partial class App
             && CloudClient.RetryAfterSeconds("try again in .s") == 0
             && CloudClient.PickModel("gemini", new[] { "gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.8-flash-tts", "gemini-flash-latest", "gemini-3.1-pro-preview" }) == "gemini-3.8-flash"
             && CloudClient.PickModel("openrouter", new[] { "x/paid", "google/gemma-4-31b-it:free", "nvidia/nemotron-3-super-120b-a12b:free" }) == "nvidia/nemotron-3-super-120b-a12b:free");
+        t.Test("behaviors: 'only while' (texts.cond) — a Shooter fires only while A is on its left; a Patrol waits until A stands on it", () =>
+        {
+            var s = t.Sim("[]", PhysicsMode.Dynamic, (p, sc) =>
+            {
+                var layer = sc.Layers.First(l => l.Kind == LayerKind.Base);
+                var turret = new GameObjectData { Id = 30, Name = "Turret", X = 600, Y = 100, Width = 40, Height = 40 };
+                var sh = BehaviorCatalog.Info(BehaviorKind.Shooter).CreateData();
+                sh.Texts["key"] = ""; sh.Texts["aim"] = "A"; sh.Nums["directions"] = 1; sh.Nums["cooldown"] = 0.5; sh.Texts["cond"] = "A.cx < self.cx";
+                turret.Behaviors.Add(sh);
+                var plat = new GameObjectData { Id = 31, Name = "Lift", X = 150, Y = 600, Width = 200, Height = 20, Physics = new PhysicsData { Mode = PhysicsMode.Static } };
+                plat.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Solid).CreateData());
+                var pat = BehaviorCatalog.Info(BehaviorKind.Patrol).CreateData(); pat.Nums["axis"] = 1; pat.Nums["distance"] = 100; pat.Texts["cond"] = "local.go >= 1";
+                plat.Behaviors.Add(pat);
+                plat.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] = "[{\"when\":\"touch\",\"name\":\"A\",\"do\":\"setlocal\",\"var\":\"go\",\"to\":1}]" } });
+                layer.Objects.Add(turret); layer.Objects.Add(plat);
+                var a = sc.Layers.SelectMany(l => l.Objects).First(o => o.Name == "A"); a.X = 1200; a.Y = 100; // far right, falling nowhere at first
+            });
+            int Shots(PlayWindow p, int frames) { var seen = new HashSet<object>(); p.TCollect(seen); int n0 = seen.Count; for (int i = 0; i < frames; i++) { p.TStep(); p.TCollect(seen); } return seen.Count - n0; }
+            s.TPlace("A", 1200, 100); int right = Shots(s, 60);
+            double ly = s.TY("Lift"); s.TSteps(30); bool liftWaits = Math.Abs(s.TY("Lift") - ly) < 1;
+            s.TPlace("A", 200, 536); int left = Shots(s, 60); // standing on the Lift (its top is y 600): touching it starts it
+            double lo = 1e9, hi = -1e9; for (int i = 0; i < 120; i++) { s.TStep(); lo = Math.Min(lo, s.TY("Lift")); hi = Math.Max(hi, s.TY("Lift")); }
+            return right == 0 && left >= 1 && liftWaits && hi - lo > 20;
+        });
         t.Test("rules: those started by the same key press decide first (pay 10 coins + get a Sword both happen); 'always' rules still chain", () =>
         {
             var s = t.Sim("[{\"when\":\"keypress\",\"key\":\"E\",\"cond\":\"coins >= 10\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":-10}," +

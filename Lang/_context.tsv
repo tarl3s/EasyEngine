@@ -747,6 +747,7 @@ Only breaks when	behavior Terrain, behavior Tilemap
 Only grass, dirt, stone and ore — add clouds, a deeper ore, a sand biome…	MainWindow.TerrainBlocks.cs
 Only once (0/1)	behavior Area, behavior Cutscene, behavior Interact
 Only run if… (optional)	BlockEditorWindow.cs
+Only while (a formula, optional)	MainWindow.xaml.cs
 Only works while standing on the ground. Bigger = higher.	BlockEditorWindow.Palette.cs
 Opacity	MainWindow.xaml.cs
 Opacity (0-1)	behavior Minimap
