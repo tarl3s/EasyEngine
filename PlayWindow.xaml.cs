@@ -868,9 +868,7 @@ namespace EasyEngine
 
         private Border MakeVisual(GameObjectData obj, Entity en)
         {
-            double corner = obj.CornerRadius >= 0
-                ? obj.CornerRadius
-                : (obj.Type is "Bullet" or "Particle" ? Math.Min(obj.Width, obj.Height) / 2 : 4);
+            double corner = obj.EffectiveCorner();
             var border = new Border
             {
                 Width = obj.Width, Height = obj.Height,

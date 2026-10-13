@@ -698,9 +698,7 @@ namespace EasyEngine
 
         private FrameworkElement MakeVisual(GameObjectData obj)
         {
-            double corner = obj.CornerRadius >= 0
-                ? obj.CornerRadius
-                : (obj.Type is "Bullet" or "Particle" ? Math.Min(obj.Width, obj.Height) / 2 : 4);
+            double corner = obj.EffectiveCorner();
             var border = new Border
             {
                 Width = obj.Width,
@@ -1461,7 +1459,7 @@ namespace EasyEngine
             if (obj.SpritePath != null || obj.Animations.Count > 0)
                 ComboRow(L.T("Image fit"), new[] { L.T("Stretch"), L.T("Tile (repeat)") }, obj.TileImage ? 1 : 0, i => { obj.TileImage = i == 1; RenderScene(); Dirty(); });
             SliderRow(L.T("Opacity"), obj.Opacity, 0, 1, v => { obj.Opacity = Math.Clamp(v, 0, 1); RenderScene(); Dirty(); }, percent: true);
-            NumRow(L.T("Corner radius"), obj.CornerRadius < 0 ? 4 : obj.CornerRadius, v => { obj.CornerRadius = Math.Max(0, v); RenderScene(); Dirty(); });
+            NumRow(L.T("Corner radius"), obj.EffectiveCorner(), v => { obj.CornerRadius = Math.Max(0, v); RenderScene(); Dirty(); });
             ColorRow(L.T("Border color"), obj.BorderColor ?? "#000000", v => { obj.BorderColor = v; Dirty(); });
             NumRow(L.T("Border width"), obj.BorderWidth, v => { obj.BorderWidth = Math.Max(0, v); Dirty(); });
             if (obj.Behaviors.Any(b => b.Kind == BehaviorKind.Label))

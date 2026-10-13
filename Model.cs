@@ -212,6 +212,12 @@ namespace EasyEngine
         public Dictionary<string, List<string>> Lists { get => _lists; set => _lists = VarScope.NewLists(value); } // list variables (ordered words)
         public string Group { get; set; } = ""; // organization tag (groups objects in the scene list)
 
+        /// <summary>The corner radius drawn: the one set, or automatic — square for an object with a picture (rounding
+        /// would clip the drawing's corners), round for bullets and particles, a slight 4 px otherwise.</summary>
+        public double EffectiveCorner() => CornerRadius >= 0 ? CornerRadius
+            : SpritePath != null || Animations.Count > 0 ? 0
+            : Type is "Bullet" or "Particle" ? Math.Min(Width, Height) / 2 : 4;
+
         public SpriteAnimation? ResolveDefaultAnimation()
         {
             if (Animations.Count == 0) return null;

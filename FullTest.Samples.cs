@@ -167,6 +167,15 @@ public partial class App
             w.Close();
             return drawn && undone && redone && cutBack && cancelled;
         });
+        t.Test("corners: an object with a picture has square corners by default (the drawing isn't clipped); a set radius still applies", () =>
+        {
+            var box = new GameObjectData { Width = 40, Height = 40 };
+            var pic = new GameObjectData { Width = 40, Height = 40, SpritePath = "Assets/sprites/hero.png" };
+            var anim = new GameObjectData { Width = 40, Height = 40 }; anim.Animations.Add(new SpriteAnimation { Frames = { "a.png" } });
+            var bullet = new GameObjectData { Width = 10, Height = 10, Type = "Bullet" };
+            var rounded = new GameObjectData { Width = 40, Height = 40, SpritePath = "Assets/sprites/hero.png", CornerRadius = 8 };
+            return box.EffectiveCorner() == 4 && pic.EffectiveCorner() == 0 && anim.EffectiveCorner() == 0 && bullet.EffectiveCorner() == 5 && rounded.EffectiveCorner() == 8;
+        });
         t.Test("copy look: an object gets another's sprite, animations, colour and border (its own copy of the lists)", () =>
         {
             var a = new GameObjectData { Name = "A", SpritePath = "Assets/sprites/slime.png", Color = "#123456", Opacity = 0.5, BorderWidth = 2, DefaultAnimation = "walk" };
