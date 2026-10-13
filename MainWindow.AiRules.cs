@@ -116,24 +116,84 @@ namespace EasyEngine
             catch (Exception) { summary = ""; return false; } // the panel then shows the raw reply
         }
 
-        // Small models often answer with an example from the prompt, word for word ("make a player that walks…") whatever
-        // was asked. Such a reply is not applied (the build retries) — unless the request really is that example's.
-        internal static bool CopiedAnExample(string system, string reply, string userPrompt)
+        // Small models often paste an example or a recipe from the prompt into their answer, word for word, whatever was asked
+        // ("make a player that walks…" → a second sword-wielding player; "when the score reaches 10" → the countdown recipe).
+        // Those pieces are taken out of the reply — unless the request is about that example/recipe — and the rest is
+        // applied. When nothing is left, the build asks again.
+        internal static string StripCopies(string system, string reply, string userPrompt, out bool nothingLeft)
         {
+            nothingLeft = false;
             var json = LooseJson.Extract(reply);
-            if (json == null) return false;
-            var answer = Squash(json);
+            if (json == null) return reply;
+            System.Text.Json.Nodes.JsonObject? root;
+            try { using var doc = JsonDocument.Parse(json, LooseJson.Options); root = LooseJson.Node(doc.RootElement) as System.Text.Json.Nodes.JsonObject; }
+            catch (Exception) { return reply; }
+            if (root == null) return reply;
+
+            var asked = Words(userPrompt);
+            var copies = CopyCandidates(system);
+            bool Copied(System.Text.Json.Nodes.JsonNode? n)
+            {
+                if (n == null) return false;
+                var sq = Squash(n.ToJsonString());
+                return copies.Any(c => c.squashed == sq && c.about.Count(asked.Contains) < (c.example ? 4 : 1));
+            }
+
+            int removed = 0;
+            foreach (var key in new[] { "create", "edit" })
+                if (root[key] is System.Text.Json.Nodes.JsonArray arr)
+                    for (int i = arr.Count - 1; i >= 0; i--)
+                        if (Copied(arr[i])) { arr.RemoveAt(i); removed++; }
+            if (Copied(root["variables"])) { root.Remove("variables"); removed++; }
+            if (removed == 0) return reply;
+
+            bool Empty(string k) => root[k] is not System.Text.Json.Nodes.JsonNode n || n is System.Text.Json.Nodes.JsonArray { Count: 0 };
+            nothingLeft = new[] { "create", "edit", "variables", "delete", "layers", "theme", "behaviors", "custom", "removeVariables" }.All(Empty);
+            return root.ToJsonString();
+        }
+
+        // every create/edit element and "variables" object shown in the prompt's examples and recipes, with the words of
+        // the request it answers (an example) or of the recipe's name
+        private static List<(string squashed, HashSet<string> about, bool example)> CopyCandidates(string system)
+        {
+            var list = new List<(string, HashSet<string>, bool)>();
             string lastRequest = "";
             foreach (var line in system.Split('\n'))
             {
                 var m = System.Text.RegularExpressions.Regex.Match(line, "^User: \"(.+?)\"");
                 if (m.Success) lastRequest = m.Groups[1].Value;
-                int at = line.IndexOf('{');
-                if (at < 0 || lastRequest.Length == 0 || Squash(line[at..].Trim()) != answer) continue;
-                var asked = Words(userPrompt);
-                return Words(lastRequest).Count(asked.Contains) < 4; // not the same request → a copy
+                bool recipe = line.StartsWith("- ") && line.Contains(": {");
+                if (!recipe && !line.TrimStart().StartsWith('{') && !m.Success) continue;
+                var about = recipe ? Words(line[..line.IndexOf(": {")]) : Words(lastRequest);
+                foreach (var obj in JsonObjectsIn(line))
+                {
+                    if (obj is not System.Text.Json.Nodes.JsonObject o) continue;
+                    foreach (var key in new[] { "create", "edit" })
+                        if (o[key] is System.Text.Json.Nodes.JsonArray arr)
+                            foreach (var el in arr) if (el != null) list.Add((Squash(el.ToJsonString()), about, !recipe));
+                    if (o["variables"] is System.Text.Json.Nodes.JsonNode v) list.Add((Squash(v.ToJsonString()), about, !recipe));
+                }
             }
-            return false;
+            return list;
+        }
+
+        // the top-level {...} objects written in a line of text
+        private static IEnumerable<System.Text.Json.Nodes.JsonNode?> JsonObjectsIn(string line)
+        {
+            int depth = 0, start = -1; bool inStr = false;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char ch = line[i];
+                if (inStr) { if (ch == '\\') i++; else if (ch == '"') inStr = false; continue; }
+                if (ch == '"') inStr = true;
+                else if (ch == '{') { if (depth++ == 0) start = i; }
+                else if (ch == '}' && depth > 0 && --depth == 0)
+                {
+                    System.Text.Json.Nodes.JsonNode? n = null;
+                    try { n = System.Text.Json.Nodes.JsonNode.Parse(line[start..(i + 1)], null, LooseJson.Options); } catch (Exception) { }
+                    if (n != null) yield return n;
+                }
+            }
         }
         private static HashSet<string> Words(string s) => System.Text.RegularExpressions.Regex.Matches(s.ToLowerInvariant(), "[a-zà-ú]{3,}").Select(m => m.Value).ToHashSet();
 

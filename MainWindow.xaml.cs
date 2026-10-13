@@ -2567,15 +2567,16 @@ namespace EasyEngine
         {
             var sys = BuildProjectPrompt(compact: _useCloud || EvalCompact); // leaner prompt on the cloud (token limits); full detail on local
             var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
-            bool copied = CopiedAnExample(sys, reply, prompt); // a small model parroting an example: not applied
+            var own = StripCopies(sys, reply, prompt, out bool copied); // what a small model pasted from the examples is left out
             string summary = "";
-            if (!copied && SafeApply(reply, prompt, out summary)) return (true, summary, reply);
+            if (!copied && SafeApply(own, prompt, out summary)) return (true, summary, reply);
 
             var reply2 = await AiGenerateAsync(
                 prompt + (copied ? "\n\nYour last answer only copied an example from the instructions. Answer THIS request instead." : "") +
                 "\n\nReturn ONLY the JSON with \"create\"/\"edit\"/\"layers\". Use EXACT behavior kind names from the list. One object can have many behaviors.",
                 sys, json: true, temperature: copied ? 0.4 : 0.1);
-            bool ok = !CopiedAnExample(sys, reply2, prompt) && SafeApply(reply2, prompt, out summary);
+            var own2 = StripCopies(sys, reply2, prompt, out bool copied2);
+            bool ok = !copied2 && SafeApply(own2, prompt, out summary);
             return (ok, summary, reply2);
         }
 
@@ -3437,7 +3438,13 @@ namespace EasyEngine
                         if (spec.ValueKind != JsonValueKind.Object) continue;
                         var nm = spec.TryGetProperty("name", out var n) ? n.GetString() : null;
                         var obj = ResolveTarget(nm, userPrompt) ?? _selected;
-                        if (obj == null) continue;
+                        if (obj == null)
+                        {
+                            // an "edit" of something that isn't there yet (a ScoreText the model forgot to create): make it
+                            if (!string.IsNullOrWhiteSpace(nm) && (spec.TryGetProperty("behaviors", out _) || spec.TryGetProperty("custom", out _)))
+                            { EnsureUndo(); var made = BuildObjectFromSpec(spec, userPrompt); if (made != null) changes.Add(CreatedLine(made)); }
+                            continue;
+                        }
 
                         // REDIRECT A: the model tried to put a platform/coin/enemy/door behavior ON the player.
                         // That's almost always wrong → make a NEW object with those behaviors instead.

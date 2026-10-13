@@ -249,13 +249,19 @@ namespace EasyEngine
                 if (info.Nums.Any(n => n.Key.Equals(kv.Key, StringComparison.OrdinalIgnoreCase))) { nums[kv.Key] = kv.Value?.DeepClone(); item.Remove(kv.Key); }
                 else if (info.Texts.Any(t => t.Key.Equals(kv.Key, StringComparison.OrdinalIgnoreCase))) { texts[kv.Key] = kv.Value?.DeepClone(); item.Remove(kv.Key); }
             }
+            // keys spelled as the catalog spells them ("Speed" → speed): the game reads them exactly
+            var catalogKeys = info.Nums.Select(n => n.Key).Concat(info.Texts.Select(t => t.Key)).ToList();
+            foreach (var bag in new[] { nums, texts })
+                foreach (var kv in bag.ToList())
+                    if (catalogKeys.FirstOrDefault(k => k.Equals(kv.Key, StringComparison.OrdinalIgnoreCase)) is string canon && canon != kv.Key && !bag.ContainsKey(canon))
+                    { var v = kv.Value?.DeepClone(); bag.Remove(kv.Key); bag[canon] = v; }
             // a button / zone / door whose scene was written under another name ("to":"Level2", "level":"Level2")
             if (info.Kind is BehaviorKind.UIButton or BehaviorKind.Area or BehaviorKind.GoToScene && texts["scene"] == null)
                 foreach (var bag in new[] { texts, nums, item })
-                    foreach (var k in new[] { "to", "goto", "level", "destination", "target" })
-                        if (texts["scene"] == null && bag[k] is JsonValue sv && sv.TryGetValue<string>(out var sc) && sc.Length > 0 && !LooseJson.TryParse(sc, out _)
+                    foreach (var k in new[] { "to", "goto", "level", "destination", "target", "onclick", "action", "click" })
+                        if (texts["scene"] == null && KeyOf(bag, k) is string real && bag[real] is JsonValue sv && sv.TryGetValue<string>(out var sc) && GoSceneTarget(k, sc) is string sc2
                             && !(k == "target" && info.Kind == BehaviorKind.Area)) // an Area's "target" is who enters
-                        { texts["scene"] = sc; bag.Remove(k); }
+                        { texts["scene"] = sc2; bag.Remove(real); if (k == "action") texts["action"] = "goscene"; }
             foreach (var kv in nums.ToList())
             {
                 var np = info.Nums.FirstOrDefault(n => n.Key.Equals(kv.Key, StringComparison.OrdinalIgnoreCase));
@@ -292,6 +298,19 @@ namespace EasyEngine
 
             if (nums.Count > 0) item["nums"] = nums;
             if (texts.Count > 0) item["texts"] = texts;
+        }
+
+        // the key as the model wrote it ("onClick" for "onclick")
+        private static string? KeyOf(JsonObject o, string k) => o.Select(kv => kv.Key).FirstOrDefault(x => x.Equals(k, StringComparison.OrdinalIgnoreCase));
+
+        // the scene in "Level2" (for to/goto/level…) or "goscene Level2" / "go to Level2" (any of them); null if neither
+        private static string? GoSceneTarget(string key, string value)
+        {
+            var v = value.Trim();
+            var m = System.Text.RegularExpressions.Regex.Match(v, @"^(?:goscene|go\s*to|goto|load|scene)[\s:]+(.+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success) return m.Groups[1].Value.Trim();
+            if (key is "onclick" or "action" or "click") return null; // a plain word there is an action name ("goscene", "say")
+            return v.Length > 0 && !LooseJson.TryParse(v, out _) ? v : null;
         }
 
         // "y" / "vertical" / "Up and down" → the option's value; yes/no words → 1/0

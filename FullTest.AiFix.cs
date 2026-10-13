@@ -51,7 +51,7 @@ public partial class App
         t.Test("ai fix: behaviors — axis \"y\" → 1, a variable in nums → texts, a door 'on death' becomes a rule, Custom written as a behavior", () =>
         {
             var ed = NewEditor();
-            var (ok, _) = ed.TestApplySpec("{\"create\":[{\"name\":\"Lift\",\"behaviors\":[{\"kind\":\"Solid\"},{\"kind\":\"Patrol\",\"nums\":{\"axis\":\"y\",\"distance\":\"150\"}}]}," +
+            var (ok, _) = ed.TestApplySpec("{\"create\":[{\"name\":\"Lift\",\"behaviors\":[{\"kind\":\"Solid\"},{\"kind\":\"Patrol\",\"nums\":{\"axis\":\"y\",\"Distance\":\"150\"}}]}," +
                 "{\"name\":\"Coin\",\"behaviors\":[{\"kind\":\"Collectible\",\"nums\":{\"var\":\"score\",\"points\":10}}]}," +
                 "{\"name\":\"Boss\",\"behaviors\":[{\"kind\":\"Health\",\"nums\":{\"respawn\":0}},{\"kind\":\"GoToScene\",\"texts\":{\"scene\":\"Win\",\"trigger\":\"death\"}},{\"kind\":\"Custom\",\"texts\":{\"when\":\"start\",\"do\":\"say\",\"text\":\"Hi\"}}]}]}");
             var patrol = ed.TestFindObject("Lift")?.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Patrol);
@@ -153,7 +153,10 @@ public partial class App
         {
             var ed = NewEditor();
             ed.TestApplySpec("{\"create\":[{\"name\":\"StartButton\",\"behaviors\":[{\"kind\":\"UIButton\",\"nums\":{\"to\":\"Level2\"}}]},{\"name\":\"Door\",\"behaviors\":[{\"kind\":\"GoToScene\",\"texts\":{\"level\":\"Level3\"}}]}]}");
-            return ed.TestFindObject("StartButton")?.Behaviors.First(b => b.Kind == BehaviorKind.UIButton).Text("scene", "") == "Level2"
+            ed.TestApplySpec("{\"create\":[{\"name\":\"Go\",\"behaviors\":[{\"kind\":\"Button\",\"nums\":{\"onClick\":\"goscene Level4\"}}]}],\"edit\":[{\"name\":\"ScoreText\",\"layer\":\"UI\",\"behaviors\":[{\"kind\":\"Label\",\"texts\":{\"text\":\"Score: {score}\"}}]}]}");
+            return ed.TestFindObject("Go")?.Behaviors.First(b => b.Kind == BehaviorKind.UIButton).Text("scene", "") == "Level4"
+                   && ed.TestFindObject("ScoreText")?.Behaviors.Any(b => b.Kind == BehaviorKind.Label) == true // an edit of a missing object makes it
+                   && ed.TestFindObject("StartButton")?.Behaviors.First(b => b.Kind == BehaviorKind.UIButton).Text("scene", "") == "Level2"
                    && ed.TestFindObject("Door")?.Behaviors.First(b => b.Kind == BehaviorKind.GoToScene).Text("scene", "") == "Level3";
         });
         t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
@@ -161,9 +164,14 @@ public partial class App
             var sys = NewEditor().TestBuildPrompt();
             var line = sys.Split('\n').SkipWhile(l => !l.StartsWith("User: \"make a player that walks")).Skip(1).First();
             var copy = "Sure:\n" + line.Trim();
-            return EasyEngine.MainWindow.CopiedAnExample(sys, copy, "make the player blue")
-                   && !EasyEngine.MainWindow.CopiedAnExample(sys, copy, "make a player that walks, jumps, has health and can attack")
-                   && !EasyEngine.MainWindow.CopiedAnExample(sys, "{\"edit\":[{\"name\":\"Player\",\"color\":\"#3050FF\"}]}", "make the player blue");
+            static bool Gone(string sys, string reply, string ask) { EasyEngine.MainWindow.StripCopies(sys, reply, ask, out var none); return none; }
+            // the countdown recipe pasted next to a real answer: the recipe goes, the answer stays
+            var mixed = EasyEngine.MainWindow.StripCopies(sys, "{\"variables\":{\"scene\":{\"timer\":60}},\"edit\":[{\"name\":\"Player\",\"custom\":[{\"when\":\"ifvar\",\"var\":\"score\",\"op\":\">=\",\"value\":10,\"do\":\"goscene\",\"scene\":\"Level2\"}]}]," +
+                "\"create\":[{\"name\":\"TimerText\",\"layer\":\"UI\",\"x\":20,\"y\":16,\"behaviors\":[{\"kind\":\"Label\",\"texts\":{\"text\":\"Time: {timer}\"}}],\"custom\":[{\"when\":\"timer\",\"every\":1,\"cond\":\"timer > 0\",\"do\":\"addvar\",\"var\":\"timer\",\"amount\":-1}]}]}",
+                "when the score reaches 10 go to Level2", out var mixedGone);
+            return Gone(sys, copy, "make the player blue") && !Gone(sys, copy, "make a player that walks, jumps, has health and can attack")
+                   && !Gone(sys, "{\"edit\":[{\"name\":\"Player\",\"color\":\"#3050FF\"}]}", "make the player blue")
+                   && !mixedGone && !mixed.Contains("TimerText") && !mixed.Contains("\"timer\":60") && mixed.Contains("Level2");
         });
         t.Test("rules: a value can be an expression or a quoted number; addvar takes \"value\"", () =>
         {
