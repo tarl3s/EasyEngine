@@ -46,18 +46,42 @@ namespace EasyEngine
         // client then asks the provider which models it has, picks the best fit (PickModel) and remembers it.
         private static readonly Dictionary<string, string> Discovered = new();
 
+        // Free tiers count their daily quota PER MODEL (Groq: tokens a day; Gemini: requests a day). When a built-in provider's
+        // model is used up for the day, the next model of the same provider answers instead, and the tired one rests.
+        private static readonly Dictionary<string, string[]> DailyFallbacks = new()
+        {
+            ["groq"] = new[] { "qwen/qwen3.8-27b", "openai/gpt-oss-20b" },
+            ["gemini"] = new[] { "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite" },
+        };
+        private static readonly Dictionary<string, DateTime> Resting = new(); // "provider/model" → usable again after
+        private static bool IsDaily(CloudException ex) => !System.Text.RegularExpressions.Regex.IsMatch(ex.Message, @"per minute|PerMinute|\bTPM\b|\bRPM\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase) && System.Text.RegularExpressions.Regex.IsMatch(ex.Message,
+            @"per day|per-day|\bTPD\b|\bRPD\b|daily|free_tier_requests|free-models-per-day|exceeded your current quota", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
         public async Task<string> GenerateAsync(CloudProvider p, string prompt, string system, string apiKey, bool json, double temperature, CancellationToken ct = default)
         {
             bool builtIn = Provider(p.Id) is { } def && def.Model == p.Model && p.Id != "custom";
-            if (builtIn && Discovered.TryGetValue(p.Id, out var known)) p = p with { Model = known };
-            try { return await GenerateWith(p, prompt, system, apiKey, json, temperature, ct); }
-            catch (CloudException ex) when (ex.ModelMissing && builtIn && !Discovered.ContainsKey(p.Id))
+            if (!builtIn) return await GenerateWith(p, prompt, system, apiKey, json, temperature, ct);
+
+            var first = Discovered.TryGetValue(p.Id, out var known) ? known : p.Model;
+            var chain = new[] { first }.Concat(DailyFallbacks.TryGetValue(p.Id, out var more) ? more : Array.Empty<string>()).Distinct().ToList();
+            var awake = chain.Where(m => !(Resting.TryGetValue(p.Id + "/" + m, out var until) && until > DateTime.UtcNow)).ToList();
+            if (awake.Count == 0) awake = chain; // all resting: try anyway (a day may have passed for some)
+            CloudException? last = null;
+            foreach (var model in awake)
             {
-                var alt = await DiscoverModel(p, apiKey, ct);
-                if (alt == null || alt == p.Model) throw;
-                Discovered[p.Id] = alt;
-                return await GenerateWith(p with { Model = alt }, prompt, system, apiKey, json, temperature, ct);
+                try { return await GenerateWith(p with { Model = model }, prompt, system, apiKey, json, temperature, ct); }
+                catch (CloudException ex) when (ex.ModelMissing && model == first && !Discovered.ContainsKey(p.Id))
+                {
+                    var alt = await DiscoverModel(p, apiKey, ct);
+                    if (alt == null || alt == model) { last = ex; continue; }
+                    Discovered[p.Id] = alt;
+                    try { return await GenerateWith(p with { Model = alt }, prompt, system, apiKey, json, temperature, ct); }
+                    catch (CloudException ex2) when (ex2.RateLimited && IsDaily(ex2)) { Resting[p.Id + "/" + alt] = DateTime.UtcNow.AddSeconds(Math.Max(ex2.RetryAfter, 3600)); last = ex2; }
+                }
+                catch (CloudException ex) when (ex.RateLimited && IsDaily(ex)) { Resting[p.Id + "/" + model] = DateTime.UtcNow.AddSeconds(Math.Max(ex.RetryAfter, 3600)); last = ex; }
+                catch (CloudException ex) when (ex.ModelMissing && model != first) { last = ex; } // a fallback that's gone: the next one
             }
+            throw last ?? new CloudException(L.F("{0} limit reached for now.", p.Name)) { RateLimited = true };
         }
 
         private async Task<string?> DiscoverModel(CloudProvider p, string apiKey, CancellationToken ct)
