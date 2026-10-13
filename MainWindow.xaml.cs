@@ -2497,7 +2497,7 @@ namespace EasyEngine
                         wait = ex.RateLimited ? Math.Min(wait, ex.RetryAfter > 0 ? ex.RetryAfter : 10) : wait;
                     }
                 }
-                if (round > 0 || wait > 30) break;
+                if (round > 0 || wait > 60) break; // a per-minute limit: worth a short wait; a daily one isn't
                 Status(L.F("The free AI is busy — trying again in {0} s…", Math.Ceiling(wait)));
                 await Task.Delay(TimeSpan.FromSeconds(wait + 0.5), ct);
             }
