@@ -489,7 +489,7 @@ namespace EasyEngine
             C("say-on-start", "when the level starts, the player says 'Where am I?'", k =>
             {
                 var pw = k.Play(); AiEvalKit.Run(pw, 1);
-                return Need(pw.TDialog || pw.TDialogQueued > 0, "no dialogue shown") // (the typewriter only types in a live window);
+                return Need(pw.TDialog || pw.TDialogQueued > 0, "no dialogue shown"); // (the typewriter only types in a live window)
             });
             C("sign-touch-says", "when the player touches the Sign, show the message 'Welcome!'", k =>
             {
