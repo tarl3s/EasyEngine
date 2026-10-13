@@ -106,7 +106,8 @@ namespace EasyEngine
             var sb = new StringBuilder();
             sb.AppendLine("You write behavior rules for ONE object of a 2D game made with EasyEngine. Each rule is a block: WHEN an event happens -> DO an action.");
             sb.AppendLine("Answer ONLY with JSON, no other text: {\"rules\":[{\"when\":\"<event id>\", <event fields>, \"do\":\"<action id>\", <action fields>}]}");
-            sb.AppendLine("Use ONLY the ids and field names listed below. One action per rule: two actions on the same event = two rules. Numbers are plain JSON numbers. "
+            sb.AppendLine("Use ONLY the ids and field names listed below. One action per rule: two actions on the same event = two rules. Numbers are plain JSON numbers; "
+                + "any number field may instead be a formula written as a string, e.g. \"vx\":\"sign(Player.cx - self.cx) * 120\" or \"every\":\"rand(1,3)\". "
                 + "A field you leave out takes its default (after =). Optional on any rule: \"cond\":\"coins >= 10\" (the rule only runs while that is true).");
             sb.AppendLine("x grows to the right, y grows DOWN (a negative vy goes up). Times are in seconds. opacity goes from 0 (invisible) to 1. \"self\" is this object.");
             sb.AppendLine();
@@ -158,6 +159,7 @@ namespace EasyEngine
                     "val" => "number or expression like score + 1",
                     "choice" => string.Join("|", (f.Options ?? Array.Empty<string>()).Select(o => o.Length == 0 ? "\"\"" : o)),
                     "obj" => "object name or self",
+                    "aim" => "object name, or leave out",
                     "key" => "key",
                     "sound" => "sound file like Assets\\sounds\\hit.wav",
                     "numvar" => "number variable",
@@ -167,7 +169,8 @@ namespace EasyEngine
                     "bool" => "true or leave out",
                     _ => f.Type, // text, item, scene
                 };
-                return f.Key + (f.Default.Length > 0 ? "=" + f.Default : "") + (kind.Length > 0 ? $" ({kind})" : "");
+                var def = f.Absent ?? f.Default; // what leaving it out means
+                return f.Key + (def.Length > 0 ? "=" + def : "") + (kind.Length > 0 ? $" ({kind})" : "");
             });
             var line = $"- {d.Id} ({d.Label})" + (d.Fields.Length > 0 ? ": " + string.Join(", ", fields) : "");
             return d.Hint.Length > 0 && d.Hint.Length < 90 ? line + ". " + d.Hint : line;
@@ -318,7 +321,9 @@ namespace EasyEngine
         // false when there is none (the field may then belong to the other block)
         private static bool Put(BlockDef def, Dictionary<string, JsonElement> bag, string key, JsonElement v, bool exactOnly = false)
         {
-            var names = exactOnly || !KeySynonyms.TryGetValue(key, out var alts) ? new[] { key } : new[] { key }.Concat(alts);
+            IEnumerable<string> names = new[] { key };
+            if (KeyAliases.TryGetValue(def.Id, out var game)) names = names.Concat(game.Where(g => g.alias == key).Select(g => g.key)); // the game's own other names
+            if (!exactOnly && KeySynonyms.TryGetValue(key, out var alts)) names = names.Concat(alts);
             foreach (var a in names)
                 if (!bag.ContainsKey(a) && Array.Exists(def.Fields, f => f.Key == a)) { bag[a] = v; return true; }
             return false;
@@ -343,7 +348,9 @@ namespace EasyEngine
                 if (f.Type == "bool") { if (LooseJson.IsTrue(v)) yield return $"\"{f.Key}\":true"; continue; }
                 if (f.Type is "num" or "val" && LooseJson.TryNumber(v, out var n)) { yield return $"\"{f.Key}\":{n.ToString(CultureInfo.InvariantCulture)}"; continue; }
                 var s = Text(v).Trim();
-                if (s.Length == 0 || f.Type == "num") continue; // a number field that isn't one: its default
+                if (f.Type == "num") s = AiSpecFix.UnwrapExpr(s) ?? s; // "expr: …"
+                if (s.Length == 0 || f.Type == "num" && !LooksLikeFormula(s)) continue; // a number field holding a stray word: its default
+                if (f.Type == "num") { yield return $"\"{f.Key}\":{Q(s)}"; continue; } // a formula: the game works it out
                 if (f.Type == "choice" && f.Options != null)
                 {
                     var c = s.ToLowerInvariant();
