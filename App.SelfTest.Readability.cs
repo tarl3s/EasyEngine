@@ -40,13 +40,18 @@ public partial class App
         var launcher = Open(new LauncherWindow());
         var settings = Open(new SettingsWindow { Owner = editor });
         var blocks = Open(new BlockEditorWindow(project, scene,
-            "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1},{\"when\":\"keypress\",\"key\":\"B\",\"cond\":\"coins >= 15\",\"do\":\"say\",\"text\":\"Boost!\"},{\"when\":\"iftext\",\"var\":\"playerName\",\"op\":\"is\",\"value\":\"Ana\",\"do\":\"settext\",\"var\":\"greet\",\"to\":\"Hi {playerName}!\",\"local\":true},{\"when\":\"start\",\"do\":\"setcolor\",\"var\":\"teamColor\",\"to\":\"#FF8800\"},{\"when\":\"keypress\",\"key\":\"Q\",\"do\":\"listadd\",\"var\":\"quests\",\"value\":\"Find the key\"},{\"when\":\"iflist\",\"var\":\"quests\",\"op\":\"countatleast\",\"value\":\"2\",\"do\":\"tint\",\"target\":\"self\",\"color\":\"{teamColor}\"}]") { Owner = editor });
+            "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"addvar\",\"var\":\"coins\",\"amount\":1},{\"when\":\"keypress\",\"key\":\"B\",\"cond\":\"coins >= 15\",\"do\":\"say\",\"text\":\"Boost!\"},{\"when\":\"iftext\",\"var\":\"playerName\",\"op\":\"is\",\"value\":\"Ana\",\"do\":\"settext\",\"var\":\"greet\",\"to\":\"Hi {playerName}!\",\"local\":true},{\"when\":\"start\",\"do\":\"setcolor\",\"var\":\"teamColor\",\"to\":\"#FF8800\"},{\"when\":\"keypress\",\"key\":\"Q\",\"do\":\"listadd\",\"var\":\"quests\",\"value\":\"Find the key\"},{\"when\":\"iflist\",\"var\":\"quests\",\"op\":\"countatleast\",\"value\":\"2\",\"do\":\"tint\",\"target\":\"self\",\"color\":\"{teamColor}\"}]", hero,
+            (user, system) => System.Threading.Tasks.Task.FromResult("{\"rules\":[{\"when\":\"wait\",\"seconds\":5,\"do\":\"fade\"},{\"when\":\"party\",\"do\":\"confetti\"}]}")) { Owner = editor });
+        // "✨ Ask the AI" with a canned answer: the status line and the added block are in the pictures and the audit
+        _ = blocks.TestAskAi("fade out after 5 seconds");
+        blocks.UpdateLayout();
         var sprite = Open(new SpriteEditorWindow(project, 16) { Owner = editor });
         var newItem = Open(new NewItemDialog(project) { Owner = editor });
         var input = Open(new InputDialog("Rename project", "New name:", "My Game") { Owner = editor });
 
         c.LateChecks.Add(() =>
         {
+            foreach (var sv in Descendants(blocks).OfType<System.Windows.Controls.ScrollViewer>().Take(1)) { sv.ScrollToHome(); blocks.UpdateLayout(); }
             var shots = new List<(Window w, string name)>
             {
                 (c.Editor, "editor"), (editor, "editor_inspector"), (launcher, "launcher"), (settings, "settings"),

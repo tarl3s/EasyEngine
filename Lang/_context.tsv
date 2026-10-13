@@ -62,6 +62,7 @@ Ability / Key Pickup	behavior AbilityPickup
 Add	behavior Area, behavior Interact, behavior UIButton, VariablesWindow.xaml.cs
 Add a free cloud API key first (⚙ AI settings)	MainWindow.xaml.cs
 Add a scene	MainWindow.xaml
+Add blocks	BlockEditorWindow.Ai.cs
 Add files for the AI to use (images or audio)	MainWindow.xaml.cs
 Add layer	MainWindow.xaml
 Add the API key for this provider in the AI settings (⚙).	MainWindow.xaml.cs
@@ -72,6 +73,7 @@ Add to its own variable	BlockEditorWindow.cs
 Added {0} image(s) and {1} sound(s) for the AI	MainWindow.xaml.cs
 Added {0} to {1} of {2} selected object(s)	MainWindow.xaml.cs
 Adds an item to the end of a list. {name} inside is replaced by that variable's value.	BlockEditorWindow.cs, step listadd
+Adds the points to	behavior Collectible
 Adds to its speed gradually (not instant). + up/down makes it fall faster.	BlockEditorWindow.cs
 Adds up with other lights (0/1)	behavior LightSource
 Adds words to the end of a text variable.	BlockEditorWindow.cs
@@ -86,6 +88,7 @@ All free providers are out of quota right now. Try again later.	MainWindow.xaml.
 All items	MainWindow.Params.cs
 All of it	MainWindow.TerrainBlocks.cs
 All sides	behavior StayInside
+All sound	BlockEditorWindow.cs
 Also show	behavior Minimap
 Also show on the map	MainWindow.Minimap.cs
 Also unlocks	behavior AbilityPickup
@@ -107,6 +110,7 @@ Area	behavior StayInside
 Around caves	MainWindow.TerrainBlocks.cs
 Ask	MainWindow.xaml.cs
 Ask how to use anything — the AI explains step by step.	MainWindow.xaml.cs
+Asking the AI…	BlockEditorWindow.Ai.cs
 Asking {0}…	MainWindow.Sequences.cs, MainWindow.xaml.cs
 At	step emit, step spawn
 At random (never twice in a row)	SequenceEditorWindow.cs
@@ -303,7 +307,7 @@ Default controls (WASD / arrows) (0/1)	behavior TopDown
 Default controls (arrows / A-D / Space) (0/1)	behavior Platformer
 Degrees / s	BlockEditorWindow.cs
 Degrees per second	behavior Spin
-Delete	AnimationWindow.xaml.cs, MainWindow.xaml.cs
+Delete	AnimationWindow.xaml.cs, BlockEditorWindow.cs, MainWindow.xaml.cs
 Delete / remove	LauncherWindow.xaml, LauncherWindow.xaml.cs
 Delete animation "{0}"?	AnimationWindow.xaml.cs
 Delete failed:	LauncherWindow.xaml.cs
@@ -316,9 +320,11 @@ Delete scene	MainWindow.xaml.cs
 Delete scene "{0}"?	MainWindow.xaml.cs
 Delete this scene	MainWindow.xaml
 Delete this variable	VariablesWindow.xaml.cs
+Deleted "{0}"	MainWindow.AiRules.cs
 Depth (0 = far, 1 = near) (0-1)	behavior Parallax
 Describe the boss you want… (e.g. a fire golem that charges, spits fireballs and gets faster below half health)	MainWindow.Sequences.cs
 Describe the scene you want… (e.g. the camera shows the castle, the king says hello, then back to the player)	MainWindow.Sequences.cs
+Describe what it should do… (e.g. every 2 seconds it jumps; when it touches Coin, add 1 to score)	BlockEditorWindow.Ai.cs
 Describe what to build.	MainWindow.xaml, MainWindow.xaml.cs
 Design	NewItemDialog.cs
 Destroy Off-screen	behavior DestroyOffscreen
@@ -332,7 +338,7 @@ Dirt depth (blocks)	behavior Terrain
 Dirt drops	behavior Terrain
 Disappear (for enemies)	behavior Health
 Disappears after hitting (0/1)	behavior Damager
-Disappears when the Player touches it.	behavior Collectible
+Disappears when the Player touches it. It can add points to a variable (a coin worth 10 adds 10 to score).	behavior Collectible
 Distance	behavior Patrol
 Distance (px)	step summon
 Dock back	MainWindow.xaml.cs
@@ -354,7 +360,7 @@ Draw this tile in the sprite editor ({0}×{0} pixels)	MainWindow.Tiles.cs
 Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done.	MainWindow.xaml.cs
 Draws a small map in a corner showing the whole scene (in an endless world: the area around the player, with the ground), with a dot for the player and optional dots for other things, each in its own colour. Put it on a UI layer. 'markers' = comma-separated 'Name:#RRGGBB' entries; a name matches an object (and every copy of a prefab) or a whole group (empty = just the player). With 'canMax' on, a key opens a big map in the middle of the screen (press it again to close).	behavior Minimap
 Drops	behavior Harvestable, behavior Tilemap, MainWindow.TerrainBlocks.cs
-Duplicate	MainWindow.xaml.cs
+Duplicate	BlockEditorWindow.cs, MainWindow.xaml.cs
 Duplicate this frame (the copy goes right after it)	AnimationWindow.xaml.cs
 Duplicate this image: this object uses a copy of the file, so you can change it without touching the original	MainWindow.xaml.cs
 Duplicated {0}	MainWindow.xaml.cs
@@ -571,6 +577,7 @@ Leaps (landing near the target). The shockwave shakes the screen and sends a wav
 Leave empty to always run.  Example:  coins  is at least  15	BlockEditorWindow.cs
 Left	behavior Label, MainWindow.xaml.cs
 Left and right only	behavior StayInside
+Left out (not a block): {0}	BlockEditorWindow.Ai.cs
 Left-drag paints · Right-drag erases	MainWindow.xaml.cs
 Level	BlockEditorWindow.cs
 Level (0-1)	BlockEditorWindow.cs
@@ -627,15 +634,15 @@ Motion	step category
 Move / float this panel	MainWindow.xaml
 Move an object	step move
 Move at a speed	BlockEditorWindow.cs
-Move down	SequenceEditorWindow.cs
+Move down	BlockEditorWindow.cs, SequenceEditorWindow.cs
 Move the camera	step camera
-Move up	SequenceEditorWindow.cs
+Move up	BlockEditorWindow.cs, SequenceEditorWindow.cs
 Movement format	behavior AdvancedPatrol
 Moves	behavior BossAI
 Moves back and forth automatically. Good for enemies. Patrols horizontally or vertically, and can ease to a smooth stop at the ends.	behavior Patrol
 Moves in 8 directions, no gravity. 'controls' = respond to the default keys (WASD/arrows). Turn it off for enemies (set custom keys or move it with a script).	behavior TopDown
 Multiply its speed	BlockEditorWindow.cs
-Music	behavior SoundEmitter
+Music	behavior SoundEmitter, BlockEditorWindow.cs
 My Game	LauncherWindow.xaml
 My picture…	LookPicker.cs
 Name	InputDialog.xaml, MainWindow.xaml.cs
@@ -652,7 +659,7 @@ New colour variable name:	BlockEditorWindow.cs, SequenceEditorWindow.cs
 New currency (a variable name, e.g. gems):	MainWindow.Params.cs
 New every visit (roguelike)	behavior Generator
 New item	NewItemDialog.cs
-New item name (e.g. wood, key, shovel):	MainWindow.Params.cs, MainWindow.TerrainBlocks.cs
+New item name (e.g. wood, key, shovel):	BlockEditorWindow.cs, MainWindow.Params.cs, MainWindow.TerrainBlocks.cs
 New layer	MainWindow.xaml.cs
 New list name:	BlockEditorWindow.cs, SequenceEditorWindow.cs
 New name for the project:	LauncherWindow.xaml.cs
@@ -660,7 +667,7 @@ New name:	AnimationWindow.xaml.cs, MainWindow.xaml.cs
 New project	LauncherWindow.xaml
 New scene	MainWindow.xaml.cs
 New text variable name:	BlockEditorWindow.cs, SequenceEditorWindow.cs
-New variable name:	MainWindow.Params.cs, SequenceEditorWindow.cs
+New variable name:	BlockEditorWindow.cs, MainWindow.Params.cs, SequenceEditorWindow.cs
 New {0}×{1} canvas	SpriteEditorWindow.cs
 Night	step settime
 Night length (seconds)	behavior DayNight
@@ -776,6 +783,7 @@ Plays a sound file from the project's Assets/sounds folder.	BlockEditorWindow.cs
 Plays when	behavior Cutscene
 Plays when the {0} hits an enemy	MainWindow.Params.cs
 Plays when the {0} is swung	MainWindow.Params.cs
+Points it gives	behavior Collectible
 Prefab "{0}"	MainWindow.xaml.cs
 Prefab "{0}" is now "{1}"	MainWindow.xaml.cs
 Prefab "{0}" is now "{1}" ({2} places that use it updated)	MainWindow.xaml.cs
@@ -929,7 +937,7 @@ Solid blocks stop this light (0/1)	behavior LightSource
 Solid tile	MainWindow.xaml.cs
 Something you chop or mine with a tool. It takes 'hits' hits from the right tool (e.g. axe), shaking each time; on the last hit it falls and gives 'amount' of 'drop' (e.g. 5 wood). Needs a player with Tool Use.	behavior Harvestable
 Sound	behavior SoundEmitter, BlockEditorWindow.cs, step category, step playsound
-Sound effects	behavior SoundEmitter
+Sound effects	behavior SoundEmitter, BlockEditorWindow.cs
 Sound file	behavior SoundEmitter, MainWindow.xaml.cs
 Sound for the {0}	MainWindow.Params.cs
 Sounds per item	behavior ToolUse
@@ -1011,6 +1019,7 @@ The download doesn't contain EasyEngine.exe.	Updater.cs
 The drawing already fills the box.	MainWindow.Hitbox.cs
 The easiest 2D game engine — you bring the art, the AI writes the code.	LauncherWindow.xaml
 The editor's language. The AI also answers you in it. Your games keep their own texts.	SettingsWindow.cs
+The free AI is busy — trying again in {0} s…	MainWindow.xaml.cs
 The game shows {0} × {1} of the scene at a time, scaled to fit the window (the same in tests and exported games).	MainWindow.xaml.cs
 The image file is missing.	ProjectIO.cs
 The image is fully transparent.	MainWindow.Hitbox.cs
@@ -1162,7 +1171,7 @@ World depth (blocks)	behavior Terrain
 World seed (0 = a new world every game)	behavior Terrain
 Write the size as width x height, for example 32x128 (each from 4 to 256).	SpriteEditorWindow.cs
 Write to the console	BlockEditorWindow.cs
-Write what you want first.	MainWindow.Sequences.cs
+Write what you want first.	BlockEditorWindow.Ai.cs, MainWindow.Sequences.cs
 X	MainWindow.xaml.cs
 Y	MainWindow.xaml.cs
 Yes	MainWindow.xaml.cs, VariablesWindow.xaml.cs
@@ -1308,19 +1317,21 @@ y	step camera, step move, step moveto, step spawn
 ⚙ ⚡ Local · {0}	MainWindow.xaml.cs
 ⚠ Ollama not found. The engine tries to start it automatically on launch.	MainWindow.xaml.cs
 ⚠ The AI's answer couldn't be used: {0}. Try describing it differently.	MainWindow.Sequences.cs
+⚠ The AI's answer had no usable blocks. Try describing it differently.	BlockEditorWindow.Ai.cs
 ⚠ The JSON couldn't be read ({0}). Saving here replaces it.	SequenceEditorWindow.cs
 ⚠ The scene changed while the AI was working — not applied.	MainWindow.Sequences.cs
 ⚡ Local — fastest (1.5b)	MainWindow.xaml
 ✂ Trim box to drawing	MainWindow.Hitbox.cs
 ✎ Draw path	MainWindow.xaml.cs
 ✏ Pencil	SpriteEditorWindow.cs
+✓ Added {0} block(s) at the end — check them and change anything you like.	BlockEditorWindow.Ai.cs
 ✓ Connected · model "{0}" ready.	MainWindow.xaml.cs
 ✓ Done — {0}	MainWindow.Sequences.cs
 ✓ Finish	MainWindow.xaml.cs
 ✓ Ready	MainWindow.xaml.cs
 ✕ Delete attack	SequenceEditorWindow.cs
 ✕ Delete phase	SequenceEditorWindow.cs
-✨ Ask the AI	MainWindow.Sequences.cs
+✨ Ask the AI	BlockEditorWindow.Ai.cs, MainWindow.Sequences.cs
 ✨ Local+ — smarter, still light (3b)	MainWindow.xaml
 ➕  Add a block	BlockEditorWindow.cs
 ⧉ Duplicate animation	AnimationWindow.xaml

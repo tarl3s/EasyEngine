@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -13,11 +14,12 @@ namespace EasyEngine
     /// A Scratch-style visual builder for the Custom behavior. Each block is "WHEN something → DO something",
     /// and it reads/writes the exact same rule JSON the runtime already understands.
     /// </summary>
-    public class BlockEditorWindow : Window
+    public partial class BlockEditorWindow : Window
     {
         // field types: num, text, choice, obj, scene, key, val (number OR expression), textvar / flagvar / colorvar / listvar
-        // (a text / Yes-No / colour / list variable, picked), color (a colour picker, or a colour variable as "{name}"),
-        // bool (a checkbox, saved as true or left out)
+        // (a text / Yes-No / colour / list variable, picked), numvar / localvar (a number variable / this object's own one,
+        // picked), item (picked), color (a colour picker, or a colour variable as "{name}"), bool (a checkbox, saved as true
+        // or left out). Every picked kind is saved as plain text, exactly like a typed one.
         private record Field(string Key, string Label, string Type, string Default = "", string[]? Options = null);
         private record BlockDef(string Id, string Label, Field[] Fields, string Hint = "");
 
@@ -40,9 +42,9 @@ namespace EasyEngine
             new("after",      L.T("After some seconds"), new[] { new Field("seconds", L.T("Seconds"), "num", "5") }, L.T("Fires once, that many seconds after it appears.")),
             new("touch",      L.T("When it touches an object"), new[] { new Field("name", L.T("Object"), "obj") }, L.T("Fires the moment it starts touching that object (once per touch).")),
             new("death",      L.T("When it dies"), Array.Empty<Field>()),
-            new("ifvar",      L.T("While a variable is…"), new[] { new Field("var", L.T("Variable"), "text"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") }),
-            new("iflocal",    L.T("While its own variable is…"), new[] { new Field("var", L.T("Variable"), "text"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") }),
-            new("hasitem",    L.T("While it has an item"), new[] { new Field("item", L.T("Item"), "text") }),
+            new("ifvar",      L.T("While a variable is…"), new[] { new Field("var", L.T("Variable"), "numvar"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") }),
+            new("iflocal",    L.T("While its own variable is…"), new[] { new Field("var", L.T("Variable"), "localvar"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") }),
+            new("hasitem",    L.T("While it has an item"), new[] { new Field("item", L.T("Item"), "item") }),
             new("iftext",     L.T("While a text variable…"), new[] { new Field("var", L.T("Text variable"), "textvar"), new Field("op", L.T("is"), "choice", "is", TextOps), new Field("value", L.T("Text"), "text"), new Field("local", L.T("Its own"), "bool") },
                 L.T("Compares words (capital letters don't matter). \"Its own\" reads this object's own text variable.")),
             new("iflist",     L.T("While a list…"), new[] { new Field("var", L.T("List"), "listvar"), new Field("op", L.T("is"), "choice", "contains", ListOps), new Field("value", L.T("Item or number"), "text"), new Field("local", L.T("Its own"), "bool") },
@@ -79,10 +81,10 @@ namespace EasyEngine
                 L.T("From (empty) = at this object · top = falling from the top of the screen · near = on the ground, a little to the left or right.")),
             new("destroy",   L.T("Destroy itself"), Array.Empty<Field>()),
             new("goscene",   L.T("Go to another scene"), new[] { new Field("scene", L.T("Scene"), "scene") }),
-            new("setvar",    L.T("Set a variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("to", L.T("To"), "val", "0") }),
-            new("addvar",    L.T("Add to a variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("amount", L.T("Amount"), "val", "1") }),
-            new("setlocal",  L.T("Set its own variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("to", L.T("To"), "val", "0") }),
-            new("addlocal",  L.T("Add to its own variable"), new[] { new Field("var", L.T("Variable"), "text"), new Field("amount", L.T("Amount"), "val", "1") }),
+            new("setvar",    L.T("Set a variable"), new[] { new Field("var", L.T("Variable"), "numvar"), new Field("to", L.T("To"), "val", "0") }),
+            new("addvar",    L.T("Add to a variable"), new[] { new Field("var", L.T("Variable"), "numvar"), new Field("amount", L.T("Amount"), "val", "1") }),
+            new("setlocal",  L.T("Set its own variable"), new[] { new Field("var", L.T("Variable"), "localvar"), new Field("to", L.T("To"), "val", "0") }),
+            new("addlocal",  L.T("Add to its own variable"), new[] { new Field("var", L.T("Variable"), "localvar"), new Field("amount", L.T("Amount"), "val", "1") }),
             new("settext",   L.T("Set a text"), new[] { new Field("var", L.T("Text variable"), "textvar"), new Field("to", L.T("To"), "text"), new Field("local", L.T("Its own"), "bool") },
                 L.T("Puts words in a text variable. {name} inside is replaced by that variable's value, e.g. Hello {playerName}!")),
             new("addtext",   L.T("Add to a text"), new[] { new Field("var", L.T("Text variable"), "textvar"), new Field("to", L.T("Words to add"), "text"), new Field("local", L.T("Its own"), "bool") },
@@ -99,8 +101,8 @@ namespace EasyEngine
                 L.T("Removes the first item equal to it (capital letters don't matter).")),
             new("listclear", L.T("Empty a list"), new[] { new Field("var", L.T("List"), "listvar"), new Field("local", L.T("Its own"), "bool") }),
             new("set",      L.T("Set a property"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self"), new Field("prop", L.T("Property"), "choice", "x", Props), new Field("to", L.T("To"), "val", "0") }),
-            new("additem",   L.T("Give an item"), new[] { new Field("item", L.T("Item"), "text"), new Field("amount", L.T("Amount"), "num", "1") }),
-            new("removeitem",L.T("Remove an item"), new[] { new Field("item", L.T("Item"), "text"), new Field("amount", L.T("Amount"), "num", "1") }),
+            new("additem",   L.T("Give an item"), new[] { new Field("item", L.T("Item"), "item"), new Field("amount", L.T("Amount"), "num", "1") }),
+            new("removeitem",L.T("Remove an item"), new[] { new Field("item", L.T("Item"), "item"), new Field("amount", L.T("Amount"), "num", "1") }),
             new("boost",     L.T("Multiply its speed"), new[] { new Field("factor", L.T("Times"), "num", "2") }, L.T("2 = twice as fast, 0.5 = half. Affects Platformer/Top-down speed.")),
             new("setspeed",  L.T("Set its speed level"), new[] { new Field("factor", L.T("Level"), "num", "1") }, L.T("1 = normal, 0.5 = half, 2 = double. Resets the boost.")),
             new("say",       L.T("Show a message"), new[] { new Field("text", L.T("Text"), "text"), new Field("speaker", L.T("Speaker (optional)"), "text") }),
@@ -108,7 +110,7 @@ namespace EasyEngine
                 L.T("A one-off puff of particles (sparks, dust, explosions).")),
             new("tween",     L.T("Glide a property"), new[] { new Field("prop", L.T("Property"), "choice", "x", TweenProps), new Field("to", L.T("To"), "val", "0"), new Field("duration", L.T("Over (s)"), "num", "0.5"), new Field("ease", L.T("Ease"), "choice", "linear", Eases), new Field("loop", L.T("Loop (0/1)"), "num", "0"), new Field("yoyo", L.T("Yoyo (0/1)"), "num", "0") },
                 L.T("Smoothly animates a property to a value. Loop repeats; yoyo bounces back and forth.")),
-            new("setvolume", L.T("Set volume"), new[] { new Field("channel", L.T("Channel"), "text", "master"), new Field("to", L.T("Level (0-1)"), "num", "1") }),
+            new("setvolume", L.T("Set volume"), new[] { new Field("channel", L.T("Channel"), "choice", "master", new[] { "master", "music", "sfx" }), new Field("to", L.T("Level (0-1)"), "num", "1") }),
             new("breaktile", L.T("Break a tile"), new[] { new Field("where", L.T("Which"), "choice", "touching", new[] { "touching", "below", "above", "left", "right", "front", "atmouse" }) },
                 L.T("Breaks a tile of a breakable tilemap: any it overlaps (touching), the one below/above/beside/in front of it, or the one at the mouse.")),
             new("settime",   L.T("Set time of day"), new[] { new Field("time", L.T("Time"), "choice", "night", new[] { "day", "noon", "dusk", "night", "midnight" }) },
@@ -130,20 +132,29 @@ namespace EasyEngine
             // field and an action field can share a name (e.g. ifvar's "var" + setvar's "var").
             public Dictionary<string, string> WhenP = new(StringComparer.OrdinalIgnoreCase);
             public Dictionary<string, string> DoP = new(StringComparer.OrdinalIgnoreCase);
+
+            public RuleModel Copy() => new()
+            {
+                When = When, Do = Do, Cond = Cond,
+                WhenP = new(WhenP, StringComparer.OrdinalIgnoreCase), DoP = new(DoP, StringComparer.OrdinalIgnoreCase)
+            };
         }
 
         private readonly Project _project;
         private readonly Scene _scene;
+        private readonly GameObjectData? _obj; // the object whose rules these are (its own variables), when known
         private readonly List<RuleModel> _rules = new();
         private StackPanel _list = null!;
+        private ScrollViewer _scroll = null!;
         public string ResultJson { get; private set; } = "[]";
         public string SerializeTest() => Serialize(); // headless round-trip check
 
-        public BlockEditorWindow(Project project, Scene scene, string json)
+        /// <param name="generate">asks the AI (prompt, system) → its reply; null hides "✨ Ask the AI".</param>
+        public BlockEditorWindow(Project project, Scene scene, string json, GameObjectData? obj = null, Func<string, string, Task<string>>? generate = null)
         {
-            _project = project; _scene = scene;
+            _project = project; _scene = scene; _obj = obj; _generate = generate;
             Title = L.T("Build behavior with blocks");
-            Width = 720; Height = 620;
+            Width = 720; Height = generate != null ? 690 : 620; // room for "✨ Ask the AI"
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = Theme.Brush("Bg0", "#15151A");
             ParseJson(json);
@@ -160,6 +171,7 @@ namespace EasyEngine
                 Text = L.T("Each block runs:  WHEN something happens  →  DO something.  Add as many as you like."),
                 Foreground = Theme.Brush("TextDim", "#AAA"), FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
             }, Dock.Top));
+            if (_generate != null) root.Children.Add(Docked(BuildAiBox(), Dock.Top));
 
             // bottom buttons
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
@@ -175,7 +187,7 @@ namespace EasyEngine
             root.Children.Add(Docked(add, Dock.Bottom));
 
             _list = new StackPanel();
-            root.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _list });
+            root.Children.Add(_scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _list });
 
             Content = root;
         }
@@ -195,16 +207,19 @@ namespace EasyEngine
             var rule = _rules[index];
             var panel = new StackPanel();
 
-            // header: number + move/delete
+            // header: number + move/duplicate/delete
             var header = new Grid { Margin = new Thickness(0, 0, 0, 8) };
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             header.Children.Add(new TextBlock { Text = L.F("Block {0}", index + 1), Foreground = Theme.Brush("Text", "#EEE"), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
             var hbtns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var up = Small("▲"); up.Click += (s, e) => { if (index > 0) { (_rules[index], _rules[index - 1]) = (_rules[index - 1], _rules[index]); RenderRules(); } };
-            var dn = Small("▼"); dn.Click += (s, e) => { if (index < _rules.Count - 1) { (_rules[index], _rules[index + 1]) = (_rules[index + 1], _rules[index]); RenderRules(); } };
-            var del = Small("✕"); del.Foreground = Theme.Brush("Danger", "#E5534B"); del.Click += (s, e) => { _rules.RemoveAt(index); RenderRules(); };
-            hbtns.Children.Add(up); hbtns.Children.Add(dn); hbtns.Children.Add(del);
+            var up = Small("▲", L.T("Move up")); up.IsEnabled = index > 0;
+            up.Click += (s, e) => { if (index > 0) { (_rules[index], _rules[index - 1]) = (_rules[index - 1], _rules[index]); RenderRules(); } };
+            var dn = Small("▼", L.T("Move down")); dn.IsEnabled = index < _rules.Count - 1;
+            dn.Click += (s, e) => { if (index < _rules.Count - 1) { (_rules[index], _rules[index + 1]) = (_rules[index + 1], _rules[index]); RenderRules(); } };
+            var dup = Small("⧉", L.T("Duplicate")); dup.Click += (s, e) => { _rules.Insert(index + 1, rule.Copy()); RenderRules(); };
+            var del = Small("✕", L.T("Delete")); del.Foreground = Theme.Brush("Danger", "#E5534B"); del.Click += (s, e) => { _rules.RemoveAt(index); RenderRules(); };
+            hbtns.Children.Add(up); hbtns.Children.Add(dn); hbtns.Children.Add(dup); hbtns.Children.Add(del);
             Grid.SetColumn(hbtns, 1); header.Children.Add(hbtns);
             panel.Children.Add(header);
 
@@ -250,7 +265,12 @@ namespace EasyEngine
 
             var m = System.Text.RegularExpressions.Regex.Match(rule.Cond ?? "", @"^\s*([A-Za-z_][\w:.]*)\s*(>=|<=|==|!=|>|<)\s*(.+?)\s*$");
 
-            var varBox = new TextBox { Height = 28, Text = m.Success ? m.Groups[1].Value : "" };
+            // the variable is picked (or "＋ New…"); a name that isn't in the list (item:wood…) is kept and shown
+            string condVar = m.Success ? m.Groups[1].Value : "";
+            Action? varPicked = null;
+            var varBox = Dropdown.Make(new[] { ("", L.T("(none)")) }.Concat(NumberVarNames().Select(n => (n, n))), condVar,
+                                       v => { condVar = v; varPicked?.Invoke(); }, L.T("New variable name:"), this);
+            varBox.Height = 28;
             var opCb = new ComboBox { Height = 28 };
             foreach (var (lbl, _) in CondOps) opCb.Items.Add(lbl);
             opCb.SelectedIndex = m.Success ? Math.Max(0, Array.FindIndex(CondOps, o => o.sym == m.Groups[2].Value)) : 0;
@@ -270,13 +290,13 @@ namespace EasyEngine
             void Rebuild()
             {
                 if (!string.IsNullOrWhiteSpace(adv.Text)) { rule.Cond = adv.Text.Trim(); return; }
-                var v = varBox.Text.Trim();
+                var v = condVar.Trim();
                 if (string.IsNullOrEmpty(v)) { rule.Cond = ""; return; }
                 var sym = CondOps[Math.Max(0, opCb.SelectedIndex)].sym;
                 var val = string.IsNullOrWhiteSpace(valBox.Text) ? "1" : valBox.Text.Trim();
                 rule.Cond = $"{v} {sym} {val}";
             }
-            varBox.TextChanged += (s, e) => Rebuild();
+            varPicked = Rebuild;
             opCb.SelectionChanged += (s, e) => Rebuild();
             valBox.TextChanged += (s, e) => Rebuild();
             adv.TextChanged += (s, e) => Rebuild();
@@ -288,7 +308,7 @@ namespace EasyEngine
             panel.Children.Add(new TextBlock { Text = hint, Foreground = Theme.Brush("TextDim", "#8a8a93"), FontSize = 10.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 2) });
         }
 
-        private Button Small(string t) => new() { Content = t, Width = 26, Height = 24, FontSize = 11, Margin = new Thickness(3, 0, 0, 0), Padding = new Thickness(0), Style = Theme.Style("GhostButton"), Foreground = Theme.Brush("Text", "#EEE") };
+        private Button Small(string t, string tip) => new() { Content = t, ToolTip = tip, Width = 26, Height = 24, FontSize = 11, Margin = new Thickness(3, 0, 0, 0), Padding = new Thickness(0), Style = Theme.Style("GhostButton"), Foreground = Theme.Brush("Text", "#EEE") };
 
         private TextBlock Pill(string text, string color) => new() { Text = text, Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString(color)!, FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(0, 4, 0, 4) };
 
@@ -331,17 +351,20 @@ namespace EasyEngine
             if (f.Type == "color") { stack.Children.Add(ColorField(f, rule, cur)); return stack; }
 
             Control ctrl;
-            if (f.Type is "textvar" or "flagvar" or "colorvar" or "listvar")
+            if (f.Type is "textvar" or "flagvar" or "colorvar" or "listvar" or "numvar" or "localvar" or "item")
             {
-                // variables of the right kind, plus "＋ New…"
-                var (names, prompt) = f.Type switch
+                // variables (or items) of the right kind, plus "＋ New…"
+                var (options, prompt) = f.Type switch
                 {
-                    "textvar" => (ParamSources.TextVariables(_project), L.T("New text variable name:")),
-                    "colorvar" => (ParamSources.ColorVariables(_project), L.T("New colour variable name:")),
-                    "listvar" => (ParamSources.ListVariables(_project), L.T("New list name:")),
-                    _ => (ParamSources.YesNoVariables(_project), L.T("New Yes/No variable name:")),
+                    "textvar" => (Names(ParamSources.TextVariables(_project)), L.T("New text variable name:")),
+                    "colorvar" => (Names(ParamSources.ColorVariables(_project)), L.T("New colour variable name:")),
+                    "listvar" => (Names(ParamSources.ListVariables(_project)), L.T("New list name:")),
+                    "numvar" => (Names(NumberVarNames()), L.T("New variable name:")),
+                    "localvar" => (Names(LocalVarNames()), L.T("New variable name:")),
+                    "item" => (ParamSources.Items(_project).Select(i => (i, ToolArt.Title(i))), L.T("New item name (e.g. wood, key, shovel):")),
+                    _ => (Names(ParamSources.YesNoVariables(_project)), L.T("New Yes/No variable name:")),
                 };
-                var cb = Dropdown.Make(names.Select(n => (n, n)), cur, v => rule[f.Key] = v, prompt, this);
+                var cb = Dropdown.Make(options, cur, v => rule[f.Key] = v, prompt, this);
                 cb.Height = 28; cb.MinWidth = 140;
                 ctrl = cb;
             }
@@ -350,6 +373,8 @@ namespace EasyEngine
                 // shown in the editor's language, saved by value (the item's Tag)
                 var cb = new ComboBox { Height = 28, MinWidth = 80 };
                 foreach (var o in f.Options ?? Array.Empty<string>()) cb.Items.Add(new ComboBoxItem { Content = OptionLabel(o), Tag = o });
+                if (cur.Length > 0 && !cb.Items.Cast<ComboBoxItem>().Any(i => (string)i.Tag == cur))
+                    cb.Items.Add(L.Keep(new ComboBoxItem { Content = cur, Tag = cur })); // a value written by hand or by the AI is kept
                 cb.SelectedItem = cb.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == cur);
                 if (cb.SelectedItem == null && cb.Items.Count > 0) cb.SelectedIndex = 0;
                 cb.SelectionChanged += (s, e) => rule[f.Key] = (cb.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
@@ -424,6 +449,41 @@ namespace EasyEngine
             return new[] { "self" }.Concat(names);
         }
 
+        private static IEnumerable<(string, string)> Names(IEnumerable<string> names) => names.Select(n => (n, n));
+
+        // the number variables a picker offers: the project's, plus the ones only rules use (here and in other objects' rules)
+        private List<string> NumberVarNames()
+        {
+            var set = new SortedSet<string>(ParamSources.Variables(_project), StringComparer.OrdinalIgnoreCase);
+            foreach (var b in _project.Scenes.SelectMany(s => s.Layers).SelectMany(l => l.Objects).SelectMany(o => o.Behaviors))
+                if (b.Kind == BehaviorKind.Custom) foreach (var v in ParamSources.RuleVars(b.Text("script", ""), "setvar", "addvar", "ifvar")) set.Add(v);
+            AddRuleVars(set, "ifvar", "setvar", "addvar");
+            return set.ToList();
+        }
+
+        // this object's own variables: the ones it declares, the ones its rules use (saved and in this window)
+        private List<string> LocalVarNames()
+        {
+            var set = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (_obj != null)
+            {
+                foreach (var k in _obj.Variables.Keys) set.Add(k);
+                foreach (var b in _obj.Behaviors)
+                    if (b.Kind == BehaviorKind.Custom) foreach (var v in ParamSources.RuleVars(b.Text("script", ""), "setlocal", "addlocal", "iflocal")) set.Add(v);
+            }
+            AddRuleVars(set, "iflocal", "setlocal", "addlocal");
+            return set.ToList();
+        }
+
+        private void AddRuleVars(SortedSet<string> set, string when, params string[] dos)
+        {
+            foreach (var r in _rules)
+            {
+                if (r.When == when && r.WhenP.TryGetValue("var", out var a) && a.Trim().Length > 0) set.Add(a.Trim());
+                if (dos.Contains(r.Do) && r.DoP.TryGetValue("var", out var b) && b.Trim().Length > 0) set.Add(b.Trim());
+            }
+        }
+
         // what a choice option shows (the value is what's saved; symbols and property names show as they are)
         private static string OptionLabel(string o) => o switch
         {
@@ -435,6 +495,7 @@ namespace EasyEngine
             "info" => L.T("info"), "warn" => L.T("warn"), "error" => L.T("error"),
             "is" => L.T("is"), "isnot" => L.T("is not"), "contains" => L.T("contains"), "empty" => L.T("is empty"), "notempty" => L.T("is not empty"),
             "notcontains" => L.T("doesn't contain"), "countis" => L.T("has exactly (items)"), "countatleast" => L.T("has at least (items)"),
+            "master" => L.T("All sound"), "music" => L.T("Music"), "sfx" => L.T("Sound effects"),
             "linear" => L.T("linear"), "easein" => L.T("ease in"), "easeout" => L.T("ease out"), "easeinout" => L.T("ease in and out"),
             _ => o,
         };
