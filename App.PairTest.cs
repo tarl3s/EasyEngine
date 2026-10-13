@@ -55,6 +55,7 @@ public partial class App
                     }
                 }
             foreach (var k in kinds) cases.Add((new[] { k }, PhysicsMode.Dynamic, true, false)); // the player itself gets it too
+            foreach (var k in kinds.Where(k => BehaviorCatalog.Info(k).Repeatable)) cases.Add((new[] { k, k }, PhysicsMode.None, false, false)); // two of one kind (BehaviorInfo.Repeatable)
             // "Only while" false on the first mover: the second one must still move it (a resting mover used to stop the others)
             foreach (var a in new[] { BehaviorKind.Patrol, BehaviorKind.Chase, BehaviorKind.PathChase, BehaviorKind.AdvancedPatrol, BehaviorKind.Platformer, BehaviorKind.TopDown })
                 foreach (var b in ShouldMove)

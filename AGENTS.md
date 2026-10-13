@@ -103,6 +103,13 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 3. Implement it in the runtime (`UpdateBehaviors` switch or a feature file + hook). If it moves the object, give it
    its place in the mover rules (`PlayWindow.Movers.cs`) instead of writing VX/VY over the others; a pair that can
    never work together gets a warning in `BehaviorCombos.cs`. Run `--pairtest` to see it next to every other behavior.
+   **Several on one object?** Set `BehaviorInfo.Repeatable = true` only when two of it on one object make sense on their
+   own (today: Interact, Sound, Shooter, Spawner, Particles, Damager, Trigger Area, UI Button, Shop, Custom) — never for
+   what owns the object (movers, Health/Lives, camera, HUD widgets, Boss/Cutscene, Day/Night, terrain, maps). A
+   repeatable behavior keeps its runtime state per behavior (`St(en, bi)` in `PlayWindow.MultiBehaviors.cs`), never in
+   an `Entity` field; one key press fires at most one Interact (and one Shop purchase) per object — the first in the
+   list that is on, so two Interacts with opposite "Only while" make a one-key on/off toggle. The inspector offers a
+   repeatable kind again and numbers its cards; the AI keeps each one a reply lists (`ApplyBehaviorsToObject`).
 4. Teach the AI: the build prompt reads the catalog; add a how-to in `BehaviorGuides` for Learn mode; Boss/Cutscene
    steps live in `StepCatalog` (one palette shared by runtime, editor and AI prompt).
 5. Old projects must keep loading: never rename persisted keys; retire a kind with `Hidden = true` + a migration in

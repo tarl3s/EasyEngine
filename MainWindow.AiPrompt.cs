@@ -159,6 +159,9 @@ namespace EasyEngine
               BehaviorKind.UIButton),
             H("npc sign aviso chest bau shopkeeper vendedor",
               "Press E to talk/read/open: Interact behavior.", BehaviorKind.Interact),
+            H("toggle liga ligar desliga desligar radio speaker jukebox",
+              "On/off with ONE key = TWO Interact behaviors on the same object, each with a \"cond\" (one press uses only one): {\"kind\":\"Interact\",\"nums\":{\"to\":1},\"texts\":{\"action\":\"setvar\",\"var\":\"radioOn\",\"cond\":\"radioOn < 1\"}} and {\"kind\":\"Interact\",\"nums\":{\"to\":0},\"texts\":{\"action\":\"setvar\",\"var\":\"radioOn\",\"cond\":\"radioOn >= 1\"}}. Music only while it is on: a Sound with texts{cond:\"radioOn >= 1\"} nums{loop:1} (it stops when the formula turns false).",
+              BehaviorKind.Interact, BehaviorKind.SoundEmitter),
             H("lock locked tranca trancada key chave gate portao",
               "Locked door + key: door = Gate texts{var:\"hasKey\"}; key = AbilityPickup texts{var:\"hasKey\"}. Or a rule on the player with \"cond\":\"hasKey >= 1\".",
               BehaviorKind.Gate, BehaviorKind.AbilityPickup),
@@ -325,7 +328,8 @@ namespace EasyEngine
             if (desc.Length > 110) desc = desc[..110] + "…";
             var nums = string.Join(" ", info.Nums.Select(n => $"{n.Key}={n.Default:0.##}{Opts(n.Options)}"));
             var texts = string.Join(" ", info.Texts.Where(t => t.Pick != PickKind.Special).Select(t => $"{t.Key}={(t.Default.Length > 0 ? t.Default : "\"\"")}{Opts(t.Options)}"));
-            return $"  {info.Kind} — {desc}." + (nums.Length > 0 ? " nums " + nums : "") + (texts.Length > 0 ? "; texts " + texts : "");
+            return $"  {info.Kind} — {desc}." + (nums.Length > 0 ? " nums " + nums : "") + (texts.Length > 0 ? "; texts " + texts : "")
+                   + (info.Repeatable ? " (an object may have several)" : "");
         }
 
         // the top of the widest solid near the bottom (where things stand), if there is one

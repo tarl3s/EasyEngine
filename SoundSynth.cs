@@ -94,6 +94,24 @@ namespace EasyEngine
             return Finish(s, 0.55);
         }
 
+        /// <summary>A short cheerful radio tune (2.4 s, loops cleanly): eight soft plucked notes over a quiet bass.</summary>
+        public static byte[] Tune()
+        {
+            double[] notes = { 523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 880.00, 698.46 }; // C E G E D F A F
+            const double step = 0.3;
+            var s = Buffer(notes.Length * step);
+            for (int i = 0; i < s.Length; i++)
+            {
+                double t = (double)i / Rate;
+                int n = Math.Min(notes.Length - 1, (int)(t / step));
+                double local = t - n * step;
+                double pluck = Math.Sin(2 * Math.PI * notes[n] * t) * Math.Exp(-local / 0.12);
+                double bass = 0.35 * Math.Sin(2 * Math.PI * notes[(n / 4) * 4] / 4 * t);
+                s[i] = pluck + bass;
+            }
+            return Finish(s, 0.5);
+        }
+
         // ---------------- helpers ----------------
         private static double[] Buffer(double seconds) => new double[Math.Max((int)(Rate * Math.Max(0.15, seconds)), 1)];
 

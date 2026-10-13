@@ -35,6 +35,7 @@ namespace EasyEngine
             project.Scenes.Add(TilesTest(project));  // TestScenarios.Tiles.cs
             project.Scenes.Add(LayersTest());        // TestScenarios.Layers.cs
             project.Scenes.Add(LivesBlocksTest());   // TestScenarios.Scratch.cs
+            project.Scenes.Add(RadioToggleTest(project)); // TestScenarios.Multi.cs
             project.StartScene = "Axe Test";
             ProjectIO.Save(project);
             return project.FilePath!;

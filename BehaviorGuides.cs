@@ -119,7 +119,8 @@ namespace EasyEngine
                 "2. \"What happens\": Show a message, Set a variable, Add to a variable or Go to a scene.\n" +
                 "3. For a message, type it — press Enter for the next line (each line is shown after the previous one) — and \"Who is talking\". \"Dialogue box\" and \"Font\" change how it looks; \"Freeze who is using it\" keeps the player still until the talk ends.\n" +
                 "4. Set the Key and How near the player must be; \"Only once\" for one-time events.\n" +
-                "5. Press ▶ Test, walk up to it and press the key.",
+                "5. Press ▶ Test, walk up to it and press the key.\n" +
+                "6. On/off with one key (a radio, a lamp): add a second Interact to the same object. First: Set a variable radioOn to 1, Only while radioOn < 1. Second: Set radioOn to 0, Only while radioOn >= 1. One press uses only one of them. A Sound (Loop on) with Only while radioOn >= 1 plays while it is on and stops when it is off.",
 
             [BehaviorKind.Switch] =
                 "1. Make the lever object → Inspector → ＋ Add behavior → 🎚 Switch / Lever.\n" +

@@ -22,6 +22,8 @@ namespace EasyEngine
             var impliedRules = new List<string>(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
             double? behaviorBounce = null, behaviorGravity = null; // physics the model wrote inside a behavior
             AiAddedKinds.Clear(); AiKeyWritten.Clear();
+            var usedByReply = new HashSet<BehaviorData>(ReferenceEqualityComparer.Instance); // the behaviors this reply already set
+            var sameTwice = new HashSet<string>(); // a repeatable behavior written twice exactly the same is one
 
             if (spec.TryGetProperty("behaviors", out var arr) && arr.ValueKind == JsonValueKind.Array)
             {
@@ -41,8 +43,14 @@ namespace EasyEngine
                     using var fixedDoc = JsonDocument.Parse(node.ToJsonString());
                     var item = fixedDoc.RootElement.Clone();
 
-                    var existing = result.FirstOrDefault(x => x.Kind == kind);
+                    // a kind the object may have several of (two Interacts = an on/off toggle): each one the reply lists is its own —
+                    // it retunes the object's next one of that kind this reply hasn't set yet, or is added (the same one written
+                    // twice counts once); the other kinds merge into the one the object has, as always
+                    bool repeatable = BehaviorCatalog.Info(kind).Repeatable;
+                    if (repeatable && !sameTwice.Add(kind + item.GetRawText())) continue;
+                    var existing = repeatable ? result.FirstOrDefault(x => x.Kind == kind && !usedByReply.Contains(x)) : result.FirstOrDefault(x => x.Kind == kind);
                     var data = existing ?? BehaviorCatalog.Info(kind).CreateData();
+                    usedByReply.Add(data);
                     if (item.TryGetProperty("nums", out var nums) && nums.ValueKind == JsonValueKind.Object)
                         foreach (var p in nums.EnumerateObject())
                             if (LooseJson.TryNumber(p.Value, out var nv)) data.Nums[p.Name] = nv;

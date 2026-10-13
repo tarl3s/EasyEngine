@@ -1657,7 +1657,7 @@ namespace EasyEngine
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var title = new TextBlock { Text = $"{info.Icon}  {L.T(info.Name)}", FontWeight = FontWeights.SemiBold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+            var title = new TextBlock { Text = $"{info.Icon}  {L.T(info.Name)}{CardNumber(obj, bh)}", FontWeight = FontWeights.SemiBold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
             var help = new Button { Content = "?", Width = 24, Height = 24, FontSize = 11, Padding = new Thickness(0), Margin = new Thickness(0, 0, 6, 0), Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Center,
                                     ToolTip = L.T("How does this work? (asks the AI in Learn mode)") };
             help.Click += (s, e) => AskHowTo(info);
@@ -1788,19 +1788,21 @@ namespace EasyEngine
         {
             var combo = new ComboBox { Margin = new Thickness(0, 2, 0, 0) };
             combo.Items.Add(new ComboBoxItem { Content = L.T("＋ Add behavior…"), Tag = null, IsSelected = true });
+            bool single = _selection.Count <= 1;
             foreach (var info in BehaviorCatalog.All)
-                if (!info.Hidden) { var it = new ComboBoxItem { Content = $"{info.Icon}  {L.T(info.Name)}", Tag = info.Kind }; TextSearch.SetText(it, info.Name); combo.Items.Add(it); } // found by its English name too
+                if (!info.Hidden && (!single || BehaviorCatalog.CanAdd(obj, info.Kind))) { var it = new ComboBoxItem { Content = $"{info.Icon}  {L.T(info.Name)}", Tag = info.Kind }; TextSearch.SetText(it, info.Name); combo.Items.Add(it); } // found by its English name too
             combo.SelectionChanged += (s, e) =>
             {
                 if (combo.SelectedItem is ComboBoxItem ci && ci.Tag is BehaviorKind kind)
                 {
                     PushUndo();
-                    // apply to EVERY selected object, not just the primary; skip ones that already have it
+                    // apply to EVERY selected object, not just the primary; skip ones that already have it (unless it can be
+                    // added more than once: BehaviorInfo.Repeatable — a second Interact, Sound, Shooter… gets its own card)
                     var targets = _selection.Count > 1 ? _selection.Where(o => !IsLockedObj(o)).ToList() : new List<GameObjectData> { obj }; // locked ones are skipped
                     int added = 0;
                     foreach (var t in targets)
                     {
-                        if (t.Behaviors.Any(b => b.Kind == kind)) continue;
+                        if (!BehaviorCatalog.CanAdd(t, kind)) continue;
                         t.Behaviors.Add(BehaviorCatalog.Info(kind).CreateData());
                         added++;
                     }

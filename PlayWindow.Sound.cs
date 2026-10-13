@@ -18,13 +18,14 @@ namespace EasyEngine
         private readonly List<string> _soundsPlayed = new();
         private const int MaxPerSound = 4;
 
-        /// <summary>Play a project sound (a relative path like Assets\sounds\chop.wav).</summary>
-        private void PlaySoundFile(string rel, double volume = 0.8, string channel = "sfx", bool loop = false, string source = "")
+        /// <summary>Play a project sound (a relative path like Assets\sounds\chop.wav). A looping one, or one asked for with
+        /// <paramref name="own"/>, gets its own player, returned so it can be stopped (null when nothing plays live).</summary>
+        private MediaPlayer? PlaySoundFile(string rel, double volume = 0.8, string channel = "sfx", bool loop = false, string source = "", bool own = false)
         {
-            if (string.IsNullOrWhiteSpace(rel)) return;
+            if (string.IsNullOrWhiteSpace(rel)) return null;
             string name = Path.GetFileName(rel);
             var abs = ProjectIO.AbsoluteAsset(_project, rel);
-            if (abs == null) { LogThrottled("snd-missing:" + rel, 2, LogLevel.Warn, "Sound", source, $"Sound file not found: {rel}"); return; }
+            if (abs == null) { LogThrottled("snd-missing:" + rel, 2, LogLevel.Warn, "Sound", source, $"Sound file not found: {rel}"); return null; }
 
             // mixing: sound volume × channel volume × master volume (missing vars count as 1)
             double chVol = _vars.TryGetValue("vol." + channel.ToLowerInvariant(), out var cv) ? cv : 1;
@@ -32,19 +33,19 @@ namespace EasyEngine
             double vol = Math.Clamp(volume * chVol * master, 0, 1);
             _soundsPlayed.Add(name);
 
-            if (_headless) { Info("Sound", source, $"♪ {name} (muted in test)", $"volume {vol:0.##} · channel {channel}"); return; }
+            if (_headless) { Info("Sound", source, $"♪ {name} (muted in test)", $"volume {vol:0.##} · channel {channel}"); return null; }
             Info("Sound", source, $"♪ {name}", $"volume {vol:0.##} · channel {channel}");
 
             try
             {
-                if (loop)
+                if (loop || own)
                 {
                     var music = NewPlayer(abs, pooled: false);
                     music.Volume = vol;
-                    music.MediaEnded += (s, e) => { music.Position = TimeSpan.Zero; music.Play(); };
+                    if (loop) music.MediaEnded += (s, e) => { music.Position = TimeSpan.Zero; music.Play(); };
                     music.Play();
                     _players.Add(music);
-                    return;
+                    return music;
                 }
                 var mp = GetPooledPlayer(abs);
                 mp.Volume = vol;
@@ -52,6 +53,7 @@ namespace EasyEngine
                 mp.Play();
             }
             catch (Exception ex) { Error("Sound", source, $"Couldn't play {name}", ex.Message); }
+            return null;
         }
 
         // An idle player for this file, a new one (up to MaxPerSound), or — all busy — restart the oldest.

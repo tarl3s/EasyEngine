@@ -52,6 +52,11 @@ namespace EasyEngine
         public List<NumParam> Nums = new();
         public List<TextParam> Texts = new();
         public bool Hidden; // kept only so old projects still load; not offered in the editor or to the AI
+        // Repeatable: one object may have several of this behavior, each card with its own settings and, in the game, its
+        // own state (timers, key edges, "only once" latches — PlayWindow.MultiBehaviors.cs). Only for behaviors that do a
+        // self-contained thing (an effect, a sound, a gun, a spawn, an emitter, a hazard, a zone, a button, a recipe); never
+        // for ones that own the object (movers, Health/Lives, camera, HUD widgets, Boss/Cutscene, Day/Night, terrain, maps).
+        public bool Repeatable;
 
         public BehaviorData CreateData()
         {
@@ -170,13 +175,13 @@ namespace EasyEngine
                 Desc = "Rotates on its own. Decorative.",
                 Nums = { new("speed","Degrees per second",90) } },
 
-            new BehaviorInfo { Kind = BehaviorKind.Spawner, Name = "Spawner", Icon = "✨",
+            new BehaviorInfo { Kind = BehaviorKind.Spawner, Repeatable = true, Name = "Spawner", Icon = "✨",
                 Desc = "Creates copies of an object. If 'key' is set, it spawns when that key is pressed; otherwise every 'interval' seconds. 'at'=top drops them from the top of the screen (random x). max=0 means unlimited. The spawned object can be a scene object or a prefab; give it physics Dynamic to make it fall.",
                 Nums = { NIf(new("interval","Every (s)",1.5), c => c.Bh.Text("key", "").Length == 0), new("max","Max (0 = unlimited)",10) },
                 Texts = { T("target","What to spawn","Enemy", PickKind.ObjectOrPrefab), TNone("key","Spawn when this key is pressed (none = on a timer)","", PickKind.Key),
                           T("at","Where","self", PickKind.Choice, "self|At this object", "top|Falling from the top of the screen") } },
 
-            new BehaviorInfo { Kind = BehaviorKind.SoundEmitter, Name = "Sound", Icon = "🔊",
+            new BehaviorInfo { Kind = BehaviorKind.SoundEmitter, Repeatable = true, Name = "Sound", Icon = "🔊",
                 Desc = "Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master.",
                 Nums = { new("volume","Volume (0-1)",0.8), new("onStart","Play on start (0/1)",1), new("loop","Loop (0/1)",0) },
                 Texts = { T("asset","Sound file","", PickKind.Sound), T("channel","Channel","sfx", PickKind.Choice, "sfx|Sound effects", "music|Music") } },
@@ -213,12 +218,12 @@ namespace EasyEngine
                 Desc = "Switches to another scene when the trigger touches it or it's clicked. Great for doors and menu buttons.",
                 Texts = { T("scene","Target scene","", PickKind.Scene), T("trigger","Who uses it","Player", PickKind.Object) } },
 
-            new BehaviorInfo { Kind = BehaviorKind.Shooter, Name = "Shooter", Icon = "🔫",
+            new BehaviorInfo { Kind = BehaviorKind.Shooter, Repeatable = true, Name = "Shooter", Icon = "🔫",
                 Desc = "Fires projectiles when a key is pressed — or, with no key, by itself every 'cooldown' seconds (a turret, an enemy that shoots). 'directions' = how many bullets spread around (8 = all directions, 1 = forward). 'Aims at' points the shots at an object, e.g. the Player.",
                 Nums = { new("directions","Bullets per shot",8, "1|1 — forward", "4|4 — a cross", "8|8 — all around"), new("speed","Bullet speed",420), new("cooldown","Cooldown (s)",0.3), new("life","Bullet life (s)",2) },
                 Texts = { TNone("key","Fire key (none = fires by itself)","T", PickKind.Key), T("bullet","Bullet","Bullet", PickKind.ObjectOrPrefab), TNone("aim","Aims at (none = straight ahead)","", PickKind.Object) } },
 
-            new BehaviorInfo { Kind = BehaviorKind.Custom, Name = "Custom (AI script)", Icon = "✨",
+            new BehaviorInfo { Kind = BehaviorKind.Custom, Repeatable = true, Name = "Custom (AI script)", Icon = "✨",
                 Desc = "A custom behavior written as a tiny rule script (when → do). Usually created by the AI when the request is too complex for the other behaviors.",
                 Texts = { T("script","Rules (JSON)","[]", PickKind.Special) } },
 
@@ -240,7 +245,7 @@ namespace EasyEngine
                 Nums = { new("damage","Damage",1), new("range","Reach",40), new("knockback","Knockback",260), new("cooldown","Cooldown (s)",0.35) },
                 Texts = { T("key","Key","J", PickKind.Key), TNone("requires","Needs this to swing","", PickKind.Requirement) } },
 
-            new BehaviorInfo { Kind = BehaviorKind.Damager, Name = "Damager / Hazard", Icon = "💢",
+            new BehaviorInfo { Kind = BehaviorKind.Damager, Repeatable = true, Name = "Damager / Hazard", Icon = "💢",
                 Desc = "Hurts a target that touches it (enemy contact, spikes, hazards), with knockback and i-frames. Turn on 'Disappears after hitting' for bullets and other things that are used up by a hit.",
                 Nums = { new("damage","Damage",1), new("knockback","Knockback",320), new("vanish","Disappears after hitting (0/1)",0) },
                 Texts = { T("target","Hurts","Player", PickKind.Object) } },
@@ -363,7 +368,7 @@ namespace EasyEngine
                           T("skipKey","Skip key","Escape", PickKind.Key),
                           T("script","Steps","{\"steps\":[]}", PickKind.Special) } },
 
-            new BehaviorInfo { Kind = BehaviorKind.Shop, Name = "Shop / Crafting bench", Icon = "🛒",
+            new BehaviorInfo { Kind = BehaviorKind.Shop, Repeatable = true, Name = "Shop / Crafting bench", Icon = "🛒",
                 Desc = "Stand near it and press the key to pay a cost and receive an item. Set 'currency' to 'coins' for a shop, or to an item like 'item:wood' for a crafting bench (e.g. craft a sword from wood). Buys once by default.",
                 Nums = { new("cost","Cost",5), new("give","Amount given",1), new("radius","How close (px)",70), new("once","Buy only once (0/1)",1) },
                 Texts = { T("item","Sells","pickaxe", PickKind.Item), T("currency","Paid with","coins", PickKind.Currency),
@@ -395,7 +400,7 @@ namespace EasyEngine
                           T("op","is",">=", PickKind.Choice, ">=|at least", "==|exactly", ">|more than", "<=|at most", "<|less than"),
                           TNone("item","…or when the player has","", PickKind.Item) } },
 
-            new BehaviorInfo { Kind = BehaviorKind.Interact, Name = "Interact (press key)", Icon = "💬",
+            new BehaviorInfo { Kind = BehaviorKind.Interact, Repeatable = true, Name = "Interact (press key)", Icon = "💬",
                 Desc = "When the trigger is near and presses the key, fires an effect: say (show dialogue text, one line after another — each line of the message is the next thing said), setvar, addvar or goscene. Use for NPCs, signs, chests, levers. Pressing the key again while the message shows doesn't open it again; it can freeze whoever is using it until the talk ends, and the dialogue box can have its own look and font.",
                 Nums = { new("radius","How near (px)",60), NIf(new("amount","Add",1), IfText("action", "addvar")), NIf(new("to","Set to",1), IfText("action", "setvar")), new("once","Only once (0/1)",0),
                          NIf(new("freeze","Freeze who is using it until the talk ends (0/1)",0), IfText("action", "say")) },
@@ -414,7 +419,7 @@ namespace EasyEngine
                 Texts = { T("var","Turns on variable","hasDoubleJump", PickKind.Variable), T("collector","Picked up by","Player", PickKind.Object),
                           T("grant","Also unlocks","none", PickKind.Choice, "none|Nothing else", "doubleJump|Double jump", "dash|Dash", "wallJump|Wall jump") } },
 
-            new BehaviorInfo { Kind = BehaviorKind.Area, Name = "Trigger Area / Zone", Icon = "🟦",
+            new BehaviorInfo { Kind = BehaviorKind.Area, Repeatable = true, Name = "Trigger Area / Zone", Icon = "🟦",
                 Desc = "An invisible zone. When the target enters it, fires an effect: goscene, setvar, addvar or say. once=1 fires a single time. Use for level exits, cutscene triggers, hidden-room reveals, kill-zones.",
                 Nums = { NIf(new("amount","Add",1), IfText("action", "addvar")), NIf(new("to","Set to",1), IfText("action", "setvar")), new("once","Only once (0/1)",1) },
                 Texts = { T("action","What happens","goscene", PickKind.Choice, Effects),
@@ -449,12 +454,12 @@ namespace EasyEngine
                           T("markers","Also show","", PickKind.MapMarkers),
                           TIf(T("maxKey","Key to open the big map","M", PickKind.Key), IfOn("canMax")) } },
 
-            new BehaviorInfo { Kind = BehaviorKind.Particles, Name = "Particle Emitter", Icon = "✨",
+            new BehaviorInfo { Kind = BehaviorKind.Particles, Repeatable = true, Name = "Particle Emitter", Icon = "✨",
                 Desc = "Emits particles (sparks, smoke, explosions, trails). on=start bursts once when the scene loads; on=always emits continuously at 'rate'; or trigger a burst from a script with the 'emit' action. spread is the cone angle (360 = all directions).",
                 Nums = { NIf(new("rate","Per second",0), IfText("on", "always")), new("burst","Burst count",16), new("life","Particle life (s)",0.8), new("speed","Speed",180), new("spread","Spread angle (deg)",360), new("angle","Base angle (deg)",0), new("size","Particle size",8), new("gravity","Gravity",400) },
                 Texts = { T("color","Color","#FFD24D", PickKind.Color), T("on","When","start", PickKind.Choice, "start|One burst when the scene starts", "always|Non-stop") } },
 
-            new BehaviorInfo { Kind = BehaviorKind.UIButton, Name = "UI Button", Icon = "🔘",
+            new BehaviorInfo { Kind = BehaviorKind.UIButton, Repeatable = true, Name = "UI Button", Icon = "🔘",
                 Desc = "A clickable button. On click it runs an effect: goscene (change scene), setvar, addvar, say, save or load. Put it on a UI layer; add a Label for its text. Great for menus and HUD.",
                 Nums = { NIf(new("amount","Add",1), IfText("action", "addvar")), NIf(new("to","Set to",1), IfText("action", "setvar")) },
                 Texts = { T("action","On click","goscene", PickKind.Choice, Effects.Concat(new[] { "save|Save the game", "load|Load the game" }).ToArray()),
@@ -480,5 +485,8 @@ namespace EasyEngine
         };
 
         public static BehaviorInfo Info(BehaviorKind kind) => All.Find(b => b.Kind == kind)!;
+
+        /// <summary>The object may get (another) behavior of this kind: a repeatable one always, the others only once.</summary>
+        public static bool CanAdd(GameObjectData obj, BehaviorKind kind) => Info(kind).Repeatable || !obj.Behaviors.Any(b => b.Kind == kind);
     }
 }

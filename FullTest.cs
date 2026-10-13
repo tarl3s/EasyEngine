@@ -1093,6 +1093,7 @@ public partial class App
             FeatureTestsScenesLayers(kit);
             FeatureTestsScratchReview(kit);
             FeatureTestsInteract(kit);
+            FeatureTestsMultiBehaviors(kit);
             FeatureTestsLights(kit);
             FeatureTestsBehaviorCombos(kit);
 
@@ -1145,6 +1146,7 @@ public partial class App
     partial void FeatureTestsBehaviorCombos(FullTestKit t);
     partial void FeatureTestsScratchReview(FullTestKit t); // FullTest.ScratchReview.cs
     partial void FeatureTestsInteract(FullTestKit t);
+    partial void FeatureTestsMultiBehaviors(FullTestKit t); // FullTest.MultiBehaviors.cs
 
     /// <summary>Deletes the throwaway project folders a test run left in %TEMP% (by name pattern).</summary>
     internal static void DeleteTempFolders(params string[] patterns)
