@@ -61,6 +61,7 @@ AI: checking…	LauncherWindow.xaml
 ANIMATIONS	AnimationWindow.xaml
 APPEARANCE	MainWindow.Tiles.cs, MainWindow.xaml.cs
 ATTACKS are lists of steps. PHASES choose which attacks the boss uses — the next phase starts when its health drops to a percentage. WHEN IT DIES plays at 0 health.	SequenceEditorWindow.cs
+Ability	BlockEditorWindow.Palette.cs
 Ability / Key Pickup	behavior AbilityPickup
 Add	behavior Area, behavior Interact, behavior UIButton, VariablesWindow.xaml.cs
 Add a free cloud API key first (⚙ AI settings)	MainWindow.xaml.cs
@@ -94,6 +95,7 @@ All items	MainWindow.Params.cs
 All of it	MainWindow.TerrainBlocks.cs
 All sides	behavior StayInside
 All sound	BlockEditorWindow.Palette.cs
+Also run this block when something else happens	BlockEditorWindow.cs
 Also show	behavior Minimap
 Also show on the map	MainWindow.Minimap.cs
 Also unlocks	behavior AbilityPickup
@@ -111,6 +113,7 @@ Animation name (e.g. idle, walk):	AnimationWindow.xaml.cs
 Animation name (e.g. idle, walk, jump):	AnimationWindow.xaml.cs
 Animations	AnimationWindow.xaml, MainWindow.xaml.cs
 Animations — {0}	AnimationWindow.xaml.cs
+Another thing that must be true (or may be true) for the block to run	BlockEditorWindow.cs
 Area	behavior StayInside
 Around caves	MainWindow.TerrainBlocks.cs
 Arrows: move · Shift: 10 px	MainWindow.xaml.cs
@@ -140,11 +143,13 @@ Bar (health/progress)	behavior Bar
 Base	MainWindow.xaml.cs
 Base URL (…/v1) and model name:	MainWindow.xaml.cs
 Base angle (deg)	behavior Particles
+Behavior	BlockEditorWindow.Palette.cs
 Belongs to "{0}". Each copy of it in the game gets its own.	VariablesWindow.xaml.cs
 Belongs to the selected object.	VariablesWindow.xaml.cs
 Belongs to this scene. Reset every time the scene loads.	VariablesWindow.xaml.cs
 Big (32 px)	behavior DayNight
 Big title	step title
+Bigger = higher jumps. The Platformer's usual strength is 640.	BlockEditorWindow.Palette.cs
 Blink	behavior Label
 Blink forever	BlockEditorWindow.Recipes.cs
 Block size	behavior Terrain
@@ -209,6 +214,7 @@ Category — groups it in the palette (existing: {0}):	MainWindow.xaml.cs
 Category — groups it in the palette:	MainWindow.xaml.cs
 Caves (0/1)	behavior Terrain
 Center	behavior Label
+Change its jump height	BlockEditorWindow.Palette.cs
 Change the colour	BlockEditorWindow.Palette.cs
 Channel	behavior SoundEmitter, BlockEditorWindow.Palette.cs
 Chase	behavior Chase
@@ -263,6 +269,7 @@ Comes out the other side	behavior StayInside
 Compares words (capital letters don't matter). "Its own" reads this object's own text variable.	BlockEditorWindow.Palette.cs
 Condition	BlockEditorWindow.Palette.cs
 Control	step category
+Controls	BlockEditorWindow.Palette.cs
 Cooldown (s)	behavior Shooter, BlockEditorWindow.Palette.cs
 Copy	SpriteEditorWindow.cs, Styles.xaml
 Copy the selection, or the whole drawing (Ctrl+C)	SpriteEditorWindow.cs
@@ -356,6 +363,7 @@ Disappears after hitting (0/1)	behavior Damager
 Disappears when the Player touches it. It can add points to a variable (a coin worth 10 adds 10 to score).	behavior Collectible
 Distance	behavior Patrol
 Distance (px)	step summon
+Do one more thing in this block	BlockEditorWindow.cs
 Dock back	MainWindow.xaml.cs
 Dock bottom	MainWindow.xaml.cs
 Dock left	MainWindow.xaml.cs
@@ -444,10 +452,13 @@ Fill shapes / polygon	SpriteEditorWindow.cs
 Fill the shape	SpriteEditorWindow.cs
 Fire key (none = fires by itself)	behavior Shooter
 Fires once per press. Cooldown stops it repeating too fast while held.	BlockEditorWindow.Palette.cs
+Fires once when it touches the ground after being in the air.	BlockEditorWindow.Palette.cs
 Fires once, that many seconds after it appears.	BlockEditorWindow.Palette.cs
 Fires projectiles when a key is pressed — or, with no key, by itself every 'cooldown' seconds (a turret, an enemy that shoots). 'directions' = how many bullets spread around (8 = all directions, 1 = forward). 'Aims at' points the shots at an object, e.g. the Player.	behavior Shooter
 Fires projectiles. 1 direction = straight ahead, or straight at the object it aims at; more = spread all around.	BlockEditorWindow.Palette.cs
 Fires the moment it starts touching that object (once per touch).	BlockEditorWindow.Palette.cs
+Fires the moment its health goes down.	BlockEditorWindow.Palette.cs
+Fires when its Interact behavior is used (the key pressed near it).	BlockEditorWindow.Palette.cs
 Fit	MainWindow.xaml
 Fit scene (Ctrl 0)	MainWindow.xaml
 Fixed = stays on screen (UI/HUD). Scroll = moves with the world.	MainWindow.xaml.cs
@@ -487,7 +498,9 @@ Give the project a name.	LauncherWindow.xaml.cs
 Give this object the look you copied (its size, behaviors and name stay)	MainWindow.xaml.cs
 Give this tile frames that play in the game (water, lava, torches…) — every copy of it moves together	MainWindow.Tiles.cs
 Give variables a starting value. A variable is a Number, a Yes/No, a Text, a Colour or a List. Use them in scripts (setvar/addvar/ifvar for global, setlocal/addlocal/iflocal for object; settext/toggle/iftext for texts and Yes/No; setcolor for colours; listadd/listremove/iflist for lists) and show them in a Label with {name}.	VariablesWindow.xaml
+Gives back health, never above its maximum.	BlockEditorWindow.Palette.cs
 Gives hit points. When they reach 0: respawn=1 → respawn at last checkpoint/start (for the player); respawn=0 → the object is destroyed (for enemies). Writes the value to a variable for a Label or a Bar — 'health' is the player's: an enemy only shows its health in a variable of its own (e.g. bossHP).	behavior Health
+Gives or takes away double jump, wall jump or dash.	BlockEditorWindow.Palette.cs
 Glide a property	BlockEditorWindow.Palette.cs
 Glide to	step moveto
 Global	VariablesWindow.xaml.cs
@@ -506,6 +519,7 @@ Ground level (px from the top)	behavior Terrain
 Group	MainWindow.xaml.cs
 Hammer	ToolArt.cs
 Harvestable (tree / rock)	behavior Harvestable
+Heal	BlockEditorWindow.Palette.cs
 Health	behavior Health
 Hear the result (Space)	AudioEditorWindow.cs
 Heart	SpriteEditorWindow.cs
@@ -578,6 +592,7 @@ Jump	BlockEditorWindow.Palette.cs, step jump
 Jump every 2 seconds	BlockEditorWindow.Recipes.cs
 Jump force	behavior Platformer
 Jump over obstacles (0/1)	behavior AdvancedPatrol
+Jump strength	BlockEditorWindow.Palette.cs
 Jump strength (platform)	behavior AdvancedPatrol
 Jumps the Day/Night cycle to that moment (needs a Day/Night cycle object in the scene).	BlockEditorWindow.Palette.cs
 Just the player — add things to show below.	MainWindow.Minimap.cs
@@ -717,6 +732,7 @@ No attacks yet.	SequenceEditorWindow.cs
 No blocks yet — click "Add a block" to start.	BlockEditorWindow.cs
 No free cloud key set. Add one in the AI settings (⚙).	MainWindow.xaml.cs
 No items yet — add one below.	MainWindow.Params.cs
+No match	ListSearch.cs
 No phases yet — without one, the boss uses every attack at random.	SequenceEditorWindow.cs
 No prefabs match.	MainWindow.xaml.cs
 No projects yet. Click “New Project” to start.	LauncherWindow.xaml
@@ -745,6 +761,8 @@ Object	BlockEditorWindow.Palette.cs, step destroy, step face, step hide, step mo
 Object (or self)	BlockEditorWindow.Palette.cs
 Objects	MainWindow.xaml.cs
 Off	AudioEditorWindow.cs
+Off: that behavior rests (a mover stands still) until it is turned on again.	BlockEditorWindow.Palette.cs
+Off: the arrow keys / WASD no longer move it (e.g. during a cutscene). On brings them back.	BlockEditorWindow.Palette.cs
 Ollama answered with an error ({0}): {1}	OllamaClient.cs
 Ollama ok, but the model isn't downloaded:\n    ollama pull {0}	MainWindow.xaml.cs
 On	step bars
@@ -821,6 +839,7 @@ Player	behavior Minimap
 Player colour	behavior Minimap
 Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master.	behavior SoundEmitter
 Plays a sound file from the project's Assets/sounds folder.	BlockEditorWindow.Palette.cs
+Plays the sound backwards.	AudioEditorWindow.cs
 Plays when	behavior Cutscene
 Plays when the {0} hits an enemy	MainWindow.Params.cs
 Plays when the {0} is swung	MainWindow.Params.cs
@@ -861,7 +880,10 @@ Remove	MainWindow.xaml.cs
 Remove an item	BlockEditorWindow.Palette.cs
 Remove from a list	BlockEditorWindow.Palette.cs
 Remove prefab "{0}" from the palette?\n(objects already placed in scenes are NOT affected)	MainWindow.xaml.cs
+Remove this action	BlockEditorWindow.cs
 Remove this block	MainWindow.TerrainBlocks.cs
+Remove this condition	BlockEditorWindow.cs
+Remove this event	BlockEditorWindow.cs
 Remove this item	VariablesWindow.xaml.cs
 Remove this item from the hotbar	MainWindow.Params.cs
 Remove this step	SequenceEditorWindow.cs
@@ -1145,7 +1167,11 @@ Trees (0/1)	behavior Terrain
 Triangle	SpriteEditorWindow.cs
 Trigger Area / Zone	behavior Area
 True black darkness (0/1)	behavior DayNight
+Turn	BlockEditorWindow.Palette.cs
+Turn an ability on or off	BlockEditorWindow.Palette.cs
+Turn its controls on or off	BlockEditorWindow.Palette.cs
 Turn on the smart AI — it's free	MainWindow.xaml
+Turn one of its behaviors on or off	BlockEditorWindow.Palette.cs
 Turn per volley (°)	step shoot
 Turn the selection left (R with Shift). Nothing selected = the whole drawing	SpriteEditorWindow.cs
 Turn the selection right (R). Nothing selected = the whole drawing	SpriteEditorWindow.cs
@@ -1198,10 +1224,13 @@ When	behavior Particles
 When a key is pressed	BlockEditorWindow.Palette.cs
 When clicked	BlockEditorWindow.Palette.cs
 When it dies	behavior Health, BlockEditorWindow.Palette.cs
+When it gets hurt	BlockEditorWindow.Palette.cs
+When it lands	BlockEditorWindow.Palette.cs
 When it spawns	BlockEditorWindow.Palette.cs
 When it touches an object	BlockEditorWindow.Palette.cs
 When its health is at or below	SequenceEditorWindow.cs
 When right-clicked	BlockEditorWindow.Palette.cs
+When someone interacts with it	BlockEditorWindow.Palette.cs
 When the collector touches it, sets a variable to 1 (an ability unlocked, a key obtained) and disappears. Pair it with a Door that opens on that variable, or a Platformer ability. Great for metroidvania progression.	behavior AbilityPickup
 When the mouse is clicked (anywhere)	BlockEditorWindow.Palette.cs
 When the mouse wheel scrolls down	BlockEditorWindow.Palette.cs
@@ -1260,7 +1289,10 @@ Zoom out (Ctrl + wheel / Ctrl -)	MainWindow.xaml
 a door to {0}	MainWindow.AiLevel.cs
 above	BlockEditorWindow.Palette.cs
 added a Sky layer under all the others	Model.cs
+all of these are true	BlockEditorWindow.cs
+and	BlockEditorWindow.cs
 animated	MainWindow.xaml.cs
+any of these is true	BlockEditorWindow.cs
 at least	behavior Gate
 at most	behavior Gate
 at the mouse	BlockEditorWindow.Palette.cs
@@ -1268,9 +1300,11 @@ below	BlockEditorWindow.Palette.cs
 contains	BlockEditorWindow.Palette.cs
 created the moon "{0}"	Model.cs
 created the sun "{0}"	Model.cs
+dash	BlockEditorWindow.Palette.cs
 day	BlockEditorWindow.Palette.cs
 death: {0}	SequenceModel.cs
 doesn't contain	BlockEditorWindow.Palette.cs
+double jump	BlockEditorWindow.Palette.cs
 dusk	BlockEditorWindow.Palette.cs
 ease in	BlockEditorWindow.Palette.cs
 ease in and out	BlockEditorWindow.Palette.cs
@@ -1306,18 +1340,24 @@ new variable name	VariablesWindow.xaml.cs
 night	BlockEditorWindow.Palette.cs
 noon	BlockEditorWindow.Palette.cs
 not set yet	MainWindow.xaml.cs
+off	BlockEditorWindow.Palette.cs
+on	BlockEditorWindow.Palette.cs
+or	BlockEditorWindow.cs
+or when	BlockEditorWindow.cs
 rename	AnimationWindow.xaml
 right	BlockEditorWindow.Palette.cs
 scroll	MainWindow.xaml.cs
 self	BlockEditorWindow.cs
 shown	MainWindow.xaml.cs
 stereo	AudioEditorWindow.cs
+then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
 v0.12.1	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
+wall jump	BlockEditorWindow.Palette.cs
 walls all around	MainWindow.AiLevel.cs
 warn	BlockEditorWindow.Palette.cs
 x	step camera, step move, step moveto, step spawn
@@ -1367,15 +1407,12 @@ y	step camera, step move, step moveto, step spawn
 ↔ Left and right	behavior Patrol
 ↕ Up and down	behavior Patrol
 ↖ Up-left	behavior Projectile
-↗ Fade in	AudioEditorWindow.cs
 ↗ Up-right	behavior Projectile
 ↘ Down-right	behavior Projectile
-↘ Fade out	AudioEditorWindow.cs
 ↙ Down-left	behavior Projectile
 ↺ Keep it all	AudioEditorWindow.cs
 ↺ No effects	AudioEditorWindow.cs
 ↻  Restart now	SettingsWindow.cs
-⇆ Reverse (play backwards)	AudioEditorWindow.cs
 ⌫ Eraser	SpriteEditorWindow.cs
 ① Get free key (opens the site)	MainWindow.xaml.cs
 ② Paste your key here:	MainWindow.xaml.cs
@@ -1443,10 +1480,7 @@ y	step camera, step move, step moveto, step spawn
 🎨 Draw	MainWindow.Tiles.cs
 🎨 Draw frame	AnimationWindow.xaml
 🎬 Cutscene — Advanced Scratch	SequenceEditorWindow.cs
-🎵 Pitch	AudioEditorWindow.cs
-🏔 Echo	AudioEditorWindow.cs
 🏜 A sand biome (an area of columns)	MainWindow.TerrainBlocks.cs
-🐢 Speed	AudioEditorWindow.cs
 👑 Boss — Advanced Scratch	SequenceEditorWindow.cs
 💀 When it dies	SequenceEditorWindow.cs
 💉 Pick	SpriteEditorWindow.cs
@@ -1464,7 +1498,6 @@ y	step camera, step move, step moveto, step spawn
 📚  Recipes	BlockEditorWindow.Recipes.cs
 📥 Paste look	MainWindow.xaml.cs
 🔊 RESULT	AudioEditorWindow.cs
-🔊 Volume	AudioEditorWindow.cs
 🔍  Interface size	SettingsWindow.cs
 🔒 Locked	MainWindow.LockZ.cs
 🔓 Unlocked	MainWindow.LockZ.cs
@@ -1485,14 +1518,17 @@ y	step camera, step move, step moveto, step spawn
 ＋ Add	MainWindow.Minimap.cs
 ＋ Add a block	MainWindow.TerrainBlocks.cs
 ＋ Add behavior…	MainWindow.xaml.cs
+＋ Add condition	BlockEditorWindow.cs
 ＋ Add frames	AnimationWindow.xaml
 ＋ Add item	VariablesWindow.xaml.cs
 ＋ Add step	SequenceEditorWindow.cs
+＋ And do…	BlockEditorWindow.cs
 ＋ Empty Object	MainWindow.xaml
 ＋ Import a sound…	MainWindow.Params.cs
 ＋ New attack	SequenceEditorWindow.cs
 ＋ New item (tool / weapon)…	MainWindow.xaml.cs
 ＋ New phase	SequenceEditorWindow.cs
 ＋ New…	Dropdown.cs
+＋ Or when…	BlockEditorWindow.cs
 ＋ adds to all {0} selected objects.	MainWindow.xaml.cs
 ／ Line	SpriteEditorWindow.cs

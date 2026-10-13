@@ -15,6 +15,7 @@ public partial class App : Application
     partial void SelfTestContrast(SelfTestContext c);
     partial void SelfTestMinimap(SelfTestContext c);
     partial void SelfTestLearn(SelfTestContext c);
+    partial void SelfTestListSearch(SelfTestContext c);
     partial void SelfTestSequences(SelfTestContext c);
     partial void SelfTestTerrain(SelfTestContext c);
     partial void SelfTestTiles(SelfTestContext c);
@@ -634,6 +635,7 @@ public partial class App : Application
             SelfTestContrast(ctx);
             SelfTestMinimap(ctx);
             SelfTestLearn(ctx);
+            SelfTestListSearch(ctx);
             SelfTestSequences(ctx);
             SelfTestTerrain(ctx);
             SelfTestTiles(ctx);
