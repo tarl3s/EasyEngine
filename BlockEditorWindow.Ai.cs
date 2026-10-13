@@ -124,6 +124,9 @@ namespace EasyEngine
             sb.AppendLine("Keys: Space, A-Z, D0-D9, Up, Down, Left, Right, Enter, LeftShift.");
             sb.AppendLine();
             if (_obj != null) sb.AppendLine($"These rules belong to the object \"{_obj.Name}\".");
+            if (_obj != null && _obj.Behaviors.Count > 0) sb.AppendLine("This object has: " + string.Join(", ", _obj.Behaviors.Select(b => b.Kind.ToString()).Distinct()) + ".");
+            sb.AppendLine("These blocks only work on an object with the behavior they are for: "
+                + string.Join("; ", events.Concat(actions).Where(d => d.Needs != null && d.Needs.Length <= 3).Select(d => d.Id + " (" + string.Join("/", d.Needs!) + ")")) + "; behavior (a behavior it has).");
             sb.AppendLine("Objects in the scene: " + Listed(ParamSources.Objects(_scene)));
             sb.AppendLine("Number variables: " + Listed(NumberVarNames()));
             var locals = LocalVarNames();
@@ -186,6 +189,7 @@ namespace EasyEngine
                     "aim" => "object name, or leave out",
                     "key" => "key",
                     "sound" => "sound file like Assets\\sounds\\hit.wav",
+                    "behkind" => "one of its behaviors, e.g. Patrol, Chase, Shooter, Platformer",
                     "numvar" => "number variable",
                     "localvar" => "this object's own variable",
                     "textvar" => "text variable", "flagvar" => "Yes/No variable", "colorvar" => "colour variable", "listvar" => "list variable",
@@ -215,7 +219,8 @@ namespace EasyEngine
             ["other"] = new[] { "name" }, ["variable"] = new[] { "var" }, ["name"] = new[] { "var", "object", "item" }, ["value"] = new[] { "amount", "to" },
             ["by"] = new[] { "amount" }, ["amount"] = new[] { "to", "count" }, ["count"] = new[] { "amount" }, ["quantity"] = new[] { "amount", "count" },
             ["property"] = new[] { "prop" }, ["degrees"] = new[] { "speed" }, ["angle"] = new[] { "speed" }, ["message"] = new[] { "text" },
-            ["strength"] = new[] { "force" }, ["power"] = new[] { "force" }, ["height"] = new[] { "force" }, ["prefab"] = new[] { "object" },
+            ["strength"] = new[] { "force", "jump" }, ["power"] = new[] { "force", "jump" }, ["height"] = new[] { "force", "jump" }, ["force"] = new[] { "jump" },
+            ["enabled"] = new[] { "on" }, ["state"] = new[] { "on" }, ["behavior"] = new[] { "kind" }, ["behaviour"] = new[] { "kind" }, ["health"] = new[] { "amount" }, ["hp"] = new[] { "amount" }, ["prefab"] = new[] { "object" },
             ["particles"] = new[] { "count" }, ["number"] = new[] { "count", "amount" }, ["button"] = new[] { "key" }, ["file"] = new[] { "sound" },
             ["times"] = new[] { "factor" }, ["multiplier"] = new[] { "factor" }, ["easing"] = new[] { "ease" }, ["level"] = new[] { "scene", "to" },
             ["x"] = new[] { "vx", "dx", "ax" }, ["y"] = new[] { "vy", "dy", "ay" }, ["colour"] = new[] { "color" },
@@ -253,7 +258,13 @@ namespace EasyEngine
                 if (json != null)
                 {
                     using var doc = JsonDocument.Parse(json, LooseJson.Options);
-                    foreach (var el in RuleElements(doc.RootElement, 0)) rules.AddRange(ReadRule(el, events, actions, dropped));
+                    int block = 0;
+                    foreach (var el in RuleElements(doc.RootElement, 0))
+                    {
+                        var one = ReadRule(el, events, actions, dropped).ToList();
+                        if (one.Count > 1) { block++; one = one.Select(r => r[..^1] + ",\"block\":" + block + "}").ToList(); } // a list of actions: one block that does them all
+                        rules.AddRange(one);
+                    }
                 }
             }
             catch (Exception) { } // nothing usable: the caller says so
@@ -290,7 +301,7 @@ namespace EasyEngine
             foreach (var p in el.EnumerateObject())
             {
                 var k = p.Name.ToLowerInvariant();
-                if (k is "when" or "event" or "trigger" or "on") whenRaw = IdOf(p.Value, whenPs);
+                if (k is "when" or "event" or "trigger" || k == "on" && !AiSpecFix.IsOnOff(Text(p.Value))) whenRaw = IdOf(p.Value, whenPs); // "on":"off" is a switch (controls, ability…)
                 else if (k is "do" or "action" or "then")
                 {
                     foreach (var a in p.Value.ValueKind == JsonValueKind.Array ? p.Value.EnumerateArray().ToList() : new List<JsonElement> { p.Value })
@@ -379,8 +390,10 @@ namespace EasyEngine
                 {
                     var c = s.ToLowerInvariant();
                     if (ChoiceSynonyms.TryGetValue(Canon(c), out var syn) && f.Options.Contains(syn)) c = syn;
-                    s = f.Options.FirstOrDefault(o => o.Equals(c, StringComparison.OrdinalIgnoreCase)) ?? s;
+                    if (f.Options.SequenceEqual(OnOff) && AiSpecFix.IsOnOff(c)) c = c is "on" or "true" or "yes" or "1" ? "on" : "off"; // a Yes/No for a switch
+                    s = f.Options.FirstOrDefault(o => o.Equals(c, StringComparison.OrdinalIgnoreCase) || (Canon(o).Length > 0 && Canon(o) == Canon(c))) ?? s; // "double jump" → doubleJump
                 }
+                if (f.Type == "behkind" && f.Options != null) s = f.Options.FirstOrDefault(o => Canon(o) == Canon(s)) ?? s; // "patrol" → Patrol
                 yield return $"\"{f.Key}\":{Q(s)}";
             }
         }

@@ -115,6 +115,8 @@ namespace EasyEngine
         public double TVY(string name) => TE(name)?.VY ?? 0;
         public double TRot(string name) => TE(name)?.Rot ?? 0;
         public double THp(string name) => TE(name)?.CurHealth ?? 0;
+        /// <summary>A number of one of its behaviors in play (e.g. the Platformer's "jump"), or NaN.</summary>
+        public double TBehNum(string name, BehaviorKind kind, string key) => TE(name)?.Beh(kind) is { } b && b.Nums.TryGetValue(key, out var v) ? v : double.NaN;
         public bool TGrounded(string name) => TE(name)?.Grounded ?? false;
         public double TLocal(string name, string varn) { var e = TE(name); return e != null && e.Locals.TryGetValue(varn, out var v) ? v : 0; }
         public double TSpeed(string name) => TE(name)?.SpeedScale ?? 0;

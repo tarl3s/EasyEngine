@@ -10,14 +10,17 @@ namespace EasyEngine
     public partial class BlockEditorWindow
     {
         // field types: num (a number, or a formula saved as a string), text, choice, obj (self, an object or a prefab), aim
-        // (optional: an object or prefab, or none), scene, key, sound, val (number OR expression, an expression saved as
+        // (optional: an object or prefab, or none), scene, key, sound, behkind (one of the behaviors that can rest, offered from
+        // the object's own when it is known; Options = all of them), val (number OR expression, an expression saved as
         // "expr"), textvar / flagvar / colorvar / listvar (a text / Yes-No / colour / list variable, picked), numvar / localvar
         // (a number variable / this object's own one, picked), item (picked), color (a colour picker, or a colour variable as
         // "{name}"), bool (a checkbox, saved as true or left out). Every picked kind is saved as plain text, like a typed one.
         // Absent: what the game uses when a rule leaves the field out, when that isn't the default a NEW block gets — a rule
         // opened without it shows (and saves) that, so opening and saving never changes what it does.
         internal record Field(string Key, string Label, string Type, string Default = "", string[]? Options = null) { public string? Absent { get; init; } }
-        internal record BlockDef(string Id, string Label, Field[] Fields, string Hint = "");
+        // Needs: the behaviors that make this block useful (the object must have one of them for the block to be offered; an
+        // existing rule always keeps its block). Null = every object.
+        internal record BlockDef(string Id, string Label, Field[] Fields, string Hint = "") { public BehaviorKind[]? Needs { get; init; } }
 
         private static readonly string[] Ops = { ">=", ">", "<=", "<", "==", "!=" };
         private static readonly string[] TextOps = { "is", "isnot", "contains", "empty", "notempty" };
@@ -60,7 +63,10 @@ namespace EasyEngine
             new("timer",      L.T("Every few seconds"), new[] { new Field("every", L.T("Seconds"), "num", "1") }, L.T("Repeats forever on this interval.")),
             new("after",      L.T("After some seconds"), new[] { new Field("seconds", L.T("Seconds"), "num", "5") { Absent = "1" } }, L.T("Fires once, that many seconds after it appears.")),
             new("touch",      L.T("When it touches an object"), new[] { new Field("name", L.T("Object"), "obj") }, L.T("Fires the moment it starts touching that object (once per touch).")),
-            new("death",      L.T("When it dies"), Array.Empty<Field>()),
+            new("death",      L.T("When it dies"), Array.Empty<Field>()) { Needs = new[] { BehaviorKind.Health, BehaviorKind.Harvestable, BehaviorKind.BossAI } },
+            new("hurt",       L.T("When it gets hurt"), Array.Empty<Field>(), L.T("Fires the moment its health goes down.")) { Needs = new[] { BehaviorKind.Health } },
+            new("landed",     L.T("When it lands"), Array.Empty<Field>(), L.T("Fires once when it touches the ground after being in the air.")) { Needs = new[] { BehaviorKind.Platformer } },
+            new("interact",   L.T("When someone interacts with it"), Array.Empty<Field>(), L.T("Fires when its Interact behavior is used (the key pressed near it).")) { Needs = new[] { BehaviorKind.Interact } },
             new("ifvar",      L.T("While a variable is…"), new[] { new Field("var", L.T("Variable"), "numvar"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") { Absent = "0" } }),
             new("iflocal",    L.T("While its own variable is…"), new[] { new Field("var", L.T("Variable"), "localvar"), new Field("op", L.T("is"), "choice", ">=", Ops), new Field("value", L.T("Value"), "num", "1") { Absent = "0" } }),
             new("hasitem",    L.T("While it has an item"), new[] { new Field("item", L.T("Item"), "item") }),
@@ -140,7 +146,26 @@ namespace EasyEngine
                 L.T("Shows a line in the debug console (F1 while playing). Use {variable} to print a value, e.g. Coins: {coins}.")),
             new("save",      L.T("Save the game"), Array.Empty<Field>()),
             new("load",      L.T("Load the game"), Array.Empty<Field>()),
+            // blocks for a behavior the object has (offered only when it has one of them)
+            new("controls",  L.T("Turn its controls on or off"), new[] { new Field("on", L.T("Controls"), "choice", "off", OnOff) },
+                L.T("Off: the arrow keys / WASD no longer move it (e.g. during a cutscene). On brings them back.")) { Needs = new[] { BehaviorKind.Platformer, BehaviorKind.TopDown } },
+            new("ability",   L.T("Turn an ability on or off"), new[] { new Field("ability", L.T("Ability"), "choice", "doubleJump", new[] { "doubleJump", "wallJump", "dash" }), new Field("on", L.T("Turn"), "choice", "on", OnOff) },
+                L.T("Gives or takes away double jump, wall jump or dash.")) { Needs = new[] { BehaviorKind.Platformer } },
+            new("setjump",   L.T("Change its jump height"), new[] { new Field("jump", L.T("Jump strength"), "num", "800") },
+                L.T("Bigger = higher jumps. The Platformer's usual strength is 640.")) { Needs = new[] { BehaviorKind.Platformer } },
+            new("heal",      L.T("Heal"), new[] { new Field("amount", L.T("Amount"), "num", "1") },
+                L.T("Gives back health, never above its maximum.")) { Needs = new[] { BehaviorKind.Health } },
+            new("behavior",  L.T("Turn one of its behaviors on or off"), new[] { new Field("kind", L.T("Behavior"), "behkind", "Patrol", SwitchableKinds) { Absent = "Patrol" }, new Field("on", L.T("Turn"), "choice", "off", OnOff) },
+                L.T("Off: that behavior rests (a mover stands still) until it is turned on again.")) { Needs = PlayWindow.OnlyWhileKinds.ToArray() },
         };
+
+        private static readonly string[] OnOff = { "on", "off" };
+        // the behaviors the "behavior" block can switch (the ones that can rest: PlayWindow.OnlyWhileKinds)
+        internal static readonly string[] SwitchableKinds = PlayWindow.OnlyWhileKinds.Select(k => k.ToString()).ToArray();
+
+        // a behavior kind as the inspector names it ("🏃 Platformer Character"); the saved value is the kind's name
+        private static string KindLabel(string kind)
+            => Enum.TryParse<BehaviorKind>(kind, out var k) && BehaviorCatalog.All.Find(b => b.Kind == k) is { } info ? info.Icon + "  " + L.T(info.Name) : kind;
 
         // what a choice option shows (the value is what's saved; symbols and property names show as they are)
         private static string OptionLabel(string o) => o switch
@@ -155,6 +180,7 @@ namespace EasyEngine
             "notcontains" => L.T("doesn't contain"), "countis" => L.T("has exactly (items)"), "countatleast" => L.T("has at least (items)"),
             "master" => L.T("All sound"), "music" => L.T("Music"), "sfx" => L.T("Sound effects"),
             "linear" => L.T("linear"), "easein" => L.T("ease in"), "easeout" => L.T("ease out"), "easeinout" => L.T("ease in and out"),
+            "on" => L.T("on"), "off" => L.T("off"), "doubleJump" => L.T("double jump"), "wallJump" => L.T("wall jump"), "dash" => L.T("dash"),
             _ => o,
         };
 
@@ -170,6 +196,7 @@ namespace EasyEngine
             {
                 "choice" => "=" + string.Join("|", (f.Options ?? Array.Empty<string>()).Where(o => o.Length > 0)),
                 "num" or "obj" when (f.Absent ?? f.Default).Length > 0 => "=" + (f.Absent ?? f.Default), // what leaving it out means
+                "behkind" => "=<one of its behaviors: Patrol, Chase, Shooter…>",
                 _ => "",
             }));
             var meaning = d.Label.TrimEnd('…');

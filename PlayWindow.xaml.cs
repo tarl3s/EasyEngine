@@ -179,6 +179,8 @@ namespace EasyEngine
             public RuleBag<double> WN = new(true);
             public RuleBag<string> WT = new(true);
             public double Timer; public bool Started; public bool WasTouching;
+            public int Group;                    // "block": consecutive rules with the same non-zero Group are ONE block (any WHEN fires → every DO runs)
+            public double Last = double.NaN;     // landed / hurt / interact: what the event saw last frame
             // console bookkeeping
             public string Summary = "";
             public bool WasFiring, WarnedUnknown;
@@ -1481,6 +1483,7 @@ namespace EasyEngine
                             if (fire && !(bh.Num("once", 0) >= 0.5 && en.InteractFired))
                             {
                                 en.InteractFired = true;
+                                en.InteractCount++; // the "When someone interacts with it" block (PlayWindow.RuleBlocks.cs)
                                 DoEffect(bh.Text("action", "say"), bh);
                             }
                             break;
@@ -1862,8 +1865,9 @@ namespace EasyEngine
                     foreach (var p in el.EnumerateObject())
                     {
                         var name = p.Name.ToLowerInvariant();
-                        if (name == "when") { r.When = (p.Value.GetString() ?? "always").ToLowerInvariant(); continue; }
-                        if (name == "do") { r.Do = (p.Value.GetString() ?? "").ToLowerInvariant(); seenDo = true; continue; }
+                        if (name == "when") { r.When = (p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() ?? "always" : "always").ToLowerInvariant(); continue; }
+                        if (name == "do") { r.Do = (p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() ?? "" : "").ToLowerInvariant(); seenDo = true; continue; }
+                        if (name == "block") { if (p.Value.ValueKind == JsonValueKind.Number && p.Value.TryGetInt32(out var g)) r.Group = g; else if (p.Value.ValueKind == JsonValueKind.String && int.TryParse(p.Value.GetString(), out var gs)) r.Group = gs; continue; } // one visual block (several WHEN / DO)
                         // guards always live in the action bucket, wherever they appear, so the guard code finds them
                         bool guard = name is "cond" or "if" or "ifop" or "ifval";
                         bool toTrigger = !seenDo && !guard; // params before "do" belong to the WHEN trigger
@@ -1893,6 +1897,9 @@ namespace EasyEngine
             return list;
         }
 
+        private static readonly string[] SummaryTextKeys = { "var", "item", "object", "scene", "prop", "where", "sound", "text", "to", "kind", "ability", "on" };
+        private static readonly string[] SummaryNumKeys = { "to", "amount", "value", "force", "count", "factor", "jump", "on" };
+
         // A short human-readable form of a rule for the console, e.g. "when keypress E → additem item=wood amount=1".
         private static string RuleSummary(CustomRule r)
         {
@@ -1910,10 +1917,10 @@ namespace EasyEngine
                 _ => r.When
             };
             var act = new System.Text.StringBuilder(r.Do.Length == 0 ? "(no action)" : r.Do);
-            foreach (var k in new[] { "var", "item", "object", "scene", "prop", "where", "sound", "text", "to" })
+            foreach (var k in SummaryTextKeys)
                 if (r.T.TryGetValue(k, out var v) && v.Length > 0) act.Append($" {k}={(v.Length > 24 ? v[..24] + "…" : v)}");
             if (r.T.TryGetValue("expr", out var ex)) act.Append($" = ({ex})");
-            else foreach (var k in new[] { "to", "amount", "value", "force", "count", "factor" })
+            else foreach (var k in SummaryNumKeys)
                     if (r.N.TryGetValue(k, out var nv)) { act.Append($" {k}={nv:0.##}"); break; }
             return $"when {trig} → {act}" + (r.T.TryGetValue("cond", out var c) ? $"  only if {c}" : "");
         }
@@ -1937,11 +1944,26 @@ namespace EasyEngine
             {
                 if (en.Dead && !deadBefore) break; // an earlier rule destroyed it (one collected this frame still gets its touch rules)
                 var r = en.Custom[ri];
-                if (InstantWhen(r.When) ? en.Fired[ri] : RuleFires(en, r, dt)) DoCustom(en, r, dt);
+                if (r.Group == 0) { if (InstantWhen(r.When) ? en.Fired[ri] : RuleFires(en, r, dt)) DoCustom(en, r, dt); continue; }
+                // one block with several WHEN / DO (consecutive rules sharing "block"): every WHEN is checked (so timers and
+                // touches stay in step), and when any of them fires, each DO runs once, in order
+                int end = ri;
+                while (end + 1 < en.Custom.Count && en.Custom[end + 1].Group == r.Group) end++;
+                bool fired = false;
+                for (int k = ri; k <= end; k++)
+                    if (InstantWhen(en.Custom[k].When) ? en.Fired[k] : RuleFires(en, en.Custom[k], dt)) fired = true;
+                if (fired)
+                    for (int k = ri; k <= end; k++)
+                    {
+                        if (en.Dead && !deadBefore) break;
+                        if (en.Custom[k].Do.Length > 0) DoCustom(en, en.Custom[k], dt);
+                    }
+                ri = end;
             }
         }
 
-        private static bool InstantWhen(string when) => when is "keypress" or "timer" or "after" or "touch" or "click" or "rightclick" or "mousepress" or "wheelup" or "wheeldown";
+        private static bool InstantWhen(string when) => when is "keypress" or "timer" or "after" or "touch" or "click" or "rightclick" or "mousepress" or "wheelup" or "wheeldown"
+            or "landed" or "hurt" or "interact";
 
         // whether a rule fires this frame: its event, then its guards (and the console line when it starts/fires)
         private bool RuleFires(Entity en, CustomRule r, double dt)
@@ -1992,6 +2014,7 @@ namespace EasyEngine
                 case "mousedown": fire = _mouseDown && PointInEntity(en); break;
                 case "mouseover": case "hover": fire = PointInEntity(en); break;
                 case "mousepress": fire = _mouseClicked; break; // anywhere on screen
+                case "landed": case "hurt": case "interact": fire = BehaviorEventFires(en, r); break; // PlayWindow.RuleBlocks.cs
             }
             // optional extra guard on any rule: "if"/"ifop"/"ifval" (checks a global variable)
             if (fire && r.T.ContainsKey("if"))
@@ -2018,8 +2041,20 @@ namespace EasyEngine
         private void RunDeathRules(Entity en, double dt)
         {
             if (en.Custom == null) return;
-            foreach (var r in en.Custom)
-                if (r.When == "death") { Info("Script", en.Data.Name, "death rule: " + r.Summary); DoCustom(en, r, dt); }
+            int doneGroup = 0;
+            for (int i = 0; i < en.Custom.Count; i++)
+            {
+                var r = en.Custom[i];
+                if (r.When != "death") continue;
+                Info("Script", en.Data.Name, "death rule: " + r.Summary);
+                if (r.Group == 0) { DoCustom(en, r, dt); continue; }
+                if (r.Group == doneGroup) continue; // its block already ran
+                doneGroup = r.Group; // a "when it dies" inside a block runs all of that block's DOs
+                int start = i;
+                while (start > 0 && en.Custom[start - 1].Group == r.Group) start--;
+                for (int k = start; k < en.Custom.Count && en.Custom[k].Group == r.Group; k++)
+                    if (en.Custom[k].Do.Length > 0) DoCustom(en, en.Custom[k], dt);
+            }
         }
 
         private void DoCustom(Entity en, CustomRule r, double dt)
@@ -2080,6 +2115,8 @@ namespace EasyEngine
                 case "boost": en.SpeedScale *= r.Num("factor", 2); break;
                 case "setspeed": en.SpeedScale = r.Num("factor", 1); break;
                 case "say": ShowDialog(r.Str("text"), r.Str("speaker")); break;
+                case "controls": case "ability": case "setjump": case "heal": case "behavior": DoBehaviorBlock(en, r); break; // PlayWindow.RuleBlocks.cs
+                case "": break; // a block's extra WHEN (no action of its own)
                 case "save": SaveGame(); break;
                 case "load": LoadGame(); break;
                 case "emit":
@@ -2605,7 +2642,8 @@ namespace EasyEngine
             BehaviorKind.Area, BehaviorKind.Switch, BehaviorKind.Gate, BehaviorKind.AbilityPickup,
         };
         private bool BehaviorOn(Entity en, BehaviorData bh)
-            => !bh.Texts.TryGetValue("cond", out var c) || string.IsNullOrWhiteSpace(c) || !OnlyWhileKinds.Contains(bh.Kind) || EvalExpr(c, en) != 0;
+            => !(en.OffKinds != null && en.OffKinds.Contains(bh.Kind)) // turned off by a "behavior" block (PlayWindow.RuleBlocks.cs)
+               && (!bh.Texts.TryGetValue("cond", out var c) || string.IsNullOrWhiteSpace(c) || !OnlyWhileKinds.Contains(bh.Kind) || EvalExpr(c, en) != 0);
 
         private void BuildTilemap(GameObjectData obj, bool screenSpace, Entity en)
         {
