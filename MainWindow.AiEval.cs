@@ -49,7 +49,6 @@ namespace EasyEngine
             custom.Texts["script"] = json;
             return (status.StartsWith("✓"), status.Replace("\n", " "), json);
         }
-        public bool EvalCompact { get; set; } // --aitest --compact: the cloud's shorter prompt on a local model too
         public List<GameObjectData> TestAllObjects() => _scene.Layers.SelectMany(l => l.Objects).ToList();
         public Project EvalProject => _project;
         public Scene EvalScene => _scene;

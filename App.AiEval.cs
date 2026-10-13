@@ -38,7 +38,6 @@ namespace EasyEngine
                 Directory.CreateDirectory(temp);
                 var editor = new MainWindow(ProjectIO.CreateNew("AiTest", temp)); // constructed, not shown
                 editor.EvalUseAi(choice);
-                editor.EvalCompact = args.Contains("--compact");
                 var cases = AiEvalCases().Where(k => only.Length == 0 || only.Any(o => k.Id.Contains(o, StringComparison.OrdinalIgnoreCase))).ToList();
                 _ = RunAiEvalAsync(editor, cases, log, choice.StartsWith("cloud:")).ContinueWith(t => Dispatcher.Invoke(() =>
                 {
