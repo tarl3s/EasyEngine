@@ -44,7 +44,7 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--behtest` (49) / `--exprtest` (26) / `--blocktest` (18) / `--aijsontest` (20) | behaviors / expression evaluator / block-editor round-trip / AI-JSON parsing robustness | `easyengine_<name>.log` |
 | `--selftest` | opens real windows (editor, play, every dialog), measures every visible text against what is drawn behind it (`ContrastAudit`, fails under 4.5:1), renders PNG snapshots; add `--theme light` for the light theme | `easyengine_selftest.log`, `easyengine_snap_*.png` (`*_light.png`) |
 | `--review` | dev tool: plays Boss Demo + Infinite World in a real window, saves PNGs of key moments | `easyengine_snap_review_*.png` |
-| `--aitest [--model m]` | ~32 prompts through the real AI pipeline (needs a running AI) | `easyengine_aitest.log` |
+| `--aitest [--model m \| --cloud [auto\|groq…]] [--compact] [--only id,id]` | **graded** AI eval (`App.AiEval.cs`): ~75 real requests (moves, timers, enemies, bosses, HUD, whole levels, edits, Portuguese, the Boss/Cutscene cards' ✨ Ask the AI), each checked on the resulting project and by playing it headless. Needs a running AI; the cloud free tiers have daily quotas — rerun failures with `--only` | `easyengine_aitest.log` |
 
 Last known green: fulltest 553/553, e2e 67/67, behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light).
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
@@ -70,7 +70,7 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 | Custom behavior mini-language (`when → do` rules) + expressions | runtime in `PlayWindow.xaml.cs` (`RunCustom`/`DoCustom`/`RuleValue`), `Expr.cs` (recursive evaluator, never throws) |
 | Scratch-style editors | `BlockEditorWindow.cs` (Custom rules; `.Ai.cs` = its "✨ Ask the AI": prompt built from the block palette, tolerant reply reader), `SequenceEditorWindow.cs` ("Advanced Scratch" for Boss AI / Cutscene) |
 | Boss/Cutscene step palette, script model, tolerant JSON (shared by runtime, editor and AI) | `SequenceModel.cs` (`StepCatalog`, `SeqStep`, `BossScript`, `SequenceJson`), `SequenceAi.cs` |
-| AI clients | `OllamaClient.cs` + `OllamaManager.cs` (local, `localhost:11434`), `CloudClient.cs` (OpenAI-compatible free tiers Groq/Gemini/OpenRouter with auto-fallback on 429, BYO paid keys incl. native Anthropic; `AiSettings`) |
+| AI clients | `AiSpecFix.cs` (cleans up every model reply), `MainWindow.AiRules.cs` (rule merging, deletes, recipes), `OllamaClient.cs` + `OllamaManager.cs` (local, `localhost:11434`), `CloudClient.cs` (OpenAI-compatible free tiers Groq/Gemini/OpenRouter with auto-fallback on 429, BYO paid keys incl. native Anthropic; `AiSettings`) |
 | Shared helpers | `LooseJson.cs` (lenient JSON + number parsing), `Theme.cs` (dark/light palettes, `Init`), `Loc.cs` (`L.T` languages, `Lang/*.json`), `CacheCleaner.cs` (clear temporary files), `Dropdown.cs`, `ParamSources.cs` (lists for pickers), `Contrast.cs`, `DemoKit.cs`, `ToolArt.cs`, `LookPicker.cs`, `ColorPickerPopup.cs`, `SoundSynth.cs` (generated WAVs) |
 | Other windows | `LauncherWindow`, `SettingsWindow.cs` (language, theme, size, updates, temp files), `AnimationWindow`, `SpriteEditorWindow.cs` (pixel art), `VariablesWindow`, `NewItemDialog.cs` (`ItemMaker`), `InputDialog`, `DebugConsoleView.cs` + `DebugLog.cs` (F1 console) |
 | Demos / scenarios | `DemoGame.cs`, `MiningGame.cs`, `TopDownGame.cs`, `BossDemo.cs`, `InfiniteWorld.cs`, `SpriteTestGame.cs`, `TestScenarios.cs` (+ `GameAssets`) |
@@ -115,6 +115,19 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
   improvements belong in the shared pipeline so every model benefits.
 - Platformer/TopDown read the *player's* keyboard; non-player objects get `controls = 0`. "When X happens, do Y" is
   always a Custom rule, never a static parameter.
+- Everything the model answers goes through `AiSpecFix` before it is applied: event/action synonyms (one table, also
+  used by the block editor's ✨ Ask the AI), params in the wrong bag (`"var"` in nums, `"axis":"y"`), Custom written as
+  a behavior, a door "on death". Rules it can't use are reported under the change summary (⚠), never guessed.
+  Custom rules from the AI are ADDED to an object's rules (`MergeRules`: same event+action retunes the old one;
+  `"replaceCustom":true` rewrites them); `"delete":[name]` removes objects; locked objects are never touched.
+- The build prompt ends with **recipes** (`MainWindow.AiRules.cs`) — the exact shapes of the most common requests.
+  When an --aitest case keeps failing, first ask whether the runtime should accept what the model wrote (a value as an
+  expression, a synonym), then whether a recipe is missing; only then special-case.
+- Rule values: any numeric param may be an expression or a quoted number (`CustomRule.Num` evaluates it for that
+  object); `time` is game time. `timer` first fires after its interval.
+- Local models: `OllamaClient` asks for a context window that fits the prompt (Ollama's default 4096 tokens silently
+  cut the build prompt) and caps the answer (`num_predict`). Cloud Auto: any failure moves to the next free provider,
+  a retired model id is replaced from the provider's model list, and when all are only busy it waits once.
 - Modes: 🔨 Build (edits), 💡 Brainstorm (chat only), 🎓 Learn (explains from catalog + guides, never edits).
   Boss/Cutscene cards have their own "✨ Ask the AI" (dedicated prompt, validated by the runtime's parser, one retry).
 - API keys live in `%APPDATA%\EasyEngine\settings.json` (with panel layout and recent list). Never commit keys,
