@@ -107,6 +107,7 @@ namespace EasyEngine
             "- when the score reaches 10: {\"when\":\"ifvar\",\"var\":\"score\",\"op\":\">=\",\"value\":10,\"do\":\"goscene\",\"scene\":\"Level2\"}.\n" +
             "- message when touching: {\"when\":\"touch\",\"name\":\"Player\",\"do\":\"say\",\"text\":\"Welcome!\"} (touch's \"name\" is the OTHER object).\n" +
             "- delete objects: {\"delete\":[\"Enemy\"]}.\n" +
+            "- a WHOLE LEVEL: {\"level\":{\"platforms\":3,\"coins\":5,\"enemies\":2,\"spikes\":1,\"door\":\"Level2\"}} — the engine lays it all out (also \"stairs\":5, \"checkpoint\":true, \"enemyKind\":\"chase\"; a walled top-down room: \"style\":\"topdown\"). Use it whenever asked to build a level, stage, room or map.\n" +
             "Numbers in rules may be expressions (\"rand(1,3)\", \"Player.x - self.x\"). move dx/dy are pixels PER SECOND. Bosses: BossAI (moves=fly for a flying one) + Health respawn=0 + Damager.\n";
 
         // Applying a reply never takes the editor down: whatever odd JSON slipped past the clean-up just counts as "not applied".

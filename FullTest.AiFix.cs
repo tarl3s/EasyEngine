@@ -161,6 +161,23 @@ public partial class App
                    && ed.TestFindObject("StartButton")?.Behaviors.First(b => b.Kind == BehaviorKind.UIButton).Text("scene", "") == "Level2"
                    && ed.TestFindObject("Door")?.Behaviors.First(b => b.Kind == BehaviorKind.GoToScene).Text("scene", "") == "Level3";
         });
+        t.Test("ai: {\"level\":…} lays out a playable level (ground, reachable platforms with coins, standing enemies, a door, a score label)", () =>
+        {
+            var ed = NewEditor(s => s.Layers.Add(new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true }));
+            var (ok, summary) = ed.TestApplySpec("{\"level\":{\"platforms\":3,\"coins\":5,\"enemies\":2,\"spikes\":1,\"door\":\"Level2\"}}", "build a level");
+            var all = ed.TestAllObjects();
+            var ground = all.FirstOrDefault(o => o.Name == "Ground");
+            var plats = all.Where(o => o.Name.StartsWith("Platform")).OrderBy(o => o.X).ToList();
+            bool reach = ground != null && plats.Count == 3 && ground.Y - plats.Min(p => p.Y) <= 160
+                         && plats.All(p => ground.Y - p.Y <= 100 || plats.Any(q => q != p && q.Y - p.Y is > 0 and <= 100)); // each one a jump from the ground or a lower one
+            bool counts = all.Count(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Collectible)) == 5 && all.Count(o => o.Name.StartsWith("Enemy")) == 2
+                          && all.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.GoToScene && b.Text("scene", "") == "Level2"))
+                          && all.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Label && b.Text("text", "").Contains("{score}")));
+            var top = ed.TestAllObjects().First(o => o.Name == "Ground").Y;
+            var pw = new PlayWindow(ed.TestProjectObject, ed.TestSceneName); pw.TSeed(1); pw.TLoad(); t.Sims.Add(pw); pw.TSteps(120);
+            bool standing = Math.Abs(pw.TY("Enemy") + 48 - top) < 4;
+            return ok && summary.Contains("level") && reach && counts && standing;
+        });
         t.Test("ai: a reply that only copies an example from the prompt is caught (unless that example is what was asked)", () =>
         {
             var sys = NewEditor().TestBuildPrompt();

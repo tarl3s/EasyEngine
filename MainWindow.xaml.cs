@@ -3483,6 +3483,7 @@ namespace EasyEngine
                 if (root.TryGetProperty("layers", out var lyArr) && lyArr.ValueKind == JsonValueKind.Array)
                     ApplyLayerArray(lyArr, EnsureUndo, changes);
                 ApplyGlobalSceneVars(root, EnsureUndo, changes);
+                ApplyLevel(root, EnsureUndo, changes); // "level": the engine lays out a whole level (MainWindow.AiLevel.cs)
 
                 if (changes.Count > 0)
                 {
