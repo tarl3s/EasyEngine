@@ -38,10 +38,6 @@ namespace EasyEngine
             public int PathStep = 1; // +1 forward, -1 backward (ping-pong)
             public double PathTry;   // time spent trying to reach the current waypoint
             public int APMode;       // AdvancedPatrol format: 0=platform, 1=top-down, 2=free/fly
-            public double SpawnTimer;
-            public int Spawned;
-            public bool SpawnKeyWas;
-            public double ShootTimer;
             public bool ScreenSpace;
             public List<CustomRule>? Custom;
             public bool[]? Fired;                 // RunCustom: which rules fired this frame (decided before any of them runs)
@@ -51,7 +47,6 @@ namespace EasyEngine
             public double EffectSpeed, EffectT, LabelReveal; // text-effect state
             public double PathTimer, PathNX, PathNY;          // pathfinding waypoint
             public Canvas? MiniCanvas;                         // minimap overlay canvas
-            public bool ParticleStarted; public double ParticleTimer; // emitter state
             public double TweenScale = 1;                      // current tweened scale
             public System.Windows.Shapes.Rectangle? BarFill;   // bar fill rectangle
             public bool DNStarted; public double DNTimer;      // day/night cycle clock
@@ -83,8 +78,7 @@ namespace EasyEngine
             public bool FrameDynamic, FrameTopDown, FrameCollide; // physics category, classified once per frame
             // phase-2 behavior state
             public bool SolidDisabled;                 // Door: opened → stops colliding
-            public bool SwitchWas, InteractWas, AreaWas, ShopWas; // edge-trigger memory
-            public bool InteractFired, AreaFired;        // 'once' latches
+            public bool SwitchWas; // edge-trigger memory (the repeatable behaviors keep theirs per behavior: PlayWindow.MultiBehaviors.cs)
             // health / combat
             public double CurHealth, MaxHealth, InvTimer, RespawnX, RespawnY;
             public bool Harmless;                      // its Damager doesn't hurt (e.g. a boss playing its death)
@@ -440,7 +434,7 @@ namespace EasyEngine
             var npc = Find("NPC1");
             if (npc != null && player != null)
             {
-                MovePlayer(npc.X, npc.Y); npc.InteractWas = false;
+                MovePlayer(npc.X, npc.Y); npc.States = null;
                 UpdateBehaviors(0.016);
                 Check("Interact does NOT fire without the key", Var("talked") < 0.5);
                 _keys.Add(Key.E);
@@ -734,11 +728,7 @@ namespace EasyEngine
                  $"{_entities.Count(e => e.Custom != null && e.Custom.Count > 0)} with scripts · {_solids.Count} colliders · camera follows {(_cameraTarget?.Data.Name ?? "nothing")}");
 
             PreloadSounds();
-            foreach (var en in _entities)
-            {
-                var snd = en.Beh(BehaviorKind.SoundEmitter);
-                if (snd != null && snd.Num("onStart", 1) >= 0.5) PlaySound(snd, en.Data.Name);
-            }
+            foreach (var en in _entities) StartSounds(en); // every Sound of it (PlayWindow.MultiBehaviors.cs)
         }
 
         // Spawn a prefab/scene-object at an exact position.
@@ -1106,8 +1096,11 @@ namespace EasyEngine
                 if (en.Dead) continue; // dead this frame or earlier: never run its behaviors (death rules fire once)
                 bool knocked = KnockTick(en, dt);  // a hit's knockback: the movers leave its speed alone for a moment
                 var driver = en.Driver = PickDriver(en); // the one automatic mover that steers it (PlayWindow.Movers.cs)
-                foreach (var bh in en.Data.Behaviors)
+                ReleaseLatches(en); // a key press used by one of its Interacts/Shops is free again once let go (PlayWindow.MultiBehaviors.cs)
+                var behaviors = en.Data.Behaviors;
+                for (int bi = 0; bi < behaviors.Count; bi++) // bi: the behavior's own state (St) when the object has several of a kind
                 {
+                    var bh = behaviors[bi];
                     if (IsAutoMover(bh.Kind) && bh != driver)
                     {
                         // not the driver: off (or a chaser with nothing near to chase) → it stands still unless another mover drives it
@@ -1117,6 +1110,7 @@ namespace EasyEngine
                     if (bh != driver && !BehaviorOn(en, bh)) // "only while": a behavior with texts.cond rests while that formula is false
                     {
                         if (bh.Kind is BehaviorKind.TopDown or BehaviorKind.Platformer) { en.InputHeld = false; RestMover(en); } // a resting mover stands still (gravity still pulls)
+                        else if (bh.Kind == BehaviorKind.SoundEmitter) SoundRest(en, bh, bi); // a resting sound stops
                         continue;
                     }
                     if ((knocked || en.InputHeld) && bh == driver) continue; // knockback, or the player steering it: the driver waits
@@ -1172,11 +1166,13 @@ namespace EasyEngine
                             double radius = bh.Num("radius", 70);
                             double dx = en.CX - buyer.CX, dy = en.CY - buyer.CY;
                             bool near = (dx * dx + dy * dy) <= radius * radius || Overlap(en, buyer);
-                            bool keyDown = near && _keys.Contains(ParseKey(bh.Text("key", "E")));
-                            bool pressed = keyDown && !en.ShopWas; // buy once per key press
-                            en.ShopWas = keyDown;
+                            var sst = St(en, bi);
+                            var buyKey = ParseKey(bh.Text("key", "E"));
+                            bool keyDown = near && _keys.Contains(buyKey);
+                            bool pressed = keyDown && !sst.Was && en.ShopLatch != buyKey; // buy once per key press — one item per press, even with several Shops
+                            sst.Was = keyDown;
                             bool once = bh.Num("once", 1) >= 0.5;
-                            bool sold = en.Locals.TryGetValue("__sold", out var sd) && sd >= 1;
+                            bool sold = sst.Fired;
                             if (pressed && once && sold) Info("Shop", en.Data.Name, "Already bought (buy only once)");
                             else if (pressed)
                             {
@@ -1187,7 +1183,8 @@ namespace EasyEngine
                                 {
                                     _vars[cur] = Var(cur) - cost;
                                     if (!string.IsNullOrWhiteSpace(give)) _vars["item:" + give] = Var("item:" + give) + Math.Max(1, bh.Num("give", 1));
-                                    if (once) en.Locals["__sold"] = 1;
+                                    if (once) sst.Fired = true;
+                                    en.ShopLatch = buyKey; // this press is used: the object's next Shop waits for the next one
                                     EmitParticles(en.CX, en.CY, 14, 170, 360, 0, 0.6, 6, 250, "#FFD24D");
                                     Info("Shop", en.Data.Name, $"Bought {give} for {cost:0.##} {cur}", $"{cur} left: {Var(cur):0.##}");
                                 }
@@ -1375,6 +1372,7 @@ namespace EasyEngine
                         case BehaviorKind.Projectile: if (en.Life >= 0) { en.Life -= dt; if (en.Life <= 0) en.Dead = true; } break;
                         case BehaviorKind.Spawner:
                         {
+                            var sp = St(en, bi); // its own clock and count (another Spawner on it has its own)
                             bool atTop = bh.Text("at", "").Equals("top", StringComparison.OrdinalIgnoreCase);
                             double max = bh.Num("max", 10);
                             var key = bh.Text("key", "");
@@ -1382,15 +1380,15 @@ namespace EasyEngine
                             {
                                 // spawn once each time the key is pressed
                                 bool down = _keys.Contains(ParseKey(key));
-                                if (down && !en.SpawnKeyWas && (max <= 0 || en.Spawned < max))
-                                { SpawnFrom(en, bh.Text("target", "Enemy"), atTop); en.Spawned++; }
-                                en.SpawnKeyWas = down;
+                                if (down && !sp.Was && (max <= 0 || sp.Count < max))
+                                { SpawnFrom(en, bh.Text("target", "Enemy"), atTop); sp.Count++; }
+                                sp.Was = down;
                             }
                             else
                             {
-                                en.SpawnTimer += dt;
-                                if (en.SpawnTimer >= Math.Max(0.05, bh.Num("interval", 1.5)) && (max <= 0 || en.Spawned < max))
-                                { en.SpawnTimer = 0; SpawnFrom(en, bh.Text("target", "Enemy"), atTop); en.Spawned++; }
+                                sp.Timer += dt;
+                                if (sp.Timer >= Math.Max(0.05, bh.Num("interval", 1.5)) && (max <= 0 || sp.Count < max))
+                                { sp.Timer = 0; SpawnFrom(en, bh.Text("target", "Enemy"), atTop); sp.Count++; }
                             }
                             break;
                         }
@@ -1422,13 +1420,14 @@ namespace EasyEngine
                         }
                         case BehaviorKind.Shooter:
                         {
-                            if (en.ShootTimer > 0) en.ShootTimer -= dt;
+                            var gun = St(en, bi); // its own cooldown
+                            if (gun.Timer > 0) gun.Timer -= dt;
                             var keyName = bh.Text("key", "T");
                             bool auto = string.IsNullOrWhiteSpace(keyName) || keyName.Equals("none", StringComparison.OrdinalIgnoreCase); // no key: fires by itself
-                            if (en.ShootTimer <= 0 && (auto || _keys.Contains(ParseKey(keyName))))
+                            if (gun.Timer <= 0 && (auto || _keys.Contains(ParseKey(keyName))))
                             {
                                 FireVolley(en, (int)Math.Round(bh.Num("directions", 8)), bh.Num("speed", 420), bh.Num("life", 2), bh.Text("bullet", "Bullet"), bh.Text("aim", ""));
-                                en.ShootTimer = Math.Max(0.05, bh.Num("cooldown", 0.3));
+                                gun.Timer = Math.Max(0.05, bh.Num("cooldown", 0.3));
                             }
                             break;
                         }
@@ -1499,16 +1498,20 @@ namespace EasyEngine
                             if (t == null) break;
                             double rad = bh.Num("radius", 60), dx = t.CX - en.CX, dy = t.CY - en.CY;
                             bool near = dx * dx + dy * dy <= rad * rad;
-                            bool keyDown = _keys.Contains(ParseKey(bh.Text("key", "E")));
+                            var ist = St(en, bi);
+                            var useKey = ParseKey(bh.Text("key", "E"));
+                            bool keyDown = _keys.Contains(useKey);
                             bool active = near && keyDown;
                             // while a message is showing (or waiting) the key does nothing — pressing it again used to queue
                             // the whole talk once more, so it took many Enters to get out
                             bool talking = _dialogOpen || _dialog.Count > 0;
-                            bool fire = active && !en.InteractWas && !talking;
-                            en.InteractWas = active;
-                            if (fire && !(bh.Num("once", 0) >= 0.5 && en.InteractFired))
+                            // one press uses one Interact of this object: the first that fires (a toggle: A turns it on, B waits)
+                            bool fire = active && !ist.Was && !talking && en.InteractLatch != useKey;
+                            ist.Was = active;
+                            if (fire && !(bh.Num("once", 0) >= 0.5 && ist.Fired))
                             {
-                                en.InteractFired = true;
+                                ist.Fired = true;
+                                en.InteractLatch = useKey;
                                 en.InteractCount++; // the "When someone interacts with it" block (PlayWindow.RuleBlocks.cs)
                                 DoEffect(bh.Text("action", "say"), bh);
                             }
@@ -1538,11 +1541,12 @@ namespace EasyEngine
                             en.Visual.Opacity = 0; // trigger zones are invisible in play
                             var t = _entities.FirstOrDefault(x => !x.Dead && x.Data.Name == bh.Text("target", "Player"));
                             bool inside = t != null && Contact(en, t);
-                            bool fire = inside && !en.AreaWas;
-                            en.AreaWas = inside;
-                            if (fire && !(bh.Num("once", 1) >= 0.5 && en.AreaFired))
+                            var ast = St(en, bi);
+                            bool fire = inside && !ast.Was;
+                            ast.Was = inside;
+                            if (fire && !(bh.Num("once", 1) >= 0.5 && ast.Fired))
                             {
-                                en.AreaFired = true;
+                                ast.Fired = true;
                                 DoEffect(bh.Text("action", "goscene"), bh);
                             }
                             break;
@@ -1592,16 +1596,18 @@ namespace EasyEngine
                             string on = bh.Text("on", "start").ToLowerInvariant();
                             if (on == "start")
                             {
-                                if (!en.ParticleStarted) { en.ParticleStarted = true; EmitFrom(en, bh, (int)bh.Num("burst", 16)); }
+                                var pst = St(en, bi);
+                                if (!pst.Fired) { pst.Fired = true; EmitFrom(en, bh, (int)bh.Num("burst", 16)); }
                             }
                             else // always: continuous at 'rate' per second
                             {
                                 double rate = bh.Num("rate", 0);
                                 if (rate > 0)
                                 {
-                                    en.ParticleTimer += dt;
+                                    var pst = St(en, bi);
+                                    pst.Timer += dt;
                                     double per = 1.0 / rate;
-                                    while (en.ParticleTimer >= per) { en.ParticleTimer -= per; EmitFrom(en, bh, 1); }
+                                    while (pst.Timer >= per) { pst.Timer -= per; EmitFrom(en, bh, 1); }
                                 }
                             }
                             break;
@@ -1613,6 +1619,7 @@ namespace EasyEngine
                             if (_mouseClicked && over) DoEffect(bh.Text("action", "goscene"), bh);
                             break;
                         }
+                        case BehaviorKind.SoundEmitter: SoundOn(en, bh, bi); break; // back on: plays again (PlayWindow.MultiBehaviors.cs)
                         case BehaviorKind.Bar: /* updated in Render */ break;
                         case BehaviorKind.Custom: break; // its rules run below, after every other behavior
                     }
@@ -2683,7 +2690,7 @@ namespace EasyEngine
             BehaviorKind.Platformer, BehaviorKind.TopDown, BehaviorKind.Patrol, BehaviorKind.AdvancedPatrol, BehaviorKind.Chase, BehaviorKind.PathChase,
             BehaviorKind.Spin, BehaviorKind.Shooter, BehaviorKind.Spawner, BehaviorKind.Damager, BehaviorKind.Collectible, BehaviorKind.Spring,
             BehaviorKind.Interact, BehaviorKind.Pushable, BehaviorKind.Particles, BehaviorKind.ToolUse, BehaviorKind.Shop, BehaviorKind.GoToScene,
-            BehaviorKind.Area, BehaviorKind.Switch, BehaviorKind.Gate, BehaviorKind.AbilityPickup,
+            BehaviorKind.Area, BehaviorKind.Switch, BehaviorKind.Gate, BehaviorKind.AbilityPickup, BehaviorKind.SoundEmitter,
         };
         private bool BehaviorOn(Entity en, BehaviorData bh)
             => !(en.OffKinds != null && en.OffKinds.Contains(bh.Kind)) // turned off by a "behavior" block (PlayWindow.RuleBlocks.cs)
@@ -3319,8 +3326,8 @@ namespace EasyEngine
         }
 
         // SoundEmitter: plays its asset (looping ones become music players)
-        private void PlaySound(BehaviorData snd, string source = "")
-            => PlaySoundFile(snd.Text("asset", ""), snd.Num("volume", 0.8), snd.Text("channel", "sfx"), snd.Num("loop", 0) >= 0.5, source);
+        private MediaPlayer? PlaySound(BehaviorData snd, string source = "", bool own = false)
+            => PlaySoundFile(snd.Text("asset", ""), snd.Num("volume", 0.8), snd.Text("channel", "sfx"), snd.Num("loop", 0) >= 0.5, source, own);
 
         private void Stop_Click(object sender, RoutedEventArgs e) => Close();
 

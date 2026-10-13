@@ -111,6 +111,7 @@ namespace EasyEngine
                 .ToList();
             var sb = new StringBuilder($"{info.Icon} {info.Name} — {info.Desc}\n");
             if (fields.Count > 0) sb.AppendLine("  Fields: " + string.Join("; ", fields));
+            if (info.Repeatable) sb.AppendLine("  It can be added more than once to the same object (each one has its own settings).");
             if (BehaviorGuides.For(info.Kind) is string guide) sb.AppendLine("  How to use it:\n  " + guide.Replace("\n", "\n  "));
             return sb.ToString();
         }

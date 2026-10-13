@@ -29,6 +29,7 @@ public partial class App
             AddE2EScenariosLayers(scenarios);   // E2ETests.Layers.cs
             AddE2EScenariosLights(scenarios);   // E2ETests.Lights.cs
             AddE2EScenariosScratch(scenarios);  // E2ETests.Scratch.cs
+            AddE2EScenariosMulti(scenarios);    // E2ETests.Multi.cs
             foreach (var (title, run) in scenarios)
             {
                 sb.AppendLine($"===== {title} =====");
@@ -57,6 +58,7 @@ public partial class App
     partial void AddE2EScenariosLayers(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosLights(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosScratch(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
+    partial void AddE2EScenariosMulti(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
 
     /// <summary>Plays the "Lighting Test" scene headless: sky colour, daylight, N → night, M → morning, the cycle on its own.</summary>
     internal static List<(string step, bool ok, List<string> lines)> RunLightingE2E()
