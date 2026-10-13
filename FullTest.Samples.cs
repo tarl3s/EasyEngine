@@ -167,6 +167,24 @@ public partial class App
             w.Close();
             return drawn && undone && redone && cutBack && cancelled;
         });
+        t.Test("rename prefab: every reference follows (whole value, comma list, Name:#color, quoted in scripts); other names stay", () =>
+        {
+            var p = new Project();
+            var slime = new PrefabDef { Name = "Slime" }; var bat = new PrefabDef { Name = "Bat" };
+            p.Prefabs.Add(slime); p.Prefabs.Add(bat);
+            var sc = new Scene(); var layer = new Layer(); sc.Layers.Add(layer); p.Scenes.Add(sc);
+            var o = new GameObjectData { Name = "Spawner" }; layer.Objects.Add(o);
+            var b = new BehaviorData { Kind = BehaviorKind.Custom };
+            b.Texts["object"] = "slime"; b.Texts["list"] = "Bat, Slime"; b.Texts["markers"] = "Slime:#FF0000,Bat";
+            b.Texts["script"] = "[{\"when\":\"every\",\"do\":\"spawn\",\"object\":\"Slime\"},{\"do\":\"spawn\",\"object\":\"Slimer\"}]";
+            b.Texts["other"] = "Slimes are cute"; o.Behaviors.Add(b);
+            bat.Template.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["drop"] = "Slime" } });
+            bool blocked = PrefabRename.Problem(p, slime, "bat") != null && PrefabRename.Problem(p, slime, " ") != null && PrefabRename.Problem(p, slime, "Goo") == null;
+            int n = PrefabRename.Apply(p, slime, "Goo");
+            return blocked && n == 5 && slime.Name == "Goo" && b.Texts["object"] == "Goo" && b.Texts["list"] == "Bat, Goo"
+                   && b.Texts["markers"] == "Goo:#FF0000,Bat" && b.Texts["script"].Contains("\"object\":\"Goo\"") && b.Texts["script"].Contains("\"Slimer\"")
+                   && b.Texts["other"] == "Slimes are cute" && bat.Template.Behaviors[0].Texts["drop"] == "Goo";
+        });
         t.Test("game screen: a run always shows the project's screen size (960×540 by default, old projects too), scaled to the window", () =>
         {
             var w = t.Sim("[]", PhysicsMode.None, (p, s) => { p.ScreenWidth = 640; p.ScreenHeight = 360; });

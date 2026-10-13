@@ -1075,11 +1075,14 @@ namespace EasyEngine
             var add = L.Keep(new Button { Content = $"{pf.Icon}  {pf.Name}", Style = (Style)FindResource("CardButton"), Height = 36, HorizontalContentAlignment = HorizontalAlignment.Left });
             add.Click += (s, e) => AddPrefabInstance(pf);
 
+            var ren = new Button { Content = "✏", Style = (Style)FindResource("GhostButton"), Height = 36, Width = 30, Padding = new Thickness(0), Margin = new Thickness(4, 0, 0, 0), ToolTip = L.T("Rename this prefab (everything that uses it follows the new name)") };
+            ren.Click += (s, e) => RenamePrefab(pf);
             var del = new Button { Content = L.T("Delete"), Style = (Style)FindResource("GhostButton"), Height = 36, FontSize = 11, Foreground = (SolidColorBrush)FindResource("Danger"), Margin = new Thickness(4, 0, 0, 0) };
             del.Click += (s, e) => DeletePrefab(pf);
 
-            Grid.SetColumn(add, 0); Grid.SetColumn(del, 1);
-            grid.Children.Add(add); grid.Children.Add(del);
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(add, 0); Grid.SetColumn(ren, 1); Grid.SetColumn(del, 2);
+            grid.Children.Add(add); grid.Children.Add(ren); grid.Children.Add(del);
             return grid;
         }
 
@@ -1108,6 +1111,18 @@ namespace EasyEngine
             layer.Objects.Add(obj);
             RenderScene(); RefreshObjects(); Select(obj); Dirty();
             Status(L.F("{0} added to \"{1}\"", obj.Name, layer.Name));
+        }
+
+        private void RenamePrefab(PrefabDef pf)
+        {
+            var name = InputDialog.Prompt(this, L.T("Rename prefab"), L.T("New name:"), pf.Name);
+            if (name == null || name == pf.Name) return;
+            if (PrefabRename.Problem(_project, pf, name) is string why) { MessageBox.Show(why, L.T("Rename prefab")); return; }
+            // (no undo step: undo covers the scene, not the prefab library — it would bring back old references only)
+            string old = pf.Name;
+            int refs = PrefabRename.Apply(_project, pf, name);
+            RefreshPalette(); if (_selected != null) BuildInspector(_selected); Dirty();
+            Status(refs == 0 ? L.F("Prefab \"{0}\" is now \"{1}\"", old, pf.Name) : L.F("Prefab \"{0}\" is now \"{1}\" ({2} places that use it updated)", old, pf.Name, refs));
         }
 
         private void DeletePrefab(PrefabDef pf)
