@@ -183,9 +183,13 @@ namespace EasyEngine
                           T("at","Where","self", PickKind.Choice, "self|At this object", "top|Falling from the top of the screen") } },
 
             new BehaviorInfo { Kind = BehaviorKind.SoundEmitter, Repeatable = true, Name = "Sound", Icon = "🔊",
-                Desc = "Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master.",
-                Nums = { new("volume","Volume (0-1)",0.8), new("onStart","Play on start (0/1)",1), new("loop","Loop (0/1)",0) },
-                Texts = { T("asset","Sound file","", PickKind.Sound), T("channel","Channel","sfx", PickKind.Choice, "sfx|Sound effects", "music|Music") } },
+                Desc = "Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master. Only heard nearby (range): heard only within 'radius' px of the listener (the player by default) — full volume close to it, fading smoothly to silence at the edge (a looping one keeps playing silently and comes back as you walk near). Left / right in the headphones (pan): it plays in the left or right ear by where it is compared to the listener (3D / stereo sound).",
+                Nums = { new("volume","Volume (0-1)",0.8), new("onStart","Play on start (0/1)",1), new("loop","Loop (0/1)",0),
+                         new("range","Only heard nearby (0/1)",0),
+                         NIf(new("radius","Heard up to",600, "200|200 px — very close", "400|400 px — near", "600|600 px — about a screen", "900|900 px — far", "1400|1400 px — very far"), IfOn("range")),
+                         new("pan","Left / right in the headphones by its position (0/1)",0) },
+                Texts = { T("asset","Sound file","", PickKind.Sound), T("channel","Channel","sfx", PickKind.Choice, "sfx|Sound effects", "music|Music"),
+                          TIf(T("listener","Heard by","Player", PickKind.Object), c => IfOn("range")(c) || IfOn("pan")(c)) } },
 
             new BehaviorInfo { Kind = BehaviorKind.LightSource, Name = "Light", Icon = "💡",
                 Desc = "Lights up the darkness around it (things in its light show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). Shape: circle (all around), beam (a cone like a flashlight or a car's headlights — it points where the object faces, or right/left/up/down, or at the mouse; Cone width = how wide), half circle (a wall lamp lighting one side), area (the object's whole rectangle is lit — a window, a lit room, a light shaft; Radius = how far the light spreads past its edges) or bar (a long glow along the object's length — a neon tube, a lamp strip). Radius = how far it reaches. Effect: flicker (a candle or torch), pulse (slowly grows and shrinks) or blink (on and off, like an alarm). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).",

@@ -19,8 +19,9 @@ namespace EasyEngine
         private const int MaxPerSound = 4;
 
         /// <summary>Play a project sound (a relative path like Assets\sounds\chop.wav). A looping one, or one asked for with
-        /// <paramref name="own"/>, gets its own player, returned so it can be stopped (null when nothing plays live).</summary>
-        private MediaPlayer? PlaySoundFile(string rel, double volume = 0.8, string channel = "sfx", bool loop = false, string source = "", bool own = false)
+        /// <paramref name="own"/>, gets its own player, returned so it can be stopped (null when nothing plays live).
+        /// <paramref name="balance"/>: which ear, −1 left … 0 both … +1 right (a Sound placed by its position).</summary>
+        private MediaPlayer? PlaySoundFile(string rel, double volume = 0.8, string channel = "sfx", bool loop = false, string source = "", bool own = false, double balance = 0)
         {
             if (string.IsNullOrWhiteSpace(rel)) return null;
             string name = Path.GetFileName(rel);
@@ -28,13 +29,12 @@ namespace EasyEngine
             if (abs == null) { LogThrottled("snd-missing:" + rel, 2, LogLevel.Warn, "Sound", source, $"Sound file not found: {rel}"); return null; }
 
             // mixing: sound volume × channel volume × master volume (missing vars count as 1)
-            double chVol = _vars.TryGetValue("vol." + channel.ToLowerInvariant(), out var cv) ? cv : 1;
-            double master = _vars.TryGetValue("vol.master", out var mv) ? mv : 1;
-            double vol = Math.Clamp(volume * chVol * master, 0, 1);
+            double vol = Math.Clamp(volume * Mixing(ChannelKey(channel)), 0, 1);
             _soundsPlayed.Add(name);
+            string detail = $"volume {vol:0.##} · channel {channel}" + (balance != 0 ? $" · left/right {balance:0.##}" : "");
 
-            if (_headless) { Info("Sound", source, $"♪ {name} (muted in test)", $"volume {vol:0.##} · channel {channel}"); return null; }
-            Info("Sound", source, $"♪ {name}", $"volume {vol:0.##} · channel {channel}");
+            if (_headless) { Info("Sound", source, $"♪ {name} (muted in test)", detail); return null; }
+            Info("Sound", source, $"♪ {name}", detail);
 
             try
             {
@@ -42,6 +42,7 @@ namespace EasyEngine
                 {
                     var music = NewPlayer(abs, pooled: false);
                     music.Volume = vol;
+                    music.Balance = balance;
                     if (loop) music.MediaEnded += (s, e) => { music.Position = TimeSpan.Zero; music.Play(); };
                     music.Play();
                     _players.Add(music);
@@ -49,12 +50,18 @@ namespace EasyEngine
                 }
                 var mp = GetPooledPlayer(abs);
                 mp.Volume = vol;
+                mp.Balance = balance; // a pooled player may have been placed left or right by another sound
                 mp.Position = TimeSpan.Zero;
                 mp.Play();
             }
             catch (Exception ex) { Error("Sound", source, $"Couldn't play {name}", ex.Message); }
             return null;
         }
+
+        // the variable that holds a channel's volume ("vol.music"); the channel volume × master volume (missing vars count as 1)
+        private static string ChannelKey(string channel) => "vol." + channel.ToLowerInvariant();
+        private double Mixing(string channelKey)
+            => (_vars.TryGetValue(channelKey, out var cv) ? cv : 1) * (_vars.TryGetValue("vol.master", out var mv) ? mv : 1);
 
         // An idle player for this file, a new one (up to MaxPerSound), or — all busy — restart the oldest.
         private MediaPlayer GetPooledPlayer(string abs)

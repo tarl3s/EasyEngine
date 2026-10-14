@@ -135,6 +135,13 @@ namespace EasyEngine
                 "3. \"What happens\": Go to a scene (level exit), Set/Add to a variable, or Show a message.\n" +
                 "4. \"Only once\" fires a single time. Press ▶ Test and walk in.",
 
+            [BehaviorKind.SoundEmitter] =
+                "1. Select the object → Inspector → ＋ Add behavior → 🔊 Sound, and pick the Sound file (✂ Edit… cuts it and adds effects).\n" +
+                "2. Play on start and/or Loop (music, a radio, a waterfall). Channel sfx or music: the setvolume block changes each group's volume.\n" +
+                "3. Only heard nearby: tick it and pick \"Heard up to\" (200 px very close … 1400 px very far). It is at full volume close to the listener and fades smoothly to silence at that distance; a looping one keeps playing silently, so walking back brings it in.\n" +
+                "4. Left / right in the headphones by its position: tick it and a sound to the left of the listener plays in the left ear (stereo / 3D sound). With Only heard nearby, it is fully on one side at the edge of the radius; without it, at the edge of the screen.\n" +
+                "5. \"Heard by\" = who listens (the Player by default; if that object isn't there, the middle of the screen). Press ▶ Test and walk around it with headphones on.",
+
             [BehaviorKind.Custom] =
                 "1. Select the object → Inspector → ＋ Add behavior → ✨ Custom (AI script).\n" +
                 "2. Click \"🧩 Build with blocks (easy)\" — a Scratch-like editor opens.\n" +

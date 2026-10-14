@@ -162,6 +162,9 @@ namespace EasyEngine
             H("toggle liga ligar desliga desligar radio speaker jukebox",
               "On/off with ONE key = TWO Interact behaviors on the same object, each with a \"cond\" (one press uses only one): {\"kind\":\"Interact\",\"nums\":{\"to\":1},\"texts\":{\"action\":\"setvar\",\"var\":\"radioOn\",\"cond\":\"radioOn < 1\"}} and {\"kind\":\"Interact\",\"nums\":{\"to\":0},\"texts\":{\"action\":\"setvar\",\"var\":\"radioOn\",\"cond\":\"radioOn >= 1\"}}. Music only while it is on: a Sound with texts{cond:\"radioOn >= 1\"} nums{loop:1} (it stops when the formula turns false).",
               BehaviorKind.Interact, BehaviorKind.SoundEmitter),
+            H("stereo headphone headphones fone fones ouvido ear ears hear heard ouvir ouve escuta listen 3d spatial positional nearby audible",
+              "A Sound heard only nearby: Sound nums{range:1,radius:600} (radius in px: 200 very close, 400, 600, 900, 1400 very far; full volume close, silent past it). Left or right ear by where it is (stereo / 3D): nums{pan:1}. texts.listener = who hears it (default Player).",
+              BehaviorKind.SoundEmitter),
             H("lock locked tranca trancada key chave gate portao",
               "Locked door + key: door = Gate texts{var:\"hasKey\"}; key = AbilityPickup texts{var:\"hasKey\"}. Or a rule on the player with \"cond\":\"hasKey >= 1\".",
               BehaviorKind.Gate, BehaviorKind.AbilityPickup),
@@ -316,7 +319,7 @@ namespace EasyEngine
             if (_selection.Count > 0)
                 sb.AppendLine($"SELECTED: {string.Join(", ", _selection.Select(o => o.Name))} — change ONLY these, with \"edit\".");
             if (_aiImages.Count > 0) sb.AppendLine("IMAGES given (use in \"sprite\" or \"animations\" frames, grouped by name: idle*, walk*…): " + string.Join(", ", _aiImages.Select(Path.GetFileName)));
-            if (_aiSounds.Count > 0) sb.AppendLine("SOUNDS given (SoundEmitter texts.asset = file name; nums onStart, loop, volume): " + string.Join(", ", _aiSounds.Select(Path.GetFileName)));
+            if (_aiSounds.Count > 0) sb.AppendLine("SOUNDS given (SoundEmitter texts.asset = file name; nums onStart, loop, volume, range+radius = heard only nearby, pan = left/right ear): " + string.Join(", ", _aiSounds.Select(Path.GetFileName)));
             return sb.ToString();
         }
 
