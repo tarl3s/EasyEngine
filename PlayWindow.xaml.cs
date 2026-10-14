@@ -3348,9 +3348,10 @@ namespace EasyEngine
             }
         }
 
-        // SoundEmitter: plays its asset (looping ones become music players)
-        private MediaPlayer? PlaySound(BehaviorData snd, string source = "", bool own = false)
-            => PlaySoundFile(snd.Text("asset", ""), snd.Num("volume", 0.8), snd.Text("channel", "sfx"), snd.Num("loop", 0) >= 0.5, source, own);
+        // SoundEmitter: plays its asset (looping ones become music players); <paramref name="volume"/> and <paramref name="balance"/> come
+        // from where it is (heard only nearby / left-right by its position — PlayWindow.MultiBehaviors.cs)
+        private MediaPlayer? PlaySound(BehaviorData snd, double volume, double balance, string source = "", bool own = false)
+            => PlaySoundFile(snd.Text("asset", ""), volume, snd.Text("channel", "sfx"), snd.Num("loop", 0) >= 0.5, source, own, balance);
 
         private void Stop_Click(object sender, RoutedEventArgs e) => Close();
 

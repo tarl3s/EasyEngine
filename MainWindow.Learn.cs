@@ -61,7 +61,7 @@ namespace EasyEngine
                      "fade", "fade away", "fade out", "sumir", "desaparecer", "piscar", "blink", "timer", "segundos", "seconds", "after",
                      "depois de", "every", "a cada", "glide", "deslizar", "crescer", "grow", "hide", "esconder", "invisible", "invisivel", "recipe", "receita" }, new[] { BehaviorKind.Custom }),
             (new[] { "visao de cima", "vista de cima", "top down", "top-down" }, new[] { BehaviorKind.TopDown }),
-            (new[] { "som", "musica", "sound", "music" }, new[] { BehaviorKind.SoundEmitter }),
+            (new[] { "som", "musica", "sound", "music", "stereo", "fone", "headphone", "ouvido" }, new[] { BehaviorKind.SoundEmitter }),
             (new[] { "moeda", "coletar", "coin", "collect" }, new[] { BehaviorKind.Collectible }),
             (new[] { "tiro", "atirar", "shoot" }, new[] { BehaviorKind.Shooter }),
         };

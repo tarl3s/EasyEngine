@@ -437,6 +437,8 @@ namespace EasyEngine
                 if (texts["effect"] is JsonNode fx) texts["effect"] = LightShapes.Effect(Str(fx));
             }
 
+            if (info.Kind == BehaviorKind.SoundEmitter) SpatialSoundParams(item, nums, texts);
+
             // Go To Scene "trigger" is WHO uses the door; "death"/"touch" there are the model's guesses at WHEN
             if (info.Kind == BehaviorKind.GoToScene && texts["trigger"] is JsonNode trig)
             {
@@ -451,6 +453,43 @@ namespace EasyEngine
 
             if (nums.Count > 0) item["nums"] = nums;
             if (texts.Count > 0) item["texts"] = texts;
+        }
+
+        // A Sound heard only nearby / placed left or right, in the model's words: "stereo":true / "3d":true / "spatial":1,
+        // "maxDistance":500 / "hearingRange":500 / "range":500 (a distance, not on/off), "radius" alone, "heardBy":"Hero".
+        private static void SpatialSoundParams(JsonObject item, JsonObject nums, JsonObject texts)
+        {
+            static double? OnOff(JsonNode? v)
+            {
+                var s = Str(v).Trim().ToLowerInvariant();
+                if (s is "true" or "yes" or "on" or "sim" or "stereo") return 1;
+                if (s is "false" or "no" or "off" or "não" or "nao" or "mono") return 0;
+                return LooseJson.TryParse(s, out var n) ? (n >= 0.5 ? 1 : 0) : null;
+            }
+            static bool Take(JsonObject[] bags, string[] keys, out JsonNode? value)
+            {
+                foreach (var bag in bags)
+                    foreach (var k in keys)
+                        if (KeyOf(bag, k) is string real) { value = bag[real]; bag.Remove(real); return true; }
+                value = null; return false;
+            }
+            var bags = new[] { nums, texts, item };
+            // the whole thing at once: placed in space = heard nearby AND left/right
+            if (Take(bags, new[] { "spatial", "3d", "positional", "surround", "spatialSound", "sound3d" }, out var all) && OnOff(all) is double a)
+            { nums["range"] = a; nums["pan"] = a; }
+            if (Take(bags, new[] { "stereo", "panning", "balance", "leftRight", "headphones", "pan3d", "earSide" }, out var pv) && OnOff(pv) is double p) nums["pan"] = p;
+            if (Take(bags, new[] { "maxDistance", "distance", "hearingRadius", "hearRadius", "hearingRange", "hearRange", "maxRange", "audibleRange", "falloff", "rolloff", "reach" },
+                     out var dv) && LooseJson.TryParse(Str(dv), out var d) && d > 1)
+            { nums["radius"] = d; nums["range"] = 1; }
+            // "range":500 is a distance (on/off is 0/1)
+            if (nums["range"] is JsonNode rv)
+            {
+                if (LooseJson.TryParse(Str(rv), out var r) && r > 1) { nums["radius"] ??= r; nums["range"] = 1; }
+                else if (OnOff(rv) is double ro) nums["range"] = ro;
+            }
+            if (nums["radius"] != null && nums["range"] == null) nums["range"] = 1; // a radius alone means "only heard nearby"
+            if (texts["listener"] == null && Take(bags, new[] { "heardBy", "hearer", "ear", "listenerObject", "listenTo" }, out var lv) && Str(lv).Trim().Length > 0)
+                texts["listener"] = Str(lv).Trim();
         }
 
         // the key as the model wrote it ("onClick" for "onclick")
