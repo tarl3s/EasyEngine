@@ -19,13 +19,18 @@
 1 phase	SequenceModel.cs
 1 step	SequenceModel.cs
 1 — forward	behavior Shooter
+1400 px — very far	behavior SoundEmitter
 150 px — very close	behavior Chase, behavior PathChase
 2 = twice as fast, 0.5 = half. Affects Platformer/Top-down speed.	BlockEditorWindow.Palette.cs
+200 px — very close	behavior SoundEmitter
 300 px — near	behavior Chase, behavior PathChase
 4 — a cross	behavior Shooter
+400 px — near	behavior SoundEmitter
 500 px — far	behavior Chase, behavior PathChase
+600 px — about a screen	behavior SoundEmitter
 8 — all around	behavior Shooter
 800 px — very far	behavior Chase, behavior PathChase
+900 px — far	behavior SoundEmitter
 A bar that fills based on a variable, e.g. health. Fill = var / max. Put it on a UI layer for a HUD, or above an enemy for a health bar. 'max' can be a number or another variable name.	behavior Bar
 A boss fight. Attacks are lists of steps (warn, dash, jump with a shockwave, shoot rings/fans/aimed bullets, summon minions, become invulnerable…). Phases pick which attacks it uses — the next phase starts when its health drops to a percentage — and a death sequence plays when it is defeated. Give it Health (Disappear, with its own variable like bossHP) and a Damager for contact damage. Build it with 🧩 Advanced Scratch or ask the AI.	behavior BossAI
 A clickable button. On click it runs an effect: goscene (change scene), setvar, addvar, say, save or load. Put it on a UI layer; add a Label for its text. Great for menus and HUD.	behavior UIButton
@@ -576,6 +581,8 @@ Harvestable (tree / rock)	behavior Harvestable
 Heal	BlockEditorWindow.Palette.cs
 Health	behavior Health
 Hear the result (Space)	AudioEditorWindow.cs
+Heard by	behavior SoundEmitter
+Heard up to	behavior SoundEmitter
 Heart	SpriteEditorWindow.cs
 Heart: heals the Player 1 and disappears	BlockEditorWindow.Recipes.cs
 Heavy (no knockback) (0/1)	behavior BossAI
@@ -687,6 +694,7 @@ Layout	behavior Generator
 Leaps (landing near the target). The shockwave shakes the screen and sends a wave along the ground both ways.	step jump
 Leave empty to always run.  Example:  coins  is at least  15	BlockEditorWindow.cs
 Left	behavior Label, behavior LightSource, MainWindow.xaml.cs
+Left / right in the headphones by its position (0/1)	behavior SoundEmitter
 Left and right only	behavior StayInside
 Left out (not a block): {0}	BlockEditorWindow.Ai.cs
 Left-drag paints · Right-drag erases	MainWindow.xaml.cs
@@ -862,6 +870,7 @@ Only WAV sounds can be edited. Turn the MP3 into a WAV (many free programs and w
 Only between columns	MainWindow.TerrainBlocks.cs
 Only breaks when	behavior Terrain, behavior Tilemap
 Only grass, dirt, stone and ore — add clouds, a deeper ore, a sand biome…	MainWindow.TerrainBlocks.cs
+Only heard nearby (0/1)	behavior SoundEmitter
 Only once (0/1)	behavior Area, behavior Cutscene, behavior Interact
 Only run if… (optional)	BlockEditorWindow.cs
 Only when closer than	behavior Chase, behavior PathChase
@@ -932,7 +941,7 @@ Play an animation	BlockEditorWindow.Palette.cs
 Play on start (0/1)	behavior SoundEmitter
 Player	behavior Minimap
 Player colour	behavior Minimap
-Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master.	behavior SoundEmitter
+Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master. Only heard nearby (range): heard only within 'radius' px of the listener (the player by default) — full volume close to it, fading smoothly to silence at the edge (a looping one keeps playing silently and comes back as you walk near). Left / right in the headphones (pan): it plays in the left or right ear by where it is compared to the listener (3D / stereo sound).	behavior SoundEmitter
 Plays a sound file from the project's Assets/sounds folder.	BlockEditorWindow.Palette.cs
 Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. "Back to automatic" lets idle / walk / jump choose again.	BlockEditorWindow.Palette.cs
 Plays the sound backwards.	AudioEditorWindow.cs
@@ -1505,7 +1514,7 @@ then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.13.0	LauncherWindow.xaml
+v0.13.1	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs
