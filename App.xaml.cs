@@ -644,9 +644,13 @@ public partial class App : Application
             SelfTestReadability(ctx); // last: it measures the text of every window the others opened
 
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+            int waits = 0;
             timer.Tick += (s, ev) =>
             {
                 timer.Stop();
+                // the night darkens frame by frame: on a busy computer (other test runs, an AI) it can take longer than
+                // the first 2.5 s — wait for it (up to ~15 s) instead of failing on timing
+                if ((lightPlay.TDarkness < 0.5 || lightPlay.TLightHoles != 3) && waits++ < 25) { timer.Interval = TimeSpan.FromSeconds(0.5); timer.Start(); return; }
                 void CloseAll()
                 {
                     foreach (var w in ctx.CloseLater) try { w.Close(); } catch { }
