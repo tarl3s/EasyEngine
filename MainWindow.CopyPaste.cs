@@ -109,6 +109,7 @@ namespace EasyEngine
         internal List<string> TestObjectMenu() => ObjectMenu(new Point(0, 0)).Items.OfType<MenuItem>().Select(m => (m.Header as string ?? "") + (m.IsEnabled ? "" : " (off)")).ToList();
         internal List<GameObjectData> TestSelection => _selection.ToList();
         internal void TestSwitchScene(Scene s) => SwitchScene(s);
+        internal void TestPickSceneInList(string name) { foreach (ComboBoxItem it in SceneCombo.Items) if (it.Tag is Scene s && s.Name == name) { SceneCombo.SelectedItem = it; break; } } // as picking it in the scene list
         internal void TestSetActiveLayer(Layer l) => _activeLayer = l;
         internal static void TestClearClipboard() { _clipboard = new(); _pasteCount = 0; }
     }

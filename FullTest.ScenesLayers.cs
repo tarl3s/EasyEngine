@@ -97,6 +97,31 @@ public partial class App
             return before && menus && moved && inGame && undone.IndexOf("Background") < undone.IndexOf("Base");
         });
 
+        t.Test("scenes: undo, then picking the scene in the list, then undo again never writes over another scene", () =>
+        {
+            var (p, s, ed) = Editor("undo-pick", (p, s) =>
+            {
+                s.Name = "Bedroom"; p.StartScene = "Bedroom";
+                L(s, LayerKind.Base).Objects.Add(Box(70, "Bed"));
+                foreach (var n in new[] { "Hall", "Kitchen" })
+                {
+                    var c = System.Text.Json.JsonSerializer.Deserialize<Scene>(System.Text.Json.JsonSerializer.Serialize(s))!;
+                    c.Name = n; L(c, LayerKind.Base).Objects[^1].Name = "Door"; p.Scenes.Add(c);
+                }
+            });
+            GameObjectData Door() => L(ed.TestScene, LayerKind.Base).Objects.First(o => o.Name == "Door");
+            ed.TestSwitchScene(p.Scenes[2]);
+            ed.TestTypeSize(Door(), 80, null); ed.TestUndo();
+            ed.TestPickSceneInList("Bedroom"); ed.TestPickSceneInList("Kitchen");
+            bool live = p.Scenes.Contains(ed.TestScene);
+            ed.TestTypeSize(Door(), 90, null);
+            bool saved = p.Scenes[2].Layers.SelectMany(l => l.Objects).Any(o => o.Name == "Door" && o.Width == 90);
+            ed.TestUndo();
+            ed.Close();
+            return live && saved && string.Join(",", p.Scenes.Select(x => x.Name)) == "Bedroom,Hall,Kitchen"
+                   && p.Scenes[0].Layers.SelectMany(l => l.Objects).Any(o => o.Name == "Bed");
+        });
+
         // ---------------- lock
         t.Test("layers: a locked layer's objects can't be picked, dragged, nudged or deleted, nothing is added to it; undo unlocks", () =>
         {

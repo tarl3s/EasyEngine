@@ -470,12 +470,13 @@ namespace EasyEngine
 
         private void ReplaceActiveScene(Scene newScene)
         {
-            _restoring = true;
             int idx = _project.Scenes.IndexOf(_scene);
-            if (idx < 0) idx = 0;
+            if (idx < 0) return; // never write over another scene (this one would be a copy that is no longer in the project)
+            _restoring = true;
             newScene.Name = _scene.Name; // keep identity/name stable
             _project.Scenes[idx] = newScene;
             _scene = newScene;
+            RefreshSceneCombo(); SelectSceneInCombo(_scene); // the scene list must point at the new copy, or picking it opens the old one
             SceneFrame.Width = _scene.Width;
             SceneFrame.Height = _scene.Height;
             _selected = null;
@@ -512,6 +513,7 @@ namespace EasyEngine
 
         private void SwitchScene(Scene scene)
         {
+            if (!_project.Scenes.Contains(scene)) scene = _project.Scenes.Find(s => s.Name == scene.Name) ?? _project.Scenes[0]; // an old copy: open the real one
             _scene = scene;
             _undo.Clear(); _redo.Clear();
             UpdateTitle();

@@ -21,6 +21,7 @@ namespace EasyEngine
     //   --only fade,boss                 run the cases whose id contains any of these
     //   --showprompt                     the log gets each Build request's prompt
     //   --delay 15000                    milliseconds between cloud requests (Gemini free: a few a minute)
+    //   --maxmem 2500                    stop the eval when it uses more than this many MB (default 2500)
     // Report: %TEMP%\easyengine_aitest.log (pass/fail per case, why, the AI's reply when it failed).
     public partial class App
     {
@@ -42,8 +43,9 @@ namespace EasyEngine
                 editor.EvalUseAi(choice);
                 var cases = AiEvalCases().Where(k => only.Length == 0 || only.Any(o => k.Id.Contains(o, StringComparison.OrdinalIgnoreCase))).ToList();
                 int gap = int.TryParse(Arg("--delay"), out var d) ? d : 6000;
+                long maxMb = long.TryParse(Arg("--maxmem"), out var mm) ? mm : 2500; // MB: the eval stops itself above this, so the computer stays usable
                 _showPrompt = args.Contains("--showprompt");
-                _ = RunAiEvalAsync(editor, cases, log, choice.StartsWith("cloud:"), gap).ContinueWith(t => Dispatcher.Invoke(() =>
+                _ = RunAiEvalAsync(editor, cases, log, choice.StartsWith("cloud:"), gap, maxMb).ContinueWith(t => Dispatcher.Invoke(() =>
                 {
                     if (t.Exception != null) try { File.AppendAllText(log, "\nEVAL EXCEPTION: " + t.Exception); } catch { }
                     try { Directory.Delete(temp, true); } catch { }
@@ -54,7 +56,7 @@ namespace EasyEngine
         }
 
         private static bool _showPrompt; // --showprompt: the log gets each Build request's prompt
-        private static async Task RunAiEvalAsync(MainWindow ed, List<AiCase> cases, string log, bool cloud, int gap)
+        private static async Task RunAiEvalAsync(MainWindow ed, List<AiCase> cases, string log, bool cloud, int gap, long maxMb)
         {
             if (!cloud) await OllamaManager.EnsureRunningAsync();
             ed.EvalReset();
@@ -102,7 +104,7 @@ namespace EasyEngine
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
                 long mb = Process.GetCurrentProcess().WorkingSet64 / (1024 * 1024);
                 detail += $"\n  MEM {mb} MB";
-                if (mb > 6000) { try { File.AppendAllText(log, $"\nSTOPPED: the eval used {mb} MB after [{c.Id}] — look at that case\n"); } catch { } break; }
+                if (mb > maxMb) { try { File.AppendAllText(log, $"\nSTOPPED: the eval used {mb} MB after [{c.Id}] — look at that case\n"); } catch { } break; }
                 var line = $"{verdict}  [{c.Id}] {c.Prompt}  ({sw.Elapsed.TotalSeconds:0.0}s)\n{detail}\n";
                 if (shownPrompt.Length > 0) line += "  PROMPT:\n" + shownPrompt + "\n";
                 try { File.AppendAllText(log, line); } catch { }
