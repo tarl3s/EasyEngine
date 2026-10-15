@@ -175,6 +175,7 @@ namespace EasyEngine
             public RuleBag<double> WN = new(true);
             public RuleBag<string> WT = new(true);
             public double Timer; public bool Started; public bool WasTouching;
+            public bool Reverse;                 // a reversed "play a sound": it stops that sound (PlayWindow.RuleReverse.cs)
             public int Group;                    // "block": consecutive rules with the same non-zero Group are ONE block (any WHEN fires → every DO runs)
             public double Last = double.NaN;     // landed / hurt / interact: what the event saw last frame
             // console bookkeeping
@@ -1917,13 +1918,14 @@ namespace EasyEngine
                 {
                     if (el.ValueKind != JsonValueKind.Object) continue;
                     var r = new CustomRule();
-                    bool seenDo = false;
+                    bool seenDo = false; bool reverse = false;
                     foreach (var p in el.EnumerateObject())
                     {
                         var name = p.Name.ToLowerInvariant();
                         if (name == "when") { r.When = (p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() ?? "always" : "always").ToLowerInvariant(); continue; }
                         if (name == "do") { r.Do = (p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() ?? "" : "").ToLowerInvariant(); seenDo = true; continue; }
                         if (name == "block") { if (p.Value.ValueKind == JsonValueKind.Number && p.Value.TryGetInt32(out var g)) r.Group = g; else if (p.Value.ValueKind == JsonValueKind.String && int.TryParse(p.Value.GetString(), out var gs)) r.Group = gs; continue; } // one visual block (several WHEN / DO)
+                        if (name == "reverse") { reverse = LooseJson.IsTrue(p.Value); continue; } // "↔ Reverse": the action does its opposite
                         // guards always live in the action bucket, wherever they appear, so the guard code finds them
                         bool guard = name is "cond" or "if" or "ifop" or "ifval";
                         bool toTrigger = !seenDo && !guard; // params before "do" belong to the WHEN trigger
@@ -1945,6 +1947,7 @@ namespace EasyEngine
                             if (toTrigger) r.WN[name] = v; else r.N[name] = v;
                         }
                     }
+                    if (reverse) ReverseRule(r);
                     r.Summary = RuleSummary(r);
                     list.Add(r);
                 }
@@ -2212,7 +2215,7 @@ namespace EasyEngine
                     break;
                 }
                 case "settime": SetTimeOfDay(r.Str("time", "night"), en.Data.Name); break;
-                case "playsound": PlaySoundFile(r.Str("sound"), r.Num("volume", 0.8), r.Str("channel", "sfx"), false, en.Data.Name); break;
+                case "playsound": if (r.Reverse) StopSoundFile(r.Str("sound"), en.Data.Name); else PlaySoundFile(r.Str("sound"), r.Num("volume", 0.8), r.Str("channel", "sfx"), false, en.Data.Name); break;
                 case "log": // "Write to the console" — like Unity's Debug.Log, with {variable} substitution
                 {
                     var lvl = r.Str("level", "info").ToLowerInvariant() switch { "warn" or "warning" => LogLevel.Warn, "error" => LogLevel.Error, _ => LogLevel.Info };

@@ -1099,6 +1099,7 @@ public partial class App
             FeatureTestsOnlyWhile(kit);
             FeatureTestsFontsCopy(kit);
             FeatureTestsSpatialSound(kit);
+            FeatureTestsRuleReverse(kit);
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
@@ -1153,6 +1154,7 @@ public partial class App
     partial void FeatureTestsOnlyWhile(FullTestKit t); // FullTest.OnlyWhile.cs
     partial void FeatureTestsFontsCopy(FullTestKit t); // FullTest.FontsCopy.cs
     partial void FeatureTestsSpatialSound(FullTestKit t); // FullTest.SpatialSound.cs
+    partial void FeatureTestsRuleReverse(FullTestKit t); // FullTest.RuleReverse.cs
 
     /// <summary>Deletes the throwaway project folders a test run left in %TEMP% (by name pattern).</summary>
     internal static void DeleteTempFolders(params string[] patterns)

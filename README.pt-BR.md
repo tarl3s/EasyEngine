@@ -68,7 +68,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   Qualquer número pode ser uma fórmula (`score * 2`, `Player.x - self.x`). Os blocos e a IA falam a mesma língua: o que
   a IA faz abre como blocos que você edita, e vice-versa. Um bloco pode reagir a vários eventos, fazer várias coisas e
   conferir várias condições (todas ou qualquer uma); blocos dos comportamentos do próprio objeto (desligar os controles,
-  mudar o pulo, curar, quando cair no chão, quando levar dano…) só aparecem onde fazem sentido.
+  mudar o pulo, curar, quando cair no chão, quando levar dano…) só aparecem onde fazem sentido. Marque **↔ Inverter** numa ação para ela fazer o contrário (tocar um som → parar, mostrar → esconder, dar → tirar, curar → machucar, ligar → desligar).
 - **👑 Boss AI** — chefões com **fases pela vida**, ataques montados com passos (avisar, investida, pulo com onda de
   choque, tiros em anel/leque/mirados, invocar lacaios, invulnerável…), sequência de morte e barra de vida do chefe.
 - **🎬 Cinemáticas** — falas, câmera que viaja, títulos grandes, fades, barras de cinema, mover personagens, travar

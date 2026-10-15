@@ -404,6 +404,7 @@ Disappears when the Player touches it. It can add points to a variable (a coin w
 Distance	behavior Patrol
 Distance (px)	step summon
 Do one more thing in this block	BlockEditorWindow.cs
+Do the opposite: show hides, give takes away, add subtracts, heal hurts, on turns off, play a sound stops it	BlockEditorWindow.cs
 Dock back	MainWindow.xaml.cs
 Dock bottom	MainWindow.xaml.cs
 Dock left	MainWindow.xaml.cs
@@ -1514,7 +1515,7 @@ then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.13.1	LauncherWindow.xaml
+v0.13.2	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs
@@ -1570,6 +1571,7 @@ y	step camera, step move, step moveto, step spawn
 ↓ up-down	BlockEditorWindow.Palette.cs
 ↓ up-down / s	BlockEditorWindow.Palette.cs
 ↔ Left and right	behavior Patrol
+↔ Reverse	BlockEditorWindow.cs
 ↕ Up and down	behavior Patrol
 ↖ Up-left	behavior Projectile
 ↗ Up-right	behavior Projectile

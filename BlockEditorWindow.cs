@@ -186,6 +186,13 @@ namespace EasyEngine
                 var combo = DefCombo(defs, part.Id);
                 combo.SelectionChanged += (s, e) => { if (combo.SelectedItem is ComboBoxItem it) { part.Id = (string)it.Tag; RenderRules(); } };
                 row.Children.Add(combo);
+                if (defs == Actions && PlayWindow.ReversibleActions.Contains(part.Id))
+                {
+                    var rev = new CheckBox { Content = L.T("↔ Reverse"), ToolTip = L.T("Do the opposite: show hides, give takes away, add subtracts, heal hurts, on turns off, play a sound stops it"),
+                        IsChecked = part.P.TryGetValue("reverse", out var rv) && IsTrue(rv), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0), Foreground = Theme.Brush("Text", "#EEE") };
+                    rev.Click += (s, e) => { if (rev.IsChecked == true) part.P["reverse"] = "true"; else part.P.Remove("reverse"); };
+                    row.Children.Add(rev);
+                }
                 if (parts.Count > 1)
                 {
                     var x = Small("✕", removeTip); x.Margin = new Thickness(6, 0, 0, 2); x.Foreground = Theme.Brush("Danger", "#E5534B");

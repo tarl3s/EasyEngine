@@ -1710,5 +1710,7 @@
   "＋ New phase": "＋ 新建阶段",
   "＋ New…": "＋ 新建…",
   "＋ adds to all {0} selected objects.": "＋ 会添加到全部 {0} 个选中对象。",
-  "／ Line": "／ 直线"
+  "／ Line": "／ 直线",
+  "↔ Reverse": "↔ 反转",
+  "Do the opposite: show hides, give takes away, add subtracts, heal hurts, on turns off, play a sound stops it": "做相反的事：显示变隐藏，给予变拿走，加变减，治疗变伤害，开变关，播放声音变停止"
 }

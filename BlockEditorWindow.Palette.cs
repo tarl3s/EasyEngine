@@ -214,7 +214,8 @@ namespace EasyEngine
                 _ => "",
             }));
             var meaning = d.Label.TrimEnd('…');
-            return d.Id + (d.Fields.Length > 0 ? "(" + string.Join(", ", fields) + ")" : "") + " — " + char.ToLowerInvariant(meaning[0]) + meaning[1..];
+            return d.Id + (d.Fields.Length > 0 ? "(" + string.Join(", ", fields) + ")" : "") + " — " + char.ToLowerInvariant(meaning[0]) + meaning[1..]
+                   + (PlayWindow.ReversibleActions.Contains(d.Id) ? "; reverse:true = the opposite" : "");
         }
 
         /// <summary>Text written in a number field that reads as a formula (a number, an operator, a function, "self.x"…),

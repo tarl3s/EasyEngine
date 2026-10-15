@@ -1710,5 +1710,7 @@
   "＋ New phase": "＋ Nouvelle phase",
   "＋ New…": "＋ Nouveau…",
   "＋ adds to all {0} selected objects.": "＋ ajoute aux {0} objets sélectionnés.",
-  "／ Line": "／ Ligne"
+  "／ Line": "／ Ligne",
+  "↔ Reverse": "↔ Inverser",
+  "Do the opposite: show hides, give takes away, add subtracts, heal hurts, on turns off, play a sound stops it": "Fait l'inverse : afficher cache, donner retire, ajouter soustrait, soigner blesse, allumer éteint, jouer un son l'arrête"
 }

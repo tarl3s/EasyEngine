@@ -1710,5 +1710,7 @@
   "＋ New phase": "＋ 新しいフェーズ",
   "＋ New…": "＋ 新規…",
   "＋ adds to all {0} selected objects.": "＋ で選択中の {0} 個のオブジェクトすべてに追加します。",
-  "／ Line": "／ 直線"
+  "／ Line": "／ 直線",
+  "↔ Reverse": "↔ 反転",
+  "Do the opposite: show hides, give takes away, add subtracts, heal hurts, on turns off, play a sound stops it": "逆のことをします：表示は隠す、渡すは取り上げる、足すは引く、回復はダメージ、オンはオフ、音を鳴らすは止める"
 }

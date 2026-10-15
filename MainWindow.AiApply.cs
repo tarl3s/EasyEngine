@@ -108,6 +108,14 @@ namespace EasyEngine
             // turn OFF the default controls so it doesn't mirror the player (it keeps the movement abilities;
             // move it with custom keys or a script).
             bool looksLikePlayer = NameLooksPlayer(target.Name) || result.Any(b => b.Kind == BehaviorKind.FollowCamera);
+            // "make the Slime faster": a model adds a Platformer/TopDown carrying the speed — it means the mover it already has
+            var ownMover = looksLikePlayer ? null : result.FirstOrDefault(b => b.Kind is BehaviorKind.Patrol or BehaviorKind.AdvancedPatrol or BehaviorKind.Chase or BehaviorKind.PathChase && target.Behaviors.Any(o => o.Kind == b.Kind));
+            if (ownMover != null)
+                foreach (var b in result.Where(b => b.Kind is BehaviorKind.Platformer or BehaviorKind.TopDown && AiAddedKinds.Contains(b.Kind)).ToList())
+                {
+                    if (b.Nums.TryGetValue("speed", out var sp)) ownMover.Nums["speed"] = sp;
+                    result.Remove(b); changed = true;
+                }
             if (!looksLikePlayer)
                 foreach (var b in result.Where(b => b.Kind == BehaviorKind.Platformer || b.Kind == BehaviorKind.TopDown))
                     if (b.Num("controls", 1) >= 0.5) { b.Nums["controls"] = 0; changed = true; }

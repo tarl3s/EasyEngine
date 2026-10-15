@@ -123,6 +123,16 @@ namespace EasyEngine
                 if (obj["rules"] is JsonArray rules && !obj.ContainsKey("custom")) { obj.Remove("rules"); obj["custom"] = rules; changed = true; } // the block editor's shape
                 foreach (var key in new[] { "create", "edit" })
                     if (obj[key] is JsonObject one) { obj.Remove(key); obj[key] = new JsonArray(one); changed = true; }
+                // an object written inside "level" ("boss":{"name":…,"behaviors":[…]}) is one more object to create
+                if (obj["level"] is JsonObject lvl)
+                    foreach (var (k, v) in lvl.ToList())
+                        if (v is JsonObject piece && (piece.ContainsKey("behaviors") || piece.ContainsKey("name")))
+                        {
+                            lvl.Remove(k);
+                            if (!piece.ContainsKey("name")) piece["name"] = char.ToUpperInvariant(k[0]) + k[1..];
+                            if (obj["create"] is not JsonArray made) obj["create"] = made = new JsonArray();
+                            made.Add(piece); changed = true;
+                        }
                 return changed ? obj.ToJsonString() : json;
             }
             catch (Exception) { return json; } // a key written twice etc.: read as it is
@@ -294,6 +304,9 @@ namespace EasyEngine
                     if (act is "addvar" or "addlocal" && r["amount"] == null && Str(r["expr"] ?? r["to"]) is { Length: > 0 } f
                         && System.Text.RegularExpressions.Regex.IsMatch(f, $@"\b{System.Text.RegularExpressions.Regex.Escape(Str(r["var"]))}\b"))
                     { r["do"] = act == "addvar" ? "setvar" : "setlocal"; if (r["to"] == null) { r["to"] = f; r.Remove("expr"); } }
+                    else if (act is "addvar" or "addlocal" && Str(r["amount"]) is { Length: > 0 } fa && Str(r["var"]) is { Length: > 0 } av
+                        && System.Text.RegularExpressions.Regex.IsMatch(fa, $@"\b{System.Text.RegularExpressions.Regex.Escape(av)}\b\s*[*/]"))
+                    { r["do"] = act == "addvar" ? "setvar" : "setlocal"; r["to"] = fa; r.Remove("amount"); } // "add score * 2" = double it
                     if (hold && when == "keypress") { r["when"] = "key"; r.Remove("cooldown"); }
                     // "when score reaches 10, say Well done": a "while" event would say it every frame — it means the moment
                     if (when == "ifvar" && act is "say" or "playsound" or "emit" or "spawn" or "shoot" or "additem" or "removeitem" or "addvar" or "addlocal"

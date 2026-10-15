@@ -66,7 +66,7 @@ old version and opens again. Your projects are never touched. The sample games a
   Any number can be a formula (`score * 2`, `Player.x - self.x`). Blocks and the AI speak the same language: whatever
   the AI makes opens as blocks you can edit, and the other way round. One block can react to several events, do several
   things and check several conditions (all or any); blocks for an object's own behaviors (turn its controls off, change
-  its jump, heal, when it lands, when it gets hurt…) appear only where they make sense.
+  its jump, heal, when it lands, when it gets hurt…) appear only where they make sense. Tick **↔ Reverse** on an action to do its opposite (play a sound → stop it, show → hide, give → take, heal → hurt, on → off).
 - **👑 Boss AI** — bosses with **phases by health**, attacks built from steps (warn, dash, jump with a shockwave,
   ring/spread/aimed shots, summon minions, invulnerable…), a death sequence and a boss health bar.
 - **🎬 Cutscenes** — dialogue, camera moves, big titles, fades, cinema bars, moving characters, locking the controls;

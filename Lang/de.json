@@ -1710,5 +1710,7 @@
   "＋ New phase": "＋ Neue Phase",
   "＋ New…": "＋ Neu…",
   "＋ adds to all {0} selected objects.": "＋ fügt allen {0} gewählten Objekten hinzu.",
-  "／ Line": "／ Linie"
+  "／ Line": "／ Linie",
+  "↔ Reverse": "↔ Umkehren",
+  "Do the opposite: show hides, give takes away, add subtracts, heal hurts, on turns off, play a sound stops it": "Macht das Gegenteil: Zeigen versteckt, Geben nimmt weg, Addieren zieht ab, Heilen verletzt, An schaltet aus, Ton abspielen stoppt ihn"
 }
