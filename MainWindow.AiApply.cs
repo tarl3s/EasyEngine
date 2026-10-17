@@ -652,6 +652,8 @@ namespace EasyEngine
                         if (spec.ValueKind != JsonValueKind.Object) continue;
                         var nm = spec.TryGetProperty("name", out var n) ? n.GetString() : null;
                         var obj = ResolveTarget(nm, userPrompt) ?? _selected;
+                        if (obj == null && _project.Prefabs.FirstOrDefault(p => p.Name.Equals(nm, StringComparison.OrdinalIgnoreCase)) is { } pf)
+                        { EnsureUndo(); if (ApplyBehaviorsToObject(pf.Template, spec, userPrompt)) changes.Add(PrefabLine(pf.Template)); continue; } // "make the Slime faster": the Slime to spawn
                         if (obj == null)
                         {
                             // an "edit" of something that isn't there yet (a ScoreText the model forgot to create): make it
@@ -672,6 +674,11 @@ namespace EasyEngine
 
                         EnsureUndo();
                         if (ApplyBehaviorsToObject(obj, spec, userPrompt)) changes.Add(EditedLine(obj));
+                        // "touches a Star" / "every Star": the numbered copies (Star2, Star 3…) are Stars too
+                        var esc = System.Text.RegularExpressions.Regex.Escape(obj.Name);
+                        if (System.Text.RegularExpressions.Regex.IsMatch(userPrompt, $@"\b(a|an|any|each|every|all( the)?|um|uma|qualquer|cada|tod[ao]s?( as| os)?)\s+{esc}", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                            foreach (var sib in _scene.Layers.SelectMany(l => l.Objects).Where(o => !ReferenceEquals(o, obj) && System.Text.RegularExpressions.Regex.IsMatch(o.Name, $@"^{esc}[\s_-]?\d+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)).ToList())
+                                if (ApplyBehaviorsToObject(sib, spec, userPrompt)) changes.Add(EditedLine(sib));
                     }
 
                 // simple/back-compat: top-level behaviors/custom and no create/edit → selected, player, or a new object

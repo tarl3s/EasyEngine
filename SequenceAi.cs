@@ -147,6 +147,19 @@ namespace EasyEngine
             return error == null ? SequenceJson.Serialize(b) : null;
         }
 
+        /// <summary>"when it dies … the variable doorOpen becomes 1": a death sequence that forgot the variable gets it.</summary>
+        internal static string ForRequest(SeqMode mode, string json, string request)
+        {
+            if (mode != SeqMode.Boss) return json;
+            var m = System.Text.RegularExpressions.Regex.Match(request ?? "", @"variab\w*\s+(\w+)\s+(?:becomes|is set to|goes to|turns|=|vira|fica|passa a ser|se vuelve)\s*(?:to\s+)?(-?\d+(?:\.\d+)?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (!m.Success || !System.Text.RegularExpressions.Regex.IsMatch(request!, @"\b(dies|die|death|defeated|morre|morte|derrotad|muere)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return json;
+            var b = SequenceJson.ParseBoss(json, out var err, new List<string>());
+            if (err != null || b.Death.Any(s => s.Do == "setvar" && s.Str("var").Equals(m.Groups[1].Value, StringComparison.OrdinalIgnoreCase))) return json;
+            var step = new SeqStep { Do = "setvar" }; step.P["var"] = m.Groups[1].Value; step.P["to"] = m.Groups[2].Value;
+            b.Death.Add(step);
+            return SequenceJson.Serialize(b);
+        }
+
         /// <summary>Asks the model (generate = (user prompt, system prompt) → reply), normalises the reply, and retries once
         /// with the problem explained when it can't be used.</summary>
         public static async Task<SeqAiResult> MakeAsync(Func<string, string, Task<string>> generate, SeqMode mode, string request, string currentJson,
@@ -156,12 +169,12 @@ namespace EasyEngine
             var user = UserPrompt(mode, request, currentJson);
             var notes = new List<string>();
             var json = Normalize(mode, await generate(user, system), notes, out var error);
-            if (json != null) return new SeqAiResult(true, json, notes, "", 1);
+            if (json != null) return new SeqAiResult(true, ForRequest(mode, json, request), notes, "", 1);
 
             notes.Clear();
             var retry = user + $"\n\nYour previous answer could not be used: {error}. Answer again with ONLY the JSON object, using only the step ids listed.";
             json = Normalize(mode, await generate(retry, system), notes, out var error2);
-            return json != null ? new SeqAiResult(true, json, notes, "", 2) : new SeqAiResult(false, "", notes, error2 ?? error ?? "unknown problem", 2);
+            return json != null ? new SeqAiResult(true, ForRequest(mode, json, request), notes, "", 2) : new SeqAiResult(false, "", notes, error2 ?? error ?? "unknown problem", 2);
         }
     }
 }

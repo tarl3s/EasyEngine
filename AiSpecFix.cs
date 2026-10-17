@@ -300,13 +300,16 @@ namespace EasyEngine
                 foreach (var r in rules.OfType<JsonObject>())
                 {
                     var when = Str(r["when"]); var act = Str(r["do"]);
-                    if (when == "touch" && ownName.Length > 0 && Str(r["name"]).Equals(ownName, StringComparison.OrdinalIgnoreCase)) r["name"] = "Player";
+                    if (when is "touch" or "keynear" && ownName.Length > 0 && Str(r["name"]).Equals(ownName, StringComparison.OrdinalIgnoreCase)) r["name"] = "Player";
                     if (act is "addvar" or "addlocal" && r["amount"] == null && Str(r["expr"] ?? r["to"]) is { Length: > 0 } f
                         && System.Text.RegularExpressions.Regex.IsMatch(f, $@"\b{System.Text.RegularExpressions.Regex.Escape(Str(r["var"]))}\b"))
                     { r["do"] = act == "addvar" ? "setvar" : "setlocal"; if (r["to"] == null) { r["to"] = f; r.Remove("expr"); } }
                     else if (act is "addvar" or "addlocal" && Str(r["amount"]) is { Length: > 0 } fa && Str(r["var"]) is { Length: > 0 } av
                         && System.Text.RegularExpressions.Regex.IsMatch(fa, $@"\b{System.Text.RegularExpressions.Regex.Escape(av)}\b\s*[*/]"))
                     { r["do"] = act == "addvar" ? "setvar" : "setlocal"; r["to"] = fa; r.Remove("amount"); } // "add score * 2" = double it
+                    // "item:hasKey" for the variable hasKey the request names (items are things, not hasX flags)
+                    if (Str(r["cond"]) is { Length: > 0 } cnd && cnd.Contains("item:"))
+                        r["cond"] = System.Text.RegularExpressions.Regex.Replace(cnd, @"item:([a-z]\w*)", m => (request ?? "").Contains(m.Groups[1].Value) ? m.Groups[1].Value : m.Value);
                     if (hold && when == "keypress") { r["when"] = "key"; r.Remove("cooldown"); }
                     // "when score reaches 10, say Well done": a "while" event would say it every frame — it means the moment
                     if (when == "ifvar" && act is "say" or "playsound" or "emit" or "spawn" or "shoot" or "additem" or "removeitem" or "addvar" or "addlocal"

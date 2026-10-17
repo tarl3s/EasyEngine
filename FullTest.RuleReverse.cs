@@ -41,6 +41,15 @@ public partial class App
             return shaped["level"]!["boss"] == null && (string?)shaped["create"]![0]!["name"] == "Boss" && (int)shaped["level"]!["coins"]! == 3
                    && doubled == J("[{'when':'touch','name':'Player','do':'setvar','var':'score','to':'score * 2'}]") && plain.Contains("addvar");
         });
+        t.Test("ai fix: 'item:hasKey' for the variable the request names, 'near' myself means near the Player, a boss death that forgot its variable", () =>
+        {
+            var door = AiSpecFix.ForRequest(J("[{'when':'keynear','key':'F','name':'Shop','cond':'item:hasKey >= 1 && item:Sword < 1','do':'destroy'}]"), "with the key (hasKey equal to 1)", "Shop");
+            var boss = SequenceAi.ForRequest(SeqMode.Boss, J("{'attacks':{},'phases':[],'death':[{'do':'shake'}]}"), "when it dies the screen shakes and the variable doorOpen becomes 1");
+            var b = SequenceJson.ParseBoss(boss, out var err, new System.Collections.Generic.List<string>());
+            var d = System.Text.Json.Nodes.JsonNode.Parse(door)![0]!;
+            return (string?)d["cond"] == "hasKey >= 1 && item:Sword < 1" && (string?)d["name"] == "Player"
+                   && err == null && b.Death.Any(s => s.Do == "setvar" && s.Str("var") == "doorOpen" && s.Str("to") == "1");
+        });
         t.Test("reverse: the blocks keep the tick through open → save, and only reversible actions offer it", () =>
         {
             var js = J("[{'when':'start','do':'show','target':'self','reverse':true}]");
