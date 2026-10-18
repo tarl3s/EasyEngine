@@ -22,6 +22,7 @@ namespace EasyEngine
     //   --showprompt                     the log gets each Build request's prompt
     //   --delay 15000                    milliseconds between cloud requests (Gemini free: a few a minute)
     //   --maxmem 2500                    stop the eval when it uses more than this many MB (default 2500)
+    //   --skip id,id                     leave out these exact case ids (resume a run that stopped)
     // Report: %TEMP%\easyengine_aitest.log (pass/fail per case, why, the AI's reply when it failed).
     public partial class App
     {
@@ -32,6 +33,7 @@ namespace EasyEngine
             string choice = args.Contains("--cloud") ? "cloud:" + (Arg("--cloud") is { Length: > 0 } c ? c : "auto")
                           : "local:" + (Arg("--model") is { Length: > 0 } m ? m : "qwen2.5-coder:1.5b");
             var only = Arg("--only").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var skip = Arg("--skip").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase); // exact ids already measured (resume a run)
             var log = Path.Combine(Path.GetTempPath(), "easyengine_aitest.log");
             try { File.WriteAllText(log, $"AI EVAL — {choice} — {DateTime.Now}\n"); } catch { }
             string? temp = null;
@@ -41,7 +43,7 @@ namespace EasyEngine
                 Directory.CreateDirectory(temp);
                 var editor = new MainWindow(ProjectIO.CreateNew("AiTest", temp)); // constructed, not shown
                 editor.EvalUseAi(choice);
-                var cases = AiEvalCases().Where(k => only.Length == 0 || only.Any(o => k.Id.Contains(o, StringComparison.OrdinalIgnoreCase))).ToList();
+                var cases = AiEvalCases().Where(k => only.Length == 0 || only.Any(o => k.Id.Contains(o, StringComparison.OrdinalIgnoreCase))).Where(k => !skip.Contains(k.Id)).ToList();
                 int gap = int.TryParse(Arg("--delay"), out var d) ? d : 6000;
                 long maxMb = long.TryParse(Arg("--maxmem"), out var mm) ? mm : 2500; // MB: the eval stops itself above this, so the computer stays usable
                 _showPrompt = args.Contains("--showprompt");
