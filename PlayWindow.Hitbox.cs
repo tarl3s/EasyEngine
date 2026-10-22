@@ -31,6 +31,7 @@ namespace EasyEngine
 
         private void FitHitboxToDrawing(Entity en)
         {
+            if (PolyHitbox.Valid(en.Data.Physics.Shape)) return; // a drawn polygon is the hitbox
             var obj = en.Data;
             if (HitboxFit.Fraction(obj, OpaqueOf) is not Rect f) return;
             var box = HitboxFit.Apply(f, obj.X, obj.Y, obj.Width, obj.Height);

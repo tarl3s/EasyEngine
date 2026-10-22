@@ -74,7 +74,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 - **🎬 Cinemáticas** — falas, câmera que viaja, títulos grandes, fades, barras de cinema, mover personagens, travar
   o controle; disparam no início, ao entrar numa área, por variável ou tecla.
 - **✨ Ask the AI** dentro dos editores de chefe e cinemática: descreva, e a IA escreve os passos.
-- **Mundo** — física AABB (a hitbox pode se ajustar ao desenho, ignorando as margens vazias do sprite), plataformas de
+- **Mundo** — física AABB (a hitbox pode se ajustar ao desenho, ignorando as margens vazias do sprite, ou ser **desenhada como um formato** — clique nos cantos de um morro ou de uma pedra e o jogador sobe as rampas), plataformas de
   um sentido e móveis, tilemaps (quebráveis, com tiles que você desenha ou anima), **geração procedural** e um
   **gerador de terreno** (morros, cavernas, minérios, árvores, e blocos seus — nuvens, minérios mais fundos, biomas)
   que dá pra minerar, infinito ou do tamanho que você escolher.

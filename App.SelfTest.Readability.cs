@@ -50,6 +50,9 @@ public partial class App
         var input = Open(new InputDialog("Rename project", "New name:", "My Game") { Owner = editor });
         var beep = Enumerable.Range(0, 22050).Select(i => (float)(0.5 * Math.Sin(i * 0.125) * Math.Exp(-i / 8000.0))).ToArray();
         var audio = Open(new AudioEditorWindow(project, new AudioData(22050, new[] { beep }), "beep") { Owner = editor });
+        var shapeWin = new HitboxShapeWindow(project, hero) { Owner = editor };
+        shapeWin.TestClick(0, 1); shapeWin.TestClick(0.5, 0); shapeWin.TestClick(1, 1); // a triangle on the hero's picture
+        Open(shapeWin);
 
         c.LateChecks.Add(() =>
         {
@@ -58,7 +61,7 @@ public partial class App
             {
                 (c.Editor, "editor"), (editor, "editor_inspector"), (launcher, "launcher"), (settings, "settings"),
                 (blocks, "block_editor"), (sprite, "sprite_editor"), (newItem, "new_item"), (input, "input_dialog"),
-                (audio, "audio_editor"),
+                (audio, "audio_editor"), (shapeWin, "hitbox_shape"),
             };
             foreach (var w in Windows.OfType<AnimationWindow>().Take(1)) shots.Add((w, "animation"));
             foreach (var w in Windows.OfType<VariablesWindow>().Take(1)) shots.Add((w, "variables"));

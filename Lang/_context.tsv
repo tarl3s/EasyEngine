@@ -59,6 +59,7 @@ A row	behavior Generator
 A scene needs at least one layer.	MainWindow.xaml.cs
 A scene with that name already exists.	MainWindow.xaml.cs
 A scripted scene: its steps run one after another — dialogue that waits for Enter, camera moves, screen shake, fades, cinema bars, a big title, moving/showing/hiding objects, setting variables. It plays when the scene starts, when the player walks into this object's area, when a variable turns on, or when a key is pressed. Build the steps with 🧩 Advanced Scratch or ask the AI. The player can skip it with the skip key.	behavior Cutscene
+A shape needs at least 3 corners (or none, for the whole box).	HitboxShapeWindow.cs
 A solid barrier that blocks the way until it opens. It opens when its variable meets the condition (e.g. var 'hasRedKey' >= 1), or needs an item. When open it stops colliding and fades out. Perfect for metroidvania ability-gates and locked doors.	behavior Gate
 A solid block the player (or 'pusher') can push around. Great for sokoban-style puzzles and block-and-switch puzzles. Give it physics Dynamic if it should also fall.	behavior Pushable
 A tilemap collides with its own tiles.	MainWindow.Hitbox.cs
@@ -236,7 +237,7 @@ Buyer	behavior Shop
 Camera	step category
 Camera back to the player	step cameraback
 Can be maximized (0/1)	behavior Minimap
-Cancel	AudioEditorWindow.cs, BlockEditorWindow.cs, InputDialog.xaml, LauncherWindow.xaml, NewItemDialog.cs, SequenceEditorWindow.cs, SpriteEditorWindow.cs
+Cancel	AudioEditorWindow.cs, BlockEditorWindow.cs, HitboxShapeWindow.cs, InputDialog.xaml, LauncherWindow.xaml, NewItemDialog.cs, SequenceEditorWindow.cs, SpriteEditorWindow.cs
 Cancel = do nothing	LauncherWindow.xaml.cs
 Canvas size	SpriteEditorWindow.cs
 Category	MainWindow.xaml.cs
@@ -276,6 +277,7 @@ Click it	behavior Switch
 Click it: +1 score	BlockEditorWindow.Recipes.cs
 Click or drag to draw.	SpriteEditorWindow.cs
 Click or drag to erase.	SpriteEditorWindow.cs
+Click to add a corner (on a side, it goes into that side) · drag a corner to move it · right-click a corner to remove it.	HitboxShapeWindow.cs
 Click to add to the selected layer	MainWindow.xaml
 Click to pick a color	MainWindow.xaml.cs
 Click to pick a colour	BlockEditorWindow.cs, SequenceEditorWindow.cs, VariablesWindow.xaml.cs
@@ -421,6 +423,8 @@ Drag to scatter the pixels.	SpriteEditorWindow.cs
 Drag to select, then drag the selection to move it. R turns it, Ctrl+C / Ctrl+V copy and paste, Esc lets it go.	SpriteEditorWindow.cs
 Drag to soften the pixels.	SpriteEditorWindow.cs
 Draw mode: click points on the scene, then click Finish.	MainWindow.xaml.cs
+Draw the hitbox as a shape with corners. On a solid that stands still it is the real ground and walls (slopes can be walked up); on anything else it is what touches.	MainWindow.Hitbox.cs
+Draw the shape around the picture's visible pixels (you can fix the corners after)	HitboxShapeWindow.cs
 Draw this tile in the sprite editor ({0}×{0} pixels)	MainWindow.Tiles.cs
 Drawing: click points on the scene to trace the route (green dot = start). The grid is on so points snap neatly. Click Finish when done.	MainWindow.xaml.cs
 Draws a small map in a corner showing the whole scene (in an endless world: the area around the player, with the ground), with a dot for the player and optional dots for other things, each in its own colour. Put it on a UI layer. 'markers' = comma-separated 'Name:#RRGGBB' entries; a name matches an object (and every copy of a prefab) or a whole group (empty = just the player). With 'canMax' on, a key opens a big map in the middle of the screen (press it again to close).	behavior Minimap
@@ -599,6 +603,8 @@ Hit an enemy	MainWindow.Params.cs
 Hit sound	behavior Harvestable
 Hit sounds per item	behavior ToolUse
 Hit-an-enemy sound (default)	behavior ToolUse
+Hitbox shape	HitboxShapeWindow.cs
+Hitbox shape: {0} corners.	MainWindow.Hitbox.cs
 Hitbox: fit to the drawing	MainWindow.Hitbox.cs
 Hits to break each tile	behavior Tilemap
 Hits to fell	behavior Harvestable
@@ -825,6 +831,7 @@ No phases yet — without one, the boss uses every attack at random.	SequenceEdi
 No prefabs match.	MainWindow.xaml.cs
 No projects yet. Click “New Project” to start.	LauncherWindow.xaml
 No route yet. Click 'Draw path' (the grid turns on automatically), then click points on the scene to trace where it should go.	MainWindow.xaml.cs
+No shape: the whole box collides.	HitboxShapeWindow.cs
 No sound	MainWindow.xaml.cs
 No steps yet — add one below.	SequenceEditorWindow.cs
 No variables yet.	VariablesWindow.xaml.cs
@@ -967,6 +974,7 @@ Pulse	behavior Label
 Pulse (grow and shrink)	BlockEditorWindow.Recipes.cs
 Pulse (slowly grows and shrinks)	behavior LightSource
 Pushable Block	behavior Pushable
+Put a corner on each corner of the box, then move them	HitboxShapeWindow.cs
 Put it on the player. Click ANYWHERE in the game to use the item in hand (from the Hotbar, or the fixed 'tool'); hold the button to keep using it, one swing per cooldown. Each use: the arm swings, the swing sound plays and, a moment later, it hits what is in reach — an enemy (anything with Health, takes damage + knockback), a tree/rock (Harvestable that accepts the item) or a breakable tile under the cursor. Every item works the same way: sword, axe, pickaxe, or your own (shovel…). Far away = a miss; wrong tool = refused; something solid in between (wall, water, a block) = blocked, the swing only hits what is in front. 'itemDamage' = damage per item (e.g. sword=2,axe=1), 'tools' = only these items swing (comma list, empty = all), 'toolLook' = look of the fixed tool. Everything shows in the F1 console.	behavior ToolUse
 Puts a colour in a colour variable. Use it in "Change the colour" or in particles.	BlockEditorWindow.Palette.cs
 Puts a colour in a colour variable. {name} in a colour field (a tint, particles, a fade) uses it.	step setcolor
@@ -985,8 +993,10 @@ Redo (Ctrl+Y)	SpriteEditorWindow.cs
 Refused sound	behavior ToolUse
 Remove	MainWindow.MultiBehaviors.cs, MainWindow.xaml.cs
 Remove an item	BlockEditorWindow.Palette.cs
+Remove every corner: the whole box collides again	HitboxShapeWindow.cs
 Remove from a list	BlockEditorWindow.Palette.cs
 Remove prefab "{0}" from the palette?\n(objects already placed in scenes are NOT affected)	MainWindow.xaml.cs
+Remove the shape: the whole box collides again	MainWindow.Hitbox.cs
 Remove this action	BlockEditorWindow.cs
 Remove this block	MainWindow.TerrainBlocks.cs
 Remove this condition	BlockEditorWindow.cs
@@ -1248,11 +1258,15 @@ The player starts with it	NewItemDialog.cs
 The player's keys and clicks stop working (Enter still advances dialogue).	step lock
 The same every time (built once)	behavior Generator
 The scene starts	behavior BossAI, behavior Cutscene
+The shape is the ground and the walls: things land on it and walk up its slopes.	MainWindow.Hitbox.cs
+The shape is what touches and gets touched; it still moves as its box.	MainWindow.Hitbox.cs
+The shape you drew is the hitbox (it replaces "fit to the drawing").	MainWindow.Hitbox.cs
 The sound file is missing.	AudioEditorWindow.cs
 The start	behavior Lives
 The steps run one after another, top to bottom. Steps like Say, Wait, Move or Camera wait until they're done.	SequenceEditorWindow.cs
 The target PC needs the free .NET 8 Desktop Runtime (couldn't find the SDK to make a self-contained build).	MainWindow.xaml.cs
 The update couldn't be downloaded:	UpdatePrompt.cs
+The whole box is the hitbox again.	MainWindow.Hitbox.cs
 The whole layer, in the editor and in the game.	MainWindow.Layers.cs
 The whole scene	behavior StayInside
 The world just ends (you can fall off)	behavior Terrain
@@ -1515,7 +1529,7 @@ then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.13.2	LauncherWindow.xaml
+v0.14.1	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs
@@ -1533,6 +1547,8 @@ y	step camera, step move, step moveto, step spawn
 {0} animation(s) · default: {1}	MainWindow.xaml.cs
 {0} attacks	SequenceModel.cs
 {0} coins	MainWindow.AiLevel.cs
+{0} corner(s) — a shape needs at least 3.	HitboxShapeWindow.cs
+{0} corners.	HitboxShapeWindow.cs
 {0} enemies	MainWindow.AiLevel.cs
 {0} error ({1}): {2}	CloudClient.cs
 {0} frame(s)	AnimationWindow.xaml.cs
@@ -1585,6 +1601,7 @@ y	step camera, step move, step moveto, step spawn
 ② Paste your key here:	MainWindow.xaml.cs
 ■ Stop	AudioEditorWindow.cs
 ▫ An empty block (underground)	MainWindow.TerrainBlocks.cs
+▭ Start from the box	HitboxShapeWindow.cs
 ▶  Test	MainWindow.xaml
 ▶ Play	AudioEditorWindow.cs
 ▶ off	MainWindow.Layers.cs
@@ -1620,6 +1637,7 @@ y	step camera, step move, step moveto, step spawn
 ⚡ Local — fastest (1.5b)	MainWindow.xaml
 ✂ CUT — drag the two handles to keep only a part	AudioEditorWindow.cs
 ✂ Edit…	MainWindow.xaml.cs
+✂ Trace the drawing	HitboxShapeWindow.cs
 ✂ Trim box to drawing	MainWindow.Hitbox.cs
 ✎ Draw path	MainWindow.xaml.cs
 ✏ Pencil	SpriteEditorWindow.cs
@@ -1628,14 +1646,18 @@ y	step camera, step move, step moveto, step spawn
 ✓ Done — {0}	MainWindow.Sequences.cs
 ✓ Finish	MainWindow.xaml.cs
 ✓ Ready	MainWindow.xaml.cs
+✓ Use this shape	HitboxShapeWindow.cs
 ✕ Delete attack	SequenceEditorWindow.cs
 ✕ Delete phase	SequenceEditorWindow.cs
+✕ Use the box	MainWindow.Hitbox.cs
 ✨ Ask the AI	BlockEditorWindow.Ai.cs, MainWindow.Sequences.cs
 ✨ Local+ — smarter, still light (3b)	MainWindow.xaml
 ➕  Add a block	BlockEditorWindow.cs
 ⧉ Duplicate animation	AnimationWindow.xaml
 ⬆  Updates	SettingsWindow.cs
 ⬚ Select	SpriteEditorWindow.cs
+⬠ Draw a hitbox shape…	MainWindow.Hitbox.cs
+⬠ Hitbox shape ({0} corners)…	MainWindow.Hitbox.cs
 ⬡ Polygon	SpriteEditorWindow.cs
 🌀 Jumble	SpriteEditorWindow.cs
 🌐  Language	SettingsWindow.cs
@@ -1678,6 +1700,7 @@ y	step camera, step move, step moveto, step spawn
 🔥 Local — needs GPU/RAM (14b)	MainWindow.xaml
 🔨 Build	MainWindow.xaml
 🗂  Temporary files	SettingsWindow.cs
+🗑 Clear	HitboxShapeWindow.cs
 🗑 Delete animation	AnimationWindow.xaml
 🛟  Backup	SettingsWindow.cs
 🛟 Brought back {0} missing file(s) from the backup: {1}	MainWindow.xaml.cs

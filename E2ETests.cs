@@ -25,6 +25,7 @@ public partial class App
             AddE2EScenariosTerrain(scenarios); // E2ETests.Terrain.cs
             AddE2EScenariosVarTypes(scenarios); // E2ETests.VarTypes.cs
             AddE2EScenariosHitbox(scenarios);   // E2ETests.Hitbox.cs
+            AddE2EScenariosPolyHitbox(scenarios); // E2ETests.PolyHitbox.cs
             AddE2EScenariosTiles(scenarios);    // E2ETests.Tiles.cs
             AddE2EScenariosLayers(scenarios);   // E2ETests.Layers.cs
             AddE2EScenariosLights(scenarios);   // E2ETests.Lights.cs
@@ -55,6 +56,7 @@ public partial class App
     partial void AddE2EScenariosTerrain(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosVarTypes(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosHitbox(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
+    partial void AddE2EScenariosPolyHitbox(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosTiles(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosLayers(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosLights(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);

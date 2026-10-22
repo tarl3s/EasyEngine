@@ -40,8 +40,31 @@ namespace EasyEngine
             }
             InspectorRoot.Children.Add(row);
 
+            // ⬠ the hitbox as a polygon (HitboxShapeWindow): ramps, rocks, round things
+            bool shaped = PolyHitbox.Valid(obj.Physics.Shape);
+            var shapeRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var edit = new Button
+            {
+                Content = shaped ? L.F("⬠ Hitbox shape ({0} corners)…", obj.Physics.Shape!.Count) : L.T("⬠ Draw a hitbox shape…"),
+                Height = 28, FontSize = 11, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Style = (Style)FindResource("CardButton"),
+                ToolTip = L.T("Draw the hitbox as a shape with corners. On a solid that stands still it is the real ground and walls (slopes can be walked up); on anything else it is what touches.")
+            };
+            edit.Click += (s, e) => EditHitboxShape(obj);
+            shapeRow.Children.Add(edit);
+            if (shaped)
+            {
+                var off = new Button { Content = L.T("✕ Use the box"), Height = 28, FontSize = 11, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 0, 6), Style = (Style)FindResource("GhostButton"), ToolTip = L.T("Remove the shape: the whole box collides again") };
+                off.Click += (s, e) => SetHitboxShape(obj, null);
+                shapeRow.Children.Add(off);
+            }
+            InspectorRoot.Children.Add(shapeRow);
+
             string? hint = null;
-            if (obj.Physics.FitHitbox)
+            if (shaped)
+                hint = obj.Physics.FitHitbox ? L.T("The shape you drew is the hitbox (it replaces \"fit to the drawing\").")
+                     : obj.Physics.Mode == PhysicsMode.Static || obj.Behaviors.Any(b => b.Kind == BehaviorKind.Solid) ? L.T("The shape is the ground and the walls: things land on it and walk up its slopes.")
+                     : L.T("The shape is what touches and gets touched; it still moves as its box.");
+            else if (obj.Physics.FitHitbox)
             {
                 if (!hasImage) hint = L.T("Give it an image first: the hitbox follows the picture's visible pixels.");
                 else if (obj.TileImage) hint = L.T("A repeating (tiled) image isn't trimmed: the whole box collides.");
@@ -54,10 +77,37 @@ namespace EasyEngine
                 InspectorRoot.Children.Add(new TextBlock { Text = hint, Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
         }
 
+        private void EditHitboxShape(GameObjectData obj)
+        {
+            if (HitboxShapeWindow.Edit(this, _project, obj, out var shape)) SetHitboxShape(obj, shape);
+        }
+
+        private void SetHitboxShape(GameObjectData obj, List<PolyPoint>? shape)
+        {
+            PushUndo();
+            obj.Physics.Shape = PolyHitbox.Valid(shape) ? shape : null;
+            RenderScene(); BuildInspector(obj); Dirty();
+            Status(obj.Physics.Shape == null ? L.T("The whole box is the hitbox again.") : L.F("Hitbox shape: {0} corners.", obj.Physics.Shape.Count));
+        }
+
+        /// <summary>A polygon hitbox drawn over the object in the scene (dashed accent), redrawn when the box is resized.</summary>
+        private void AddShapeOutline(GameObjectData obj, Border border)
+        {
+            if (border.Child != null || !PolyHitbox.Valid(obj.Physics.Shape)) return;
+            var shape = obj.Physics.Shape!;
+            var poly = new Polygon { Stroke = (SolidColorBrush)FindResource("Accent"), StrokeThickness = 1.5, StrokeDashArray = new DoubleCollection { 4, 3 } };
+            var c = new Canvas { IsHitTestVisible = false, Tag = "shape" };
+            c.Children.Add(poly);
+            void Fit() => poly.Points = new PointCollection(shape.Select(p => new Point(p.X * c.ActualWidth, p.Y * c.ActualHeight)));
+            c.SizeChanged += (s, e) => Fit();
+            border.Child = c;
+        }
+
         /// <summary>The hitbox drawn over the picture in the scene: a dashed accent outline placed by star-sized rows and
         /// columns, so it follows the box while it is resized.</summary>
         private void AddHitboxOutline(GameObjectData obj, Border border)
         {
+            if (PolyHitbox.Valid(obj.Physics.Shape)) return; // the drawn shape is the hitbox (AddShapeOutline)
             if (border.Child != null || HitboxFit.Fraction(_project, obj) is not Rect f) return;
             double r = Math.Max(0, 1 - f.Right), b = Math.Max(0, 1 - f.Bottom);
             var g = new Grid { IsHitTestVisible = false, Tag = "hitbox" };
@@ -108,5 +158,7 @@ namespace EasyEngine
         internal string TestBuildPrompt(string request = "") => BuildProjectPrompt(request);
         internal bool TestHasHitboxOutline(GameObjectData o) => _visuals.TryGetValue(o, out var el) && el is Border b && b.Child is Grid g && (g.Tag as string) == "hitbox";
         internal IEnumerable<FrameworkElement> TestInspectorItems() => InspectorRoot.Children.OfType<FrameworkElement>();
+        internal void TestSetShape(GameObjectData o, List<PolyPoint>? s) => SetHitboxShape(o, s);
+        internal bool TestHasShapeOutline(GameObjectData o) => _visuals.TryGetValue(o, out var el) && el is Border b && b.Child is Canvas c && (c.Tag as string) == "shape";
     }
 }

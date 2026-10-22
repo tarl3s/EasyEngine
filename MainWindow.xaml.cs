@@ -746,6 +746,7 @@ namespace EasyEngine
                 catch { border.Background = Theme.Hex(obj.Color, "#9A9AA0"); }
             }
             else border.Background = Theme.Hex(obj.Color, "#9A9AA0");
+            AddShapeOutline(obj, border); // a polygon hitbox → its outline over the object (MainWindow.Hitbox.cs)
 
             Canvas.SetLeft(border, obj.X);
             Canvas.SetTop(border, obj.Y);

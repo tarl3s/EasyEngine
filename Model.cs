@@ -159,6 +159,9 @@ namespace EasyEngine
         public string Text(string k, string def = "") => Texts.TryGetValue(k, out var v) ? v : def;
     }
 
+    /// <summary>One corner of a hitbox polygon, as a fraction of the object's box.</summary>
+    public class PolyPoint { public double X { get; set; } public double Y { get; set; } public PolyPoint() { } public PolyPoint(double x, double y) { X = x; Y = y; } }
+
     public class PhysicsData
     {
         public PhysicsMode Mode { get; set; } = PhysicsMode.None;
@@ -166,6 +169,8 @@ namespace EasyEngine
         public double Bounciness { get; set; } = 0.0;
         // true = collide with the picture's visible pixels, not the whole box (HitboxFit.cs); the picture still fills the box
         public bool FitHitbox { get; set; } = false;
+        // the hitbox as a polygon (3+ points, fractions of the box: 0,0 = top-left, 1,1 = bottom-right) — see PolyHitbox.cs; null = the box
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<PolyPoint>? Shape { get; set; }
     }
 
     /// <summary>A named animation: an ordered set of frames (relative image paths).</summary>

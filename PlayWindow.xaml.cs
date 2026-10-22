@@ -854,6 +854,7 @@ namespace EasyEngine
                 StartX = obj.X, StartY = obj.Y, ScreenSpace = screenSpace
             };
             FitHitboxToDrawing(en); // "Hitbox: fit to the drawing" → X/Y/W/H become the drawing's part of the box (PlayWindow.Hitbox.cs)
+            SetUpShape(en); // a polygon hitbox (PlayWindow.PolyHitbox.cs)
             en.Visual = MakeVisual(obj, en);
             (screenSpace ? Hud : World).Children.Add(en.Visual);
 
@@ -2480,7 +2481,7 @@ namespace EasyEngine
             foreach (var en in _entities)
             {
                 if (en.Dead || !en.FrameTopDown || TerrainFrozen(en)) continue;
-                en.X += en.VX * dt; ResolveX(en);
+                en.X += en.VX * dt; ResolveX(en, dt);
                 en.Grounded = false;
                 en.Y += en.VY * dt; ResolveY(en, dt);
             }
@@ -2499,11 +2500,12 @@ namespace EasyEngine
                 if (en.VY > MaxFallSpeed) en.VY = MaxFallSpeed;
 
                 en.X += en.VX * dt;
-                if (collide) ResolveX(en);
+                if (collide) ResolveX(en, dt);
 
                 en.Grounded = false;
                 en.Y += en.VY * dt;
                 if (collide) ResolveY(en, dt);
+                if (collide && !en.Grounded && ground != null && en.VY >= 0 && en.DashTimer <= 0) PolySnapDown(en, dt); // down a slope
 
                 // fell off the world → lose a hit point and respawn (prevents falling forever); a terrain deeper than the scene counts too
                 if (en.Y > Math.Max(_scene.Height, _terrainBottom) + 320)
@@ -2565,11 +2567,12 @@ namespace EasyEngine
             }
         }
 
-        private void ResolveX(Entity en)
+        private void ResolveX(Entity en, double dt)
         {
             foreach (var s in SolidsNear(en.X, en.Y, en.W, en.H))
             {
-                if (s == en || s.Dead || s.SolidDisabled || s.OneWay || !Overlap(en, s)) continue;
+                if (s == en || s.Dead || s.SolidDisabled || s.OneWay || !BoxOverlap(en, s)) continue;
+                if (s.Shape != null) { PolyResolveX(en, s, dt); continue; } // a polygon: slopes and its real sides (PlayWindow.PolyHitbox.cs)
                 if (en.VX != 0) en.BlockedVX = en.VX; // a Pushable listed before its pusher still sees the push (it reads this next tick)
                 if (en.VX > 0) en.X = s.X - en.W; else if (en.VX < 0) en.X = s.X + s.W;
                 double b = en.Data.Physics.Bounciness;
@@ -2581,7 +2584,8 @@ namespace EasyEngine
         {
             foreach (var s in SolidsNear(en.X, en.Y, en.W, en.H))
             {
-                if (s == en || s.Dead || s.SolidDisabled || !Overlap(en, s)) continue;
+                if (s == en || s.Dead || s.SolidDisabled || !BoxOverlap(en, s)) continue;
+                if (s.Shape != null) { PolyResolveY(en, s, dt); continue; }
                 if (s.OneWay)
                 {
                     // land only when falling and the feet were above the platform last frame
@@ -2609,7 +2613,7 @@ namespace EasyEngine
             foreach (var s in SolidsNear(x, y, w, h))
             {
                 if (s == en || s.Dead || s.SolidDisabled) continue;
-                if (x < s.X + s.W && x + w > s.X && y < s.Y + s.H && y + h > s.Y) return s;
+                if (x < s.X + s.W && x + w > s.X && y < s.Y + s.H && y + h > s.Y && (s.Shape == null || (s.PlaceShape() && PolyHitbox.OverlapsBox(s.PX, s.PY, s.PX.Length, x, y, w, h, 0)))) return s;
             }
             return null;
         }
@@ -2620,7 +2624,7 @@ namespace EasyEngine
             foreach (var s in SolidsNear(x, y, w, h))
             {
                 if (s == en || s.Dead || s.SolidDisabled || s.OneWay) continue;
-                if (x < s.X + s.W && x + w > s.X && y < s.Y + s.H && y + h > s.Y) return true;
+                if (x < s.X + s.W && x + w > s.X && y < s.Y + s.H && y + h > s.Y && (s.Shape == null || (s.PlaceShape() && PolyHitbox.OverlapsBox(s.PX, s.PY, s.PX.Length, x, y, w, h, 0)))) return true;
             }
             return false;
         }
@@ -2697,12 +2701,14 @@ namespace EasyEngine
             en.PrevDash = dashHeld;
         }
 
-        private static bool Overlap(Entity a, Entity b)
+        private static bool Overlap(Entity a, Entity b) => BoxOverlap(a, b) && ((a.Shape == null && b.Shape == null) || ShapesMeet(a, b, -0.01));
+        private static bool BoxOverlap(Entity a, Entity b)
             => a.X < b.X + b.W && a.X + a.W > b.X && a.Y < b.Y + b.H && a.Y + a.H > b.Y;
 
         // touching: overlapping, or resting against it (standing on a platform is touching it)
         private static bool Touching(Entity a, Entity b)
-            => a.X <= b.X + b.W + 1 && a.X + a.W >= b.X - 1 && a.Y <= b.Y + b.H + 1 && a.Y + a.H >= b.Y - 1;
+            => a.X <= b.X + b.W + 1 && a.X + a.W >= b.X - 1 && a.Y <= b.Y + b.H + 1 && a.Y + a.H >= b.Y - 1
+               && ((a.Shape == null && b.Shape == null) || ShapesMeet(a, b, 1));
 
         // A behavior that acts every frame can be limited to "only while <formula>" (texts.cond): e.g. a Shooter with cond
         // "Player.cx < self.cx" fires only while the player is on its left; a Patrol with cond "local.go >= 1" waits for a

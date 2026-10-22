@@ -32,6 +32,7 @@ namespace EasyEngine
             project.Scenes.Add(LightShapesTest()); // TestScenarios.Lights.cs
             project.Scenes.Add(VariableTypesTest()); // TestScenarios.VarTypes.cs
             project.Scenes.Add(HitboxTest(project)); // TestScenarios.Hitbox.cs
+            project.Scenes.Add(SlopeTest(project)); // TestScenarios.PolyHitbox.cs
             project.Scenes.Add(TilesTest(project));  // TestScenarios.Tiles.cs
             project.Scenes.Add(LayersTest());        // TestScenarios.Layers.cs
             project.Scenes.Add(LivesBlocksTest());   // TestScenarios.Scratch.cs
