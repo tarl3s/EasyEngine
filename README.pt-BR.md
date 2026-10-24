@@ -37,7 +37,7 @@ código: escolha comportamentos prontos em listas, encaixe blocos, ou só diga p
 ## Como começar
 
 1. **[Baixe a EasyEngine](https://github.com/tarl3s/EasyEngine/releases/latest/download/EasyEngine-win-x64.zip)** (Windows 10/11, 64 bits).
-2. Descompacte em qualquer lugar e abra o **`EasyEngine.exe`**. Não precisa instalar mais nada.
+2. Descompacte em qualquer lugar e abra o **`EasyEngine.exe`**. Não precisa instalar mais nada — depois disso ela fica no Menu Iniciar (digite "EasyEngine" na pesquisa do Windows).
    - O Windows pode mostrar *"O Windows protegeu o computador"*, porque o programa ainda não é assinado:
      clique em **Mais informações → Executar assim mesmo**.
 3. Três jogos de exemplo já aparecem em **Recent projects** (e em `Documentos\EasyEngine Samples`):

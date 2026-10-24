@@ -14,6 +14,7 @@ namespace EasyEngine
             ShowVersion();
             L.SetSkip(RecentList, true); // the person's projects (names, folders)
             SampleProjects.EnsureInstalled(); // the projects that come with the engine (SampleProjects.cs)
+            StartMenu.EnsureShortcut(); // findable in Windows search (StartMenu.cs)
             LoadRecent();
             NewLocation.Text = DefaultParentFolder();
             _ = CheckOllamaAsync();

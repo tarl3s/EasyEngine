@@ -316,6 +316,7 @@ namespace EasyEngine
         public static bool CheckUpdates { get; set; } = true;               // the launcher looks for a new version on start
         public static bool HideTestBar { get; set; }                         // the bar on top of a test run (Stop, Console…) starts hidden (F2)
         public static bool AssetBackup { get; set; } = true;                // keep a hidden backup copy of every picture/sound in a project (AssetBackup.cs)
+        public static bool StartMenuShortcut { get; set; }                   // the Start menu shortcut was made once (StartMenu.cs); a deleted one isn't brought back
 
         public static string Key(string providerId) => CloudKeys.TryGetValue(providerId, out var v) ? v : "";
         public static void SetKey(string providerId, string value) { CloudKeys[providerId] = value?.Trim() ?? ""; }
@@ -346,6 +347,7 @@ namespace EasyEngine
                     CheckUpdates = data.CheckUpdates ?? true;
                     HideTestBar = data.HideTestBar ?? false;
                     AssetBackup = data.AssetBackup ?? true;
+                    StartMenuShortcut = data.StartMenuShortcut ?? false;
                 }
             }
             catch { }
@@ -353,7 +355,7 @@ namespace EasyEngine
 
         public static void Save()
         {
-            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel, SamplesInstalled = SamplesInstalled, SamplesVersion = SamplesVersion, Language = Language, Theme = ThemeName, UiScale = UiScale, CheckUpdates = CheckUpdates, HideTestBar = HideTestBar, AssetBackup = AssetBackup })); }
+            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel, SamplesInstalled = SamplesInstalled, SamplesVersion = SamplesVersion, Language = Language, Theme = ThemeName, UiScale = UiScale, CheckUpdates = CheckUpdates, HideTestBar = HideTestBar, AssetBackup = AssetBackup, StartMenuShortcut = StartMenuShortcut })); }
             catch { }
         }
 
@@ -374,6 +376,7 @@ namespace EasyEngine
             [JsonPropertyName("checkUpdates")] public bool? CheckUpdates { get; set; }
             [JsonPropertyName("hideTestBar")] public bool? HideTestBar { get; set; }
             [JsonPropertyName("assetBackup")] public bool? AssetBackup { get; set; }
+            [JsonPropertyName("startMenuShortcut")] public bool? StartMenuShortcut { get; set; }
         }
     }
 }

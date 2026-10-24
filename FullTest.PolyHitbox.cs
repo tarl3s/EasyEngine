@@ -131,6 +131,44 @@ public partial class App
             }
             finally { try { Directory.Delete(dir, true); } catch { } }
         });
+        t.Test("polygon hitbox: a boss's shape is mirrored when it turns, like its picture", () =>
+        {
+            var p = t.Sim("[]", PhysicsMode.None, BossArena(OneAttack("{'do':'wait','time':5}"), more: (pr, s, l) =>
+                l.Objects.First(o => o.Name == "Boss").Physics.Shape = P(0.5, 0, 1, 0, 1, 1, 0.5, 1))); // its right half
+            p.TSteps(20);
+            double x = p.TX("Boss");
+            return p.TFacing("Boss") == -1 && Math.Abs(p.TShapeLeft("Boss") - x) < 0.01; // facing the player on its left: the left half
+        });
+        t.Test("polygon hitbox: ✂ Trim box to drawing keeps the shape on the same part of the drawing", () =>
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "EE_Full_PolyTrim_" + Guid.NewGuid().ToString("N")[..6]);
+            try
+            {
+                var pr = ProjectIO.CreateNew("PolyTrim", dir);
+                var o = new GameObjectData { Id = 60, Name = "Rock", X = 100, Y = 100, Width = 64, Height = 64 };
+                o.SpritePath = ProjectIO.SaveSprite(pr, HitboxTestSprite(64, 64, new System.Windows.Int32Rect(16, 8, 24, 56)), "rock"); // drawing: x 16..40, y 8..64
+                o.Physics.Shape = P(28 / 64.0, 8 / 64.0, 16 / 64.0, 1, 40 / 64.0, 1);                                                 // a triangle over it
+                pr.GetStartScene().Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(o);
+                var ed = new MainWindow(pr);
+                var rock = ed.TestScene.Layers.SelectMany(l => l.Objects).First(x => x.Name == "Rock");
+                ed.TestTrim(rock); ed.Close();
+                var s = rock.Physics.Shape!;
+                bool Near(PolyPoint q, double x, double y) => Math.Abs(q.X - x) < 0.001 && Math.Abs(q.Y - y) < 0.001;
+                return rock.Width == 24 && rock.Height == 56 && Near(s[0], 0.5, 0) && Near(s[1], 0, 1) && Near(s[2], 1, 1);
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        });
+        t.Test("start menu: the shortcut it makes points at the engine and is found again", () =>
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "EE_Full_Lnk_" + Guid.NewGuid().ToString("N")[..6]);
+            try
+            {
+                var link = Path.Combine(dir, StartMenu.Name);
+                var exe = Environment.ProcessPath!;
+                return StartMenu.Make(link, exe) && string.Equals(StartMenu.TargetOf(link), exe, StringComparison.OrdinalIgnoreCase);
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        });
         t.Test("polygon hitbox: the geometry — overlap, a box resting on it isn't overlapping, the surface over a band", () =>
         {
             double[] xs = { 0, 100, 100 }, ys = { 100, 0, 100 }; // the ramp shape on a 100×100 box

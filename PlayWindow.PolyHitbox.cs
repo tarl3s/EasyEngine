@@ -12,13 +12,13 @@ namespace EasyEngine
         {
             public System.Collections.Generic.List<PolyPoint>? Shape; // null = the box
             public double[] PX = Array.Empty<double>(), PY = Array.Empty<double>(); // its corners in the world, this frame
-            public bool ShapeFlips;                                   // mirrored with the picture (platformer characters, bosses)
+            public bool ShapeFlips;                                   // a platformer character: mirrored with the picture (a boss too — it becomes one after this is set)
 
             /// <summary>Its corners placed on where it is now (false = it has no shape).</summary>
             public bool PlaceShape()
             {
                 if (Shape == null) return false;
-                PolyHitbox.Place(Shape, X, Y, W, H, ShapeFlips && Facing < 0, PX, PY);
+                PolyHitbox.Place(Shape, X, Y, W, H, (ShapeFlips || Boss != null) && Facing < 0, PX, PY);
                 return true;
             }
         }
@@ -29,7 +29,7 @@ namespace EasyEngine
             if (!PolyHitbox.Valid(s)) return;
             en.Shape = s;
             en.PX = new double[s!.Count]; en.PY = new double[s.Count];
-            en.ShapeFlips = en.Boss != null || en.Has(BehaviorKind.Platformer);
+            en.ShapeFlips = en.Has(BehaviorKind.Platformer);
         }
 
         // two things overlapping / touching, by their shapes when they have one (the boxes are checked first: cheap)
@@ -113,5 +113,6 @@ namespace EasyEngine
 
         // ---- test hooks (FullTest.PolyHitbox.cs)
         public bool THasShape(string name) => TE(name)?.Shape != null;
+        public double TShapeLeft(string name) { var e = TE(name); return e != null && e.PlaceShape() ? System.Linq.Enumerable.Min(e.PX) : double.NaN; }
     }
 }

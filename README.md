@@ -35,7 +35,7 @@ It's free, it runs on your own computer, and the AI can be a free cloud one or f
 ## Get started
 
 1. **[Download EasyEngine](https://github.com/tarl3s/EasyEngine/releases/latest/download/EasyEngine-win-x64.zip)** (Windows 10/11, 64-bit).
-2. Unzip it anywhere and open **`EasyEngine.exe`**. Nothing else to install.
+2. Unzip it anywhere and open **`EasyEngine.exe`**. Nothing else to install — from then on it is in the Start menu (type "EasyEngine" in Windows search).
    - Windows may say *"Windows protected your PC"* because the app isn't signed yet: click **More info → Run anyway**.
 3. Three sample games are ready in **Recent projects** (also in `Documents\EasyEngine Samples`):
    **Top-Down Demo**, **Boss Demo** and **Infinite World**. Open one, press **▶ Test**, then look at how it's made.

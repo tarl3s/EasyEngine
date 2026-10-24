@@ -146,9 +146,16 @@ namespace EasyEngine
                 for (int i = 0; i < a.Frames.Count; i++) a.Frames[i] = Map(a.Frames[i]);
 
             var box = HitboxFit.Apply(u.Value, obj.X, obj.Y, obj.Width, obj.Height);
-            double oldW = obj.Width, oldH = obj.Height;
+            double oldW = obj.Width, oldH = obj.Height, oldBoxX = obj.X, oldBoxY = obj.Y;
             obj.X = Math.Round(box.X, 2); obj.Y = Math.Round(box.Y, 2);
             obj.Width = Math.Max(2, Math.Round(box.Width, 2)); obj.Height = Math.Max(2, Math.Round(box.Height, 2));
+            // a drawn shape stays on the same part of the drawing: its corners are fractions of the box, which just shrank
+            if (obj.Physics.Shape != null)
+                foreach (var p in obj.Physics.Shape)
+                {
+                    p.X = Math.Round(Math.Clamp((oldBoxX + p.X * oldW - obj.X) / obj.Width, 0, 1), 4);
+                    p.Y = Math.Round(Math.Clamp((oldBoxY + p.Y * oldH - obj.Y) / obj.Height, 0, 1), 4);
+                }
             RenderScene(); BuildInspector(obj); Dirty();
             return L.F("Box trimmed to the drawing: {0}×{1} → {2}×{3}.", Math.Round(oldW), Math.Round(oldH), Math.Round(obj.Width), Math.Round(obj.Height));
         }
