@@ -999,9 +999,12 @@ namespace EasyEngine
         private void SetPrimary(GameObjectData? obj)
         {
             _selected = obj;
+            var paintedBefore = _tmObj;
             // load tilemap edit state before building the inspector (which reads it)
             if (obj != null && !IsLockedObj(obj) && obj.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)) LoadTilemapEdit(obj); // a locked tilemap isn't painted
             else { _tmObj = null; _tmBh = null; }
+            // the tilemap being painted changed: redraw, so its cells are the ones painting and erasing update (and its grid shows)
+            if (!ReferenceEquals(paintedBefore, _tmObj)) RenderScene();
             if (obj != null && !ReferenceEquals(obj, _selectedBefore)) Status(IsLockedObj(obj) ? L.T("Locked — unlock to edit") : L.T("Arrows: move · Shift: 10 px"));
             _selectedBefore = obj;
 

@@ -154,6 +154,8 @@ namespace EasyEngine
         internal Brush? TestSceneTileFill(int col, int row) => _tmCellRects.TryGetValue(row * _tmCols + col, out var r) ? r.Fill : null;
         internal void TestChangeTile(GameObjectData obj, Action<TileKind> change) => ChangeTile(obj, () => change(_tmPalette[_tmActive - 1]));
         internal void TestRedraw() => RenderScene(); // redraw without an undo step or unsaved changes
+        internal void TestPaintCell(int col, int row, bool erase) { if (_tmObj == null) return; PaintAt(new Point(_tmObj.X + (col + 0.5) * _tmSize, _tmObj.Y + (row + 0.5) * _tmSize), erase); } // as a click (right = erase)
+        internal int TestTilesDrawnAt(int col, int row) => _tmObj == null ? 0 : SceneCanvas.Children.OfType<Rectangle>().Count(r => Math.Abs(Canvas.GetLeft(r) - (_tmObj.X + col * _tmSize)) < 0.01 && Math.Abs(Canvas.GetTop(r) - (_tmObj.Y + row * _tmSize)) < 0.01);
 
         private static IEnumerable<object> Descendants(object node)
         {

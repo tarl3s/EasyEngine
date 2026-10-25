@@ -131,6 +131,20 @@ public partial class App
             }
             finally { ed.Close(); }
         });
+        t.Test("tiles: right-click erasing a tile takes it off the scene right away (not only in the game), and painting puts it back", () =>
+        {
+            var (ed, map, _) = Editor();
+            try
+            {
+                ed.TestSelect(map);                       // just selected, as by a click: no redraw by hand
+                bool there = ed.TestTilesDrawnAt(0, 0) == 1;
+                ed.TestPaintCell(0, 0, erase: true);
+                bool erased = ed.TestTilesDrawnAt(0, 0) == 0;
+                ed.TestPaintCell(0, 0, erase: false);
+                return there && erased && ed.TestTilesDrawnAt(0, 0) == 1;
+            }
+            finally { ed.Close(); }
+        });
         t.Test("tiles: the palette swatch and the scene show the tile's picture (an animated tile its first frame); ✕ goes back to the colour", () =>
         {
             var (ed, map, _) = Editor();
