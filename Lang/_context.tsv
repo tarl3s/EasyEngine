@@ -133,7 +133,7 @@ And also	MainWindow.OnlyWhile.cs
 Angle (°)	BlockEditorWindow.Palette.cs
 Animated tile	AnimationWindow.xaml.cs
 Animation	BlockEditorWindow.Palette.cs
-Animation name (e.g. idle, walk):	AnimationWindow.xaml.cs
+Animation name (e.g. idle, walk):	AnimationWindow.EasyPixel.cs, AnimationWindow.xaml.cs
 Animation name (e.g. idle, walk, jump):	AnimationWindow.xaml.cs
 Animations	AnimationWindow.xaml, MainWindow.xaml.cs
 Animations — {0}	AnimationWindow.xaml.cs
@@ -237,7 +237,7 @@ Buyer	behavior Shop
 Camera	step category
 Camera back to the player	step cameraback
 Can be maximized (0/1)	behavior Minimap
-Cancel	AudioEditorWindow.cs, BlockEditorWindow.cs, HitboxShapeWindow.cs, InputDialog.xaml, LauncherWindow.xaml, NewItemDialog.cs, SequenceEditorWindow.cs, SpriteEditorWindow.cs
+Cancel	AnimationWindow.EasyPixel.cs, AudioEditorWindow.cs, BlockEditorWindow.cs, HitboxShapeWindow.cs, InputDialog.xaml, LauncherWindow.xaml, NewItemDialog.cs, SequenceEditorWindow.cs, SpriteEditorWindow.cs
 Cancel = do nothing	LauncherWindow.xaml.cs
 Canvas size	SpriteEditorWindow.cs
 Category	MainWindow.xaml.cs
@@ -260,10 +260,12 @@ Checkpoint	behavior Checkpoint
 Checks a list: has an item (capital letters don't matter), is empty, or has a number of items.	BlockEditorWindow.Palette.cs
 Choose a folder to export the game into	MainWindow.xaml.cs
 Choose an AI model first (AI panel)	MainWindow.xaml.cs
+Choose an EasyPixel export folder	AnimationWindow.EasyPixel.cs
 Choose frames	AnimationWindow.xaml.cs
 Choose image	MainWindow.Tiles.cs, MainWindow.xaml.cs
 Choose image…	MainWindow.Tiles.cs
 Choose sound	MainWindow.xaml.cs
+Choose what to import (newest first):	AnimationWindow.EasyPixel.cs
 Choose…	MainWindow.xaml.cs
 Cinema bars	step bars
 Cinema bars (0/1)	behavior Cutscene
@@ -317,6 +319,7 @@ Corner	behavior Checklist, behavior Minimap
 Corner radius	MainWindow.xaml.cs
 Cost	behavior Shop
 Could not apply AI response	MainWindow.xaml.cs
+Could not import the pictures:	AnimationWindow.EasyPixel.cs
 Could not start the game:	App.xaml.cs
 Could not start {0}	MainWindow.xaml.cs
 Couldn't open the sound: {0}	AudioEditorWindow.cs
@@ -407,6 +410,7 @@ Distance	behavior Patrol
 Distance (px)	step summon
 Do one more thing in this block	BlockEditorWindow.cs
 Do the opposite: show hides, give takes away, add subtracts, heal hurts, on turns off, play a sound stops it	BlockEditorWindow.cs
+Do you have an export folder to choose by hand?	AnimationWindow.EasyPixel.cs
 Dock back	MainWindow.xaml.cs
 Dock bottom	MainWindow.xaml.cs
 Dock left	MainWindow.xaml.cs
@@ -416,6 +420,7 @@ Done	BlockEditorWindow.cs
 Double jump	behavior AbilityPickup
 Double jump (0/1)	behavior Platformer
 Down	behavior LightSource
+Download it free:	AnimationWindow.EasyPixel.cs
 Downloading EasyEngine v{0}…	UpdatePrompt.cs
 Drag from one end of the line to the other.	SpriteEditorWindow.cs
 Drag to draw the shape you picked beside the tool.	SpriteEditorWindow.cs
@@ -448,6 +453,7 @@ EasyEngine	InputDialog.xaml, LauncherWindow.xaml, MainWindow.xaml
 EasyEngine project	LauncherWindow.xaml.cs
 EasyEngine project (*{0})	MainWindow.xaml.cs
 EasyEngine's logs, test projects and finished downloads in the Windows temp folder: {0}.	SettingsWindow.cs
+EasyPixel is not installed, and nothing was exported from it yet.	AnimationWindow.EasyPixel.cs
 Edit in the sprite editor	AnimationWindow.xaml.cs
 Edit this image in the sprite editor (the original file stays as it is)	MainWindow.xaml.cs
 Edited "{0}"	MainWindow.AiApply.cs
@@ -477,6 +483,7 @@ Export	App.xaml.cs, MainWindow.xaml, MainWindow.xaml.cs
 Export complete	MainWindow.xaml.cs
 Export failed	MainWindow.xaml.cs
 Export failed:\n{0}	MainWindow.xaml.cs
+Export from EasyPixel first (File → Export to EasyEngine)	AnimationWindow.EasyPixel.cs
 Exported to {0}	MainWindow.xaml.cs
 Exporting standalone game… (can take a minute)	MainWindow.xaml.cs
 Exporting…	MainWindow.xaml.cs
@@ -636,6 +643,8 @@ Image fit	MainWindow.xaml.cs
 Image set on {0}	MainWindow.xaml.cs
 Images	AnimationWindow.xaml.cs, LookPicker.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs
 Images & audio	MainWindow.xaml.cs
+Import	AnimationWindow.EasyPixel.cs
+Import from EasyPixel	AnimationWindow.EasyPixel.cs
 In order	SequenceEditorWindow.cs
 In the game: on. Click to leave it out of the game.	MainWindow.Layers.cs
 In the game: on. Click to leave this layer's objects out of the game.	MainWindow.Layers.cs
@@ -797,7 +806,7 @@ Needs a Day/Night cycle object in the scene.	BlockEditorWindow.Palette.cs
 Needs a Day/Night cycle object in the scene. Great for enemies that only come out at night.	BlockEditorWindow.Palette.cs
 New	Dropdown.cs, MainWindow.xaml
 New Yes/No variable name:	BlockEditorWindow.cs
-New animation	AnimationWindow.xaml.cs
+New animation	AnimationWindow.EasyPixel.cs, AnimationWindow.xaml.cs
 New canvas of any size, e.g. 32×128	SpriteEditorWindow.cs
 New colour variable name:	BlockEditorWindow.cs, SequenceEditorWindow.cs
 New currency (a variable name, e.g. gems):	MainWindow.Params.cs
@@ -890,6 +899,7 @@ Opacity of "{0}"	MainWindow.Layers.cs
 Opacity…	MainWindow.Layers.cs
 Open	MainWindow.xaml
 Open failed:	LauncherWindow.xaml.cs
+Open folder…	AnimationWindow.EasyPixel.cs
 Open project	LauncherWindow.xaml.cs
 Opening EasyEngine...	Updater.cs
 Opens when variable	behavior Gate
@@ -1223,6 +1233,7 @@ Text (| = next line)	step say
 Text colour	behavior Interact
 Text variable	BlockEditorWindow.Palette.cs, step settext
 Text — {variable} shows a value	behavior Label
+That folder is not an EasyPixel export (no easypixel-export.json).	EasyPixelBridge.cs
 That project file no longer exists.	LauncherWindow.xaml.cs
 The Boss AI moves this object by itself, so this movement is ignored in the game.	BehaviorCombos.cs
 The WAV file has no sound data.	AudioEdit.cs
@@ -1272,6 +1283,8 @@ The whole scene	behavior StayInside
 The world just ends (you can fall off)	behavior Terrain
 Theme updated	MainWindow.AiApply.cs
 These steps play when its health reaches 0 (it can't be hurt and doesn't hurt anymore). Then its Custom 'death' rules run and it disappears. Leave it empty to make it disappear at once.	SequenceEditorWindow.cs
+This export can't be read. Export it again from EasyPixel.	EasyPixelBridge.cs
+This export has no pictures. Export it again from EasyPixel.	EasyPixelBridge.cs
 This is not a WAV file.	AudioEdit.cs
 This kind of WAV can't be edited ({0}-bit, format {1}).	AudioEdit.cs
 This object (self)	SequenceEditorWindow.cs
@@ -1529,7 +1542,7 @@ then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.14.1	LauncherWindow.xaml
+v0.15.2	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs
@@ -1566,6 +1579,7 @@ y	step camera, step move, step moveto, step spawn
 {0} spikes	MainWindow.AiLevel.cs
 {0} steps	MainWindow.AiLevel.cs, SequenceModel.cs
 {0} took too long and was cancelled.	CloudClient.cs
+{0} — {1} frames · {2} fps · {3}	AnimationWindow.EasyPixel.cs
 {0}: off in the game (it stays in the scene)	MainWindow.Layers.cs
 {0}: on in the game	MainWindow.Layers.cs
 — updated ✓	LauncherWindow.xaml.cs
@@ -1699,6 +1713,7 @@ y	step camera, step move, step moveto, step spawn
 🔗 Keep proportions	MainWindow.LockZ.cs
 🔥 Local — needs GPU/RAM (14b)	MainWindow.xaml
 🔨 Build	MainWindow.xaml
+🖌  Import from EasyPixel	AnimationWindow.xaml
 🗂  Temporary files	SettingsWindow.cs
 🗑 Clear	HitboxShapeWindow.cs
 🗑 Delete animation	AnimationWindow.xaml

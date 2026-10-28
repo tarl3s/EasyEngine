@@ -85,6 +85,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 - **Visual** — animações de sprite, **editor de pixel art** embutido, partículas, tweens com easing, barras, efeitos
   de texto, estilos de caixa de diálogo, som com canais de volume e um pequeno **editor de som** (cortar, velocidade,
   pitch, volume, fades, tocar ao contrário, eco).
+- **EasyPixel** — desenhe e anime no [EasyPixel](https://github.com/tarl3s/EasyPixel) (editor de pixel art gratuito), exporte e clique em **🖌 Import from EasyPixel** na janela de animação: os quadros e a velocidade chegam prontos.
 - **Console de debug (F1)** — veja o que o jogo está fazendo: cliques, golpes, regras que dispararam, sons, avisos.
 - **Exporte** o seu jogo como um `.exe` que roda sozinho.
 - **Seu idioma, seu visual** — o editor fala português (do Brasil e de Portugal), inglês, espanhol, francês, alemão,

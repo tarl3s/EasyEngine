@@ -18,6 +18,7 @@
                 <StackPanel DockPanel.Dock="Bottom" Margin="12,8,12,14">
                     <Button Content="＋  ADD ANIMATION" Style="{StaticResource AccentButton}" Height="52" FontSize="15" Click="AddAnimation_Click"/>
                     <Button Content="🎨  Draw a sprite" Style="{StaticResource CardButton}" Height="36" FontSize="13" Margin="0,8,0,0" HorizontalContentAlignment="Center" Click="DrawSprite_Click"/>
+                    <Button Content="🖌  Import from EasyPixel" Style="{StaticResource CardButton}" Height="36" FontSize="13" Margin="0,8,0,0" HorizontalContentAlignment="Center" Click="ImportEasyPixel_Click"/>
                 </StackPanel>
                 <ListBox x:Name="AnimList" ItemContainerStyle="{StaticResource ListRow}" Background="Transparent" BorderThickness="0" Margin="6,0,6,0"
                          SelectionChanged="AnimList_SelectionChanged"/>

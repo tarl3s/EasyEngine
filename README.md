@@ -82,6 +82,7 @@ old version and opens again. Your projects are never touched. The sample games a
 - **Look and feel** — sprite animations, a built-in **pixel-art editor**, particles, tweens with easing, bars,
   text effects, dialogue box styles, sound with volume channels and a small **sound editor** (cut, speed, pitch,
   volume, fades, reverse, echo).
+- **EasyPixel** — draw and animate in [EasyPixel](https://github.com/tarl3s/EasyPixel) (free pixel-art editor), export, then click **🖌 Import from EasyPixel** in the animation window: the frames and their speed arrive ready to use.
 - **Debug console (F1)** — see what your game is doing: clicks, hits, rules that fired, sounds, warnings.
 - **Export** your game as a standalone `.exe`.
 - **Your language, your look** — the editor speaks English, Portuguese (Brazil and Portugal), Spanish, French, German,

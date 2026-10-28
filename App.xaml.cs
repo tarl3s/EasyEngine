@@ -109,6 +109,8 @@ public partial class App : Application
             catch { }
         }
 
+        EasyPixelBridge.RegisterEasyEngine(); // lets EasyPixel find this exe (launcher/editor runs only; not tests or --play)
+
         // normal: show the launcher, in the person's language, theme and size
         ApplyUserPreferences();
         _ = OpenLauncherAsync();

@@ -1091,6 +1091,7 @@ public partial class App
             FeatureTestsListSearch(kit);
             FeatureTestsMultiBlocks(kit);
             FeatureTestsScenesLayers(kit);
+            FeatureTestsEasyPixel(kit);
             FeatureTestsScratchReview(kit);
             FeatureTestsInteract(kit);
             FeatureTestsMultiBehaviors(kit);
@@ -1147,6 +1148,7 @@ public partial class App
     partial void FeatureTestsListSearch(FullTestKit t);
     partial void FeatureTestsMultiBlocks(FullTestKit t);
     partial void FeatureTestsScenesLayers(FullTestKit t);
+    partial void FeatureTestsEasyPixel(FullTestKit t);
     partial void FeatureTestsLights(FullTestKit t);
     partial void FeatureTestsBehaviorCombos(FullTestKit t);
     partial void FeatureTestsScratchReview(FullTestKit t); // FullTest.ScratchReview.cs
