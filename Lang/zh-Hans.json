@@ -1765,5 +1765,9 @@
   "Add to '{0}'": "添加到“{0}”",
   "New animation '{0}'": "新动画“{0}”",
   "Where should the imported frames go?": "导入的帧要放到哪里？",
-  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "点击它，然后滚动鼠标滚轮来修改并实时查看（Shift：更快 · Ctrl：更精细）"
+  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "点击它，然后滚动鼠标滚轮来修改并实时查看（Shift：更快 · Ctrl：更精细）",
+  "🔗 A copy of the prefab \"{0}\"": "🔗 预制体“{0}”的副本",
+  "Changes here change every copy": "此处的更改会更改所有副本",
+  "Make this one independent: it stops being a copy of the prefab": "使其独立：不再是预制体的副本",
+  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "勾选：对此对象的更改也会更改预制体以及勾选了此项的其他副本。不勾选：更改只留在此对象上。"
 }

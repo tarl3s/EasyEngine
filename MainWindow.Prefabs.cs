@@ -10,12 +10,15 @@ using System.Windows.Media;
 
 namespace EasyEngine
 {
-    // Prefab copies stay linked to their prefab (GameObjectData.Prefab): changing one copy — a behavior's setting, its
-    // picture, size, physics… — changes the prefab and every other copy in every scene. What belongs to one placement
-    // stays its own: name, position, Z, lock, on/off. "Unlink" makes a copy independent again.
+    // Prefab copies remember their prefab (GameObjectData.Prefab). A copy with "Changes here change every copy" ticked
+    // (PrefabAll) passes its changes — a behavior's setting, picture, size, physics… — to the prefab and to the other
+    // ticked copies in every scene, in place. Unticked copies keep their own changes. What belongs to one placement stays
+    // its own: name, position, Z, lock, on/off. "Unlink" forgets the prefab.
     public partial class MainWindow
     {
-        private static readonly string[] PlacementKeys = { "Id", "Name", "X", "Y", "Z", "Locked", "Active", "Prefab" };
+        private static readonly string[] PlacementKeys = { "Id", "Name", "X", "Y", "Z", "Locked", "Active", "Prefab", "PrefabAll" };
+        private static readonly System.Reflection.PropertyInfo[] SharedProps = typeof(GameObjectData).GetProperties()
+            .Where(p => p.CanRead && p.CanWrite && !PlacementKeys.Contains(p.Name)).ToArray();
 
         /// <summary>Everything a prefab's copies share, as JSON (placement fields left out).</summary>
         internal static string PrefabShared(GameObjectData o)
@@ -25,33 +28,31 @@ namespace EasyEngine
             return node.ToJsonString();
         }
 
-        // a copy of the shared part of src, with dst's own placement
-        private static GameObjectData WithPlacement(string shared, GameObjectData place)
+        // gives dst the shared part (a fresh copy of it), keeping dst's own placement — in place: the editor, the
+        // selection and undo keep pointing at the same object
+        private static void CopyShared(string shared, GameObjectData dst)
         {
-            var o = JsonSerializer.Deserialize<GameObjectData>(shared)!;
-            o.Id = place.Id; o.Name = place.Name; o.X = place.X; o.Y = place.Y; o.Z = place.Z;
-            o.Locked = place.Locked; o.Active = place.Active; o.Prefab = place.Prefab;
-            return o;
+            var src = JsonSerializer.Deserialize<GameObjectData>(shared)!;
+            foreach (var p in SharedProps) p.SetValue(dst, p.GetValue(src));
         }
 
-        /// <summary>After a change: a selected copy that now differs from its prefab passes the change to the prefab and
-        /// to every other copy. Returns how many other copies changed.</summary>
+        /// <summary>After a change: a selected copy with "change every copy" ticked that now differs from its prefab
+        /// passes the change to the prefab and to the other ticked copies. Returns how many other copies changed.</summary>
         internal int SyncPrefabCopies()
         {
             int changed = 0; bool here = false;
             foreach (var obj in _selection.ToList())
             {
-                if (string.IsNullOrEmpty(obj.Prefab) || _project.Prefabs.FirstOrDefault(p => p.Name == obj.Prefab) is not PrefabDef pf) continue;
+                if (!obj.PrefabAll || string.IsNullOrEmpty(obj.Prefab) || _project.Prefabs.FirstOrDefault(p => p.Name == obj.Prefab) is not PrefabDef pf) continue;
                 var shared = PrefabShared(obj);
                 if (shared == PrefabShared(pf.Template)) continue;
-                pf.Template = WithPlacement(shared, pf.Template);
+                CopyShared(shared, pf.Template);
                 foreach (var sc in _project.Scenes)
                     foreach (var layer in sc.Layers)
-                        for (int i = 0; i < layer.Objects.Count; i++)
+                        foreach (var o in layer.Objects)
                         {
-                            var o = layer.Objects[i];
-                            if (ReferenceEquals(o, obj) || o.Prefab != obj.Prefab || o.Locked || layer.Locked || sc.Locked || PrefabShared(o) == shared) continue;
-                            layer.Objects[i] = WithPlacement(shared, o);
+                            if (ReferenceEquals(o, obj) || o.Prefab != obj.Prefab || !o.PrefabAll || o.Locked || layer.Locked || sc.Locked || PrefabShared(o) == shared) continue;
+                            CopyShared(shared, o);
                             changed++;
                             if (sc == _scene) here = true;
                         }
@@ -86,20 +87,26 @@ namespace EasyEngine
         internal void TestChanged() => Dirty();
         internal void TestCloseUnsaved() { _dirty = false; Close(); } // a shown test editor closes without asking to save
 
-        // "🔗 A copy of the prefab X — changes apply to every copy" + Unlink
+        // "🔗 A copy of the prefab X" + [ ] Changes here change every copy + Unlink
         private void PrefabLinkRow(GameObjectData obj)
         {
             if (string.IsNullOrEmpty(obj.Prefab) || !_project.Prefabs.Any(p => p.Name == obj.Prefab)) return;
-            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-            var unlink = new Button { Content = L.T("Unlink"), Style = (Style)FindResource("CardButton"), Height = 26, Padding = new Thickness(8, 0, 8, 0), ToolTip = L.T("Make this one independent: its changes stay on it only") };
-            unlink.Click += (s, e) => { PushUndo(); obj.Prefab = null; Dirty(); BuildInspector(obj); };
+            var box = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var row = new DockPanel();
+            var unlink = new Button { Content = L.T("Unlink"), Style = (Style)FindResource("CardButton"), Height = 26, Padding = new Thickness(8, 0, 8, 0), ToolTip = L.T("Make this one independent: it stops being a copy of the prefab") };
+            unlink.Click += (s, e) => { PushUndo(); obj.Prefab = null; obj.PrefabAll = false; Dirty(); BuildInspector(obj); };
             DockPanel.SetDock(unlink, Dock.Right);
             row.Children.Add(unlink);
-            var text = new TextBlock { Text = L.F("🔗 A copy of the prefab \"{0}\": what you change here changes every copy", obj.Prefab),
+            var text = new TextBlock { Text = L.F("🔗 A copy of the prefab \"{0}\"", obj.Prefab),
                                        TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = (SolidColorBrush)FindResource("TextDim"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
             L.SetSkip(text, true); // already translated, holds the prefab's name
             row.Children.Add(text);
-            InspectorRoot.Children.Add(row);
+            box.Children.Add(row);
+            var all = new CheckBox { Content = L.T("Changes here change every copy"), IsChecked = obj.PrefabAll, Margin = new Thickness(0, 4, 0, 0),
+                                     ToolTip = L.T("Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.") };
+            all.Click += (s, e) => { PushUndo(); obj.PrefabAll = all.IsChecked == true; Dirty(); };
+            box.Children.Add(all);
+            InspectorRoot.Children.Add(box);
         }
     }
 }

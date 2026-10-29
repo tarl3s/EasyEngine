@@ -1765,5 +1765,9 @@
   "Add to '{0}'": "加入「{0}」",
   "New animation '{0}'": "新動畫「{0}」",
   "Where should the imported frames go?": "匯入的影格要放到哪裡？",
-  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "點擊它，然後滾動滑鼠滾輪來修改並即時查看（Shift：更快 · Ctrl：更精細）"
+  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "點擊它，然後滾動滑鼠滾輪來修改並即時查看（Shift：更快 · Ctrl：更精細）",
+  "🔗 A copy of the prefab \"{0}\"": "🔗 預製物件「{0}」的副本",
+  "Changes here change every copy": "此處的變更會變更所有副本",
+  "Make this one independent: it stops being a copy of the prefab": "使其獨立：不再是預製物件的副本",
+  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "勾選：對此物件的變更也會變更預製物件以及勾選了此項的其他副本。不勾選：變更只留在此物件上。"
 }

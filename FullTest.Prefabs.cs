@@ -17,9 +17,9 @@ public partial class App
             try
             {
                 var pf = p.Prefabs.First(x => x.Template.Behaviors.Any(b => b.Kind == BehaviorKind.Platformer));
-                var a = ed.TestAddPrefab(pf.Name); a.X = 111;
+                var a = ed.TestAddPrefab(pf.Name); a.X = 111; a.PrefabAll = true;
                 ed.TestSwitchScene(p.Scenes[1]);
-                var b = ed.TestAddPrefab(pf.Name); b.X = 222;
+                var b = ed.TestAddPrefab(pf.Name); b.X = 222; b.PrefabAll = true;
                 ed.TestSwitchScene(p.Scenes[0]);
                 ed.TestSelect(a);
                 a.Behaviors.First(x => x.Kind == BehaviorKind.Platformer).Nums["jump"] = 800;
@@ -28,11 +28,33 @@ public partial class App
                 var b2 = p.Scenes[1].Layers.SelectMany(l => l.Objects).First(o => o.Prefab == pf.Name);
                 ed.TestSwitchScene(p.Scenes[1]);
                 var c = ed.TestAddPrefab(pf.Name);
-                bool linked = Jump(pf.Template) == 800 && Jump(b2) == 800 && b2.X == 222 && b2.Name == b.Name && Jump(c) == 800;
+                bool linked = Jump(pf.Template) == 800 && ReferenceEquals(b2, b) && b2.X == 222 && b2.Name == b.Name && Jump(c) == 800;
                 // an unlinked copy keeps its own changes
                 c.Prefab = null; ed.TestSelect(c);
                 c.Behaviors.First(x => x.Kind == BehaviorKind.Platformer).Nums["jump"] = 300; ed.TestChanged();
                 return linked && Jump(pf.Template) == 800 && Jump(b2) == 800;
+            }
+            finally { ed.TestCloseUnsaved(); try { Directory.Delete(p.FolderPath!, true); } catch { } }
+        });
+        t.Test("prefabs: a copy without \"change every copy\" keeps its changes (a Cutscene, tiles) to itself; the other copies, the prefab and new copies don't get them", () =>
+        {
+            var p = ProjectIO.CreateNew("PrefabOne", Path.Combine(Path.GetTempPath(), "EE_Full_PrefabOne_" + System.Guid.NewGuid().ToString("N")[..6]));
+            p.Prefabs = PrefabFactory.Defaults();
+            var ed = new MainWindow(p);
+            try
+            {
+                var pf = p.Prefabs[0];
+                var a = ed.TestAddPrefab(pf.Name);
+                var b = ed.TestAddPrefab(pf.Name);
+                ed.TestSelect(a);
+                a.Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Cutscene });
+                a.Width = 999;
+                ed.TestChanged();
+                var c = ed.TestAddPrefab(pf.Name);
+                bool Has(GameObjectData o) => o.Behaviors.Any(x => x.Kind == BehaviorKind.Cutscene);
+                var objs = p.GetStartScene().Layers.SelectMany(l => l.Objects).ToList();
+                return Has(a) && !Has(b) && !Has(c) && !Has(pf.Template) && b.Width != 999 && !a.PrefabAll
+                    && objs.Contains(a) && objs.Contains(b); // never swapped for other objects
             }
             finally { ed.TestCloseUnsaved(); try { Directory.Delete(p.FolderPath!, true); } catch { } }
         });

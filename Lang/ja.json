@@ -1765,5 +1765,9 @@
   "Add to '{0}'": "「{0}」に追加",
   "New animation '{0}'": "新しいアニメーション「{0}」",
   "Where should the imported frames go?": "読み込んだフレームをどこに入れますか？",
-  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "クリックしてからマウスホイールを回すと、変化をその場で見ながら変更できます（Shift：速く・Ctrl：細かく）"
+  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "クリックしてからマウスホイールを回すと、変化をその場で見ながら変更できます（Shift：速く・Ctrl：細かく）",
+  "🔗 A copy of the prefab \"{0}\"": "🔗 プレハブ「{0}」のコピー",
+  "Changes here change every copy": "ここでの変更をすべてのコピーに反映",
+  "Make this one independent: it stops being a copy of the prefab": "これを独立させる：プレハブのコピーではなくなります",
+  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "オン：このオブジェクトへの変更がプレハブと、これがオンの他のコピーにも反映されます。オフ：変更はこれだけに残ります。"
 }

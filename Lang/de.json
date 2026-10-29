@@ -1765,5 +1765,9 @@
   "Add to '{0}'": "Zu „{0}“ hinzufügen",
   "New animation '{0}'": "Neue Animation „{0}“",
   "Where should the imported frames go?": "Wohin sollen die importierten Frames?",
-  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "Anklicken, dann am Mausrad drehen, um es zu ändern und live zu sehen (Umschalt: schneller · Strg: feiner)"
+  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "Anklicken, dann am Mausrad drehen, um es zu ändern und live zu sehen (Umschalt: schneller · Strg: feiner)",
+  "🔗 A copy of the prefab \"{0}\"": "🔗 Kopie des Prefabs \"{0}\"",
+  "Changes here change every copy": "Änderungen hier ändern alle Kopien",
+  "Make this one independent: it stops being a copy of the prefab": "Dieses unabhängig machen: es ist keine Kopie des Prefabs mehr",
+  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "Angehakt: Was du an diesem Objekt änderst, ändert auch das Prefab und die anderen angehakten Kopien. Aus: Änderungen bleiben nur hier."
 }

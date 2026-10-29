@@ -187,7 +187,8 @@ namespace EasyEngine
         public int Id { get; set; }
         public string Name { get; set; } = "Object";
         public string Type { get; set; } = "Object"; // cosmetic (Player/Enemy/...)
-        public string? Prefab { get; set; }           // the prefab it was placed from: changing it changes the prefab and every copy (MainWindow.Prefabs.cs)
+        public string? Prefab { get; set; }           // the prefab it was placed from (MainWindow.Prefabs.cs)
+        public bool PrefabAll { get; set; }           // ticked: its changes go to the prefab and every ticked copy; off: they stay on this one
         public double X { get; set; }
         public double Y { get; set; }
         public double Width { get; set; } = 64;
