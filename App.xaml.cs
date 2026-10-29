@@ -45,6 +45,7 @@ public partial class App : Application
         }));
         L.Install(); // editor texts in the chosen language (English until ApplyUserPreferences)
         ListSearch.Install(); // type to search in every dropdown and picker menu
+        NumberWheel.Install(); // the mouse wheel changes the number in the focused box (NumberWheel.cs)
 
         // exported game: EasyEngine.exe --play <project.eeproj>
         var playIdx = Array.IndexOf(e.Args, "--play");

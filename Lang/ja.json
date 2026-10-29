@@ -1753,5 +1753,6 @@
   "🗑 Clear": "🗑 クリア",
   "Add to '{0}'": "「{0}」に追加",
   "New animation '{0}'": "新しいアニメーション「{0}」",
-  "Where should the imported frames go?": "読み込んだフレームをどこに入れますか？"
+  "Where should the imported frames go?": "読み込んだフレームをどこに入れますか？",
+  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "クリックしてからマウスホイールを回すと、変化をその場で見ながら変更できます（Shift：速く・Ctrl：細かく）"
 }

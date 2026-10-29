@@ -277,6 +277,7 @@ Click a pixel to take its colour.	SpriteEditorWindow.cs
 Click an area to fill it with the colour.	SpriteEditorWindow.cs
 Click each corner, then click the first point again to close it (or double-click / Enter). Esc cancels.	SpriteEditorWindow.cs
 Click it	behavior Switch
+Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)	MainWindow.xaml.cs
 Click it: +1 score	BlockEditorWindow.Recipes.cs
 Click or drag to draw.	SpriteEditorWindow.cs
 Click or drag to erase.	SpriteEditorWindow.cs
@@ -1545,7 +1546,7 @@ then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.15.2	LauncherWindow.xaml
+v0.15.3	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs

@@ -443,9 +443,12 @@ namespace EasyEngine
         private string SceneJson() => JsonSerializer.Serialize(_scene);
         private Scene FromJson(string s) => JsonSerializer.Deserialize<Scene>(s)!;
 
+        private bool _undoByWheel; // the last undo step came from a mouse-wheel burst (NumberWheel.cs)
         private void PushUndo()
         {
             if (_restoring) return;
+            if (NumberWheel.Applying && NumberWheel.SameBurst && _undoByWheel) return; // the rest of a wheel burst: one Ctrl+Z undoes it all
+            _undoByWheel = NumberWheel.Applying;
             _undo.Push(SceneJson());
             _redo.Clear();
         }
@@ -2081,7 +2084,7 @@ namespace EasyEngine
         private void NumRow(string label, double value, Action<double> onChange, Panel? target = null)
         {
             var grid = RowGrid(label, target);
-            var tb = new TextBox { Text = value.ToString("0.###"), Height = 30 };
+            var tb = new TextBox { Text = value.ToString("0.###"), Height = 30, ToolTip = L.T("Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)") };
             void Commit() { if (double.TryParse(tb.Text.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v)) { PushUndo(); onChange(v); } }
             tb.LostFocus += (s, e) => Commit();
             tb.KeyDown += (s, e) => { if (e.Key == Key.Enter) Commit(); };

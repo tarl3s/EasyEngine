@@ -1753,5 +1753,6 @@
   "🗑 Clear": "🗑 清除",
   "Add to '{0}'": "添加到“{0}”",
   "New animation '{0}'": "新动画“{0}”",
-  "Where should the imported frames go?": "导入的帧要放到哪里？"
+  "Where should the imported frames go?": "导入的帧要放到哪里？",
+  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "点击它，然后滚动鼠标滚轮来修改并实时查看（Shift：更快 · Ctrl：更精细）"
 }

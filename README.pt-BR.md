@@ -49,7 +49,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 
 ## O que ela faz
 
-- **Editor visual de cenas** — Ctrl+C / Ctrl+V, trancar uma cena pronta, arrastar e soltar, redimensionar (mantendo as proporções se quiser), mover com as setas,
+- **Editor visual de cenas** — clique em qualquer número e **role a rodinha do mouse** para mudar ao vivo (tamanho da cena, colunas do tilemap, velocidades…), Ctrl+C / Ctrl+V, trancar uma cena pronta, arrastar e soltar, redimensionar (mantendo as proporções se quiser), mover com as setas,
   grade/snap, camadas (inclusive de UI fixas na tela) que você reordena, tranca, deixa transparentes ou desliga no
   jogo, ordem frente/trás dentro da camada, travar objetos no lugar, desligar objetos até uma regra trazê-los, zoom,
   painéis móveis, desfazer/refazer, várias cenas (duplique uma cena para fazer a próxima fase).

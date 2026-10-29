@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace EasyEngine;
@@ -128,6 +130,40 @@ public partial class App
                 string[] gone = { L.T("Animations"), L.T("Static image"), L.T("Image fit"), L.T("📋 Copy look"), L.T("Corner radius"), L.T("Color"), L.T("Border color") };
                 return gone.All(normal.Contains) && normal.Contains(L.T("Opacity"))
                        && !tiles.Any(gone.Contains) && tiles.Contains(L.T("Opacity"));
+            }
+            finally { ed.Close(); }
+        });
+        TextBox? NumBox(MainWindow ed, string label) => ed.TestInspectorItems().Cast<DependencyObject>().Concat(ed.TestInspectorItems().SelectMany(Descendants)).OfType<Grid>()
+            .Where(g => g.Children.OfType<TextBlock>().Any(b => b.Text == L.T(label))).SelectMany(g => g.Children.OfType<TextBox>()).FirstOrDefault();
+        t.Test("wheel: the step follows the number (12 → 13, 0.8 → 0.9, Shift ×10, Ctrl a tenth), never below 0 from a positive one; formulas are left alone", () =>
+            NumberWheel.Step("12", 1) == "13" && NumberWheel.Step("12", -1) == "11" && NumberWheel.Step("0.8", 1) == "0.9" && NumberWheel.Step("0,8", 1) == "0.9"
+            && NumberWheel.Step("1.25", 1) == "1.26" && NumberWheel.Step("12", 1, ModifierKeys.Shift) == "22" && NumberWheel.Step("12", 1, ModifierKeys.Control) == "12.1"
+            && NumberWheel.Step("0", -1) == "0" && NumberWheel.Step("-3", -1) == "-4" && NumberWheel.Step("score * 2", 1) == null && NumberWheel.Step("", 1) == null);
+        t.Test("wheel: rolling over the tilemap's Columns grows the map live, and one Ctrl+Z undoes the whole roll", () =>
+        {
+            var (ed, map, _) = Editor();
+            try
+            {
+                ed.TestSelect(map);
+                int cols = ed.TestTilemapCols;
+                var box = NumBox(ed, "Columns");
+                bool rolled = box != null && NumberWheel.Apply(box, 1) && NumberWheel.Apply(box, 1) && NumberWheel.Apply(box, 1);
+                bool live = ed.TestTilemapCols == cols + 3;
+                ed.TestUndo();
+                ed.TestSelect(null); ed.TestSelect(ed.TestScene.Layers.SelectMany(l => l.Objects).First(o => o.Name == map.Name));
+                return rolled && live && ed.TestTilemapCols == cols;
+            }
+            finally { ed.Close(); }
+        });
+        t.Test("wheel: the scene's Width changes as you roll", () =>
+        {
+            var (ed, _, _) = Editor();
+            try
+            {
+                ed.TestSelect(null);
+                double w = ed.TestScene.Width;
+                var box = NumBox(ed, "Width");
+                return box != null && NumberWheel.Apply(box, 1, ModifierKeys.Shift) && ed.TestScene.Width == w + 10;
             }
             finally { ed.Close(); }
         });

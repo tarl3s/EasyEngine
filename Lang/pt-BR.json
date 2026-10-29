@@ -1753,5 +1753,6 @@
   "🗑 Clear": "🗑 Limpar",
   "Add to '{0}'": "Adicionar a '{0}'",
   "New animation '{0}'": "Nova animação '{0}'",
-  "Where should the imported frames go?": "Para onde vão os quadros importados?"
+  "Where should the imported frames go?": "Para onde vão os quadros importados?",
+  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "Clique nele e role a rodinha do mouse para mudar e ver ao vivo (Shift: mais rápido · Ctrl: mais fino)"
 }

@@ -1753,5 +1753,6 @@
   "🗑 Clear": "🗑 Leeren",
   "Add to '{0}'": "Zu „{0}“ hinzufügen",
   "New animation '{0}'": "Neue Animation „{0}“",
-  "Where should the imported frames go?": "Wohin sollen die importierten Frames?"
+  "Where should the imported frames go?": "Wohin sollen die importierten Frames?",
+  "Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)": "Anklicken, dann am Mausrad drehen, um es zu ändern und live zu sehen (Umschalt: schneller · Strg: feiner)"
 }
