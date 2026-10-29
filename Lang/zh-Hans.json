@@ -1750,5 +1750,8 @@
   "✕ Use the box": "✕ 使用方框",
   "⬠ Draw a hitbox shape…": "⬠ 画一个碰撞框形状…",
   "⬠ Hitbox shape ({0} corners)…": "⬠ 碰撞框形状（{0} 个角）…",
-  "🗑 Clear": "🗑 清除"
+  "🗑 Clear": "🗑 清除",
+  "Add to '{0}'": "添加到“{0}”",
+  "New animation '{0}'": "新动画“{0}”",
+  "Where should the imported frames go?": "导入的帧要放到哪里？"
 }

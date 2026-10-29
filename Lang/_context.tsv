@@ -89,6 +89,7 @@ Add blocks	BlockEditorWindow.Ai.cs
 Add files for the AI to use (images or audio)	MainWindow.xaml.cs
 Add layer	MainWindow.xaml
 Add the API key for this provider in the AI settings (⚙).	MainWindow.xaml.cs
+Add to '{0}'	AnimationWindow.EasyPixel.cs
 Add to a list	BlockEditorWindow.Palette.cs, step listadd
 Add to a text	BlockEditorWindow.Palette.cs
 Add to a variable	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.Palette.cs, step addvar
@@ -807,6 +808,7 @@ Needs a Day/Night cycle object in the scene. Great for enemies that only come ou
 New	Dropdown.cs, MainWindow.xaml
 New Yes/No variable name:	BlockEditorWindow.cs
 New animation	AnimationWindow.EasyPixel.cs, AnimationWindow.xaml.cs
+New animation '{0}'	AnimationWindow.EasyPixel.cs
 New canvas of any size, e.g. 32×128	SpriteEditorWindow.cs
 New colour variable name:	BlockEditorWindow.cs, SequenceEditorWindow.cs
 New currency (a variable name, e.g. gems):	MainWindow.Params.cs
@@ -1416,6 +1418,7 @@ When this phase starts	SequenceEditorWindow.cs
 Where	behavior Spawner
 Where it faces	behavior LightSource
 Where it grows	MainWindow.TerrainBlocks.cs
+Where should the imported frames go?	AnimationWindow.EasyPixel.cs
 Where to save the project	LauncherWindow.xaml.cs
 Which	BlockEditorWindow.Palette.cs
 Which AI to use	MainWindow.xaml

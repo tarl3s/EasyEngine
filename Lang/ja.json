@@ -1750,5 +1750,8 @@
   "✕ Use the box": "✕ ボックスを使う",
   "⬠ Draw a hitbox shape…": "⬠ ヒットボックスの形を描く…",
   "⬠ Hitbox shape ({0} corners)…": "⬠ ヒットボックスの形（角 {0} 個）…",
-  "🗑 Clear": "🗑 クリア"
+  "🗑 Clear": "🗑 クリア",
+  "Add to '{0}'": "「{0}」に追加",
+  "New animation '{0}'": "新しいアニメーション「{0}」",
+  "Where should the imported frames go?": "読み込んだフレームをどこに入れますか？"
 }

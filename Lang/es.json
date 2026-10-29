@@ -1750,5 +1750,8 @@
   "✕ Use the box": "✕ Usar la caja",
   "⬠ Draw a hitbox shape…": "⬠ Dibujar una forma de hitbox…",
   "⬠ Hitbox shape ({0} corners)…": "⬠ Forma de la hitbox ({0} esquinas)…",
-  "🗑 Clear": "🗑 Borrar"
+  "🗑 Clear": "🗑 Borrar",
+  "Add to '{0}'": "Añadir a «{0}»",
+  "New animation '{0}'": "Nueva animación «{0}»",
+  "Where should the imported frames go?": "¿Dónde van los fotogramas importados?"
 }

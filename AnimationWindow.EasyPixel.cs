@@ -37,9 +37,23 @@ public partial class AnimationWindow
 
         try
         {
-            if (_cur != null)
+            var target = _cur;
+            if (EasyPixelBridge.NeedsTargetChoice(_cur, handoff!))
             {
-                EasyPixelBridge.Apply(_project, _obj, _cur, handoff!, _cur.Name);
+                var newName = EasyPixelBridge.UniqueAnimationName(_obj, handoff!.Name);
+                switch (AskImportTarget(_cur!.Name, newName))
+                {
+                    case null: return;
+                    case true: break; // add to the selected animation
+                    case false:
+                        var made = EasyPixelBridge.Apply(_project, _obj, null, handoff!, newName);
+                        RefreshAnimList(); SelectAnim(made);
+                        return;
+                }
+            }
+            if (target != null)
+            {
+                EasyPixelBridge.Apply(_project, _obj, target, handoff!, target.Name);
                 RefreshFrames(); RestartPreview(); RefreshAnimList();
             }
             else
@@ -51,6 +65,37 @@ public partial class AnimationWindow
             }
         }
         catch (Exception ex) { MessageBox.Show(this, L.T("Could not import the pictures:") + " " + ex.Message, L.T("Import from EasyPixel")); }
+    }
+
+    /// <summary>
+    /// An animation is selected and the export has another name: add the frames to it (true), make a new animation
+    /// (false), or cancel (null).
+    /// </summary>
+    private bool? AskImportTarget(string current, string newName)
+    {
+        bool? answer = null;
+        var win = new Window
+        {
+            Title = L.T("Import from EasyPixel"), Width = 460, SizeToContent = SizeToContent.Height, Owner = this,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize, WindowStyle = WindowStyle.ToolWindow,
+            Background = (System.Windows.Media.Brush)FindResource("Bg0"), FontFamily = new System.Windows.Media.FontFamily("Segoe UI"),
+        };
+        Button Btn(string text, string style) => new() { Content = text, Style = (Style)FindResource(style), MinWidth = 90, Height = 34, Padding = new Thickness(12, 0, 12, 0), Margin = new Thickness(8, 0, 0, 0), HorizontalContentAlignment = HorizontalAlignment.Center };
+        var add = Btn(L.F("Add to '{0}'", current), "CardButton");
+        var make = Btn(L.F("New animation '{0}'", newName), "AccentButton"); make.IsDefault = true;
+        var cancel = Btn(L.T("Cancel"), "CardButton"); cancel.IsCancel = true;
+        L.SetSkip(add, true); L.SetSkip(make, true); // already translated, with the person's names in them
+        add.Click += (s, ev) => { answer = true; win.Close(); };
+        make.Click += (s, ev) => { answer = false; win.Close(); };
+        cancel.Click += (s, ev) => win.Close();
+        var buttons = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
+        buttons.Children.Add(cancel); buttons.Children.Add(add); buttons.Children.Add(make);
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        panel.Children.Add(new TextBlock { Text = L.T("Where should the imported frames go?"), FontSize = 13, TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(buttons);
+        win.Content = panel;
+        win.ShowDialog();
+        return answer;
     }
 
     private string? PickHandoffFolder()

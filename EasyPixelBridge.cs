@@ -17,8 +17,10 @@ public sealed record Handoff(string Folder, string Name, int Fps, IReadOnlyList<
 /// <summary>
 /// The bridge to EasyPixel (the pixel-art app). EasyPixel writes %LOCALAPPDATA%\EasyPixel\Exports\&lt;name&gt;-&lt;yyyyMMdd-HHmmss&gt;\
 /// with frame_000.png… and easypixel-export.json ({"format":1,"name","fps","frames":[…],"width","height"});
-/// the reader below is a copy of EasyPixel's (ExportHandoff.ListRecent) — no reference to it. Each app also leaves
-/// its exe path in HKCU\Software\&lt;App&gt;\InstallPath so the other can find it.
+/// the reader below is a copy of EasyPixel's (ExportHandoff.ListRecent) — no reference to it. Both apply the same rules
+/// (fps as a number or numeric string, 1..60, else 10; a blank name is the folder's name): EasyPixel's
+/// FinalReviewFixTests.Reader_MatchesEngineRules and FullTest.EasyPixel.cs "EasyPixelReader_SameRules" check the same
+/// cases, so a drift shows up in a suite. Each app also leaves its exe path in HKCU\Software\&lt;App&gt;\InstallPath so the other can find it.
 /// </summary>
 public static class EasyPixelBridge
 {
@@ -113,6 +115,22 @@ public static class EasyPixelBridge
             return rel;
         }
         finally { try { Directory.Delete(tmp, true); } catch { } }
+    }
+
+    /// <summary>
+    /// True when the person should choose where an import goes: an animation is selected and the export has another
+    /// name (a "walk" export shouldn't silently land in "idle"; one with the same name just adds frames).
+    /// </summary>
+    public static bool NeedsTargetChoice(SpriteAnimation? current, Handoff h) =>
+        current != null && !string.Equals(current.Name, h.Name, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary><paramref name="name"/>, or "name 2", "name 3"… when the object already has an animation called that.</summary>
+    public static string UniqueAnimationName(GameObjectData obj, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) name = "anim";
+        bool Taken(string n) => obj.Animations.Any(a => string.Equals(a.Name, n, StringComparison.OrdinalIgnoreCase));
+        if (!Taken(name)) return name;
+        for (int i = 2; ; i++) if (!Taken(name + " " + i)) return name + " " + i;
     }
 
     /// <summary>Adds the export's frames to <paramref name="current"/>, or makes a new animation named

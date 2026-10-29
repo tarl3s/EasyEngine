@@ -102,5 +102,37 @@ public partial class App
             }
             finally { EasyPixelBridge.ExportsRootOverride = was; try { Directory.Delete(temp, true); } catch { } }
         });
+        t.Test("EasyPixelReader_SameRules: the same cases as EasyPixel's reader test (fps as a string, blank name = folder name, fps 1..60, else 10)", () =>
+        {
+            var temp = Path.Combine(Path.GetTempPath(), "EE_Full_EasyPixel_" + Guid.NewGuid().ToString("N")[..6]);
+            var was = EasyPixelBridge.ExportsRootOverride;
+            try
+            {
+                var root = Path.Combine(temp, "Exports");
+                MakeHandoff(root, "strfps", "a", 0, 1, DateTime.Now, "{\"name\":\"a\",\"fps\":\"6\",\"frames\":[\"frame_000.png\"]}");
+                MakeHandoff(root, "blank", "", 0, 0, DateTime.Now, "{\"name\":\"  \",\"fps\":12,\"frames\":[]}");
+                MakeHandoff(root, "fast", "c", 0, 0, DateTime.Now, "{\"name\":\"c\",\"fps\":500,\"frames\":[]}");
+                MakeHandoff(root, "zero", "d", 0, 0, DateTime.Now, "{\"name\":\"d\",\"fps\":0,\"frames\":[]}");
+                EasyPixelBridge.ExportsRootOverride = root;
+                var by = EasyPixelBridge.ListRecent().ToDictionary(i => Path.GetFileName(i.Folder));
+                return by["strfps"].Fps == 6 && by["blank"].Name == "blank" && by["fast"].Fps == 60 && by["zero"].Fps == 10;
+            }
+            finally { EasyPixelBridge.ExportsRootOverride = was; try { Directory.Delete(temp, true); } catch { } }
+        });
+
+        t.Test("EasyPixelImport_TargetChoice: a differently named export asks add-or-new; a new animation gets a free name", () =>
+        {
+            var obj = new GameObjectData { Name = "Hero" };
+            var idle = new SpriteAnimation { Name = "idle" };
+            obj.Animations.Add(idle);
+            obj.Animations.Add(new SpriteAnimation { Name = "walk" });
+            var walk = new Handoff("f", "walk", 8, new[] { "a.png" });
+            bool asks = EasyPixelBridge.NeedsTargetChoice(idle, walk);
+            bool sameNameAdds = !EasyPixelBridge.NeedsTargetChoice(new SpriteAnimation { Name = "Walk" }, walk);
+            bool noneSelected = !EasyPixelBridge.NeedsTargetChoice(null, walk);
+            bool names = EasyPixelBridge.UniqueAnimationName(obj, "walk") == "walk 2" && EasyPixelBridge.UniqueAnimationName(obj, "run") == "run"
+                         && EasyPixelBridge.UniqueAnimationName(obj, " ") == "anim";
+            return asks && sameNameAdds && noneSelected && names;
+        });
     }
 }
