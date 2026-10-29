@@ -71,6 +71,7 @@
   "Play an animation": "Eine Animation abspielen",
   "Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. \"Back to automatic\" lets idle / walk / jump choose again.": "Spielt eine seiner Animationen (gemacht in 🎞 Animationen bearbeiten): einmal und dann wieder normal, oder immer wieder, bis eine andere gewählt wird. \"Zurück zu automatisch\" lässt Stehen / Laufen / Springen wieder wählen.",
   "Box colour": "Farbe der Box",
+  "The grid always covers the whole scene: {0} × {1} tiles": "Das Raster deckt immer die ganze Szene ab: {0} × {1} Kacheln",
   "My own picture": "Mein eigenes Bild",
   "Box picture (keeps its proportions)": "Bild der Box (behält seine Proportionen)",
   "＋ Add a picture…": "＋ Bild hinzufügen…",

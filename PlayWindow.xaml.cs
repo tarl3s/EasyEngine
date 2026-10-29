@@ -2749,6 +2749,7 @@ namespace EasyEngine
             }
             catch { }
             if (cols == 0 || rows == 0) return;
+            (cols, rows, cells) = TileGrid.Fit(cols, rows, cells, ts, obj.X, obj.Y, _scene.Width, _scene.Height); // always exactly the scene
 
             if (bh.Num("breakable", 0) >= 0.5)
             {
@@ -2769,6 +2770,7 @@ namespace EasyEngine
                     int v = cells[r * cols + c];
                     if (v <= 0 || v > pal.Count) continue;
                     var rect = new System.Windows.Shapes.Rectangle { Width = size, Height = size, Fill = fills[v - 1], IsHitTestVisible = false };
+                    if (!screenSpace) rect.Clip = TileGrid.Clip(obj.X + c * ts, obj.Y + r * ts, size, _scene.Width, _scene.Height); // cut at the scene's edge
                     if (opacity < 1) rect.Opacity = opacity;
                     (en.TileRects ??= new List<UIElement>()).Add(rect);
                     if (fills[v - 1] is ImageBrush) RenderOptions.SetBitmapScalingMode(rect, BitmapScalingMode.NearestNeighbor);

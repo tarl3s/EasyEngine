@@ -1533,8 +1533,8 @@ namespace EasyEngine
         {
             Section(L.T("SCENE"));
             TextRow(L.T("Name"), _scene.Name, v => { _scene.Name = v; RefreshSceneCombo(); SelectSceneInCombo(_scene); Dirty(); });
-            NumRow(L.T("Width"), _scene.Width, v => { _scene.Width = v; SceneFrame.Width = v; Dirty(); });
-            NumRow(L.T("Height"), _scene.Height, v => { _scene.Height = v; SceneFrame.Height = v; Dirty(); });
+            NumRow(L.T("Width"), _scene.Width, v => { _scene.Width = v; SceneFrame.Width = v; RefitTilemaps(); Dirty(); });
+            NumRow(L.T("Height"), _scene.Height, v => { _scene.Height = v; SceneFrame.Height = v; RefitTilemaps(); Dirty(); });
             ColorRow(L.T("Background"), _scene.BackgroundColor, v => { _scene.BackgroundColor = v; RenderScene(); Dirty(); });
 
             // the whole game's screen size (Project.ScreenWidth/Height): what the camera shows at once, scaled to the window
@@ -1906,6 +1906,7 @@ namespace EasyEngine
             if (_tmBh == null) { _tmObj = null; return; }
             _tmObj = obj;
             var (ts, cols, rows, cells, pal) = ReadTilemap(_tmBh);
+            (cols, rows, cells) = TileGrid.Fit(cols, rows, cells, ts, obj.X, obj.Y, _scene.Width, _scene.Height);
             _tmSize = ts; _tmCols = cols; _tmRows = rows; _tmCells = cells;
             _tmPalette.Clear(); _tmPalette.AddRange(pal);
             if (_tmActive > _tmPalette.Count) _tmActive = _tmPalette.Count >= 1 ? 1 : 0;
@@ -1925,7 +1926,7 @@ namespace EasyEngine
             var bh = obj.Behaviors.First(b => b.Kind == BehaviorKind.Tilemap);
             double ts; int cols, rows; int[] cells; List<TileKind> pal;
             if (active && ReferenceEquals(obj, _tmObj)) { ts = _tmSize; cols = _tmCols; rows = _tmRows; cells = _tmCells; pal = _tmPalette; }
-            else { var t = ReadTilemap(bh); ts = t.ts; cols = t.cols; rows = t.rows; cells = t.cells; pal = t.pal; }
+            else { var t = ReadTilemap(bh); ts = t.ts; cols = t.cols; rows = t.rows; cells = t.cells; pal = t.pal; (cols, rows, cells) = TileGrid.Fit(cols, rows, cells, ts, obj.X, obj.Y, _scene.Width, _scene.Height); }
             var fills = TileFills(pal); // one shared brush per tile kind (MainWindow.Tiles.cs)
             double opacity = EditorAlpha(obj); // × its layer's opacity, dimmed when off in the game (MainWindow.Layers.cs)
 
@@ -1935,6 +1936,7 @@ namespace EasyEngine
                     int val = cells[r * cols + c];
                     if (val <= 0 || val > pal.Count) continue;
                     var rect = TileRect(fills[val - 1], ts, opacity);
+                    rect.Clip = TileGrid.Clip(obj.X + c * ts, obj.Y + r * ts, ts, _scene.Width, _scene.Height); // the edge cuts the last column / row
                     Canvas.SetLeft(rect, obj.X + c * ts); Canvas.SetTop(rect, obj.Y + r * ts);
                     SceneCanvas.Children.Add(rect);
                     if (active) _tmCellRects[r * cols + c] = rect;
@@ -1943,8 +1945,8 @@ namespace EasyEngine
             if (active)
             {
                 var gb = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
-                for (int c = 0; c <= cols; c++) SceneCanvas.Children.Add(new Line { X1 = obj.X + c * ts, Y1 = obj.Y, X2 = obj.X + c * ts, Y2 = obj.Y + rows * ts, Stroke = gb, StrokeThickness = 1, IsHitTestVisible = false });
-                for (int r = 0; r <= rows; r++) SceneCanvas.Children.Add(new Line { X1 = obj.X, Y1 = obj.Y + r * ts, X2 = obj.X + cols * ts, Y2 = obj.Y + r * ts, Stroke = gb, StrokeThickness = 1, IsHitTestVisible = false });
+                for (int c = 0; c <= cols; c++) if (obj.X + c * ts <= _scene.Width) SceneCanvas.Children.Add(new Line { X1 = obj.X + c * ts, Y1 = obj.Y, X2 = obj.X + c * ts, Y2 = Math.Min(obj.Y + rows * ts, _scene.Height), Stroke = gb, StrokeThickness = 1, IsHitTestVisible = false });
+                for (int r = 0; r <= rows; r++) if (obj.Y + r * ts <= _scene.Height) SceneCanvas.Children.Add(new Line { X1 = obj.X, Y1 = obj.Y + r * ts, X2 = Math.Min(obj.X + cols * ts, _scene.Width), Y2 = obj.Y + r * ts, Stroke = gb, StrokeThickness = 1, IsHitTestVisible = false });
             }
         }
 
@@ -1969,30 +1971,30 @@ namespace EasyEngine
             if (val > 0 && val <= _tmPalette.Count)
             {
                 var rect = TileRect(TileFill(_tmPalette[val - 1]), _tmSize, EditorAlpha(_tmObj));
+                rect.Clip = TileGrid.Clip(_tmObj.X + c * _tmSize, _tmObj.Y + r * _tmSize, _tmSize, _scene.Width, _scene.Height);
                 Canvas.SetLeft(rect, _tmObj.X + c * _tmSize); Canvas.SetTop(rect, _tmObj.Y + r * _tmSize);
                 SceneCanvas.Children.Add(rect);
                 _tmCellRects[idx] = rect;
             }
         }
 
-        private void ResizeGrid(int cols, int rows)
+        // the grid follows the scene (and the tile size): always exactly covers it (TileGrid.Fit)
+        private void RefitTilemaps()
         {
-            cols = Math.Clamp(cols, 1, 400); rows = Math.Clamp(rows, 1, 400);
-            var nc = new int[cols * rows];
-            for (int r = 0; r < Math.Min(rows, _tmRows); r++)
-                for (int c = 0; c < Math.Min(cols, _tmCols); c++)
-                    nc[r * cols + c] = _tmCells[r * _tmCols + c];
-            _tmCols = cols; _tmRows = rows; _tmCells = nc;
-            SerializeTilemap(); RenderScene(); Dirty();
+            if (_tmObj != null && _tmBh != null)
+            {
+                (_tmCols, _tmRows, _tmCells) = TileGrid.Fit(_tmCols, _tmRows, _tmCells, _tmSize, _tmObj.X, _tmObj.Y, _scene.Width, _scene.Height);
+                SerializeTilemap();
+            }
+            if (_scene.Layers.Any(l => l.Objects.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)))) RenderScene();
         }
 
         private void TilemapRow(GameObjectData obj, BehaviorData bh, Panel panel)
         {
             panel.Children.Add(new TextBlock { Text = L.T("Left-drag paints · Right-drag erases"), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 2, 0, 6), TextWrapping = TextWrapping.Wrap });
 
-            NumRow(L.T("Tile size"), _tmSize, v => { _tmSize = Math.Max(4, v); SerializeTilemap(); RenderScene(); Dirty(); }, panel);
-            NumRow(L.T("Columns"), _tmCols, v => ResizeGrid((int)v, _tmRows), panel);
-            NumRow(L.T("Rows"), _tmRows, v => ResizeGrid(_tmCols, (int)v), panel);
+            NumRow(L.T("Tile size"), _tmSize, v => { _tmSize = Math.Max(4, v); SerializeTilemap(); RefitTilemaps(); Dirty(); }, panel);
+            panel.Children.Add(new TextBlock { Text = L.F("The grid always covers the whole scene: {0} × {1} tiles", _tmCols, _tmRows), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, Margin = new Thickness(0, 0, 0, 6), TextWrapping = TextWrapping.Wrap });
 
             panel.Children.Add(new TextBlock { Text = L.T("TILES (click to select)"), Foreground = (SolidColorBrush)FindResource("TextDim"), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
             var wrap = new WrapPanel();

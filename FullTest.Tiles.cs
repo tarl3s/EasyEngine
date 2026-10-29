@@ -139,19 +139,42 @@ public partial class App
             NumberWheel.Step("12", 1) == "13" && NumberWheel.Step("12", -1) == "11" && NumberWheel.Step("0.8", 1) == "0.9" && NumberWheel.Step("0,8", 1) == "0.9"
             && NumberWheel.Step("1.25", 1) == "1.26" && NumberWheel.Step("12", 1, ModifierKeys.Shift) == "22" && NumberWheel.Step("12", 1, ModifierKeys.Control) == "12.1"
             && NumberWheel.Step("0", -1) == "0" && NumberWheel.Step("-3", -1) == "-4" && NumberWheel.Step("score * 2", 1) == null && NumberWheel.Step("", 1) == null);
-        t.Test("wheel: rolling over the tilemap's Columns grows the map live, and one Ctrl+Z undoes the whole roll", () =>
+        t.Test("wheel: rolling the tilemap's Tile size refits the grid live to the scene, and one Ctrl+Z undoes the whole roll", () =>
         {
             var (ed, map, _) = Editor();
             try
             {
                 ed.TestSelect(map);
                 int cols = ed.TestTilemapCols;
-                var box = NumBox(ed, "Columns");
-                bool rolled = box != null && NumberWheel.Apply(box, 1) && NumberWheel.Apply(box, 1) && NumberWheel.Apply(box, 1);
-                bool live = ed.TestTilemapCols == cols + 3;
+                var box = NumBox(ed, "Tile size");
+                bool rolled = box != null && NumberWheel.Apply(box, 1, ModifierKeys.Shift) && NumberWheel.Apply(box, 1, ModifierKeys.Shift);
+                double ts = map.Behaviors.First(b => b.Kind == BehaviorKind.Tilemap).Num("tileSize", 32);
+                bool live = ed.TestTilemapCols == (int)System.Math.Ceiling(ed.TestScene.Width / ts) && ed.TestTilemapCols != cols;
                 ed.TestUndo();
                 ed.TestSelect(null); ed.TestSelect(ed.TestScene.Layers.SelectMany(l => l.Objects).First(o => o.Name == map.Name));
                 return rolled && live && ed.TestTilemapCols == cols;
+            }
+            finally { ed.Close(); }
+        });
+        t.Test("tilemap: the grid always covers the scene exactly (no strip left, nothing outside); the edge cuts the last tiles; painted cells keep their place", () =>
+        {
+            var (c1, r1, cells) = TileGrid.Fit(2, 2, new[] { 1, 2, 3, 4 }, 32, 0, 0, 1000, 70);
+            bool fit = c1 == 32 && r1 == 3 && cells[0] == 1 && cells[1] == 2 && cells[32] == 3 && cells[33] == 4;
+            var (c2, r2, small) = TileGrid.Fit(c1, r1, cells, 32, 0, 0, 40, 40);
+            bool shrink = c2 == 2 && r2 == 2 && small[0] == 1 && small[3] == 4;
+            var edge = TileGrid.Clip(992, 0, 32, 1000, 70) as System.Windows.Media.RectangleGeometry;
+            bool cut = edge != null && edge.Rect.Width == 8 && edge.Rect.Height == 32 && TileGrid.Clip(0, 0, 32, 1000, 70) == null
+                       && TileGrid.Fit(1, 1, new int[1], 32, 0, 0, 640, 64).cols == 20; // exact: no extra column
+            var (ed, map, _) = Editor();
+            try
+            {
+                ed.TestSelect(null);
+                var box = NumBox(ed, "Width");
+                if (box == null) return false;
+                box.Text = (ed.TestScene.Width + 100).ToString(); NumberWheel.Apply(box, 1);
+                ed.TestSelect(map);
+                bool grows = ed.TestTilemapCols == (int)System.Math.Ceiling(ed.TestScene.Width / map.Behaviors.First(b => b.Kind == BehaviorKind.Tilemap).Num("tileSize", 32));
+                return fit && shrink && cut && grows;
             }
             finally { ed.Close(); }
         });

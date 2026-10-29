@@ -114,4 +114,33 @@ namespace EasyEngine
             return Encoding.UTF8.GetString(ms.ToArray());
         }
     }
+
+    /// <summary>A tilemap's grid always covers its scene exactly: as many columns and rows as it takes to reach the scene's
+    /// right and bottom edges from where the map starts (no strip left that can't be painted, no cell outside the scene).
+    /// Painted cells keep their place; cells past the edge are dropped. The last column / row may be cut by the edge
+    /// (<see cref="Clip"/>).</summary>
+    public static class TileGrid
+    {
+        public static (int cols, int rows, int[] cells) Fit(int cols, int rows, int[] cells, double ts, double x0, double y0, double sceneW, double sceneH)
+        {
+            int nc = System.Math.Clamp((int)System.Math.Ceiling((sceneW - x0) / ts - 1e-6), 1, 1000);
+            int nr = System.Math.Clamp((int)System.Math.Ceiling((sceneH - y0) / ts - 1e-6), 1, 1000);
+            if (nc == cols && nr == rows && cells.Length == cols * rows) return (cols, rows, cells);
+            var n = new int[nc * nr];
+            for (int r = 0; r < System.Math.Min(rows, nr); r++)
+                for (int c = 0; c < System.Math.Min(cols, nc); c++)
+                    if (r * cols + c < cells.Length) n[r * nc + c] = cells[r * cols + c];
+            return (nc, nr, n);
+        }
+
+        /// <summary>The part of a cell at (x, y) inside the scene, in the cell's own coordinates; null when all of it is inside.</summary>
+        public static System.Windows.Media.Geometry? Clip(double x, double y, double size, double sceneW, double sceneH)
+        {
+            double w = System.Math.Min(size, sceneW - x), h = System.Math.Min(size, sceneH - y);
+            if (w >= size && h >= size) return null;
+            var g = new System.Windows.Media.RectangleGeometry(new System.Windows.Rect(0, 0, System.Math.Max(0, w), System.Math.Max(0, h)));
+            g.Freeze();
+            return g;
+        }
+    }
 }

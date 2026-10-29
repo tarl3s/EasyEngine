@@ -71,6 +71,7 @@
   "Play an animation": "Jouer une animation",
   "Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. \"Back to automatic\" lets idle / walk / jump choose again.": "Joue une de ses animations (faites dans 🎞 Modifier les animations) : une fois puis retour à la normale, ou en boucle jusqu'à en choisir une autre. « Revenir à l'automatique » laisse repos / marche / saut choisir à nouveau.",
   "Box colour": "Couleur de la boîte",
+  "The grid always covers the whole scene: {0} × {1} tiles": "La grille couvre toujours toute la scène : {0} × {1} tuiles",
   "My own picture": "Ma propre image",
   "Box picture (keeps its proportions)": "Image de la boîte (garde ses proportions)",
   "＋ Add a picture…": "＋ Ajouter une image…",

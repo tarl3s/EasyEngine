@@ -71,6 +71,7 @@
   "Play an animation": "播放動畫",
   "Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. \"Back to automatic\" lets idle / walk / jump choose again.": "播放它的一個動畫（在 🎞 編輯動畫 中製作）：播放一次後恢復正常，或循環播放直到選擇另一個。「恢復自動」讓待機／行走／跳躍重新自動選擇。",
   "Box colour": "對話框顏色",
+  "The grid always covers the whole scene: {0} × {1} tiles": "網格始終覆蓋整個場景：{0} × {1} 個圖塊",
   "My own picture": "我自己的圖片",
   "Box picture (keeps its proportions)": "對話框圖片（保持比例）",
   "＋ Add a picture…": "＋ 新增圖片…",
