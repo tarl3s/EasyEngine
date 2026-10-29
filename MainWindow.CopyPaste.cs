@@ -100,6 +100,7 @@ namespace EasyEngine
             menu.Items.Add(new Separator());
             Item(L.T("Duplicate"), "Ctrl+D", _selected != null, DuplicateSelected);
             Item(L.T("Delete"), "Del", any, DeleteSelected);
+            menu.Items.Add(MoveToLayerMenu()); // MainWindow.MoveLayer.cs
             return menu;
         }
 

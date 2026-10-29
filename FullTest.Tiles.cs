@@ -205,6 +205,21 @@ public partial class App
             }
             finally { ed.Close(); }
         });
+        t.Test("layers: the selected objects move to another layer (inspector picker / right-click menu); one Ctrl+Z puts them back", () =>
+        {
+            var (ed, _, crate) = Editor();
+            try
+            {
+                var back = new Layer { Name = "Back", Kind = LayerKind.Base };
+                ed.TestScene.Layers.Add(back);
+                ed.TestSelect(crate);
+                bool moved = ed.MoveSelectionToLayer(back) == 1 && back.Objects.Contains(crate)
+                             && ed.TestScene.Layers.Count(l => l.Objects.Contains(crate)) == 1 && ed.TestSelection.Contains(crate);
+                ed.TestUndo();
+                return moved && !ed.TestScene.Layers.Last().Objects.Any(o => o.Name == "Crate") && ed.TestScene.Layers.SelectMany(l => l.Objects).Count(o => o.Name == "Crate") == 1;
+            }
+            finally { ed.Close(); }
+        });
         t.Test("status bar: the corner shows the cursor's X and Y in the scene, rounded", () =>
         {
             var (ed, _, _) = Editor();

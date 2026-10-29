@@ -1471,6 +1471,7 @@ namespace EasyEngine
             PrefabLinkRow(obj); // 🔗 a prefab copy (MainWindow.Prefabs.cs)
             TextRow(L.T("Name"), obj.Name, v => { obj.Name = v; RefreshObjects(); Dirty(); });
             InfoRow(L.T("Type"), L.T(obj.Type));
+            LayerPickRow(obj); // move it to another layer (MainWindow.MoveLayer.cs)
             TextRow(L.T("Group"), obj.Group, v => { obj.Group = v.Trim(); RefreshObjects(); Dirty(); });
             var rowBtns = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) }; // wraps when the words are long (German, French…)
             var dup = new Button { Content = L.T("Duplicate"), Style = (Style)FindResource("CardButton"), Height = 30, Padding = new Thickness(10, 0, 10, 0), HorizontalContentAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) };

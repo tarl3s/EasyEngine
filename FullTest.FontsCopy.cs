@@ -253,8 +253,8 @@ public partial class App
                 var full = ed.TestObjectMenu();
                 ed.TestPaste(new Point(600, 300));
                 var at = ed.TestFindObject("Tree_2");
-                return keys && empty.SequenceEqual(new[] { L.T("Copy") + " (off)", L.T("Paste") + " (off)", L.T("Duplicate") + " (off)", L.T("Delete") + " (off)" })
-                       && full.SequenceEqual(new[] { L.T("Copy"), L.T("Paste"), L.T("Duplicate"), L.T("Delete") })
+                return keys && empty.Take(4).SequenceEqual(new[] { L.T("Copy") + " (off)", L.T("Paste") + " (off)", L.T("Duplicate") + " (off)", L.T("Delete") + " (off)" })
+                       && full.Take(4).SequenceEqual(new[] { L.T("Copy"), L.T("Paste"), L.T("Duplicate"), L.T("Delete") })
                        && at != null && at.X == 600 && at.Y == 300;
             }
             finally { try { ed.Close(); } catch { } }
