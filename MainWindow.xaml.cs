@@ -814,7 +814,7 @@ namespace EasyEngine
                 e.Handled = true;
                 return;
             }
-            Select(null);
+            StartMarquee(e); // empty space: a click deselects, a drag draws a selection box (MainWindow.Marquee.cs)
         }
 
         private void Canvas_RightDown(object sender, MouseButtonEventArgs e)
@@ -848,6 +848,7 @@ namespace EasyEngine
                 return;
             }
             if (_resizing && _selected != null) { ApplyResize(e.GetPosition(SceneCanvas)); return; }
+            if (MarqueeMove(e.GetPosition(SceneCanvas))) return;
             if (_dragObj == null || e.LeftButton != MouseButtonState.Pressed) return;
             var p = e.GetPosition(SceneCanvas);
             _dragObj.X += p.X - _dragStart.X;
@@ -861,6 +862,7 @@ namespace EasyEngine
 
         private void Canvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (EndMarquee(e.GetPosition(SceneCanvas))) return;
             if (_tmPainting)
             {
                 _tmPainting = false; SceneCanvas.ReleaseMouseCapture();

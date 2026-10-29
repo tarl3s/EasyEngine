@@ -71,6 +71,7 @@
   "Play an animation": "播放動畫",
   "Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. \"Back to automatic\" lets idle / walk / jump choose again.": "播放它的一個動畫（在 🎞 編輯動畫 中製作）：播放一次後恢復正常，或循環播放直到選擇另一個。「恢復自動」讓待機／行走／跳躍重新自動選擇。",
   "Box colour": "對話框顏色",
+  "{0} objects selected": "已選取 {0} 個物件",
   "While it plays, the camera": "播放時，鏡頭",
   "Keeps following the player": "繼續跟隨玩家",
   "Stops where it is (the steps can still move it)": "停在原處（步驟仍可移動它）",

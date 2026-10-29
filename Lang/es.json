@@ -71,6 +71,7 @@
   "Play an animation": "Reproducir una animación",
   "Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. \"Back to automatic\" lets idle / walk / jump choose again.": "Reproduce una de sus animaciones (hechas en 🎞 Editar animaciones): una vez y luego vuelve a lo normal, o sin parar hasta elegir otra. \"Volver a automático\" deja que quieto / caminar / saltar elijan de nuevo.",
   "Box colour": "Color de la caja",
+  "{0} objects selected": "{0} objetos seleccionados",
   "While it plays, the camera": "Mientras se reproduce, la cámara",
   "Keeps following the player": "Sigue al jugador",
   "Stops where it is (the steps can still move it)": "Se queda donde está (los pasos aún pueden moverla)",

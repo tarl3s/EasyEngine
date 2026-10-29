@@ -191,6 +191,20 @@ public partial class App
             }
             finally { ed.TestCloseUnsaved(); }
         });
+        t.Test("selection box: dragging on empty space selects every object it touches (not the tilemap); Ctrl adds; an empty box selects nothing", () =>
+        {
+            var (ed, _, crate) = Editor();
+            try
+            {
+                int n = ed.SelectInBox(new Rect(0, 0, 400, 400));
+                bool picked = n == ed.TestSelectedCount && ed.TestSelectedCount >= 1 && ed.SelectedObjects.Contains(crate) && !ed.SelectedObjects.Any(o => o.Name == "Map");
+                ed.SelectInBox(new Rect(2000, 2000, 10, 10));
+                bool none = ed.TestSelectedCount == 0;
+                ed.SelectInBox(new Rect(310, 310, 5, 5)); ed.SelectInBox(new Rect(5000, 5000, 5, 5), add: true);
+                return picked && none && ed.TestSelectedCount == 1;
+            }
+            finally { ed.Close(); }
+        });
         t.Test("status bar: the corner shows the cursor's X and Y in the scene, rounded", () =>
         {
             var (ed, _, _) = Editor();
