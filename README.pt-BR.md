@@ -83,7 +83,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   subterrâneo, e uma **iluminação por blocos**, em que paredes bloqueiam a luz e as tochas colorem o que tocam. **Minimapa** com mapa
   grande numa tecla.
 - **Visual** — animações de sprite, **editor de pixel art** embutido, partículas, tweens com easing, barras, efeitos
-  de texto, estilos de caixa de diálogo, som com canais de volume e um pequeno **editor de som** (cortar, velocidade,
+  de texto, estilos de caixa de diálogo (um visual pronto, suas cores, sua própria imagem ou fonte — iguais no Interact, Trigger Area e nas falas da Cutscene), som com canais de volume e um pequeno **editor de som** (cortar, velocidade,
   pitch, volume, fades, tocar ao contrário, eco).
 - **EasyPixel** — desenhe e anime no [EasyPixel](https://github.com/tarl3s/EasyPixel) (editor de pixel art gratuito), exporte e clique em **🖌 Import from EasyPixel** na janela de animação: os quadros e a velocidade chegam prontos.
 - **Console de debug (F1)** — veja o que o jogo está fazendo: cliques, golpes, regras que dispararam, sons, avisos.

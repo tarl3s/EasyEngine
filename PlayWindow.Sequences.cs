@@ -327,7 +327,7 @@ namespace EasyEngine
             {
                 case "wait": WaitStepTime(r, s); break;
                 case "say":
-                    ShowDialog(s.Str("text"), s.Str("speaker"), r.Font.Length > 0 ? ThemeLookWithFont(r.Font) : null);
+                    ShowDialog(s.Str("text"), s.Str("speaker"), LookOf(s, r.Font));
                     r.Until = () => !_dialogOpen && _dialog.Count == 0;
                     break;
                 case "title":

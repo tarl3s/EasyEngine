@@ -106,7 +106,7 @@ namespace EasyEngine
             {
                 var wrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
                 foreach (var f in def.Fields)
-                    if (f.OnlyIfEmpty == null || step.Str(f.OnlyIfEmpty).Length == 0) wrap.Children.Add(FieldControl(step, f));
+                    if (f.Shown(step)) wrap.Children.Add(FieldControl(step, f));
                 body.Children.Add(wrap);
             }
             return new Border
@@ -151,7 +151,7 @@ namespace EasyEngine
             switch (f.Type)
             {
                 case "choice":
-                    ctrl = Combo(Options(f), cur, Set);
+                    ctrl = Combo(Options(f), cur, v => { Set(v); if (Drives(step, f)) Render(); }); // e.g. the box look shows its colour or picture
                     break;
                 case "object":
                 {
@@ -170,6 +170,14 @@ namespace EasyEngine
                     ctrl = Combo(opts, cur, Set);
                     break;
                 }
+                case "font":
+                    ctrl = Combo(GameFonts.Options(_ctx.Project, cur), cur, Set);
+                    L.SetSkip(ctrl, true);
+                    break;
+                case "picture":
+                    ctrl = PicturePick.Make(_ctx.Project, cur, Set, _ctx.Owner);
+                    ((ComboBox)ctrl).Height = 28; ((ComboBox)ctrl).MinWidth = 110;
+                    break;
                 case "sound":
                     ctrl = Combo(new[] { ("", L.T("(none)")) }.Concat(_ctx.Sounds.Select(sn => (sn, System.IO.Path.GetFileName(sn)))).ToList(), cur, Set);
                     break;
@@ -193,6 +201,7 @@ namespace EasyEngine
                     break;
                 case "color":
                 {
+                    if (cur.Length == 0 && f.Options is { Length: > 0 }) cur = f.Options[0];
                     var swatch = new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(3), Background = Theme.Hex(cur), BorderBrush = Theme.Brush("Border", "#35353F"), BorderThickness = new Thickness(1) };
                     var hex = L.Keep(new TextBlock { Text = cur, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
                     var sp = new StackPanel { Orientation = Orientation.Horizontal }; sp.Children.Add(swatch); sp.Children.Add(hex);
@@ -216,6 +225,10 @@ namespace EasyEngine
             stack.Children.Add(ctrl);
             return stack;
         }
+
+        // another field of this step shows only for some values of this one
+        private bool Drives(SeqStep step, StepField f) =>
+            StepCatalog.Find(_mode, step.Do)?.Fields.Any(o => o.OnlyIf?.StartsWith(f.Key + "=", StringComparison.OrdinalIgnoreCase) == true) == true;
 
         /// <summary>A <see cref="Dropdown"/> sized for the blocks.</summary>
         internal static ComboBox Combo(List<(string value, string label)> options, string current, Action<string> set, string? newPrompt = null, Window? owner = null)

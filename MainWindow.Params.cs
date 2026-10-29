@@ -152,6 +152,14 @@ namespace EasyEngine
                 case PickKind.Font:
                     FontParamRow(obj, bh, tp, label, cur, panel); // MainWindow.Fonts.cs
                     break;
+                case PickKind.Picture:
+                {
+                    var g = RowGrid(label, panel);
+                    var cb = PicturePick.Make(_project, cur, v => { PushUndo(); Set(v); }, this);
+                    cb.Height = 30; cb.VerticalAlignment = VerticalAlignment.Center;
+                    Grid.SetColumn(cb, 1); g.Children.Add(cb);
+                    break;
+                }
                 case PickKind.Color:
                     ColorRow(label, cur, Set, panel);
                     break;

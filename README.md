@@ -80,7 +80,7 @@ old version and opens again. Your projects are never touched. The sample games a
   where you face, lit windows, neon tubes, wall lamps) that can flicker, pulse or blink, darker underground, and
   **pixel-style block lighting** where walls stop the light and torches colour what they touch. **Minimap** with a big map on a key.
 - **Look and feel** — sprite animations, a built-in **pixel-art editor**, particles, tweens with easing, bars,
-  text effects, dialogue box styles, sound with volume channels and a small **sound editor** (cut, speed, pitch,
+  text effects, dialogue box styles (a ready-made look, your own colours, your own picture or font — the same in Interact, Trigger Area and Cutscene lines), sound with volume channels and a small **sound editor** (cut, speed, pitch,
   volume, fades, reverse, echo).
 - **EasyPixel** — draw and animate in [EasyPixel](https://github.com/tarl3s/EasyPixel) (free pixel-art editor), export, then click **🖌 Import from EasyPixel** in the animation window: the frames and their speed arrive ready to use.
 - **Debug console (F1)** — see what your game is doing: clicks, hits, rules that fired, sounds, warnings.

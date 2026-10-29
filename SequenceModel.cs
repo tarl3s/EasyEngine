@@ -11,9 +11,19 @@ namespace EasyEngine
     // truth for them: the step palette (used by the runtime, the Advanced Scratch editor and the AI prompt), the
     // parser (tolerant: synonyms, numbers as strings, missing fields → defaults) and the stable serializer.
 
-    /// <summary>One field of a step. Types: num, val (number or expression), text, longtext, bool, choice,
-    /// object (scene object / self / player), spawn (scene object or prefab), sound, color, var, textvar / colorvar / listvar (a text / colour / list variable), key, scene.</summary>
-    public record StepField(string Key, string Label, string Type, string Default = "", string[]? Options = null, string? OnlyIfEmpty = null);
+    /// <summary>One field of a step. A colour field with Options shows Options[0] while it is empty (empty = saved as nothing). Types: num, val (number or expression), text, longtext, bool, choice,
+    /// object (scene object / self / player), spawn (scene object or prefab), sound, color, font, picture, var, textvar / colorvar / listvar (a text / colour / list variable), key, scene.</summary>
+    public record StepField(string Key, string Label, string Type, string Default = "", string[]? Options = null, string? OnlyIfEmpty = null, string? OnlyIf = null)
+    {
+        /// <summary>Shown for this step? (OnlyIfEmpty: while that field is empty; OnlyIf "key=a|b": while that field is a or b.)</summary>
+        public bool Shown(SeqStep s)
+        {
+            if (OnlyIfEmpty != null && s.Str(OnlyIfEmpty).Length > 0) return false;
+            if (OnlyIf == null) return true;
+            var kv = OnlyIf.Split('=', 2);
+            return kv[1].Split('|').Contains(s.Str(kv[0]), StringComparer.OrdinalIgnoreCase);
+        }
+    }
 
     public record StepDef(string Id, string Label, string Category, StepField[] Fields, string Hint = "");
 
@@ -36,10 +46,17 @@ namespace EasyEngine
         private static StepField X(string onlyIfEmpty) => new("x", "x", "num", "0", null, onlyIfEmpty);
         private static StepField Y(string onlyIfEmpty) => new("y", "y", "num", "0", null, onlyIfEmpty);
 
+        // a "say" step's box: like an Interact's ("" = the game's theme, so old steps stay as they were)
+        private static readonly string[] DialogLooks =
+            BehaviorCatalog.DialogLooks.Select(o => o.StartsWith("theme|") ? "|" + o[6..] : o).ToArray();
+
         /// <summary>Steps both cutscenes and bosses use.</summary>
         public static readonly StepDef[] Common =
         {
-            new("say", "Say (waits for Enter)", "Story", new[] { F("text", "Text (| = next line)", "longtext", "Hello!"), F("speaker", "Speaker", "text") },
+            new("say", "Say (waits for Enter)", "Story", new[] { F("text", "Text (| = next line)", "longtext", "Hello!"), F("speaker", "Speaker", "text"),
+                F("look", "Dialogue box", "choice", "", DialogLooks), new("boxColor", "Box colour", "color", "", new[] { "#111418" }, null, "look=custom"),
+                new("boxImage", "Box picture (keeps its proportions)", "picture", "", null, null, "look=picture"),
+                new("textColor", "Text colour", "color", "", new[] { "#FFFFFF" }, null, "look=custom|picture"), F("font", "Font", "font") },
                 "Shows a dialogue line and waits until the player presses Enter."),
             new("setvar", "Set a variable", "Story", new[] { F("var", "Variable", "var"), F("to", "To", "val", "1") }),
             new("addvar", "Add to a variable", "Story", new[] { F("var", "Variable", "var"), F("amount", "Amount", "val", "1") }),

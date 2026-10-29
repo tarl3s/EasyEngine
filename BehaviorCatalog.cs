@@ -17,6 +17,7 @@ namespace EasyEngine
         Item, Items, ItemDamage, ItemSounds, HotbarItems, Look,
         Variable, Currency, Requirement,
         Font,                  // "" = the game's font, a Windows font, or one of the project's font files (GameFonts.cs)
+        Picture,               // a picture of the project (Assets\sprites), "" = none; "＋ Add a picture…" imports one
         MapMarkers,            // minimap: which things show, each with its colour
         TerrainBlocks,         // Terrain Generator: extra blocks, each with where it grows (visual editor)
         Special                // drawn by its own editor (script, tilemap, path, boss/cutscene steps)
@@ -74,6 +75,9 @@ namespace EasyEngine
         // ---- ShowIf helpers ----
         private static Func<ParamCtx, bool> IfText(string key, params string[] values) =>
             c => values.Any(v => v.Equals(c.Bh.Text(key, ""), StringComparison.OrdinalIgnoreCase));
+        // a dialogue box setting that only matters for some looks (only while the effect is "say")
+        private static Func<ParamCtx, bool> SaysWithLook(params string[] looks) =>
+            c => c.Bh.Text("action", "") == "say" && looks.Contains(c.Bh.Text("look", "theme"));
         private static Func<ParamCtx, bool> IfOn(string key) => c => c.Bh.Num(key, 0) >= 0.5;
         private static Func<ParamCtx, bool> IfOff(string key) => c => c.Bh.Num(key, 0) < 0.5;
         private static readonly Func<ParamCtx, bool> NoHotbar =
@@ -105,7 +109,7 @@ namespace EasyEngine
 
         private static readonly string[] Effects ={ "say|Show a message", "setvar|Set a variable", "addvar|Add to a variable", "goscene|Go to a scene" };
         // the dialogue box of one Interact (PlayWindow.DialogLooks.cs): the game's theme, a ready-made look, or its own colours
-        internal static readonly string[] DialogLooks = { "theme|The game's theme", "dark|Dark", "light|Light", "parchment|Parchment (RPG)", "retro|Retro (pixel)", "custom|My own colours" };
+        internal static readonly string[] DialogLooks = { "theme|The game's theme", "dark|Dark", "light|Light", "parchment|Parchment (RPG)", "retro|Retro (pixel)", "custom|My own colours", "picture|My own picture" };
         internal static readonly string[] DialogFonts = { "|The game's font", "Segoe UI|Segoe UI", "Arial|Arial", "Verdana|Verdana", "Georgia|Georgia", "Times New Roman|Times New Roman",
                                                           "Trebuchet MS|Trebuchet MS", "Comic Sans MS|Comic Sans MS", "Consolas|Consolas", "Courier New|Courier New", "Impact|Impact" };
 
@@ -414,8 +418,9 @@ namespace EasyEngine
                 Texts = { T("action","What happens","say", PickKind.Choice, Effects),
                           TIf(T("text","Message (press Enter for the next line)","Hello!", PickKind.LongText), IfText("action", "say")), TIf(T("speaker","Who is talking",""), IfText("action", "say")),
                           TIf(T("look","Dialogue box","theme", PickKind.Choice, DialogLooks), IfText("action", "say")),
-                          TIf(T("boxColor","Box colour","#111418", PickKind.Color), c => c.Bh.Text("action", "say") == "say" && c.Bh.Text("look", "theme") == "custom"),
-                          TIf(T("textColor","Text colour","#FFFFFF", PickKind.Color), c => c.Bh.Text("action", "say") == "say" && c.Bh.Text("look", "theme") == "custom"),
+                          TIf(T("boxColor","Box colour","#111418", PickKind.Color), SaysWithLook("custom")),
+                          TIf(T("boxImage","Box picture (keeps its proportions)","", PickKind.Picture), SaysWithLook("picture")),
+                          TIf(T("textColor","Text colour","#FFFFFF", PickKind.Color), SaysWithLook("custom", "picture")),
                           TIf(T("font","Font","", PickKind.Font), IfText("action", "say")),
                           TIf(T("var","Variable","", PickKind.Variable), IfText("action", "setvar", "addvar")),
                           TIf(T("scene","Scene","", PickKind.Scene), IfText("action", "goscene")),
@@ -433,6 +438,10 @@ namespace EasyEngine
                           TIf(T("scene","Scene","", PickKind.Scene), IfText("action", "goscene")),
                           TIf(T("var","Variable","", PickKind.Variable), IfText("action", "setvar", "addvar")),
                           TIf(T("text","Message","", PickKind.LongText), IfText("action", "say")),
+                          TIf(T("look","Dialogue box","theme", PickKind.Choice, DialogLooks), IfText("action", "say")),
+                          TIf(T("boxColor","Box colour","#111418", PickKind.Color), SaysWithLook("custom")),
+                          TIf(T("boxImage","Box picture (keeps its proportions)","", PickKind.Picture), SaysWithLook("picture")),
+                          TIf(T("textColor","Text colour","#FFFFFF", PickKind.Color), SaysWithLook("custom", "picture")),
                           TIf(T("font","Font","", PickKind.Font), IfText("action", "say")),
                           T("target","Who enters","Player", PickKind.Object) } },
 
