@@ -155,6 +155,12 @@ public partial class App
             }
             finally { ed.Close(); }
         });
+        t.Test("status bar: the corner shows the cursor's X and Y in the scene, rounded", () =>
+        {
+            var (ed, _, _) = Editor();
+            try { return ed.TestCursorPos(123.4, 456.6) == "X 123   Y 457"; }
+            finally { ed.Close(); }
+        });
         t.Test("wheel: the scene's Width changes as you roll", () =>
         {
             var (ed, _, _) = Editor();

@@ -112,6 +112,7 @@ namespace EasyEngine
             if (restored.Count > 0) Loaded += (_, _) => Status(L.F("🛟 Brought back {0} missing file(s) from the backup: {1}", restored.Count, string.Join(", ", restored.Select(Path.GetFileName))));
 
             SceneCanvas.MouseMove += Canvas_MouseMove;
+            SceneCanvas.MouseLeave += (s, e) => CursorPos.Text = ""; // the corner shows the position only over the scene
             SceneCanvas.MouseLeftButtonUp += Canvas_MouseUp;
             SceneCanvas.MouseRightButtonDown += Canvas_RightDown;
             SceneCanvas.MouseRightButtonUp += Canvas_RightUp;
@@ -832,8 +833,13 @@ namespace EasyEngine
             else if (!e.Handled) e.Handled = ShowObjectMenu(e); // Copy / Paste / Duplicate / Delete (MainWindow.CopyPaste.cs)
         }
 
+        // the cursor's place in the scene, in the status bar's right corner (the same X / Y the inspector and the rules use)
+        private void ShowCursorPos(Point p) => CursorPos.Text = $"X {Math.Round(p.X)}   Y {Math.Round(p.Y)}";
+        internal string TestCursorPos(double x, double y) { ShowCursorPos(new Point(x, y)); return CursorPos.Text; }
+
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
+            ShowCursorPos(e.GetPosition(SceneCanvas));
             if (_tmPainting)
             {
                 PaintAt(e.GetPosition(SceneCanvas), erase: e.RightButton == MouseButtonState.Pressed);

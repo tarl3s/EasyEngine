@@ -46,7 +46,7 @@ old version and opens again. Your projects are never touched. The sample games a
 
 ## What it can do
 
-- **Visual scene editor** — click any number and **roll the mouse wheel** to change it live (scene size, tilemap columns, speeds…), Ctrl+C / Ctrl+V, lock a finished scene, drag and drop, resize (keeping proportions if you want), arrow-key nudge, grid/snap, layers
+- **Visual scene editor** — click any number and **roll the mouse wheel** to change it live (scene size, tilemap columns, speeds…), the cursor's X / Y shown in the corner, Ctrl+C / Ctrl+V, lock a finished scene, drag and drop, resize (keeping proportions if you want), arrow-key nudge, grid/snap, layers
   (including UI layers fixed to the screen) that you can reorder, lock, fade (opacity) or turn off in the game,
   front/back order inside a layer, lock objects so they stay put, turn objects off until a rule brings them in, zoom,
   movable panels, undo/redo, multiple scenes (duplicate a scene to make the next level).
