@@ -178,6 +178,19 @@ public partial class App
             }
             finally { ed.Close(); }
         });
+        t.Test("selection: a selected object keeps its full size (outline drawn over it, not a border inside it)", () =>
+        {
+            var (ed, _, o) = Editor();
+            try
+            {
+                ed.ShowActivated = false; ed.Left = -20000; ed.Show(); // adorners need a shown window
+                ed.TestSelect(o);
+                ed.UpdateLayout();
+                var b = ed.TestVisual(o) as System.Windows.Controls.Border;
+                return b != null && b.BorderThickness.Left == 0 && b.Width == o.Width && SelectionAdorner.Has(b);
+            }
+            finally { ed.TestCloseUnsaved(); }
+        });
         t.Test("status bar: the corner shows the cursor's X and Y in the scene, rounded", () =>
         {
             var (ed, _, _) = Editor();

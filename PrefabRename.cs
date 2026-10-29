@@ -33,6 +33,7 @@ namespace EasyEngine
             var quoted = new Regex("\"" + Regex.Escape(old) + "\"", RegexOptions.IgnoreCase);
             int changed = 0;
             IEnumerable<GameObjectData> objects = p.Scenes.SelectMany(s => s.Layers).SelectMany(l => l.Objects).Concat(p.Prefabs.Select(o => o.Template));
+            foreach (var o in objects) if (o.Prefab == old) o.Prefab = newName; // its copies stay linked
             foreach (var bh in objects.SelectMany(o => o.Behaviors))
                 foreach (var key in bh.Texts.Keys.ToList())
                 {

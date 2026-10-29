@@ -99,6 +99,19 @@ public partial class App
             double playerCX = p.TX("Player") + 16;
             return atFar && p.TVar("done") == 1 && !p.TCameraOverride && Math.Abs(p.TCamX + playerCX) < 20;
         });
+        t.Test("cutscene: 'the camera stops where it is' holds the view while the player moves; 'keeps following' follows", () =>
+        {
+            double Moved(string camera)
+            {
+                var p = Cut("{'steps':[{'do':'wait','time':3}]}", c => { c.Nums["lock"] = 0; c.Texts["camera"] = camera; });
+                for (int i = 0; i < 5; i++) { p.TStep(); p.TUpdateCamera(); }
+                double c0 = p.TCamX;
+                p.TKey("D", true);
+                for (int i = 0; i < 60; i++) { p.TStep(); p.TUpdateCamera(); }
+                return Math.Abs(p.TCamX - c0);
+            }
+            return Moved("stop") < 0.5 && Moved("follow") > 20;
+        });
         t.Test("cutscene: camera to a point (x, y)", () =>
         {
             var p = Cut("{'steps':[{'do':'camera','object':'','x':1500,'y':300,'time':0.2},{'do':'wait','time':5}]}");

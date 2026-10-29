@@ -376,6 +376,7 @@ namespace EasyEngine
                           TIf(T("key","Key","E", PickKind.Key), IfText("trigger", "key")),
                           TIf(T("who","Who enters","Player", PickKind.Object), IfText("trigger", "enter")),
                           T("skipKey","Skip key","Escape", PickKind.Key),
+                          T("camera","While it plays, the camera","follow", PickKind.Choice, "follow|Keeps following the player", "stop|Stops where it is (the steps can still move it)"),
                           T("font","Font (its dialogue and titles)","", PickKind.Font),
                           T("script","Steps","{\"steps\":[]}", PickKind.Special) } },
 

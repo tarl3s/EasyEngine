@@ -123,6 +123,7 @@ namespace EasyEngine
 
             if (_project.Prefabs.Count == 0) _project.Prefabs = PrefabFactory.Defaults();
             FillMissingBehaviorKeys(_project);
+            LinkOldPrefabCopies(_project);
             RefreshSceneCombo();
             SwitchScene(project.GetStartScene());
             RefreshPalette();
@@ -836,6 +837,7 @@ namespace EasyEngine
         // the cursor's place in the scene, in the status bar's right corner (the same X / Y the inspector and the rules use)
         private void ShowCursorPos(Point p) => CursorPos.Text = $"X {Math.Round(p.X)}   Y {Math.Round(p.Y)}";
         internal string TestCursorPos(double x, double y) { ShowCursorPos(new Point(x, y)); return CursorPos.Text; }
+        internal FrameworkElement? TestVisual(GameObjectData o) => _visuals.TryGetValue(o, out var el) ? el as FrameworkElement : null;
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
@@ -884,8 +886,7 @@ namespace EasyEngine
         private void UpdateSelectionOutline()
         {
             foreach (var kv in _visuals)
-                if (kv.Value is Border b)
-                    b.BorderThickness = new Thickness(_selection.Contains(kv.Key) ? 2.5 : 0);
+                SelectionAdorner.Set(kv.Value, _selection.Contains(kv.Key), (Brush)FindResource("Accent")); // drawn over it: a border would shrink the picture
         }
 
         // ---- resize handles ----
@@ -1122,6 +1123,7 @@ namespace EasyEngine
         private void AddPrefabInstance(PrefabDef pf)
         {
             var obj = JsonClone(pf.Template);
+            obj.Prefab = pf.Name; // stays linked: changing it changes the prefab and its other copies
             AddToActiveLayer(obj, pf.Name);
         }
 
@@ -1140,8 +1142,9 @@ namespace EasyEngine
             PushUndo();
             obj.Id = _project.NextId;
             obj.Name = UniqueName(baseName);
-            obj.X = _scene.Width / 2 - obj.Width / 2;
-            obj.Y = _scene.Height / 2 - obj.Height / 2;
+            var mid = ViewCenter(); // the middle of the part of the scene being looked at
+            obj.X = Math.Round(Math.Clamp(mid.X - obj.Width / 2, 0, Math.Max(0, _scene.Width - obj.Width)));
+            obj.Y = Math.Round(Math.Clamp(mid.Y - obj.Height / 2, 0, Math.Max(0, _scene.Height - obj.Height)));
             if (obj.Behaviors.Any(b => b.Kind == BehaviorKind.Tilemap)) { obj.X = 0; obj.Y = 0; } // tilemaps anchor at the scene origin
             layer.Objects.Add(obj);
             RenderScene(); RefreshObjects(); Select(obj); Dirty();
@@ -1188,6 +1191,7 @@ namespace EasyEngine
             var icon = _project.Prefabs.FirstOrDefault(p => p.Name == obj.Type)?.Icon ?? "▢";
             var tmpl = JsonClone(obj);
             tmpl.Id = 0; tmpl.X = 0; tmpl.Y = 0; tmpl.Locked = false; // keeps its Z; new copies start unlocked
+            tmpl.Prefab = null; obj.Prefab = name; // the object it was made from is its first copy
             _project.Prefabs.Add(new PrefabDef { Name = name, Icon = icon, Category = cat, Template = tmpl });
             RefreshPalette(); Dirty();
             Status(L.F("Saved \"{0}\" as a prefab under \"{1}\"", name, cat));
@@ -1462,6 +1466,7 @@ namespace EasyEngine
             Section(L.T("OBJECT"));
             LockRow(obj); // 🔒/🔓 — the only thing left editable on a locked object (MainWindow.LockZ.cs)
             ActiveRow(obj); // Active — exists in the game (MainWindow.Layers.cs)
+            PrefabLinkRow(obj); // 🔗 a prefab copy (MainWindow.Prefabs.cs)
             TextRow(L.T("Name"), obj.Name, v => { obj.Name = v; RefreshObjects(); Dirty(); });
             InfoRow(L.T("Type"), L.T(obj.Type));
             TextRow(L.T("Group"), obj.Group, v => { obj.Group = v.Trim(); RefreshObjects(); Dirty(); });
@@ -2713,6 +2718,13 @@ namespace EasyEngine
                 Background = Brushes.Transparent, Foreground = fg, FontFamily = new FontFamily("Consolas"), VerticalContentAlignment = VerticalAlignment.Top
             };
             body.PreviewMouseWheel += AiLogWheel; // the TextBox would swallow the wheel and the chat wouldn't scroll
+            FrameworkElement shown = body;
+            if (fromAi) // the AI writes Markdown: real bold / italics / lists instead of asterisks (ChatMarkdown.cs), still selectable
+            {
+                var rich = new RichTextBox { Document = ChatMarkdown.ToDocument(text, fg), IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(0), Background = Brushes.Transparent, Foreground = fg, Tag = "ai-text" };
+                rich.PreviewMouseWheel += AiLogWheel;
+                shown = rich;
+            }
             var bubble = new Border
             {
                 Background = fromAi ? (SolidColorBrush)FindResource("Bg2") : (SolidColorBrush)FindResource("Accent"),
@@ -2722,7 +2734,7 @@ namespace EasyEngine
                     Children =
                     {
                         new TextBlock { Text = who, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = fg, Opacity = 0.75, Margin = new Thickness(0,0,0,3) },
-                        body
+                        shown
                     }
                 }
             };
@@ -2934,7 +2946,8 @@ namespace EasyEngine
         private bool _dirty;
         private bool IsDirty => _dirty;
 
-        private void Dirty() { if (!_restoring) { _dirty = true; UpdateTitle(); } }
+        private void Dirty() { if (!_restoring) { _dirty = true; UpdateTitle(); if (!_syncing) { _syncing = true; try { SyncPrefabCopies(); } finally { _syncing = false; } } } }
+        private bool _syncing; // a prefab change being passed to its copies (MainWindow.Prefabs.cs)
         private void UpdateTitle() => Title = $"EasyEngine — {_project.Name} · {_scene.Name}" + (_dirty ? " *" : "");
         private void Status(string msg) => StatusText.Text = msg;
 

@@ -30,6 +30,7 @@ namespace EasyEngine
             public bool BarsUsed, FadeUsed, WentToScene;
             public bool OutlivesOwner;               // a boss's death steps: they play to the end even once it is destroyed
             public string Font = "";                 // cutscenes: the font of their dialogue and big titles ("" = the game's)
+            public bool HoldCamera;                  // cutscenes: the follow camera stops while it plays ("While it plays, the camera": stops)
         }
 
         private sealed class Mover { public SeqRunner? Owner; public Entity E = null!; public double FromX, FromY, ToX, ToY, Start, Dur; public bool Done; }
@@ -137,7 +138,11 @@ namespace EasyEngine
 
         partial void CameraTargetOverride(ref double tx, ref double ty, ref double smooth)
         {
-            if (_camPan == null) return;
+            if (_camPan == null)
+            {
+                foreach (var r in _runners) if (r.HoldCamera && !r.Finished) { tx = _camX; ty = _camY; return; } // the view stays where the cutscene found it
+                return;
+            }
             // returning: back to where the follow camera wants to be (no follow camera: where the view was before)
             double goalX = _cameraTarget != null ? tx : _camPan.HomeX, goalY = _cameraTarget != null ? ty : _camPan.HomeY;
             if (!_camPan.Returning)
@@ -209,6 +214,7 @@ namespace EasyEngine
             var r = new SeqRunner { Owner = en, Mode = SeqMode.Cutscene, Label = en.Data.Name, Steps = script.Steps, SkipKey = skipKey, SkipWas = skipKey is Key k0 && _keys.Contains(k0), Font = bh.Text("font", "").Trim() };
             if (bh.Num("lock", 1) >= 0.5) _inputLocks.Add(r);
             if (bh.Num("bars", 1) >= 0.5) { _barsOn = true; r.BarsUsed = true; }
+            r.HoldCamera = bh.Text("camera", "follow") == "stop";
             r.OnFinish = _ => Info("Cutscene", en.Data.Name, "Finished");
             st.Runner = r;
             _runners.Add(r);

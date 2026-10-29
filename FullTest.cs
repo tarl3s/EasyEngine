@@ -1095,6 +1095,7 @@ public partial class App
             FeatureTestsScratchReview(kit);
             FeatureTestsInteract(kit);
             FeatureTestsDialogBox(kit);
+            FeatureTestsPrefabs(kit);
             FeatureTestsMultiBehaviors(kit);
             FeatureTestsLights(kit);
             FeatureTestsBehaviorCombos(kit);
@@ -1155,6 +1156,7 @@ public partial class App
     partial void FeatureTestsScratchReview(FullTestKit t); // FullTest.ScratchReview.cs
     partial void FeatureTestsInteract(FullTestKit t);
     partial void FeatureTestsDialogBox(FullTestKit t);
+    partial void FeatureTestsPrefabs(FullTestKit t);
     partial void FeatureTestsMultiBehaviors(FullTestKit t); // FullTest.MultiBehaviors.cs
     partial void FeatureTestsOnlyWhile(FullTestKit t); // FullTest.OnlyWhile.cs
     partial void FeatureTestsFontsCopy(FullTestKit t); // FullTest.FontsCopy.cs
