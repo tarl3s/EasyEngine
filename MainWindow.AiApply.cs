@@ -719,6 +719,7 @@ namespace EasyEngine
                 ShowScoreIfAsked(userPrompt, EnsureUndo, changes); // MainWindow.AiLevel.cs
                 DoubleIfAsked(userPrompt, EnsureUndo, changes);
                 ShooterIfAsked(userPrompt, EnsureUndo, changes);
+                ExplodeIfAsked(userPrompt, EnsureUndo, changes);
 
                 if (changes.Count > 0)
                 {
@@ -833,6 +834,29 @@ namespace EasyEngine
                 var every = System.Text.RegularExpressions.Regex.Match(userPrompt, @"(\d+(?:[.,]\d+)?)\s*(s\b|sec|seg)");
                 sh.Nums["cooldown"] = every.Success && LooseJson.TryParse(every.Groups[1].Value, out var cd) ? cd : 1.5;
                 o.Behaviors.Add(sh);
+                changes.Add(EditedLine(o));
+            }
+        }
+
+        // "when the Slime dies it explodes into particles": the object the reply touched gets the death → particles rule
+        // (the 📚 recipe "Explode when it dies") when the model forgot it
+        private static readonly System.Text.RegularExpressions.Regex DiesWords = new(@"\b(dies|die|death|killed|destroyed|morre|morrer|morte|muere|morir)\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex BurstWords = new(@"explod|explos|particle|part[ií]cula|burst|estoura|explota",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        private void ExplodeIfAsked(string userPrompt, Action ensureUndo, List<string> changes)
+        {
+            if (!DiesWords.IsMatch(userPrompt) || !BurstWords.IsMatch(userPrompt)) return;
+            var player = FindPlayer();
+            var made = _aiSpecObjects.ToList();
+            foreach (var o in _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && o != player && made.Contains(o.Name) && userPrompt.Contains(o.Name, StringComparison.OrdinalIgnoreCase)).ToList())
+            {
+                var custom = o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
+                if (custom != null && System.Text.RegularExpressions.Regex.IsMatch(custom.Text("script", ""), @"""when""\s*:\s*""death""")) continue;
+                ensureUndo();
+                if (custom == null) o.Behaviors.Add(custom = new BehaviorData { Kind = BehaviorKind.Custom });
+                using var rule = JsonDocument.Parse("[{\"when\":\"death\",\"do\":\"emit\",\"count\":30,\"speed\":220,\"color\":\"#FF8A3D\"}]");
+                custom.Texts["script"] = MergeRules(custom.Text("script", "[]"), rule.RootElement);
                 changes.Add(EditedLine(o));
             }
         }
