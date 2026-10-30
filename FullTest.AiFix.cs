@@ -352,8 +352,12 @@ public partial class App
             var talking = SequenceAi.ForRequest(SeqMode.Boss, "{\"attacks\":{\"Hit\":[{\"do\":\"dash\"}]},\"phases\":[],\"death\":[{\"do\":\"say\",\"text\":\"No!\"}]}", "when it dies it says No!");
             var heart = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest("[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\",\"target\":\"other\"}]", "when the player touches the Heart, the player heals and the Heart disappears", "Heart"));
             var shop = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest("[{\"when\":\"keynear\",\"key\":\"E\",\"name\":\"Player\",\"cond\":\"coins >= 10\",\"do\":\"additem\",\"item\":\"Sword\"}]", "when I press E near the Shopkeeper and have at least 10 coins, I pay 10 coins and get a Sword", "Shopkeeper"));
+            bool cut = LooseJson.Extract("{\"attacks\":{\"A\":[{\"do\":\"dash\"},{\"do\":\"jump\",\"hei") == "{\"attacks\":{\"A\":[{\"do\":\"dash\"},{\"do\":\"jump\"}]}}";
+            var together = SequenceAi.ForRequest(SeqMode.Boss, "{\"attacks\":{\"Jump\":[{\"do\":\"jump\"}],\"Ring\":[{\"do\":\"shoot\"}]},\"phases\":[{\"name\":\"P1\",\"when\":{\"type\":\"start\"},\"attacks\":[\"Jump\"]},{\"name\":\"P2\",\"when\":{\"type\":\"health\",\"value\":50},\"attacks\":[\"Ring\"]}]}", "it jumps at the player, then shoots a ring");
+            var tb = SequenceJson.ParseBoss(together, out _);
+            bool merged = tb.Phases.Count == 1 && tb.Phases[0].Attacks.Count == 2;
             bool paid = shop.Count == 2 && Is(shop[1], "do", "addvar") && Is(shop[1], "var", "coins") && Is(shop[1], "amount", "-10") && Is(shop[1], "cond", "coins >= 10") && Is(shop[1], "when", "keynear");
-            return extra && Is(other[0], "target", "other") && !heart[0].ContainsKey("target") && paid && !other[1].ContainsKey("target") && names && !boss.Contains("\"say\"") && boss.Contains("shake") && talking.Contains("\"say\"");
+            return extra && Is(other[0], "target", "other") && !heart[0].ContainsKey("target") && paid && cut && merged && !other[1].ContainsKey("target") && names && !boss.Contains("\"say\"") && boss.Contains("shake") && talking.Contains("\"say\"");
         });
         t.Test("ai fix: 'after 5 seconds' isn't 'a second one' (create of an existing name edits it); a Gate asked with a key gets one", () =>
         {

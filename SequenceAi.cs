@@ -163,6 +163,14 @@ namespace EasyEngine
                 b.Attacks.RemoveAll(a => a.Steps.Count == 0); // an attack that was only a line
                 foreach (var ph in b.Phases) ph.Attacks.RemoveAll(n => b.Attack(n) == null);
             }
+            // "it jumps …, then shoots a ring": attacks asked for together, with no phases asked for, all fight from the start
+            if (b.Attacks.Count > 1 && b.Phases.Count > 0 && !System.Text.RegularExpressions.Regex.IsMatch(request ?? "", @"phase|fase|health|vida|\bhp\b|life|%|half|metade|mitad|angry|furioso|enraged|low on|below|abaixo", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+                && b.Attacks.Any(a => !b.Phases[0].Attacks.Contains(a.Name, StringComparer.OrdinalIgnoreCase)))
+            {
+                b.Phases[0].Attacks = b.Attacks.Select(a => a.Name).ToList();
+                b.Phases.RemoveRange(1, b.Phases.Count - 1);
+                changed = true;
+            }
             var m = System.Text.RegularExpressions.Regex.Match(request ?? "", @"variab\w*\s+(\w+)\s+(?:becomes|is set to|goes to|turns|=|vira|fica|passa a ser|se vuelve)\s*(?:to\s+)?(-?\d+(?:\.\d+)?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (m.Success && System.Text.RegularExpressions.Regex.IsMatch(request!, @"\b(dies|die|death|defeated|morre|morte|derrotad|muere)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
                 && !b.Death.Any(s => s.Do == "setvar" && s.Str("var").Equals(m.Groups[1].Value, StringComparison.OrdinalIgnoreCase)))

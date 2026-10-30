@@ -718,6 +718,7 @@ namespace EasyEngine
                 AddMissingKey(userPrompt, EnsureUndo, changes);
                 ShowScoreIfAsked(userPrompt, EnsureUndo, changes); // MainWindow.AiLevel.cs
                 DoubleIfAsked(userPrompt, EnsureUndo, changes);
+                ShooterIfAsked(userPrompt, EnsureUndo, changes);
 
                 if (changes.Count > 0)
                 {
@@ -807,6 +808,31 @@ namespace EasyEngine
                     new { when = "touch", name = who, @do = "destroy" },
                 }));
                 custom.Texts["script"] = MergeRules(custom.Text("script", "[]"), rules.RootElement);
+                changes.Add(EditedLine(o));
+            }
+        }
+
+        // "an enemy that shoots at the player every 2 seconds": the new enemy without a way to shoot gets a Shooter that
+        // fires by itself at the player (small models copy a spawner example instead)
+        private static readonly System.Text.RegularExpressions.Regex ShootWords = new(@"\bshoots?\b|\bfires?\b|\batira\b|\batirar\b|\bdispara\b|\bdispare\b|\bdisparar\b|\bdispara\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        private void ShooterIfAsked(string userPrompt, Action ensureUndo, List<string> changes)
+        {
+            if (!ShootWords.IsMatch(userPrompt) || System.Text.RegularExpressions.Regex.IsMatch(userPrompt, @"\b(player|jogador|jugador|I|eu|yo)\s+(can\s+|pode\s+|puede\s+)?(shoots?|fires?|atira|dispara)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return;
+            var player = FindPlayer();
+            var made = _aiSpecObjects.ToList();
+            foreach (var o in _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && o != player && made.Contains(o.Name)).ToList())
+            {
+                if (o.Behaviors.Any(b => b.Kind is BehaviorKind.Shooter or BehaviorKind.BossAI || b.Kind == BehaviorKind.Custom && b.Text("script", "").Contains("\"shoot\""))) continue;
+                if (!o.Behaviors.Any(b => b.Kind is BehaviorKind.Patrol or BehaviorKind.Chase or BehaviorKind.Health or BehaviorKind.Damager) && !o.Name.Contains("enem", StringComparison.OrdinalIgnoreCase)
+                    && !o.Name.Contains("inimig", StringComparison.OrdinalIgnoreCase) && !o.Name.Contains("turret", StringComparison.OrdinalIgnoreCase)) continue; // only the shooter the request is about
+                ensureUndo();
+                var sh = BehaviorCatalog.Info(BehaviorKind.Shooter).CreateData();
+                sh.Texts["key"] = ""; sh.Nums["directions"] = 1;
+                if (player != null) sh.Texts["aim"] = player.Name;
+                var every = System.Text.RegularExpressions.Regex.Match(userPrompt, @"(\d+(?:[.,]\d+)?)\s*(s\b|sec|seg)");
+                sh.Nums["cooldown"] = every.Success && LooseJson.TryParse(every.Groups[1].Value, out var cd) ? cd : 1.5;
+                o.Behaviors.Add(sh);
                 changes.Add(EditedLine(o));
             }
         }
