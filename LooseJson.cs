@@ -25,9 +25,8 @@ namespace EasyEngine
                 if (sa >= 0 && sb > sa && (a < 0 || sa < a) && listOfObjects) return reply.Substring(sa, sb - sa + 1);
             }
             if (a < 0) return null;
-            if (b <= a) return Balanced(reply, a) is string cut && Parses(cut) ? cut : Truncated(reply, a); // cut off before its first "}"
-            var whole = reply.Substring(a, b - a + 1);
-            if (Parses(whole)) return whole;
+            var whole = b > a ? reply.Substring(a, b - a + 1) : null; // none when it was cut off before its first "}"
+            if (whole != null && Parses(whole)) return whole;
             // not JSON as it stands: the first object alone (a reply with a stray "}" or a second object after it),
             // or the object with the brackets it forgot to close
             return Balanced(reply, a) is string one && Parses(one) ? one : Truncated(reply, a) ?? whole;
@@ -42,21 +41,7 @@ namespace EasyEngine
             {
                 if (reply[cut] is not ('}' or ']' or '"' or 'e' or 'l' or '0' or '1' or '2' or '3' or '4' or '5' or '6' or '7' or '8' or '9')) continue;
                 tries++;
-                var body = reply.Substring(start, cut - start + 1);
-                var open = new System.Collections.Generic.Stack<char>();
-                bool str = false, esc = false, bad = false;
-                foreach (char c in body)
-                {
-                    if (str) { if (esc) esc = false; else if (c == '\\') esc = true; else if (c == '"') str = false; continue; }
-                    if (c == '"') str = true;
-                    else if (c is '{' or '[') open.Push(c == '{' ? '}' : ']');
-                    else if (c is '}' or ']') { if (open.Count == 0 || open.Pop() != c) { bad = true; break; } }
-                }
-                if (bad || str || open.Count == 0) continue;
-                var sb = new System.Text.StringBuilder(body);
-                while (open.Count > 0) sb.Append(open.Pop());
-                var s = sb.ToString();
-                if (Parses(s)) return s;
+                if (Balanced(reply[..(cut + 1)], start) is string s && Parses(s)) return s;
             }
             return null;
         }

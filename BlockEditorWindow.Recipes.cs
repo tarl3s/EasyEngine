@@ -7,6 +7,7 @@ namespace EasyEngine
     // added at the end of the list to be tweaked like any other block. Saved exactly like hand-made blocks.
     public partial class BlockEditorWindow
     {
+        internal const string ExplodeOnDeath = "[{\"when\":\"death\",\"do\":\"emit\",\"count\":30,\"speed\":220,\"color\":\"#FF8A3D\"}]"; // also what the AI adds when "it explodes" was forgotten
         internal static (string label, string json)[] Recipes() => new[]
         {
             (L.T("Fade out after 5 seconds"), "[{\"when\":\"after\",\"seconds\":5,\"do\":\"tween\",\"prop\":\"opacity\",\"to\":0,\"duration\":2}]"),
@@ -20,7 +21,7 @@ namespace EasyEngine
             (L.T("Spin while R is held"), "[{\"when\":\"key\",\"key\":\"R\",\"do\":\"rotate\",\"speed\":180}]"),
             (L.T("Click it: +1 score"), "[{\"when\":\"click\",\"do\":\"addvar\",\"var\":\"score\",\"amount\":1}]"),
             (L.T("Disappear when the Player touches it"), "[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\"}]"),
-            (L.T("Explode when it dies"), "[{\"when\":\"death\",\"do\":\"emit\",\"count\":30,\"speed\":220,\"color\":\"#FF8A3D\"}]"),
+            (L.T("Explode when it dies"), ExplodeOnDeath),
             (L.T("Countdown from 60 (show it with a Label \"{timer}\")"), "[{\"when\":\"start\",\"do\":\"setvar\",\"var\":\"timer\",\"to\":60},{\"when\":\"timer\",\"every\":1,\"cond\":\"timer > 0\",\"do\":\"addvar\",\"var\":\"timer\",\"amount\":-1}]"),
             (L.T("Say something when the scene starts"), "[{\"when\":\"start\",\"do\":\"say\",\"text\":\"Hello!\"}]"),
             (L.T("Say something once when score reaches 10"), "[{\"when\":\"becomes\",\"var\":\"score\",\"op\":\">=\",\"value\":10,\"do\":\"say\",\"text\":\"Well done!\"}]"),

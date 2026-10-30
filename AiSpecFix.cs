@@ -296,7 +296,7 @@ namespace EasyEngine
             var m = Vanish.Match(p);
             if (!m.Success) return null;
             var before = p[..m.Index];
-            own = System.Text.RegularExpressions.Regex.Replace(own, @"[\s_-]*\d+$", ""); // Star2 is "a Star" in the request
+            own = PlayWindow.BaseName(own); // Star2 is "a Star" in the request
             int t = before.LastIndexOf(touched.ToLowerInvariant(), StringComparison.Ordinal), o = before.LastIndexOf(own.ToLowerInvariant(), StringComparison.Ordinal);
             if (t < 0 && o < 0) return null;
             return t > o ? "other" : "self";
@@ -345,7 +345,7 @@ namespace EasyEngine
                         if (Str(r["do"]) is not ("additem" or "setvar" or "addvar") || Str(r["when"]).Length == 0) continue;
                         // the variable paid with: the one the rule's condition checks against the cost, else the word itself
                         var cm = System.Text.RegularExpressions.Regex.Match(Str(r["cond"]), @"(\w+)\s*>=?\s*" + pay.Groups[1].Value + @"\b");
-                        var v = cm.Success ? cm.Groups[1].Value : word is "and" or "e" or "y" or "to" or "for" or "para" or "por" or "then" or "and" ? "" : word; // "pay 10 and get…": no currency named
+                        var v = cm.Success ? cm.Groups[1].Value : word is "and" or "e" or "y" or "to" or "for" or "para" or "por" or "then" ? "" : word; // "pay 10 and get…": no currency named
                         if (v.Length == 0 || Str(r["var"]).Equals(v, StringComparison.OrdinalIgnoreCase)) continue; // this rule is the payment
                         if (!cm.Success && Str(r["cond"]).Length == 0) r["cond"] = $"{v} >= {pay.Groups[1].Value}"; // never paid with coins they don't have
                         if (rules.OfType<JsonObject>().Any(o => Str(o["do"]) is "addvar" or "setvar" && Str(o["var"]).Equals(v, StringComparison.OrdinalIgnoreCase))) break;

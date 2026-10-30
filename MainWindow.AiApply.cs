@@ -61,14 +61,16 @@ namespace EasyEngine
                     usedByReply.Add(data);
                     // "also let the player dash" answered with every Platformer value copied from the catalog: a default written over
                     // something the object already has on (its double jump) is the copy, not the request — unless the request names it
-                    var defaults = existing != null && item.TryGetProperty("nums", out var dn) && dn.ValueKind == JsonValueKind.Object && dn.EnumerateObject().Count() >= 3 ? BehaviorCatalog.Info(kind).CreateData().Nums : null;
                     if (item.TryGetProperty("nums", out var nums) && nums.ValueKind == JsonValueKind.Object)
+                    {
+                        var defaults = existing != null && nums.EnumerateObject().Count() >= 3 ? BehaviorCatalog.Info(kind).CreateData().Nums : null;
                         foreach (var p in nums.EnumerateObject())
                             if (LooseJson.TryNumber(p.Value, out var nv))
                             {
                                 if (defaults != null && defaults.TryGetValue(p.Name, out var dv) && nv == dv && data.Nums.TryGetValue(p.Name, out var cur) && cur != dv && !NamesParam(userPrompt, p.Name)) continue;
                                 data.Nums[p.Name] = nv;
                             }
+                    }
                     if (item.TryGetProperty("texts", out var texts) && texts.ValueKind == JsonValueKind.Object)
                         foreach (var p in texts.EnumerateObject())
                             if (p.Value.ValueKind == JsonValueKind.String) data.Texts[p.Name] = p.Value.GetString() ?? "";
@@ -775,16 +777,10 @@ namespace EasyEngine
             {
                 if ((string?)r["when"] != "touch" || (string?)r["do"] != "destroy" || r["name"]?.ToString() is not { Length: > 0 } other) continue;
                 var copies = _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && o.Name != playerName
-                    && (o.Name.Equals(other, StringComparison.OrdinalIgnoreCase) || System.Text.RegularExpressions.Regex.IsMatch(o.Name, $"^{System.Text.RegularExpressions.Regex.Escape(other)}_?\\d+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))).ToList();
+                    && PlayWindow.IsNamed(o.Name, other)).ToList();
                 if (copies.Count == 0) continue;
                 using var one = JsonDocument.Parse("[{\"when\":\"touch\",\"name\":" + JsonSerializer.Serialize(playerName) + ",\"do\":\"destroy\"}]");
-                foreach (var o in copies)
-                {
-                    var custom = o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
-                    if (custom == null) o.Behaviors.Add(custom = new BehaviorData { Kind = BehaviorKind.Custom });
-                    custom.Texts["script"] = MergeRules(custom.Text("script", "[]"), one.RootElement);
-                    _aiSpecObjects.Add(o.Name);
-                }
+                foreach (var o in copies) { AddRules(o, one.RootElement); _aiSpecObjects.Add(o.Name); }
                 rules.Remove(r); moved = true;
             }
             return moved ? rules.ToJsonString() : rulesJson;
@@ -796,7 +792,9 @@ namespace EasyEngine
             @"spawn|appear|keeps? coming|\bdrops?\b|\bfalls?\b|falling|\brain|\bwaves?\b|\blater\b|prefab|template|aparec|surg|\bcaem\b|\bcair\b|chuva|\bondas?\b|aparezc|genera|gera\b|nasce",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
         // a bullet, rock or bomb made as a prefab is what something shoots or drops — never a thing placed in the level
-        private static bool Thrown(string name) => System.Text.RegularExpressions.Regex.IsMatch(name, @"bullet|rock|bomb|arrow|ball|projectile|missile|laser|shot|bala|pedra|bomba|flecha|tiro|proj[eé]til", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static readonly System.Text.RegularExpressions.Regex ThrownWords = new(@"bullet|rock|bomb|arrow|ball|projectile|missile|laser|shot|bala|pedra|bomba|flecha|tiro|proj[eé]til", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex DeathRule = new(@"""when""\s*:\s*""death""", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static bool Thrown(string name) => ThrownWords.IsMatch(name);
         /// <summary>The request wants things to appear during play (a spawner, a prefab, "every 3 seconds"…).</summary>
         internal static bool AsksToSpawn(string prompt) => SpawnWords.IsMatch(prompt ?? "");
 
@@ -817,41 +815,37 @@ namespace EasyEngine
         {
             if (!DoubleWords.IsMatch(userPrompt) || _aiSpecObjects.Count == 0) return;
             var player = FindPlayer()?.Name ?? "Player";
-            var made = _aiSpecObjects.ToList();
             var all = _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o)).ToList();
-            var source = all.FirstOrDefault(o => made.Any(n => PlayWindow.IsNamed(o.Name, n)) && o.Behaviors.Any(b => b.Kind == BehaviorKind.Collectible));
+            var source = all.FirstOrDefault(o => _aiSpecObjects.Any(n => PlayWindow.IsNamed(o.Name, n)) && o.Behaviors.Any(b => b.Kind == BehaviorKind.Collectible));
             if (source == null) return;
             var col0 = source.Behaviors.First(b => b.Kind == BehaviorKind.Collectible);
             var v = col0.Text("var", ""); if (v.Length == 0) v = "score";
             var who = col0.Text("collector", ""); if (who.Length == 0) who = player;
             ensureUndo();
             // the Star the reply made, and its copies (Star2, Star_3) — the request says "a Star", every one
-            var baseName = System.Text.RegularExpressions.Regex.Replace(source.Name, @"[_ ]?\d+$", "");
+            var baseName = PlayWindow.BaseName(source.Name);
+            using var rules = JsonDocument.Parse(JsonSerializer.Serialize(new object[]
+            {
+                new { when = "touch", name = who, @do = "setvar", var = v, to = v + " * 2" },
+                new { when = "touch", name = who, @do = "destroy" },
+            }));
             foreach (var o in all.Where(o => PlayWindow.IsNamed(o.Name, baseName)))
             {
                 o.Behaviors.RemoveAll(b => b.Kind == BehaviorKind.Collectible);
-                var custom = o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
-                if (custom == null) o.Behaviors.Add(custom = new BehaviorData { Kind = BehaviorKind.Custom });
-                using var rules = JsonDocument.Parse(JsonSerializer.Serialize(new object[]
-                {
-                    new { when = "touch", name = who, @do = "setvar", var = v, to = v + " * 2" },
-                    new { when = "touch", name = who, @do = "destroy" },
-                }));
-                custom.Texts["script"] = MergeRules(custom.Text("script", "[]"), rules.RootElement);
+                AddRules(o, rules.RootElement);
                 changes.Add(EditedLine(o));
             }
         }
 
         // "an enemy that shoots at the player every 2 seconds": the new enemy without a way to shoot gets a Shooter that
         // fires by itself at the player (small models copy a spawner example instead)
-        private static readonly System.Text.RegularExpressions.Regex ShootWords = new(@"\bshoots?\b|\bfires\b(?! (?:pit|place|wall))|\bfires? (?:at|toward|bullets|arrows|balls|lasers|projectiles)\b|\batira\b|\batirar\b|\bdispara\b|\bdispare\b|\bdisparar\b|\bdispara\b",
+        private static readonly System.Text.RegularExpressions.Regex ShootWords = new(@"\bshoots?\b|\bfires\b(?! (?:pit|place|wall))|\bfires? (?:at|toward|bullets|arrows|balls|lasers|projectiles)\b|\batira\b|\batirar\b|\bdispara\b|\bdispare\b|\bdisparar\b",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
         private void ShooterIfAsked(string userPrompt, Action ensureUndo, List<string> changes)
         {
             if (!ShootWords.IsMatch(userPrompt) || System.Text.RegularExpressions.Regex.IsMatch(userPrompt, @"\b(player|jogador|jugador|I|eu|yo)\s+(can\s+|pode\s+|puede\s+)?(shoots?|fires?|atira|dispara)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return;
             var player = FindPlayer();
-            var made = _aiSpecObjects.ToList();
-            foreach (var o in _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && o != player && made.Contains(o.Name)).ToList())
+            foreach (var o in _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && o != player && _aiSpecObjects.Contains(o.Name)).ToList())
             {
                 if (o.Behaviors.Any(b => b.Kind is BehaviorKind.Shooter or BehaviorKind.BossAI || b.Kind == BehaviorKind.Custom && b.Text("script", "").Contains("\"shoot\""))) continue;
                 if (!o.Behaviors.Any(b => b.Kind is BehaviorKind.Patrol or BehaviorKind.Chase or BehaviorKind.Health or BehaviorKind.Damager) && !o.Name.Contains("enem", StringComparison.OrdinalIgnoreCase)
@@ -877,15 +871,12 @@ namespace EasyEngine
         {
             if (!DiesWords.IsMatch(userPrompt) || !BurstWords.IsMatch(userPrompt)) return;
             var player = FindPlayer();
-            var made = _aiSpecObjects.ToList();
-            foreach (var o in _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && o != player && made.Contains(o.Name) && userPrompt.Contains(o.Name, StringComparison.OrdinalIgnoreCase)).ToList())
+            using var rule = JsonDocument.Parse(BlockEditorWindow.ExplodeOnDeath);
+            foreach (var o in _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && o != player && _aiSpecObjects.Contains(o.Name) && userPrompt.Contains(PlayWindow.BaseName(o.Name), StringComparison.OrdinalIgnoreCase)).ToList())
             {
-                var custom = o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
-                if (custom != null && System.Text.RegularExpressions.Regex.IsMatch(custom.Text("script", ""), @"""when""\s*:\s*""death""")) continue;
+                if (o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom) is { } custom && DeathRule.IsMatch(custom.Text("script", ""))) continue;
                 ensureUndo();
-                if (custom == null) o.Behaviors.Add(custom = new BehaviorData { Kind = BehaviorKind.Custom });
-                using var rule = JsonDocument.Parse("[{\"when\":\"death\",\"do\":\"emit\",\"count\":30,\"speed\":220,\"color\":\"#FF8A3D\"}]");
-                custom.Texts["script"] = MergeRules(custom.Text("script", "[]"), rule.RootElement);
+                AddRules(o, rule.RootElement);
                 changes.Add(EditedLine(o));
             }
         }

@@ -8,6 +8,14 @@ namespace EasyEngine
     // How the AI's Custom rules join the ones an object already has.
     public partial class MainWindow
     {
+        // rules merged into an object's Custom behavior (made when it has none)
+        internal static void AddRules(GameObjectData o, JsonElement rules)
+        {
+            var custom = o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
+            if (custom == null) o.Behaviors.Add(custom = new BehaviorData { Kind = BehaviorKind.Custom });
+            custom.Texts["script"] = MergeRules(custom.Text("script", "[]"), rules);
+        }
+
         // The AI's "custom" ADDS to an object's rules instead of wiping them ("also make it spin" keeps "jumps every 2 s").
         // A new rule that only retunes an old one (same event, same action, same thing — e.g. every 3 s instead of 2)
         // replaces it; one already there is not doubled. "replaceCustom":true still swaps the whole list.

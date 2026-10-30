@@ -175,7 +175,7 @@ namespace EasyEngine
             public RuleBag<double> WN = new(true);
             public RuleBag<string> WT = new(true);
             public double Timer; public bool Started; public bool WasTouching;
-            private Entity? _touched; internal object? Touched { get => _touched; set => _touched = value as Entity; }              // touch: what it touched last ("destroy" target "other")
+            internal object? Touched;           // touch: what it touched last ("destroy" target "other")
             public bool Reverse;                 // a reversed "play a sound": it stops that sound (PlayWindow.RuleReverse.cs)
             public int Group;                    // "block": consecutive rules with the same non-zero Group are ONE block (any WHEN fires → every DO runs)
             public double Last = double.NaN;     // landed / hurt / interact: what the event saw last frame
@@ -2150,8 +2150,7 @@ namespace EasyEngine
                 case "setactive": SetActiveRule(en, r); break; // an object or a whole layer on/off (PlayWindow.Layers.cs)
                 case "hide": case "show": // Scratch-style: invisible / visible again (this object, or "target")
                 {
-                    var who = r.Str("target", "self");
-                    var tgt = who.Equals("self", StringComparison.OrdinalIgnoreCase) ? en : who.Equals("other", StringComparison.OrdinalIgnoreCase) ? RuleTarget(en, r) : _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
+                    var tgt = RuleTarget(en, r);
                     if (tgt == null) break;
                     if (r.Do == "show") tgt.Visual.Visibility = Visibility.Visible; // also after a cutscene's "hide" step (it collapses it)
                     TweenApply(tgt, "opacity", r.Do == "hide" ? 0 : tgt.Data.Opacity > 0.05 ? tgt.Data.Opacity : 1);
@@ -2400,8 +2399,11 @@ namespace EasyEngine
             var who = r.T.TryGetValue("target", out var t0) ? t0 : "self"; // the action's own "target" only (an event's params are not who to act on)
             if (who.Length == 0 || who.Equals("self", StringComparison.OrdinalIgnoreCase)) return en;
             if (who.Equals("other", StringComparison.OrdinalIgnoreCase)) return r.Touched is Entity { Dead: false } t ? t : null;
-            return _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
+            return FindAlive(who);
         }
+
+        /// <summary>"Star2", "Star_3", "Star 4", "Star-5" → "Star" (the name its numbered copies share).</summary>
+        internal static string BaseName(string name) => System.Text.RegularExpressions.Regex.Replace(name, @"[\s_-]?\d+$", "");
 
         /// <summary>A rule naming "Star" means every Star: "Star" itself and its numbered copies ("Star2", "Star_3", "Star 4").</summary>
         internal static bool IsNamed(string name, string wanted)
@@ -2409,7 +2411,7 @@ namespace EasyEngine
             if (name.Equals(wanted, StringComparison.OrdinalIgnoreCase)) return true;
             if (wanted.Length == 0 || name.Length <= wanted.Length || !name.StartsWith(wanted, StringComparison.OrdinalIgnoreCase) || char.IsDigit(wanted[^1])) return false;
             int i = wanted.Length;
-            if (name[i] is '_' or ' ') i++;
+            if (name[i] is '_' or ' ' or '-') i++;
             if (i >= name.Length) return false;
             for (; i < name.Length; i++) if (!char.IsDigit(name[i])) return false;
             return true;
