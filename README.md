@@ -46,13 +46,13 @@ old version and opens again. Your projects are never touched. The sample games a
 
 ## What it can do
 
-- **Visual scene editor** — click any number and **roll the mouse wheel** to change it live (scene size, tilemap columns, speeds…), the cursor's X / Y shown in the corner, Ctrl+C / Ctrl+V, lock a finished scene, drag and drop, resize (keeping proportions if you want), arrow-key nudge, grid/snap, layers
-  (including UI layers fixed to the screen) that you can reorder, lock, fade (opacity) or turn off in the game,
+- **Visual scene editor** — click any number and **roll the mouse wheel** to change it live (scene size, tilemap columns, speeds…), the cursor's X / Y shown in the corner, Ctrl+C / Ctrl+V, drag on empty space to select with a box, lock a finished scene, drag and drop, resize (keeping proportions if you want), arrow-key nudge, grid/snap, layers
+  (including UI layers fixed to the screen) that you can reorder, lock, fade (opacity) or turn off in the game (move objects between them),
   front/back order inside a layer, lock objects so they stay put, turn objects off until a rule brings them in, zoom,
   movable panels, undo/redo, multiple scenes (duplicate a scene to make the next level).
 - **The AI does the logic** — select an object, describe what it should do, and the AI applies real behaviors.
   **🔨 Build** edits the game, **💡 Brainstorm** talks ideas through, **🎓 Learn** teaches you how to use anything
-  (every behavior card has a **?** that asks it directly).
+  (every behavior card has a **?** that asks it directly; under each answer the engine names the behaviors and recipe to use).
 - **Ready-made behaviors** — platformer (variable jump, coyote time, double jump, wall jump, dash), top-down, chase, lives (hearts on screen, back to the checkpoint, game over),
   patrol (even along a route you draw), health/damage/knockback, items you swing (sword, axe, pickaxe, your own),
   hotbar, shops and crafting, collectibles (worth points), doors between scenes, springs, pushable blocks, turrets that

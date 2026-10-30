@@ -49,13 +49,13 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 
 ## O que ela faz
 
-- **Editor visual de cenas** — clique em qualquer número e **role a rodinha do mouse** para mudar ao vivo (tamanho da cena, colunas do tilemap, velocidades…), a posição X / Y do cursor no cantinho, Ctrl+C / Ctrl+V, trancar uma cena pronta, arrastar e soltar, redimensionar (mantendo as proporções se quiser), mover com as setas,
-  grade/snap, camadas (inclusive de UI fixas na tela) que você reordena, tranca, deixa transparentes ou desliga no
-  jogo, ordem frente/trás dentro da camada, travar objetos no lugar, desligar objetos até uma regra trazê-los, zoom,
+- **Editor visual de cenas** — clique em qualquer número e **role a rodinha do mouse** para mudar ao vivo (tamanho da cena, colunas do tilemap, velocidades…), a posição X / Y do cursor no cantinho, Ctrl+C / Ctrl+V, arrastar num espaço vazio para selecionar com um retângulo, trancar uma cena pronta, arrastar e soltar, redimensionar (mantendo as proporções se quiser), mover com as setas,
+  grade/snap, camadas (inclusive de UI fixas na tela) que você reordena, tranca, deixa transparentes, desliga no
+  jogo ou para onde move objetos, ordem frente/trás dentro da camada, travar objetos no lugar, desligar objetos até uma regra trazê-los, zoom,
   painéis móveis, desfazer/refazer, várias cenas (duplique uma cena para fazer a próxima fase).
 - **A IA faz a lógica** — selecione um objeto, descreva o que ele faz, e a IA aplica comportamentos de verdade.
   **🔨 Build** mexe no jogo, **💡 Brainstorm** conversa sobre ideias, **🎓 Learn** ensina a usar qualquer coisa
-  (cada comportamento tem um **?** que pergunta direto pra ela).
+  (cada comportamento tem um **?** que pergunta direto pra ela; embaixo de cada resposta a engine indica os comportamentos e a receita certos).
 - **Comportamentos prontos** — plataforma (pulo variável, coyote time, pulo duplo, wall jump, dash), top-down, vidas (corações na tela, volta ao checkpoint, game over),
   perseguição, patrulha (até por um caminho que você desenha), vida/dano/knockback, itens que você usa (espada,
   machado, picareta, os seus), hotbar, lojas e crafting, coletáveis (que valem pontos), portas entre cenas, molas,
