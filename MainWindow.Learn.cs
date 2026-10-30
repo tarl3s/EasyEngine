@@ -26,7 +26,7 @@ namespace EasyEngine
             "- PREFABS panel: click a prefab to add it to the active layer; \"＋ Empty Object\"; \"Save selection as prefab\" turns a finished object into a reusable prefab.\n" +
             "- Inspector tab (right side), for the selected object: Name, Group, Duplicate / Delete / Save as Prefab; TRANSFORM (X, Y, Width, Height, Rotation); APPEARANCE (Color, \"🎞 Edit Animations…\", Static image, Opacity…; a Tilemap object shows only Opacity — each tile's colour, picture or animation is set in its card); PHYSICS (Mode None / Static / Dynamic, Gravity ×, Bounciness, the \"Hitbox: fit to the drawing\" checkbox — collide with the picture's visible pixels instead of the whole box, shown as a dashed outline in the scene — and \"✂ Trim box to drawing\", which shrinks the object's box to its drawing once); BEHAVIORS: one card per behavior with fields you pick from lists, and the \"＋ Add behavior…\" dropdown below them. Each card has \"?\" (explains it here) and Remove.\n" +
             "- Click an empty spot of the scene to edit the scene itself: Width, Height, Background colour, Ambient light.\n" +
-            "- ✨ Custom (AI script) behavior: \"🧩 Build with blocks (easy)\" opens a Scratch-like block editor (When… blocks + what to do), only for what no ready-made behavior does.\n" +
+            "- ✨ Custom (AI script) behavior: \"🧩 Build with blocks (easy)\" opens a Scratch-like block editor (When… blocks + what to do).\n" +
             "- While playing (▶ Test): F1 opens the debug console (what happened, errors, variables).\n" +
             "- AI tab modes: 🔨 Build = the AI edits the scene for you; 💡 Brainstorm = chat about ideas; 🎓 Learn = explanations like this one (nothing is changed).";
 
@@ -145,10 +145,6 @@ namespace EasyEngine
                 sb.AppendLine($"Selected object: \"{_selected.Name}\" with behaviors: " +
                               (_selected.Behaviors.Count > 0 ? string.Join(", ", _selected.Behaviors.Select(b => { var i = BehaviorCatalog.Info(b.Kind); return $"{i.Icon} {i.Name}"; })) : "(none)") + ".");
             if (matched.Count > 0) sb.AppendLine("This question is about: " + string.Join(", ", matched.Select(i => $"{i.Icon} {i.Name}")) + " (described above) — build the answer on them.");
-            var ready = matched.Where(i => i.Kind != BehaviorKind.Custom).ToList();
-            if (ready.Count > 0) sb.AppendLine($"The ready-made behavior for this is {ready[0].Icon} {ready[0].Name}: the steps add it with Inspector → ＋ Add behavior → {ready[0].Name} (don't send them to the block editor for it).");
-            else if (matched.Any(i => i.Kind == BehaviorKind.Custom))
-                sb.AppendLine("The block editor (✨ Custom → 🧩 Build with blocks): each block is one rule — WHEN something happens (a key is pressed, it touches something, every few seconds…) → DO something (move, change a variable, play a sound, spawn…).");
             sb.AppendLine();
             sb.AppendLine("HOW TO REPLY");
             sb.AppendLine("- Answer in the same language the user writes in.");
@@ -171,7 +167,7 @@ namespace EasyEngine
             var ans = (generate != null ? await generate(prompt, sys) : await AiGenerateAsync(prompt, sys, json: false, temperature: 0.3)).Trim();
             _learnHistory.Add((Short(question), Short(ans)));
             if (_learnHistory.Count > 3) _learnHistory.RemoveAt(0);
-            return ans;
+            return ans + LearnFooter(question); // MainWindow.LearnFooter.cs
         }
 
         // the translated name, with the English one the AI knows the behavior by

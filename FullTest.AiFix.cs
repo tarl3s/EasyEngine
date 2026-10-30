@@ -359,6 +359,26 @@ public partial class App
             bool paid = shop.Count == 2 && Is(shop[1], "do", "addvar") && Is(shop[1], "var", "coins") && Is(shop[1], "amount", "-10") && Is(shop[1], "cond", "coins >= 10") && Is(shop[1], "when", "keynear");
             return extra && Is(other[0], "target", "other") && !heart[0].ContainsKey("target") && paid && cut && merged && !other[1].ContainsKey("target") && names && !boss.Contains("\"say\"") && boss.Contains("shake") && talking.Contains("\"say\"");
         });
+        t.Test("learn: under the answer, the engine names the behaviors (and for blocks the closest recipe) the question is about", () =>
+        {
+            bool Has(string q, params string[] any) => any.Any(w => EasyEngine.MainWindow.LearnFooter(q).Contains(w, StringComparison.OrdinalIgnoreCase));
+            return Has("how do I make an enemy that walks back and forth?", "Patrol") && Has("how do I make a coin that gives points?", "Collectible")
+                && Has("how do I show the score on the screen?", "Label") && Has("how do I make something fade away after a few seconds?", "Glide", "After some seconds")
+                && Has("what is the block editor for?", "WHEN") && Has("como faço inimigos aparecerem a cada 3 segundos?", "Spawner")
+                && Has("how do I make a boss with phases?", "Boss") && Has("how do I make a door that goes to the next level?", "Go To Scene")
+                && EasyEngine.MainWindow.LearnFooter("hello there") == "";
+        });
+        t.Test("rules: a touch rule that doubles the score and destroys itself runs once (not again as it dies)", () =>
+        {
+            var pw = PlayWindow.NewScriptSim("[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"setvar\",\"var\":\"score\",\"to\":\"score * 2\"},{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\"}]", out _, extra: (p, s) =>
+            {
+                p.Variables["score"] = 1;
+                s.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(new GameObjectData { Id = 5, Name = "Player", Type = "Player", X = 600, Y = 200, Width = 40, Height = 40 });
+            });
+            t.Sims.Add(pw);
+            pw.TSteps(3); pw.TPlace("Player", 210, 210); pw.TSteps(20);
+            return pw.TVar("score") == 2 && pw.TDead("A");
+        });
         t.Test("ai fix: 'after 5 seconds' isn't 'a second one' (create of an existing name edits it); a Gate asked with a key gets one", () =>
         {
             var ed = NewEditor(s => s.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(new GameObjectData { Id = 92, Name = "Box", X = 400, Y = 200, Width = 64, Height = 64 }));

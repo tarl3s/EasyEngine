@@ -142,6 +142,8 @@ namespace EasyEngine
             }
             var b = SequenceJson.ParseBoss(json, out error, notes);
             if (error != null) return null;
+            // an attack the model left empty is dropped (and taken out of the phases) instead of failing the whole answer
+            if (b.Attacks.RemoveAll(a => a.Steps.Count == 0) > 0) { foreach (var ph in b.Phases) ph.Attacks.RemoveAll(n => b.Attack(n) == null); notes.Add("an attack with no steps was left out"); }
             b.FillDefaultPhases(notes);
             error = SequenceJson.Problem(b);
             return error == null ? SequenceJson.Serialize(b) : null;
