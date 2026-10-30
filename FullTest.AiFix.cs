@@ -350,7 +350,10 @@ public partial class App
             bool names = PlayWindow.IsNamed("Star2", "Star") && PlayWindow.IsNamed("star_3", "Star") && !PlayWindow.IsNamed("Starfish", "Star") && !PlayWindow.IsNamed("Star", "Star2");
             var boss = SequenceAi.ForRequest(SeqMode.Boss, "{\"attacks\":{\"Hit\":[{\"do\":\"dash\"}]},\"phases\":[],\"death\":[{\"do\":\"shake\"},{\"do\":\"say\",\"text\":\"No!\"}]}", "when it dies the screen shakes");
             var talking = SequenceAi.ForRequest(SeqMode.Boss, "{\"attacks\":{\"Hit\":[{\"do\":\"dash\"}]},\"phases\":[],\"death\":[{\"do\":\"say\",\"text\":\"No!\"}]}", "when it dies it says No!");
-            return extra && Is(other[0], "target", "other") && !other[1].ContainsKey("target") && names && !boss.Contains("\"say\"") && boss.Contains("shake") && talking.Contains("\"say\"");
+            var heart = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest("[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\",\"target\":\"other\"}]", "when the player touches the Heart, the player heals and the Heart disappears", "Heart"));
+            var shop = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest("[{\"when\":\"keynear\",\"key\":\"E\",\"name\":\"Player\",\"cond\":\"coins >= 10\",\"do\":\"additem\",\"item\":\"Sword\"}]", "when I press E near the Shopkeeper and have at least 10 coins, I pay 10 coins and get a Sword", "Shopkeeper"));
+            bool paid = shop.Count == 2 && Is(shop[1], "do", "addvar") && Is(shop[1], "var", "coins") && Is(shop[1], "amount", "-10") && Is(shop[1], "cond", "coins >= 10") && Is(shop[1], "when", "keynear");
+            return extra && Is(other[0], "target", "other") && !heart[0].ContainsKey("target") && paid && !other[1].ContainsKey("target") && names && !boss.Contains("\"say\"") && boss.Contains("shake") && talking.Contains("\"say\"");
         });
         t.Test("ai fix: 'after 5 seconds' isn't 'a second one' (create of an existing name edits it); a Gate asked with a key gets one", () =>
         {

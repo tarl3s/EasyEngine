@@ -45,6 +45,7 @@ namespace EasyEngine
             (new[] { "porta trancada", "chave", "locked door", "key" }, new[] { BehaviorKind.Gate, BehaviorKind.AbilityPickup }),
             (new[] { "plataforma", "pular", "pulo", "jump", "platform" }, new[] { BehaviorKind.Platformer }),
             (new[] { "inimigo que persegue", "perseguir", "persegue", "chase", "enemy that follows" }, new[] { BehaviorKind.Chase, BehaviorKind.PathChase }),
+            (new[] { "back and forth", "walks back", "left and right", "side to side", "vai e volta", "ida e volta", "de um lado para o outro", "de um lado pro outro", "pra la e pra ca", "para la e para ca", "de un lado a otro", "patrulha", "patrol" }, new[] { BehaviorKind.Patrol }),
             (new[] { "patrulha", "patrulhar", "patrol", "caminho", "path" }, new[] { BehaviorKind.AdvancedPatrol }),
             (new[] { "luz", "tocha", "lampada", "lanterna", "farol", "light", "torch", "flashlight", "lamp", "neon" }, new[] { BehaviorKind.LightSource }),
             (new[] { "particula", "explosao", "fumaca", "particle" }, new[] { BehaviorKind.Particles }),

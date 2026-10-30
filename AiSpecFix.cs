@@ -290,6 +290,16 @@ namespace EasyEngine
         /// onto a one-time change. Takes and returns a rule array as JSON; never throws.
         /// </summary>
         private static readonly System.Text.RegularExpressions.Regex Vanish = new(@"disappear|vanish|is removed|is destroyed|goes away|is gone|is collected|desaparec|\bsome\b|sumir|somem|se destr|destru[ií]d|eliminad", System.Text.RegularExpressions.RegexOptions.Compiled);
+        // which of the two names the request says disappears: the one named last before "disappears" ("other" / "self"), or null
+        private static string? WhoVanishes(string p, string touched, string own)
+        {
+            var m = Vanish.Match(p);
+            if (!m.Success) return null;
+            var before = p[..m.Index];
+            int t = before.LastIndexOf(touched.ToLowerInvariant(), StringComparison.Ordinal), o = before.LastIndexOf(own.ToLowerInvariant(), StringComparison.Ordinal);
+            if (t < 0 && o < 0) return null;
+            return t > o ? "other" : "self";
+        }
         public static string ForRequest(string rulesJson, string request, string ownName)
         {
             try
@@ -302,9 +312,11 @@ namespace EasyEngine
                 {
                     var when = Str(r["when"]); var act = Str(r["do"]);
                     if (when is "touch" or "keynear" && ownName.Length > 0 && Str(r["name"]).Equals(ownName, StringComparison.OrdinalIgnoreCase)) r["name"] = "Player";
-                    // "the player touches a Star and that Star disappears", written on the Player: it is the Star that goes, not the Player
-                    if (when == "touch" && act == "destroy" && r["target"] == null && Str(r["name"]) is { Length: > 0 } touched && ownName.Length > 0
-                        && !touched.Equals(ownName, StringComparison.OrdinalIgnoreCase) && p.Contains(touched.ToLowerInvariant()) && Vanish.IsMatch(p)) r["target"] = "other";
+                    // "the player touches a Star and that Star disappears" written on the Player: the Star goes (target other);
+                    // "… and the Heart disappears" written on the Heart: the Heart itself goes, whatever the model wrote
+                    if (when == "touch" && act == "destroy" && Str(r["name"]) is { Length: > 0 } touched && ownName.Length > 0 && !touched.Equals(ownName, StringComparison.OrdinalIgnoreCase)
+                        && WhoVanishes(p, touched, ownName) is string goes)
+                    { if (goes == "other") r["target"] = "other"; else if (Str(r["target"]) is "other" or "") r.Remove("target"); }
                     if (act is "addvar" or "addlocal" && r["amount"] == null && Str(r["expr"] ?? r["to"]) is { Length: > 0 } f
                         && System.Text.RegularExpressions.Regex.IsMatch(f, $@"\b{System.Text.RegularExpressions.Regex.Escape(Str(r["var"]))}\b"))
                     { r["do"] = act == "addvar" ? "setvar" : "setlocal"; if (r["to"] == null) { r["to"] = f; r.Remove("expr"); } }
@@ -319,6 +331,26 @@ namespace EasyEngine
                     if (when == "ifvar" && act is "say" or "playsound" or "emit" or "spawn" or "shoot" or "additem" or "removeitem" or "addvar" or "addlocal"
                         or "log" or "toggle" or "listadd" or "addtext" or "tween") r["when"] = "becomes";
                     if (!repeat && act == "tween") { r.Remove("loop"); r.Remove("yoyo"); }
+                }
+                // "… I pay 10 coins and get a Sword": the item without the payment — the rule that takes the coins is added
+                if (System.Text.RegularExpressions.Regex.Match(p, @"\b(?:pay|pays|paying|spend|spends|spending|costs?|pago|pague|pagar|paga|pagando|gasto|gasta|gastar|custa|cuesta|pagas)\s+(\d+)\s+(\w+)") is { Success: true } pay)
+                {
+                    double cost = double.Parse(pay.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                    var word = pay.Groups[2].Value;
+                    foreach (var r in rules.OfType<JsonObject>().ToList())
+                    {
+                        if (Str(r["do"]) is not ("additem" or "setvar" or "addvar") || Str(r["when"]).Length == 0) continue;
+                        // the variable paid with: the one the rule's condition checks against the cost, else the word itself
+                        var cm = System.Text.RegularExpressions.Regex.Match(Str(r["cond"]), @"(\w+)\s*>=?\s*" + pay.Groups[1].Value + @"\b");
+                        var v = cm.Success ? cm.Groups[1].Value : word;
+                        if (Str(r["var"]).Equals(v, StringComparison.OrdinalIgnoreCase)) continue; // this rule is the payment
+                        if (rules.OfType<JsonObject>().Any(o => Str(o["do"]) is "addvar" or "setvar" && Str(o["var"]).Equals(v, StringComparison.OrdinalIgnoreCase))) break;
+                        var take = new JsonObject();
+                        foreach (var k in new[] { "when", "key", "name", "radius", "cond", "block" }) if (r[k] is JsonNode n) take[k] = n.DeepClone();
+                        take["do"] = "addvar"; take["var"] = v; take["amount"] = -cost;
+                        rules.Insert(rules.IndexOf(r) + 1, take);
+                        break;
+                    }
                 }
                 return rules.ToJsonString();
             }

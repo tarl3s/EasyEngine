@@ -764,7 +764,7 @@ namespace EasyEngine
         // A locked door (Gate) this reply made, in a request about a key, with nothing in the scene that gives its variable:
         // small models often forget the key. The engine adds one between the player and the door.
         private static readonly System.Text.RegularExpressions.Regex SpawnWords = new(
-            @"spawn|appear|keeps? coming|\bdrops?\b|\bfalls?\b|falling|\brain|\bwaves?\b|\blater\b|prefab|template|every\s+\d|each\s+\d|every (second|few)|aparec|surg|a cada|cada \d|\bcaem\b|\bcair\b|chuva|\bondas?\b|depois de|after\s+\d|aparezc|genera|gera\b|nasce",
+            @"spawn|appear|keeps? coming|\bdrops?\b|\bfalls?\b|falling|\brain|\bwaves?\b|\blater\b|prefab|template|aparec|surg|\bcaem\b|\bcair\b|chuva|\bondas?\b|aparezc|genera|gera\b|nasce",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
         /// <summary>The request wants things to appear during play (a spawner, a prefab, "every 3 seconds"…).</summary>
         internal static bool AsksToSpawn(string prompt) => SpawnWords.IsMatch(prompt ?? "");
@@ -787,13 +787,18 @@ namespace EasyEngine
             if (!DoubleWords.IsMatch(userPrompt) || _aiSpecObjects.Count == 0) return;
             var player = FindPlayer()?.Name ?? "Player";
             var made = _aiSpecObjects.ToList();
-            foreach (var o in _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && made.Any(n => PlayWindow.IsNamed(o.Name, n))).ToList())
+            var all = _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o)).ToList();
+            var source = all.FirstOrDefault(o => made.Any(n => PlayWindow.IsNamed(o.Name, n)) && o.Behaviors.Any(b => b.Kind == BehaviorKind.Collectible));
+            if (source == null) return;
+            var col0 = source.Behaviors.First(b => b.Kind == BehaviorKind.Collectible);
+            var v = col0.Text("var", ""); if (v.Length == 0) v = "score";
+            var who = col0.Text("collector", ""); if (who.Length == 0) who = player;
+            ensureUndo();
+            // the Star the reply made, and its copies (Star2, Star_3) — the request says "a Star", every one
+            var baseName = System.Text.RegularExpressions.Regex.Replace(source.Name, @"[_ ]?\d+$", "");
+            foreach (var o in all.Where(o => PlayWindow.IsNamed(o.Name, baseName)))
             {
-                if (o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Collectible) is not BehaviorData col) continue;
-                var v = col.Text("var", ""); if (v.Length == 0) v = "score";
-                var who = col.Text("collector", ""); if (who.Length == 0) who = player;
-                ensureUndo();
-                o.Behaviors.Remove(col);
+                o.Behaviors.RemoveAll(b => b.Kind == BehaviorKind.Collectible);
                 var custom = o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
                 if (custom == null) o.Behaviors.Add(custom = new BehaviorData { Kind = BehaviorKind.Custom });
                 using var rules = JsonDocument.Parse(JsonSerializer.Serialize(new object[]
