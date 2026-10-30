@@ -13,6 +13,14 @@ namespace EasyEngine
     // pixel art, animations), variables, layers, and the guesses that keep a small model's answer on target.
     public partial class MainWindow
     {
+        // "doubleJump" is named by "double jump" / "doublejump" in the request
+        private static bool NamesParam(string prompt, string param)
+        {
+            var words = System.Text.RegularExpressions.Regex.Replace(param, "(?<=[a-z])(?=[A-Z])", " ").ToLowerInvariant();
+            var p = prompt.ToLowerInvariant();
+            return p.Contains(words) || p.Contains(param.ToLowerInvariant());
+        }
+
         // Applies a behavior/property spec (JsonElement object) to an existing object. Caller handles undo.
         private bool ApplyBehaviorsToObject(GameObjectData target, JsonElement spec, string userPrompt)
         {
@@ -51,9 +59,16 @@ namespace EasyEngine
                     var existing = repeatable ? result.FirstOrDefault(x => x.Kind == kind && !usedByReply.Contains(x)) : result.FirstOrDefault(x => x.Kind == kind);
                     var data = existing ?? BehaviorCatalog.Info(kind).CreateData();
                     usedByReply.Add(data);
+                    // "also let the player dash" answered with every Platformer value copied from the catalog: a default written over
+                    // something the object already has on (its double jump) is the copy, not the request — unless the request names it
+                    var defaults = existing != null && item.TryGetProperty("nums", out var dn) && dn.ValueKind == JsonValueKind.Object && dn.EnumerateObject().Count() >= 3 ? BehaviorCatalog.Info(kind).CreateData().Nums : null;
                     if (item.TryGetProperty("nums", out var nums) && nums.ValueKind == JsonValueKind.Object)
                         foreach (var p in nums.EnumerateObject())
-                            if (LooseJson.TryNumber(p.Value, out var nv)) data.Nums[p.Name] = nv;
+                            if (LooseJson.TryNumber(p.Value, out var nv))
+                            {
+                                if (defaults != null && defaults.TryGetValue(p.Name, out var dv) && nv == dv && data.Nums.TryGetValue(p.Name, out var cur) && cur != dv && !NamesParam(userPrompt, p.Name)) continue;
+                                data.Nums[p.Name] = nv;
+                            }
                     if (item.TryGetProperty("texts", out var texts) && texts.ValueKind == JsonValueKind.Object)
                         foreach (var p in texts.EnumerateObject())
                             if (p.Value.ValueKind == JsonValueKind.String) data.Texts[p.Name] = p.Value.GetString() ?? "";
@@ -84,6 +99,16 @@ namespace EasyEngine
                     bool replace = spec.TryGetProperty("replaceCustom", out var rc) && LooseJson.IsTrue(rc);
                     data.Texts["script"] = existing == null || replace ? cust.GetRawText() : MergeRules(existing.Text("script", "[]"), cust);
                     if (existing == null) result.Add(data);
+                    // "chases the player only when near", written as rules that switch a Chase on and off: the object needs that Chase
+                    foreach (var r in cust.EnumerateArray())
+                        if (r.ValueKind == JsonValueKind.Object && r.TryGetProperty("do", out var dw) && dw.ValueKind == JsonValueKind.String && dw.GetString() == "behavior"
+                            && r.TryGetProperty("kind", out var rk) && ResolveKind(rk.ValueKind == JsonValueKind.String ? rk.GetString() : null) is BehaviorKind need
+                            && need != BehaviorKind.Custom && !BehaviorCatalog.Info(need).Hidden && !result.Any(b => b.Kind == need))
+                        {
+                            var add = BehaviorCatalog.Info(need).CreateData();
+                            if (r.TryGetProperty("target", out var rt) && rt.ValueKind == JsonValueKind.String && add.Texts.ContainsKey("target")) add.Texts["target"] = rt.GetString() ?? "";
+                            result.Add(add); AiAddedKinds.Add(need);
+                        }
                     changed = true;
                 }
             }
@@ -608,6 +633,7 @@ namespace EasyEngine
                     foreach (var s in cr.EnumerateArray())
                         if (s.ValueKind == JsonValueKind.Object && s.TryGetProperty("asPrefab", out var pa) && pa.ValueKind == JsonValueKind.True && s.TryGetProperty("name", out var pn) && pn.GetString() is string pname) placed.Add(pname);
 
+                var madeNow = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // "Wall" listed 4 times in one create is 4 walls
                 if (hasCreate)
                     foreach (var spec in cr.EnumerateArray())
                     {
@@ -637,7 +663,7 @@ namespace EasyEngine
 
                         // don't duplicate: unless it's a prefab or the user clearly wants a NEW/another one, edit the existing object
                         GameObjectData? existing = null;
-                        if (!asPrefab && !IsNewIntent(userPrompt))
+                        if (!asPrefab && !IsNewIntent(userPrompt) && !madeNow.Contains(name ?? ""))
                         {
                             existing = _scene.Layers.SelectMany(l => l.Objects).FirstOrDefault(o => o.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
                             // a "create" named like the player (Hero, Jogador…) is the player; any other new name is a NEW thing,
@@ -653,6 +679,7 @@ namespace EasyEngine
                         else
                         {
                             var obj = BuildObjectFromSpec(spec, userPrompt, placeIt: placeIt);
+                            if (name != null) madeNow.Add(name);
                             if (obj != null) changes.Add(asPrefab ? PrefabLine(obj) : CreatedLine(obj));
                         }
                     }

@@ -22,6 +22,9 @@ namespace EasyEngine
             foreach (var (key, words) in LevelPieceWords)
                 if (KeyIn(spec, key) is string real && !System.Text.RegularExpressions.Regex.IsMatch(p, words)) spec.Remove(real);
             foreach (var (k, v) in want) { if (KeyIn(spec, k) is string real) spec.Remove(real); spec[k] = JsonSerializer.SerializeToNode(v); }
+            // "an enemy that patrols / chases": the request says which kind, whatever the reply copied
+            if (System.Text.RegularExpressions.Regex.IsMatch(p, @"chas|persegu|follows? the player|segue o jogador")) spec["enemyKind"] = "chase";
+            else if (System.Text.RegularExpressions.Regex.IsMatch(p, @"patrol|patrulh|back and forth|vai e volta") && KeyIn(spec, "enemyKind") is string ek) spec.Remove(ek);
             if (KeyIn(spec, "platforms") is string pl && KeyIn(spec, "stairs") is string st && spec[pl]?.ToJsonString() == spec[st]?.ToJsonString())
                 spec.Remove(pl); // "a staircase of 5 platforms" is the stairs themselves
             using var doc = JsonDocument.Parse(spec.ToJsonString());
@@ -35,6 +38,7 @@ namespace EasyEngine
             ("door", @"door|porta|puerta|exit|sa[ií]da|next|level ?\d|fase ?\d|scene|cena|goal"),
             ("checkpoint", @"checkpoint|bandeira|flag|respawn"),
             ("stairs", @"stair|escada|escalera|steps|degrau"),
+            ("style", @"top|room|sala|quarto|de cima|overhead|birds?.eye|walls?|paredes?|zelda"), ("walls", @"walls?|paredes?|room|sala|surrounded|cercad"), ("room", @"room|sala|quarto"),
         };
 
         private void ApplyLevelSpec(JsonElement lv, Action ensureUndo, List<string> changes)

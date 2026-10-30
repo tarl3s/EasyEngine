@@ -296,6 +296,7 @@ namespace EasyEngine
             var m = Vanish.Match(p);
             if (!m.Success) return null;
             var before = p[..m.Index];
+            own = System.Text.RegularExpressions.Regex.Replace(own, @"[\s_-]*\d+$", ""); // Star2 is "a Star" in the request
             int t = before.LastIndexOf(touched.ToLowerInvariant(), StringComparison.Ordinal), o = before.LastIndexOf(own.ToLowerInvariant(), StringComparison.Ordinal);
             if (t < 0 && o < 0) return null;
             return t > o ? "other" : "self";
@@ -308,6 +309,7 @@ namespace EasyEngine
                 var p = (request ?? "").ToLowerInvariant();
                 bool hold = System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(hold|holds|holding|held|keep pressing|segur|mantén|mantener|pressionad)");
                 bool repeat = System.Text.RegularExpressions.Regex.IsMatch(p, @"blink|pisca|parpad|pulse|pulsa|loop|repeat|again|forever|back and forth|vai e volta|sempre|siempre|keeps|non-stop");
+                bool stopSpin = System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(stop|stops|no longer|para de|parar de|pare de|parando de|deja de|dejar de|n[aã]o .{0,20}mais)\b.*\b(spin|rotat|gir|turn)");
                 foreach (var r in rules.OfType<JsonObject>())
                 {
                     var when = Str(r["when"]); var act = Str(r["do"]);
@@ -331,6 +333,7 @@ namespace EasyEngine
                     if (when == "ifvar" && act is "say" or "playsound" or "emit" or "spawn" or "shoot" or "additem" or "removeitem" or "addvar" or "addlocal"
                         or "log" or "toggle" or "listadd" or "addtext" or "tween") r["when"] = "becomes";
                     if (!repeat && act == "tween") { r.Remove("loop"); r.Remove("yoyo"); }
+                    if (stopSpin && act == "rotate") r["speed"] = 0; // "stop the Box from spinning" answered with the spin again
                 }
                 // "… I pay 10 coins and get a Sword": the item without the payment — the rule that takes the coins is added
                 if (System.Text.RegularExpressions.Regex.Match(p, @"\b(?:pay|pays|paying|spend|spends|spending|costs?|pago|pague|pagar|paga|pagando|gasto|gasta|gastar|custa|cuesta|pagas)\s+(\d+)\s+(\w+)") is { Success: true } pay)

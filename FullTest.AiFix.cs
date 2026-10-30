@@ -415,6 +415,30 @@ public partial class App
             bool onStars = new[] { "Star", "Star2" }.All(n => App.AiEvalKit.Rules(ed.TestFindObject(n)).Any(r => Is(r, "when", "touch") && Is(r, "name", "Player") && Is(r, "do", "destroy")));
             return onStars && mine.Count == 1 && Is(mine[0], "do", "setvar");
         });
+        t.Test("ai fix (3b): 4 'Wall's are 4 walls, 'stop spinning', a copied default keeps the double jump, a Chase switched by rules exists, Star2 destroys itself, the patrol a level asks", () =>
+        {
+            var ed = NewEditor(s => { var l = s.Layers.First(x => x.Kind == LayerKind.Base); l.Objects.Add(new GameObjectData { Id = 95, Name = "Enemy", X = 600, Y = 300, Width = 40, Height = 40 }); l.Objects.Add(new GameObjectData { Id = 96, Name = "Box", X = 300, Y = 100, Width = 40, Height = 40 }); });
+            string W(int x) => $"{{\"name\":\"Wall\",\"x\":{x},\"y\":0,\"width\":32,\"height\":300,\"behaviors\":[{{\"kind\":\"Solid\"}}]}}";
+            ed.TestApplySpec($"{{\"create\":[{W(0)},{W(300)},{W(600)},{W(900)}]}}", "make a top-down room surrounded by walls");
+            bool walls = ed.TestAllObjects().Count(o => o.Name.StartsWith("Wall")) == 4;
+            ed.TestApplySpec("{\"edit\":[{\"name\":\"Box\",\"custom\":[{\"when\":\"always\",\"do\":\"spin\",\"speed\":90}]}]}", "make the Box spin");
+            ed.TestApplySpec("{\"edit\":[{\"name\":\"Box\",\"custom\":[{\"when\":\"always\",\"do\":\"rotate\",\"speed\":90}]}]}", "stop the Box from spinning");
+            var spin = App.AiEvalKit.Rules(ed.TestFindObject("Box"));
+            bool stopped = spin.Count == 1 && Is(spin[0], "speed", "0");
+            ed.TestApplySpec("{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"doubleJump\":1}}]}]}", "give the player a double jump");
+            ed.TestApplySpec("{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":260,\"jump\":640,\"doubleJump\":0,\"wallJump\":0,\"dash\":1}}]}]}", "also let the player dash");
+            var plat = ed.TestFindObject("Player")!.Behaviors.First(b => b.Kind == BehaviorKind.Platformer);
+            bool kept = plat.Num("doubleJump", 0) == 1 && plat.Num("dash", 0) == 1;
+            ed.TestApplySpec("{\"edit\":[{\"name\":\"Enemy\",\"custom\":[{\"when\":\"always\",\"cond\":\"dist(self.cx, self.cy, Player.cx, Player.cy) < 250\",\"do\":\"behavior\",\"kind\":\"Chase\",\"on\":1,\"target\":\"Player\"}]}]}",
+                             "the Enemy chases the player only when the player is closer than 250 pixels; otherwise it stands still");
+            bool chase = ed.TestFindObject("Enemy")!.Behaviors.Any(b => b.Kind == BehaviorKind.Chase);
+            var star2 = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest("[{\"when\":\"touch\",\"name\":\"Player\",\"do\":\"destroy\",\"target\":\"other\"}]", "every time the player touches a Star, the score doubles and that Star disappears", "Star2"));
+            bool self = star2.Count == 1 && !star2[0].ContainsKey("target");
+            var lv = NewEditor();
+            lv.TestApplySpec("{\"level\":{\"platforms\":4,\"coins\":3,\"enemies\":1,\"style\":\"topdown\",\"enemyKind\":\"chase\"}}", "monte uma fase com chão, 4 plataformas, 3 moedas e um inimigo que patrulha");
+            bool patrol = lv.TestAllObjects().Any(o => o.Name.StartsWith("Enemy") && o.Behaviors.Any(b => b.Kind == BehaviorKind.Patrol)) && !lv.TestAllObjects().Any(o => o.Name.StartsWith("Wall"));
+            return walls && stopped && kept && chase && self && patrol;
+        });
         t.Test("safety: a spawner that spawns copies of itself every frame stops at the live-object cap and says why once", () =>
         {
             var pw = PlayWindow.NewScriptSim("[]", out _, extra: (p, s) =>
