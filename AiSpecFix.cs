@@ -289,7 +289,7 @@ namespace EasyEngine
         /// "addvar score * 2" for doubling (= setvar), "keypress" for "while I hold", a loop/yoyo copied from the blink hint
         /// onto a one-time change. Takes and returns a rule array as JSON; never throws.
         /// </summary>
-        private static readonly System.Text.RegularExpressions.Regex Vanish = new(@"disappear|vanish|is removed|is destroyed|goes away|is gone|is collected|desaparec|\bsome\b|sumir|somem|se destr|destru[ií]d|eliminad", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex Vanish = new(@"disappear|vanish|is removed|is destroyed|goes away|is gone|is collected|desaparec|\bsome\b(?=\s*(?:[,.!;]|$|\s(?:e|quando|depois|logo|da|do|de)\b))|sumir|somem|se destr|destru[ií]d|eliminad", System.Text.RegularExpressions.RegexOptions.Compiled);
         // which of the two names the request says disappears: the one named last before "disappears" ("other" / "self"), or null
         private static string? WhoVanishes(string p, string touched, string own)
         {
@@ -309,7 +309,7 @@ namespace EasyEngine
                 var p = (request ?? "").ToLowerInvariant();
                 bool hold = System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(hold|holds|holding|held|keep pressing|segur|mantén|mantener|pressionad)");
                 bool repeat = System.Text.RegularExpressions.Regex.IsMatch(p, @"blink|pisca|parpad|pulse|pulsa|loop|repeat|again|forever|back and forth|vai e volta|sempre|siempre|keeps|non-stop");
-                bool stopSpin = System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(stop|stops|no longer|para de|parar de|pare de|parando de|deja de|dejar de|n[aã]o .{0,20}mais)\b.*\b(spin|rotat|gir|turn)");
+                bool stopSpin = !System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(press|key|click|aperta|tecla|clica|pulsa)") && System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(stop|stops|no longer|para de|parar de|pare de|parando de|deja de|dejar de|n[aã]o .{0,20}mais)\b.*\b(spin|rotat|gir)");
                 foreach (var r in rules.OfType<JsonObject>())
                 {
                     var when = Str(r["when"]); var act = Str(r["do"]);
@@ -333,7 +333,7 @@ namespace EasyEngine
                     if (when == "ifvar" && act is "say" or "playsound" or "emit" or "spawn" or "shoot" or "additem" or "removeitem" or "addvar" or "addlocal"
                         or "log" or "toggle" or "listadd" or "addtext" or "tween") r["when"] = "becomes";
                     if (!repeat && act == "tween") { r.Remove("loop"); r.Remove("yoyo"); }
-                    if (stopSpin && act == "rotate") r["speed"] = 0; // "stop the Box from spinning" answered with the spin again
+                    if (stopSpin && act == "rotate" && when is "always" or "start" or "") r["speed"] = 0; // "stop the Box from spinning" answered with the spin again
                 }
                 // "… I pay 10 coins and get a Sword": the item without the payment — the rule that takes the coins is added
                 if (System.Text.RegularExpressions.Regex.Match(p, @"\b(?:pay|pays|paying|spend|spends|spending|costs?|pago|pague|pagar|paga|pagando|gasto|gasta|gastar|custa|cuesta|pagas)\s+(\d+)\s+(\w+)") is { Success: true } pay)
@@ -345,8 +345,9 @@ namespace EasyEngine
                         if (Str(r["do"]) is not ("additem" or "setvar" or "addvar") || Str(r["when"]).Length == 0) continue;
                         // the variable paid with: the one the rule's condition checks against the cost, else the word itself
                         var cm = System.Text.RegularExpressions.Regex.Match(Str(r["cond"]), @"(\w+)\s*>=?\s*" + pay.Groups[1].Value + @"\b");
-                        var v = cm.Success ? cm.Groups[1].Value : word;
-                        if (Str(r["var"]).Equals(v, StringComparison.OrdinalIgnoreCase)) continue; // this rule is the payment
+                        var v = cm.Success ? cm.Groups[1].Value : word is "and" or "e" or "y" or "to" or "for" or "para" or "por" or "then" or "and" ? "" : word; // "pay 10 and get…": no currency named
+                        if (v.Length == 0 || Str(r["var"]).Equals(v, StringComparison.OrdinalIgnoreCase)) continue; // this rule is the payment
+                        if (!cm.Success && Str(r["cond"]).Length == 0) r["cond"] = $"{v} >= {pay.Groups[1].Value}"; // never paid with coins they don't have
                         if (rules.OfType<JsonObject>().Any(o => Str(o["do"]) is "addvar" or "setvar" && Str(o["var"]).Equals(v, StringComparison.OrdinalIgnoreCase))) break;
                         var take = new JsonObject();
                         foreach (var k in new[] { "when", "key", "name", "radius", "cond", "block" }) if (r[k] is JsonNode n) take[k] = n.DeepClone();

@@ -2014,12 +2014,15 @@ namespace EasyEngine
                 int end = ri;
                 while (end + 1 < en.Custom.Count && en.Custom[end + 1].Group == r.Group) end++;
                 bool fired = false;
+                object? touched = null; // what the WHEN that fired touched: "destroy other" in any DO row means that one
                 for (int k = ri; k <= end; k++)
-                    if (InstantWhen(en.Custom[k].When) ? en.Fired[k] : RuleFires(en, en.Custom[k], dt)) fired = true;
+                    if (InstantWhen(en.Custom[k].When) ? en.Fired[k] : RuleFires(en, en.Custom[k], dt))
+                    { fired = true; if (en.Custom[k].When == "touch") touched ??= en.Custom[k].Touched; }
                 if (fired)
                     for (int k = ri; k <= end; k++)
                     {
                         if (en.Dead && !deadBefore) break;
+                        if (touched != null) en.Custom[k].Touched = touched;
                         if (en.Custom[k].Do.Length > 0) DoCustom(en, en.Custom[k], dt);
                     }
                 ri = end;

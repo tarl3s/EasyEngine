@@ -28,6 +28,7 @@ namespace EasyEngine
         private bool MarqueeMove(Point p)
         {
             if (_marqueeStart is not Point s) return false;
+            if (Mouse.LeftButton != MouseButtonState.Pressed) { EndMarquee(p); return true; } // the button went up elsewhere (Alt-Tab, a popup)
             if (_marquee == null)
             {
                 if (Math.Abs(p.X - s.X) < 4 && Math.Abs(p.Y - s.Y) < 4) return true; // a click, not a drag (yet)

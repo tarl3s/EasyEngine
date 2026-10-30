@@ -439,6 +439,18 @@ public partial class App
             bool patrol = lv.TestAllObjects().Any(o => o.Name.StartsWith("Enemy") && o.Behaviors.Any(b => b.Kind == BehaviorKind.Patrol)) && !lv.TestAllObjects().Any(o => o.Name.StartsWith("Wall"));
             return walls && stopped && kept && chase && self && patrol;
         });
+        t.Test("review fixes: a block's 2nd touch WHEN destroys what it touched; 'press S to stop spinning' keeps the spin; 'pay 10 and' names no coin; English 'some' isn't 'disappears'", () =>
+        {
+            var pw = PlayWindow.NewScriptSim("[{\"when\":\"touch\",\"name\":\"Star\",\"do\":\"destroy\",\"target\":\"other\",\"block\":1},{\"when\":\"touch\",\"name\":\"Coin\",\"block\":1}]", out _, extra: (p, s) =>
+                s.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(new GameObjectData { Id = 7, Name = "Coin", Type = "Coin", X = 600, Y = 200, Width = 24, Height = 24 }));
+            t.Sims.Add(pw);
+            pw.TSteps(3); pw.TPlace("Coin", 210, 210); pw.TSteps(10);
+            bool block = pw.TDead("Coin") && !pw.TDead("A");
+            var spin = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest("[{\"when\":\"start\",\"do\":\"rotate\",\"speed\":90},{\"when\":\"keypress\",\"key\":\"S\",\"do\":\"rotate\",\"speed\":0}]", "the Box spins all the time; press S to stop it spinning", "Box"));
+            var pay = AiSpecFix.ForRequest("[{\"when\":\"keynear\",\"key\":\"E\",\"name\":\"Player\",\"do\":\"additem\",\"item\":\"Sword\"}]", "press E near the Shop, I pay 10 and get a Sword", "Shop");
+            var some = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest("[{\"when\":\"touch\",\"name\":\"Star\",\"do\":\"destroy\",\"target\":\"other\"}]", "when the Player touches some Star, the Star disappears", "Player"));
+            return block && Is(spin[0], "speed", "90") && !pay.Contains("\"and\"") && Is(some[0], "target", "other");
+        });
         t.Test("safety: a spawner that spawns copies of itself every frame stops at the live-object cap and says why once", () =>
         {
             var pw = PlayWindow.NewScriptSim("[]", out _, extra: (p, s) =>

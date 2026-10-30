@@ -222,13 +222,13 @@ namespace EasyEngine
             return spec.TryGetProperty("behaviors", out var bs) && bs.ValueKind == JsonValueKind.Array && bs.EnumerateArray().Any(b =>
                 b.ValueKind == JsonValueKind.Object && b.TryGetProperty("kind", out var k) && ResolveKind(k.GetString()) is BehaviorKind.Solid or BehaviorKind.Collectible or BehaviorKind.Patrol or BehaviorKind.GoToScene);
         }
-        /// <summary>A label "Score: {var}" at the top left of the screen (the UI layer, else the first free layer), unless one
+        /// <summary>A label "Score: {var}" at the top left of the screen (the UI layer, made when there is none), unless one
         /// already shows that variable. Returns it, or null.</summary>
         private GameObjectData? AddScoreLabel(string var)
         {
             if (_scene.Layers.SelectMany(l => l.Objects).Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Label && b.Texts.Values.Any(v => v.Contains("{" + var + "}") || v == var)))) return null;
-            var ui = _scene.Layers.FirstOrDefault(l => (l.Kind == LayerKind.UI || l.ScreenSpace) && !l.Locked) ?? _scene.Layers.FirstOrDefault(l => !l.Locked);
-            if (ui == null) return null;
+            var ui = _scene.Layers.FirstOrDefault(l => (l.Kind == LayerKind.UI || l.ScreenSpace) && l.Kind != LayerKind.Sky && !l.Locked);
+            if (ui == null) _scene.Layers.Add(ui = new Layer { Name = "UI", Kind = LayerKind.UI, ScreenSpace = true }); // fixed to the screen, never scrolling away
             var lbl = new GameObjectData { Id = _project.NextId, Name = UniqueName("ScoreText"), Type = "Label", X = 20, Y = 16, Width = 220, Height = 32, Color = "#00000000" };
             var lb = BehaviorCatalog.Info(BehaviorKind.Label).CreateData(); lb.Texts["text"] = (var == "score" ? "Score" : var) + ": {" + var + "}"; lb.Texts["align"] = "left";
             lbl.Behaviors.Add(lb); ui.Objects.Add(lbl); _aiSpecObjects.Add(lbl.Name);

@@ -162,8 +162,9 @@ namespace EasyEngine
             {
                 foreach (var list in b.Attacks.Select(a => a.Steps).Concat(b.Phases.Select(p => p.Enter)).Append(b.Death))
                     changed |= list.RemoveAll(s => s.Do == "say") > 0;
-                b.Attacks.RemoveAll(a => a.Steps.Count == 0); // an attack that was only a line
-                foreach (var ph in b.Phases) ph.Attacks.RemoveAll(n => b.Attack(n) == null);
+                if (b.Attacks.RemoveAll(a => a.Steps.Count == 0) > 0 && b.Attacks.Count == 0) return json; // it only talked: better that than a boss that does nothing
+                foreach (var ph in b.Phases)
+                    if (ph.Attacks.RemoveAll(n => b.Attack(n) == null) > 0 && ph.Attacks.Count == 0) ph.Attacks = b.Attacks.Select(a => a.Name).ToList(); // never a phase standing idle
             }
             // "it jumps …, then shoots a ring": attacks asked for together, with no phases asked for, all fight from the start
             if (b.Attacks.Count > 1 && b.Phases.Count > 0 && !System.Text.RegularExpressions.Regex.IsMatch(request ?? "", @"phase|fase|health|vida|\bhp\b|life|%|half|metade|mitad|angry|furioso|enraged|low on|below|abaixo", System.Text.RegularExpressions.RegexOptions.IgnoreCase)

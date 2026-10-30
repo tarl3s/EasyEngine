@@ -631,7 +631,7 @@ namespace EasyEngine
                 var placed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (hasCreate && !AsksToSpawn(userPrompt))
                     foreach (var s in cr.EnumerateArray())
-                        if (s.ValueKind == JsonValueKind.Object && s.TryGetProperty("asPrefab", out var pa) && pa.ValueKind == JsonValueKind.True && s.TryGetProperty("name", out var pn) && pn.GetString() is string pname) placed.Add(pname);
+                        if (s.ValueKind == JsonValueKind.Object && s.TryGetProperty("asPrefab", out var pa) && pa.ValueKind == JsonValueKind.True && s.TryGetProperty("name", out var pn) && pn.GetString() is string pname && !Thrown(pname)) placed.Add(pname);
 
                 var madeNow = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // "Wall" listed 4 times in one create is 4 walls
                 if (hasCreate)
@@ -644,7 +644,7 @@ namespace EasyEngine
                         bool asPrefab = spec.TryGetProperty("asPrefab", out var apf) && apf.ValueKind == JsonValueKind.True;
                         // "create an enemy called Slime": a copied "spawn a slime" example makes it a prefab and adds a spawner —
                         // nobody asked for things to appear later, so it goes in the scene and the spawner is left out
-                        bool placeIt = asPrefab && !AsksToSpawn(userPrompt);
+                        bool placeIt = asPrefab && !AsksToSpawn(userPrompt) && !Thrown(name ?? "");
                         if (placeIt) asPrefab = false;
                         if (IsOnlySpawner(spec) is string spawns && placed.Contains(spawns)) continue;
 
@@ -795,6 +795,8 @@ namespace EasyEngine
         private static readonly System.Text.RegularExpressions.Regex SpawnWords = new(
             @"spawn|appear|keeps? coming|\bdrops?\b|\bfalls?\b|falling|\brain|\bwaves?\b|\blater\b|prefab|template|aparec|surg|\bcaem\b|\bcair\b|chuva|\bondas?\b|aparezc|genera|gera\b|nasce",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        // a bullet, rock or bomb made as a prefab is what something shoots or drops — never a thing placed in the level
+        private static bool Thrown(string name) => System.Text.RegularExpressions.Regex.IsMatch(name, @"bullet|rock|bomb|arrow|ball|projectile|missile|laser|shot|bala|pedra|bomba|flecha|tiro|proj[eé]til", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         /// <summary>The request wants things to appear during play (a spawner, a prefab, "every 3 seconds"…).</summary>
         internal static bool AsksToSpawn(string prompt) => SpawnWords.IsMatch(prompt ?? "");
 
@@ -809,7 +811,7 @@ namespace EasyEngine
 
         // "touching a Star doubles the score": small models write a plain Collectible (it ADDS points). A Collectible this
         // reply made or edited, in a request about doubling, becomes the rules that double it and remove the thing.
-        private static readonly System.Text.RegularExpressions.Regex DoubleWords = new(@"\bdoubl|\bdobra|\bduplic|\btwice\b|times 2\b|\bx ?2\b",
+        private static readonly System.Text.RegularExpressions.Regex DoubleWords = new(@"\bdoubl(?!e[ -]?jump)|\bdobra|\bduplic|\btwice\b|times 2\b|\bx ?2\b",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
         private void DoubleIfAsked(string userPrompt, Action ensureUndo, List<string> changes)
         {
@@ -842,7 +844,7 @@ namespace EasyEngine
 
         // "an enemy that shoots at the player every 2 seconds": the new enemy without a way to shoot gets a Shooter that
         // fires by itself at the player (small models copy a spawner example instead)
-        private static readonly System.Text.RegularExpressions.Regex ShootWords = new(@"\bshoots?\b|\bfires?\b|\batira\b|\batirar\b|\bdispara\b|\bdispare\b|\bdisparar\b|\bdispara\b",
+        private static readonly System.Text.RegularExpressions.Regex ShootWords = new(@"\bshoots?\b|\bfires\b(?! (?:pit|place|wall))|\bfires? (?:at|toward|bullets|arrows|balls|lasers|projectiles)\b|\batira\b|\batirar\b|\bdispara\b|\bdispare\b|\bdisparar\b|\bdispara\b",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
         private void ShooterIfAsked(string userPrompt, Action ensureUndo, List<string> changes)
         {
