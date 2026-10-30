@@ -26,7 +26,7 @@ namespace EasyEngine
             "- PREFABS panel: click a prefab to add it to the active layer; \"＋ Empty Object\"; \"Save selection as prefab\" turns a finished object into a reusable prefab.\n" +
             "- Inspector tab (right side), for the selected object: Name, Group, Duplicate / Delete / Save as Prefab; TRANSFORM (X, Y, Width, Height, Rotation); APPEARANCE (Color, \"🎞 Edit Animations…\", Static image, Opacity…; a Tilemap object shows only Opacity — each tile's colour, picture or animation is set in its card); PHYSICS (Mode None / Static / Dynamic, Gravity ×, Bounciness, the \"Hitbox: fit to the drawing\" checkbox — collide with the picture's visible pixels instead of the whole box, shown as a dashed outline in the scene — and \"✂ Trim box to drawing\", which shrinks the object's box to its drawing once); BEHAVIORS: one card per behavior with fields you pick from lists, and the \"＋ Add behavior…\" dropdown below them. Each card has \"?\" (explains it here) and Remove.\n" +
             "- Click an empty spot of the scene to edit the scene itself: Width, Height, Background colour, Ambient light.\n" +
-            "- ✨ Custom (AI script) behavior: \"🧩 Build with blocks (easy)\" opens a Scratch-like block editor (When… blocks + what to do).\n" +
+            "- ✨ Custom (AI script) behavior: \"🧩 Build with blocks (easy)\" opens the block editor (Scratch-like): each block is one rule — WHEN something happens (a key is pressed, it touches something, every few seconds…) → DO something (move, add to a variable, play a sound, spawn…). It is for making an object do things no ready-made behavior does.\n" +
             "- While playing (▶ Test): F1 opens the debug console (what happened, errors, variables).\n" +
             "- AI tab modes: 🔨 Build = the AI edits the scene for you; 💡 Brainstorm = chat about ideas; 🎓 Learn = explanations like this one (nothing is changed).";
 
@@ -57,6 +57,7 @@ namespace EasyEngine
             (new[] { "alavanca", "interruptor", "lever", "switch" }, new[] { BehaviorKind.Switch }),
             (new[] { "npc", "dialogo", "conversar", "falar", "placa", "bau", "sign", "chest" }, new[] { BehaviorKind.Interact }),
             (new[] { "zona", "gatilho", "zone", "trigger" }, new[] { BehaviorKind.Area }),
+            (new[] { "aparecer", "aparecerem", "aparece", "surgir", "surgirem", "nascer", "spawn", "spawnar", "spawner", "gerar inimigos", "criar inimigos", "inimigos aparecerem", "appear", "keep coming", "waves", "ondas", "aparezcan" }, new[] { BehaviorKind.Spawner }),
             (new[] { "bloco", "blocos", "scratch", "script", "codigo", "blocks", "block editor", "code", "rule", "regra",
                      "fade", "fade away", "fade out", "sumir", "desaparecer", "piscar", "blink", "timer", "segundos", "seconds", "after",
                      "depois de", "every", "a cada", "glide", "deslizar", "crescer", "grow", "hide", "esconder", "invisible", "invisivel", "recipe", "receita" }, new[] { BehaviorKind.Custom }),

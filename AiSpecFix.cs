@@ -289,6 +289,7 @@ namespace EasyEngine
         /// "addvar score * 2" for doubling (= setvar), "keypress" for "while I hold", a loop/yoyo copied from the blink hint
         /// onto a one-time change. Takes and returns a rule array as JSON; never throws.
         /// </summary>
+        private static readonly System.Text.RegularExpressions.Regex Vanish = new(@"disappear|vanish|is removed|is destroyed|goes away|is gone|is collected|desaparec|\bsome\b|sumir|somem|se destr|destru[ií]d|eliminad", System.Text.RegularExpressions.RegexOptions.Compiled);
         public static string ForRequest(string rulesJson, string request, string ownName)
         {
             try
@@ -301,6 +302,9 @@ namespace EasyEngine
                 {
                     var when = Str(r["when"]); var act = Str(r["do"]);
                     if (when is "touch" or "keynear" && ownName.Length > 0 && Str(r["name"]).Equals(ownName, StringComparison.OrdinalIgnoreCase)) r["name"] = "Player";
+                    // "the player touches a Star and that Star disappears", written on the Player: it is the Star that goes, not the Player
+                    if (when == "touch" && act == "destroy" && r["target"] == null && Str(r["name"]) is { Length: > 0 } touched && ownName.Length > 0
+                        && !touched.Equals(ownName, StringComparison.OrdinalIgnoreCase) && p.Contains(touched.ToLowerInvariant()) && Vanish.IsMatch(p)) r["target"] = "other";
                     if (act is "addvar" or "addlocal" && r["amount"] == null && Str(r["expr"] ?? r["to"]) is { Length: > 0 } f
                         && System.Text.RegularExpressions.Regex.IsMatch(f, $@"\b{System.Text.RegularExpressions.Regex.Escape(Str(r["var"]))}\b"))
                     { r["do"] = act == "addvar" ? "setvar" : "setlocal"; if (r["to"] == null) { r["to"] = f; r.Remove("expr"); } }

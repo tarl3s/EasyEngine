@@ -24,7 +24,43 @@ namespace EasyEngine
                 bool listOfObjects = first.Length > 0 && first[0] is '{' or ']' or '"'; // not "[Updated] {…}"
                 if (sa >= 0 && sb > sa && (a < 0 || sa < a) && listOfObjects) return reply.Substring(sa, sb - sa + 1);
             }
-            return a >= 0 && b > a ? reply.Substring(a, b - a + 1) : null;
+            if (a < 0) return null;
+            if (b <= a) return Balanced(reply, a) is string cut && Parses(cut) ? cut : null; // cut off before its first "}"
+            var whole = reply.Substring(a, b - a + 1);
+            if (Parses(whole)) return whole;
+            // not JSON as it stands: the first object alone (a reply with a stray "}" or a second object after it),
+            // or the object with the brackets it forgot to close
+            return Balanced(reply, a) is string one && Parses(one) ? one : whole;
+        }
+
+        private static bool Parses(string s)
+        {
+            try { using var d = JsonDocument.Parse(s, Options); return true; }
+            catch (System.Exception) { return false; }
+        }
+
+        // from reply[start] ('{'): up to where its brackets close; brackets still open at the end are closed
+        private static string? Balanced(string reply, int start)
+        {
+            var open = new System.Collections.Generic.Stack<char>();
+            bool str = false, esc = false;
+            for (int i = start; i < reply.Length; i++)
+            {
+                char c = reply[i];
+                if (str) { if (esc) esc = false; else if (c == '\\') esc = true; else if (c == '"') str = false; continue; }
+                if (c == '"') str = true;
+                else if (c is '{' or '[') open.Push(c == '{' ? '}' : ']');
+                else if (c is '}' or ']')
+                {
+                    if (open.Count == 0 || open.Peek() != c) return null;
+                    open.Pop();
+                    if (open.Count == 0) return reply.Substring(start, i - start + 1);
+                }
+            }
+            if (str || open.Count == 0) return null;
+            var sb = new System.Text.StringBuilder(reply.Substring(start).TrimEnd().TrimEnd(','));
+            while (open.Count > 0) sb.Append(open.Pop());
+            return sb.ToString();
         }
 
         /// <summary>A number, or a numeric string ("260") — small models often quote numbers. A "40%" string is

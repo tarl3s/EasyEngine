@@ -128,17 +128,7 @@ namespace EasyEngine
                 if (door.Length > 0) { var d = Add("Door", W - 120, top - 96, 56, 96, "#8B5A2B", PhysicsMode.None, BehaviorKind.GoToScene); Beh(d, BehaviorKind.GoToScene).Texts["scene"] = door; }
             }
 
-            // coins count somewhere you can see
-            if (coins > 0 && !_scene.Layers.SelectMany(l => l.Objects).Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Label && b.Text("text", "").Contains("{score}"))))
-            {
-                var ui = _scene.Layers.FirstOrDefault(l => (l.Kind == LayerKind.UI || l.ScreenSpace) && !l.Locked);
-                if (ui != null)
-                {
-                    var lbl = new GameObjectData { Id = _project.NextId, Name = UniqueName("ScoreText"), Type = "Label", X = 20, Y = 16, Width = 220, Height = 32, Color = "#00000000" };
-                    var lb = BehaviorCatalog.Info(BehaviorKind.Label).CreateData(); lb.Texts["text"] = "Score: {score}"; lb.Texts["align"] = "left";
-                    lbl.Behaviors.Add(lb); ui.Objects.Add(lbl); _aiSpecObjects.Add(lbl.Name);
-                }
-            }
+            if (coins > 0) AddScoreLabel("score"); // coins count somewhere you can see
 
             var parts = new List<string>(made);
             if (platforms > 0) parts.Add(L.F("{0} platforms", platforms));
@@ -228,5 +218,35 @@ namespace EasyEngine
             return spec.TryGetProperty("behaviors", out var bs) && bs.ValueKind == JsonValueKind.Array && bs.EnumerateArray().Any(b =>
                 b.ValueKind == JsonValueKind.Object && b.TryGetProperty("kind", out var k) && ResolveKind(k.GetString()) is BehaviorKind.Solid or BehaviorKind.Collectible or BehaviorKind.Patrol or BehaviorKind.GoToScene);
         }
+        /// <summary>A label "Score: {var}" at the top left of the screen (the UI layer, else the first free layer), unless one
+        /// already shows that variable. Returns it, or null.</summary>
+        private GameObjectData? AddScoreLabel(string var)
+        {
+            if (_scene.Layers.SelectMany(l => l.Objects).Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Label && b.Texts.Values.Any(v => v.Contains("{" + var + "}") || v == var)))) return null;
+            var ui = _scene.Layers.FirstOrDefault(l => (l.Kind == LayerKind.UI || l.ScreenSpace) && !l.Locked) ?? _scene.Layers.FirstOrDefault(l => !l.Locked);
+            if (ui == null) return null;
+            var lbl = new GameObjectData { Id = _project.NextId, Name = UniqueName("ScoreText"), Type = "Label", X = 20, Y = 16, Width = 220, Height = 32, Color = "#00000000" };
+            var lb = BehaviorCatalog.Info(BehaviorKind.Label).CreateData(); lb.Texts["text"] = (var == "score" ? "Score" : var) + ": {" + var + "}"; lb.Texts["align"] = "left";
+            lbl.Behaviors.Add(lb); ui.Objects.Add(lbl); _aiSpecObjects.Add(lbl.Name);
+            return lbl;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex ShowWords = new(@"\b(show|shows|display|displays|see|on screen|hud)\b|mostr|exib|na tela|en pantalla|muestr|placar|marcador",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex ScoreWords = new(@"\b(score|points|pontos|pontua|placar|puntos|puntuaci|marcador)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        // "… and show the score": small models make the coins but forget the label — the variable they count goes on screen
+        private void ShowScoreIfAsked(string userPrompt, Action ensureUndo, List<string> changes)
+        {
+            if (!ShowWords.IsMatch(userPrompt) || !ScoreWords.IsMatch(userPrompt)) return;
+            var objs = _scene.Layers.SelectMany(l => l.Objects).ToList();
+            var var = objs.SelectMany(o => o.Behaviors).Where(b => b.Kind == BehaviorKind.Collectible).Select(b => b.Text("var", "")).FirstOrDefault(v => v.Length > 0)
+                      ?? (_project.Variables.ContainsKey("score") || objs.Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Collectible)) ? "score" : null);
+            if (var == null) return;
+            ensureUndo();
+            if (AddScoreLabel(var) is GameObjectData lbl) changes.Add(CreatedLine(lbl));
+        }
+
     }
 }

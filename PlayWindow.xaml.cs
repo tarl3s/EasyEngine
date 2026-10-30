@@ -175,6 +175,7 @@ namespace EasyEngine
             public RuleBag<double> WN = new(true);
             public RuleBag<string> WT = new(true);
             public double Timer; public bool Started; public bool WasTouching;
+            private Entity? _touched; internal object? Touched { get => _touched; set => _touched = value as Entity; }              // touch: what it touched last ("destroy" target "other")
             public bool Reverse;                 // a reversed "play a sound": it stops that sound (PlayWindow.RuleReverse.cs)
             public int Group;                    // "block": consecutive rules with the same non-zero Group are ONE block (any WHEN fires → every DO runs)
             public double Last = double.NaN;     // landed / hurt / interact: what the event saw last frame
@@ -2053,7 +2054,7 @@ namespace EasyEngine
                 case "touch":
                 {
                     var other = r.WStr("name"); bool now = false;
-                    foreach (var x in _entities) if (x != en && (!x.Dead || x.DiedThisStep) && Touching(en, x) && x.Data.Name.Equals(other, StringComparison.OrdinalIgnoreCase)) { now = true; break; }
+                    foreach (var x in _entities) if (x != en && (!x.Dead || x.DiedThisStep) && IsNamed(x.Data.Name, other) && Touching(en, x)) { now = true; r.Touched = x; break; }
                     fire = now && !r.WasTouching; // only on the frame contact STARTS (not every frame)
                     r.WasTouching = now;
                     break;
@@ -2138,12 +2139,16 @@ namespace EasyEngine
                     else SpawnFrom(en, what, at == "top");
                     break;
                 }
-                case "destroy": en.Dead = true; break;
+                case "destroy": // itself; "other" = what its touch touched; or an object by name
+                {
+                    if (RuleTarget(en, r) is Entity tgt) tgt.Dead = true;
+                    break;
+                }
                 case "setactive": SetActiveRule(en, r); break; // an object or a whole layer on/off (PlayWindow.Layers.cs)
                 case "hide": case "show": // Scratch-style: invisible / visible again (this object, or "target")
                 {
                     var who = r.Str("target", "self");
-                    var tgt = who.Equals("self", StringComparison.OrdinalIgnoreCase) ? en : _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
+                    var tgt = who.Equals("self", StringComparison.OrdinalIgnoreCase) ? en : who.Equals("other", StringComparison.OrdinalIgnoreCase) ? RuleTarget(en, r) : _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
                     if (tgt == null) break;
                     if (r.Do == "show") tgt.Visual.Visibility = Visibility.Visible; // also after a cutscene's "hide" step (it collapses it)
                     TweenApply(tgt, "opacity", r.Do == "hide" ? 0 : tgt.Data.Opacity > 0.05 ? tgt.Data.Opacity : 1);
@@ -2384,6 +2389,27 @@ namespace EasyEngine
                 var val = Var(key);
                 return (val == Math.Floor(val)) ? ((long)val).ToString() : val.ToString("0.##");
             });
+        }
+
+        // a rule's "target": itself (self, or none), what its touch touched (other), or an object by name
+        private Entity? RuleTarget(Entity en, CustomRule r)
+        {
+            var who = r.T.TryGetValue("target", out var t0) ? t0 : "self"; // the action's own "target" only (an event's params are not who to act on)
+            if (who.Length == 0 || who.Equals("self", StringComparison.OrdinalIgnoreCase)) return en;
+            if (who.Equals("other", StringComparison.OrdinalIgnoreCase)) return r.Touched is Entity { Dead: false } t ? t : null;
+            return _entities.FirstOrDefault(x => !x.Dead && x.Data.Name.Equals(who, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>A rule naming "Star" means every Star: "Star" itself and its numbered copies ("Star2", "Star_3", "Star 4").</summary>
+        internal static bool IsNamed(string name, string wanted)
+        {
+            if (name.Equals(wanted, StringComparison.OrdinalIgnoreCase)) return true;
+            if (wanted.Length == 0 || name.Length <= wanted.Length || !name.StartsWith(wanted, StringComparison.OrdinalIgnoreCase) || char.IsDigit(wanted[^1])) return false;
+            int i = wanted.Length;
+            if (name[i] is '_' or ' ') i++;
+            if (i >= name.Length) return false;
+            for (; i < name.Length; i++) if (!char.IsDigit(name[i])) return false;
+            return true;
         }
 
         // ---- dialogue ----

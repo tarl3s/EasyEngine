@@ -186,6 +186,7 @@ namespace EasyEngine
                     "val" => "number or expression like score + 1",
                     "choice" => string.Join("|", (f.Options ?? Array.Empty<string>()).Select(o => o.Length == 0 ? "\"\"" : o)),
                     "obj" => "object name or self",
+                    "who" => "leave out = itself, other = what its touch touched, or an object name",
                     "aim" => "object name, or leave out",
                     "layer" => "layer name, or leave out",
                     "key" => "key",

@@ -441,7 +441,7 @@ namespace EasyEngine
                 cb.SelectionChanged += (s, e) => rule[f.Key] = (cb.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
                 ctrl = cb;
             }
-            else if (f.Type is "obj" or "aim" or "scene" or "layer" or "key" or "sound" or "anim")
+            else if (f.Type is "obj" or "who" or "aim" or "scene" or "layer" or "key" or "sound" or "anim")
             {
                 // names, keys and files are the person's own (shown as they are); a value that isn't in the list is kept,
                 // an empty one shows "(none)" (and is saved as left out) until one is picked
@@ -505,6 +505,7 @@ namespace EasyEngine
             "sound" => Names(ParamSources.Sounds(_project)).ToList(), // the relative paths the game plays
             "anim" => new[] { ("", L.T("(none)")) }.Concat(Names(_obj?.Animations.Select(a => a.Name).Distinct() ?? Enumerable.Empty<string>())).ToList(), // this object's own animations
             "aim" => new[] { ("", L.T("(none)")) }.Concat(ParamSources.ObjectOrPrefabOptions(_scene, _project)).ToList(),
+            "who" => new[] { ("", L.T("self")), ("other", L.T("what it touched")) }.Concat(ParamSources.ObjectOrPrefabOptions(_scene, _project)).ToList(), // destroy: itself (saved as nothing), the touched one, or a name
             _ => new[] { ("self", L.T("self")) }.Concat(ParamSources.ObjectOrPrefabOptions(_scene, _project)).ToList(), // obj
         };
 

@@ -111,7 +111,7 @@ namespace EasyEngine
                 L.T("Fires projectiles. 1 direction = straight ahead, or straight at the object it aims at; more = spread all around.")),
             new("spawn",     L.T("Spawn an object"), new[] { new Field("object", L.T("Object"), "obj") { Absent = "Enemy" }, new Field("at", L.T("From"), "choice", "", new[] { "", "top", "near" }) },
                 L.T("From (empty) = at this object · top = falling from the top of the screen · near = on the ground, a little to the left or right.")),
-            new("destroy",   L.T("Destroy itself"), Array.Empty<Field>()),
+            new("destroy",   L.T("Destroy"), new[] { new Field("target", L.T("Object (or self)"), "who", "") }, L.T("Removes it from the game: this object (self), the one its touch touched (other), or an object by name.")),
             new("hide",      L.T("Hide"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self") }, L.T("Makes it invisible — it is still there and still touches things. \"Show\" brings it back.")),
             new("show",      L.T("Show"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self") }, L.T("Makes a hidden object visible again.")),
             new("setactive", L.T("Turn on or off in the game"), new[] { new Field("target", L.T("Object (or self)"), "obj", "self"), new Field("layer", L.T("Or a whole layer"), "layer"), new Field("on", L.T("Turn"), "choice", "on", OnOff) },

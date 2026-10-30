@@ -342,6 +342,16 @@ public partial class App
                    && Is(r[1], "do", "additem") && Is(r[1], "item", "Sword") && Is(r[3], "when", "touch") && Is(r[3], "name", "Player") && Is(r[3], "do", "destroy")
                    && sp?.Text("cond", "") == "isNight >= 1" && !sp.Nums.ContainsKey("cond");
         });
+        t.Test("ai fix (local models): a stray '}' or missing closers still read; 'that Star disappears' destroys the Star; Star means Star2 too; an unasked boss line is dropped", () =>
+        {
+            bool extra = LooseJson.Extract("{\"a\":{\"b\":1}}}") == "{\"a\":{\"b\":1}}" && LooseJson.Extract("ok {\"a\":[1,2") == "{\"a\":[1,2]}";
+            var other = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest("[{\"when\":\"touch\",\"name\":\"Star\",\"do\":\"destroy\"},{\"when\":\"touch\",\"name\":\"Lava\",\"do\":\"destroy\"}]",
+                "every time the player touches a Star, that Star disappears", "Player"));
+            bool names = PlayWindow.IsNamed("Star2", "Star") && PlayWindow.IsNamed("star_3", "Star") && !PlayWindow.IsNamed("Starfish", "Star") && !PlayWindow.IsNamed("Star", "Star2");
+            var boss = SequenceAi.ForRequest(SeqMode.Boss, "{\"attacks\":{\"Hit\":[{\"do\":\"dash\"}]},\"phases\":[],\"death\":[{\"do\":\"shake\"},{\"do\":\"say\",\"text\":\"No!\"}]}", "when it dies the screen shakes");
+            var talking = SequenceAi.ForRequest(SeqMode.Boss, "{\"attacks\":{\"Hit\":[{\"do\":\"dash\"}]},\"phases\":[],\"death\":[{\"do\":\"say\",\"text\":\"No!\"}]}", "when it dies it says No!");
+            return extra && Is(other[0], "target", "other") && !other[1].ContainsKey("target") && names && !boss.Contains("\"say\"") && boss.Contains("shake") && talking.Contains("\"say\"");
+        });
         t.Test("ai fix: 'after 5 seconds' isn't 'a second one' (create of an existing name edits it); a Gate asked with a key gets one", () =>
         {
             var ed = NewEditor(s => s.Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(new GameObjectData { Id = 92, Name = "Box", X = 400, Y = 200, Width = 64, Height = 64 }));

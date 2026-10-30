@@ -508,7 +508,7 @@ namespace EasyEngine
             if (acts.Count > 0) { ensureUndo(); foreach (var a in acts) a(); changes.Add(L.F("Layers — {0}", string.Join("; ", lch))); }
         }
 
-        private GameObjectData? BuildObjectFromSpec(JsonElement spec, string userPrompt, string? nameOverride = null)
+        private GameObjectData? BuildObjectFromSpec(JsonElement spec, string userPrompt, string? nameOverride = null, bool placeIt = false)
         {
             var obj = new GameObjectData { Color = "#9A9AA0", Width = 48, Height = 48 };
             obj.Name = nameOverride ?? (spec.TryGetProperty("name", out var nm) ? (nm.GetString() ?? "Object") : "Object");
@@ -517,7 +517,7 @@ namespace EasyEngine
             ApplyBehaviorsToObject(obj, spec, userPrompt);
 
             // "asPrefab": a thing to spawn later (doesn't appear in the scene until spawned)
-            if (spec.TryGetProperty("asPrefab", out var ap) && ap.ValueKind == JsonValueKind.True)
+            if (!placeIt && spec.TryGetProperty("asPrefab", out var ap) && ap.ValueKind == JsonValueKind.True)
             {
                 obj.Id = 0; obj.X = 0; obj.Y = 0;
                 _project.Prefabs.RemoveAll(p => p.Name.Equals(obj.Name, StringComparison.OrdinalIgnoreCase));
@@ -602,6 +602,12 @@ namespace EasyEngine
                 if (!root.TryGetProperty("level", out _) && LevelFromPrompt(userPrompt, _project.Scenes.Select(s => s.Name)) is { } want && !ReplyMeetsLevel(root, want))
                     promptLevel = want;
 
+                // prefabs this reply makes that nobody asked to appear later: placed in the scene, and their spawners left out
+                var placed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (hasCreate && !AsksToSpawn(userPrompt))
+                    foreach (var s in cr.EnumerateArray())
+                        if (s.ValueKind == JsonValueKind.Object && s.TryGetProperty("asPrefab", out var pa) && pa.ValueKind == JsonValueKind.True && s.TryGetProperty("name", out var pn) && pn.GetString() is string pname) placed.Add(pname);
+
                 if (hasCreate)
                     foreach (var spec in cr.EnumerateArray())
                     {
@@ -610,6 +616,11 @@ namespace EasyEngine
                         var name = spec.TryGetProperty("name", out var cn) ? cn.GetString() : null;
 
                         bool asPrefab = spec.TryGetProperty("asPrefab", out var apf) && apf.ValueKind == JsonValueKind.True;
+                        // "create an enemy called Slime": a copied "spawn a slime" example makes it a prefab and adds a spawner —
+                        // nobody asked for things to appear later, so it goes in the scene and the spawner is left out
+                        bool placeIt = asPrefab && !AsksToSpawn(userPrompt);
+                        if (placeIt) asPrefab = false;
+                        if (IsOnlySpawner(spec) is string spawns && placed.Contains(spawns)) continue;
 
                         // REDIRECT B: "add a dash/melee/health…" (an ability for the player, no new thing named) that the
                         // model wrongly turned into a new object → apply it to the player instead.
@@ -641,7 +652,7 @@ namespace EasyEngine
                         }
                         else
                         {
-                            var obj = BuildObjectFromSpec(spec, userPrompt);
+                            var obj = BuildObjectFromSpec(spec, userPrompt, placeIt: placeIt);
                             if (obj != null) changes.Add(asPrefab ? PrefabLine(obj) : CreatedLine(obj));
                         }
                     }
@@ -705,6 +716,8 @@ namespace EasyEngine
                 if (promptLevel != null) { using var lvDoc = JsonDocument.Parse(JsonSerializer.Serialize(promptLevel)); ApplyLevelSpec(lvDoc.RootElement, EnsureUndo, changes); }
 
                 AddMissingKey(userPrompt, EnsureUndo, changes);
+                ShowScoreIfAsked(userPrompt, EnsureUndo, changes); // MainWindow.AiLevel.cs
+                DoubleIfAsked(userPrompt, EnsureUndo, changes);
 
                 if (changes.Count > 0)
                 {
@@ -750,6 +763,49 @@ namespace EasyEngine
 
         // A locked door (Gate) this reply made, in a request about a key, with nothing in the scene that gives its variable:
         // small models often forget the key. The engine adds one between the player and the door.
+        private static readonly System.Text.RegularExpressions.Regex SpawnWords = new(
+            @"spawn|appear|keeps? coming|\bdrops?\b|\bfalls?\b|falling|\brain|\bwaves?\b|\blater\b|prefab|template|every\s+\d|each\s+\d|every (second|few)|aparec|surg|a cada|cada \d|\bcaem\b|\bcair\b|chuva|\bondas?\b|depois de|after\s+\d|aparezc|genera|gera\b|nasce",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        /// <summary>The request wants things to appear during play (a spawner, a prefab, "every 3 seconds"…).</summary>
+        internal static bool AsksToSpawn(string prompt) => SpawnWords.IsMatch(prompt ?? "");
+
+        // a "create" that is just a Spawner (SlimeSpawner from a copied example): what it spawns, else null
+        private static string? IsOnlySpawner(JsonElement spec)
+        {
+            if (!spec.TryGetProperty("behaviors", out var bs) || bs.ValueKind != JsonValueKind.Array || bs.GetArrayLength() != 1) return null;
+            var b = bs[0];
+            if (b.ValueKind != JsonValueKind.Object || !b.TryGetProperty("kind", out var k) || ResolveKind(k.GetString()) != BehaviorKind.Spawner) return null;
+            return b.TryGetProperty("texts", out var t) && t.ValueKind == JsonValueKind.Object && t.TryGetProperty("target", out var tg) ? tg.GetString() : null;
+        }
+
+        // "touching a Star doubles the score": small models write a plain Collectible (it ADDS points). A Collectible this
+        // reply made or edited, in a request about doubling, becomes the rules that double it and remove the thing.
+        private static readonly System.Text.RegularExpressions.Regex DoubleWords = new(@"\bdoubl|\bdobra|\bduplic|\btwice\b|times 2\b|\bx ?2\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+        private void DoubleIfAsked(string userPrompt, Action ensureUndo, List<string> changes)
+        {
+            if (!DoubleWords.IsMatch(userPrompt) || _aiSpecObjects.Count == 0) return;
+            var player = FindPlayer()?.Name ?? "Player";
+            var made = _aiSpecObjects.ToList();
+            foreach (var o in _scene.Layers.SelectMany(l => l.Objects).Where(o => !IsLockedObj(o) && made.Any(n => PlayWindow.IsNamed(o.Name, n))).ToList())
+            {
+                if (o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Collectible) is not BehaviorData col) continue;
+                var v = col.Text("var", ""); if (v.Length == 0) v = "score";
+                var who = col.Text("collector", ""); if (who.Length == 0) who = player;
+                ensureUndo();
+                o.Behaviors.Remove(col);
+                var custom = o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
+                if (custom == null) o.Behaviors.Add(custom = new BehaviorData { Kind = BehaviorKind.Custom });
+                using var rules = JsonDocument.Parse(JsonSerializer.Serialize(new object[]
+                {
+                    new { when = "touch", name = who, @do = "setvar", var = v, to = v + " * 2" },
+                    new { when = "touch", name = who, @do = "destroy" },
+                }));
+                custom.Texts["script"] = MergeRules(custom.Text("script", "[]"), rules.RootElement);
+                changes.Add(EditedLine(o));
+            }
+        }
+
         private void AddMissingKey(string userPrompt, Action ensureUndo, List<string> changes)
         {
             if (!System.Text.RegularExpressions.Regex.IsMatch(userPrompt.ToLowerInvariant(), @"\b(key|chave|llave)\b")) return;

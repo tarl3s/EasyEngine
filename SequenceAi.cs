@@ -147,17 +147,31 @@ namespace EasyEngine
             return error == null ? SequenceJson.Serialize(b) : null;
         }
 
-        /// <summary>"when it dies … the variable doorOpen becomes 1": a death sequence that forgot the variable gets it.</summary>
+        /// <summary>What a boss request says that small models leave out or add: "when it dies … the variable doorOpen
+        /// becomes 1" gets its setvar; a line of dialogue nobody asked for is dropped (it waits for Enter and stops the fight
+        /// — or the death sequence — until someone presses it).</summary>
         internal static string ForRequest(SeqMode mode, string json, string request)
         {
             if (mode != SeqMode.Boss) return json;
-            var m = System.Text.RegularExpressions.Regex.Match(request ?? "", @"variab\w*\s+(\w+)\s+(?:becomes|is set to|goes to|turns|=|vira|fica|passa a ser|se vuelve)\s*(?:to\s+)?(-?\d+(?:\.\d+)?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            if (!m.Success || !System.Text.RegularExpressions.Regex.IsMatch(request!, @"\b(dies|die|death|defeated|morre|morte|derrotad|muere)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return json;
             var b = SequenceJson.ParseBoss(json, out var err, new List<string>());
-            if (err != null || b.Death.Any(s => s.Do == "setvar" && s.Str("var").Equals(m.Groups[1].Value, StringComparison.OrdinalIgnoreCase))) return json;
-            var step = new SeqStep { Do = "setvar" }; step.P["var"] = m.Groups[1].Value; step.P["to"] = m.Groups[2].Value;
-            b.Death.Add(step);
-            return SequenceJson.Serialize(b);
+            if (err != null) return json;
+            bool changed = false;
+            if (!System.Text.RegularExpressions.Regex.IsMatch(request ?? "", @"\b(say|says|said|talk|talks|speak|speaks|line|dialog|dialogue|message|shout|shouts|yell|yells|diz|dizer|fala|falar|grita|gritar|mensagem|di[aá]logo|dice|decir|habla|grita)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            {
+                foreach (var list in b.Attacks.Select(a => a.Steps).Concat(b.Phases.Select(p => p.Enter)).Append(b.Death))
+                    changed |= list.RemoveAll(s => s.Do == "say") > 0;
+                b.Attacks.RemoveAll(a => a.Steps.Count == 0); // an attack that was only a line
+                foreach (var ph in b.Phases) ph.Attacks.RemoveAll(n => b.Attack(n) == null);
+            }
+            var m = System.Text.RegularExpressions.Regex.Match(request ?? "", @"variab\w*\s+(\w+)\s+(?:becomes|is set to|goes to|turns|=|vira|fica|passa a ser|se vuelve)\s*(?:to\s+)?(-?\d+(?:\.\d+)?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success && System.Text.RegularExpressions.Regex.IsMatch(request!, @"\b(dies|die|death|defeated|morre|morte|derrotad|muere)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+                && !b.Death.Any(s => s.Do == "setvar" && s.Str("var").Equals(m.Groups[1].Value, StringComparison.OrdinalIgnoreCase)))
+            {
+                var step = new SeqStep { Do = "setvar" }; step.P["var"] = m.Groups[1].Value; step.P["to"] = m.Groups[2].Value;
+                b.Death.Add(step);
+                changed = true;
+            }
+            return changed ? SequenceJson.Serialize(b) : json;
         }
 
         /// <summary>Asks the model (generate = (user prompt, system prompt) → reply), normalises the reply, and retries once
