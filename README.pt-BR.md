@@ -89,7 +89,7 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 - **Console de debug (F1)** — veja o que o jogo está fazendo: cliques, golpes, regras que dispararam, sons, avisos.
 - **Exporte** o seu jogo como um `.exe` que roda sozinho.
 - **Seu idioma, seu visual** — o editor fala português (do Brasil e de Portugal), inglês, espanhol, francês, alemão,
-  japonês e chinês (simplificado e tradicional), e a IA te responde nele. Tema escuro ou claro, interface maior ou menor,
+  japonês e chinês (simplificado e tradicional), e a IA entende seus pedidos e te responde nele. Tema escuro ou claro, interface maior ou menor,
   e um botão que limpa os arquivos temporários da engine (⚙ Settings / Configurações). Qualquer lista se pesquisa só
   digitando com ela aberta, e cada projeto guarda uma cópia escondida das suas imagens e sons, então um arquivo apagado
   sem querer volta.
@@ -130,6 +130,17 @@ Outros modos: `--e2e`, `--behtest`, `--exprtest`, `--blocktest`, `--aijsontest`,
 geradores de demo `--topdown`, `--bossdemo`, `--infinite`, `--mining`, `--makegame`, `--scenarios`.
 Os releases são feitos com `tools/Publish-Release.ps1`. Quem for contribuir (inclusive assistentes de IA) deve ler
 o [AGENTS.md](AGENTS.md) primeiro.
+
+## Política de assinatura de código
+
+Assinatura de código gratuita fornecida por [SignPath.io](https://about.signpath.io), certificado da [SignPath Foundation](https://signpath.org).
+
+- Autores e revisores: [tarl3s](https://github.com/tarl3s)
+- Aprovadores: [tarl3s](https://github.com/tarl3s)
+
+Só são assinadas as versões compiladas pelo GitHub Actions a partir deste repositório. (Aprovação pendente: até lá, as versões não são assinadas.)
+
+**Privacidade:** a EasyEngine não envia nada sozinha. Ela só se conecta à internet para procurar atualizações no GitHub e ao serviço de IA que você escolher (o seu próprio computador com o Ollama, ou um provedor na nuvem que você configurar). O que você escreve para a IA vai só para esse serviço.
 
 ## Licença
 

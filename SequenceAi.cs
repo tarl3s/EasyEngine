@@ -190,6 +190,7 @@ namespace EasyEngine
         public static async Task<SeqAiResult> MakeAsync(Func<string, string, Task<string>> generate, SeqMode mode, string request, string currentJson,
                                                         Project project, Scene scene, bool compact)
         {
+            request = await AiTranslate.ToEnglishAsync(request, generate); // another language: in English first (AiTranslate.cs)
             var system = SystemPrompt(mode, project, scene, compact);
             var user = UserPrompt(mode, request, currentJson);
             var notes = new List<string>();

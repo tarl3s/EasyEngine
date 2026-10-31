@@ -2609,9 +2609,12 @@ namespace EasyEngine
         }
 
         // 🔨 Build: ask the AI for a project spec and apply it (one retry with a firmer nudge). Shared by the panel and --aieval.
+        internal string LastAiRequest = ""; // the request the last Build used (in English when it was translated) — the eval logs it
         private async Task<(bool ok, string summary, string reply)> AiBuildAsync(string prompt)
         {
             if (_scene.Locked) return (false, L.T("This scene is locked — unlock it (🔒 next to the scene) to change it"), ""); // finished: the AI doesn't touch it
+            prompt = await AiTranslate.ToEnglishAsync(prompt, (u, s) => AiGenerateAsync(u, s, json: true, temperature: 0)); // another language: in English first (AiTranslate.cs)
+            LastAiRequest = prompt;
             var sys = BuildProjectPrompt(prompt); // made for this request (MainWindow.AiPrompt.cs): small, fast, few tokens
             var reply = await AiGenerateAsync(prompt, sys, json: true, temperature: 0.1);
             if (SafeApply(reply, prompt, out var summary)) return (true, summary, reply);

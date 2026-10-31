@@ -359,6 +359,27 @@ public partial class App
             bool paid = shop.Count == 2 && Is(shop[1], "do", "addvar") && Is(shop[1], "var", "coins") && Is(shop[1], "amount", "-10") && Is(shop[1], "cond", "coins >= 10") && Is(shop[1], "when", "keynear");
             return extra && Is(other[0], "target", "other") && !heart[0].ContainsKey("target") && paid && cut && merged && !other[1].ContainsKey("target") && names && !boss.Contains("\"say\"") && boss.Contains("shake") && talking.Contains("\"say\"");
         });
+        t.Test("ai fix: 'spawn an enemy every 2 seconds' answered with an always-spawn rule becomes a timer (every 2; 'every second' = 1)", () =>
+        {
+            const string always = "[{\"when\":\"always\",\"do\":\"spawn\",\"object\":\"Enemy\"},{\"when\":\"always\",\"do\":\"set\",\"prop\":\"vx\",\"to\":\"100\"}]";
+            var two = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest(always, "make an enemy appear every 2 seconds", "Player"));
+            var one = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest(always, "make rocks fall from the sky every second", "Player"));
+            var none = App.AiEvalKit.RulesOf(AiSpecFix.ForRequest(always, "spawn enemies", "Player"));
+            return Is(two[0], "when", "timer") && Is(two[0], "every", "2") && Is(two[1], "when", "always")
+                && Is(one[0], "when", "timer") && Is(one[0], "every", "1") && Is(none[0], "when", "always");
+        });
+        t.Test("rules: an event's timing written after \"do\" ({timer, do spawn, every 2}) is still the event's — one spawn every 2 s, not every second", () =>
+        {
+            var pw = PlayWindow.NewScriptSim("[{\"when\":\"timer\",\"do\":\"spawn\",\"object\":\"E\",\"at\":\"near\",\"every\":2}]", out _, extra: (p, s) =>
+            {
+                var e = new GameObjectData { Id = 0, Name = "E", Type = "Object", X = 0, Y = 0, Width = 96, Height = 96, Color = "#B03A2E", Physics = new PhysicsData { Mode = PhysicsMode.Dynamic } };
+                e.Behaviors.Add(BehaviorCatalog.Info(BehaviorKind.Health).CreateData());
+                p.Prefabs.Add(new PrefabDef { Name = "E", Template = e });
+            });
+            t.Sims.Add(pw);
+            int n = App.AiEvalKit.Spawned(pw, 7);
+            return n == 3;
+        });
         t.Test("learn: under the answer, the engine names the behaviors (and for blocks the closest recipe) the question is about", () =>
         {
             bool Has(string q, params string[] any) => any.Any(w => EasyEngine.MainWindow.LearnFooter(q).Contains(w, StringComparison.OrdinalIgnoreCase));
@@ -463,6 +484,26 @@ public partial class App
             t.Sims.Add(pw);
             pw.TSteps(240);
             return pw.TLiveCount <= 3000 && pw.TLiveCount > 100 && pw.TLogCount("Spawn", "Too many") == 1;
+        });
+
+        t.Test("ai translate: a request in Portuguese/Spanish/French/Japanese is translated, English is not; a translation that drops a name, number or quote is refused", () =>
+        {
+            bool lang = !AiTranslate.LooksEnglish("tira a vida do jogador") && !AiTranslate.LooksEnglish("haz que la Box gire mientras mantengo R")
+                && !AiTranslate.LooksEnglish("fais sauter le joueur plus haut") && !AiTranslate.LooksEnglish("プレイヤーを速くして")
+                && AiTranslate.LooksEnglish("make the Box say 'Olá, tudo bem com você?'") && AiTranslate.LooksEnglish("give the player a double jump")
+                && AiTranslate.LooksEnglish("delete the Inimigo");
+            const string pt = "quando o score chegar em 10 vai pra Level2 e o Boss fala 'Não!'";
+            bool clean = AiTranslate.Clean(pt, "{\"english\":\"when the score reaches 10 go to Level2 and the Boss says 'Não!'\"}") == "when the score reaches 10 go to Level2 and the Boss says 'Não!'"
+                && AiTranslate.Clean(pt, "{\"english\":\"when the score reaches ten go to Level2 and the Boss says 'Não!'\"}") == null  // the number
+                && AiTranslate.Clean(pt, "{\"english\":\"when the score reaches 10 go to Level 2 and the Boss says 'Não!'\"}") == null // the scene name
+                && AiTranslate.Clean(pt, "{\"english\":\"when the score reaches 10 go to Level2 and the Boss says 'No!'\"}") == null    // the quoted text
+                && AiTranslate.Clean("faz a Box girar", "English: make the Box spin") == "make the Box spin"
+                && AiTranslate.Clean("faz um inimigo a cada 2 segundos", "{\"english\":\"a request to make an enemy every 2 seconds\"}") == "make an enemy every 2 seconds"
+                && AiTranslate.Clean("não deixa o jogador sair da tela", "{\"english\":\"the request in English\"}") == null; // the prompt copied back
+            string? asked = null;
+            var en = AiTranslate.ToEnglishAsync("faz a Box girar", (u, s) => { asked = u; return System.Threading.Tasks.Task.FromResult("{\"english\":\"make the Box spin\"}"); }).Result;
+            var same = AiTranslate.ToEnglishAsync("make the Box spin", (u, s) => throw new InvalidOperationException()).Result;
+            return lang && clean && en == "make the Box spin" && asked == "faz a Box girar" && same == "make the Box spin";
         });
     }
 }

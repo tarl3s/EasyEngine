@@ -72,6 +72,7 @@ namespace EasyEngine
             _aiStatus.Text = L.T("Asking the AI…");
             try
             {
+                request = await AiTranslate.ToEnglishAsync(request, _generate); // another language: in English first (AiTranslate.cs)
                 var system = AiSystemPrompt(request);
                 var got = ReadAiReply(await _generate("Make blocks for: " + request + "\nAnswer with the JSON only.", system));
                 if (got.Count == 0) // one firmer try

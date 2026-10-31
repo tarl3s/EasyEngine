@@ -1,0 +1,72 @@
+# Builds the release zip on GitHub from the public source, so SignPath Foundation can sign it (code signing needs a
+# build they can trace back to this repository). Runs by hand (Actions → Release build → Run workflow) for a tag.
+# Signing turns on once the SignPath secrets exist (SIGNPATH_API_TOKEN) and the variable SIGNPATH_ORGANIZATION_ID is set.
+name: Release build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. v0.15.5)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build the self-contained app
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.tag }}".TrimStart('v')
+          dotnet publish EasyEngine.csproj -c Release -r win-x64 --self-contained true -o out/EasyEngine -p:DebugType=None -p:Version=$version -nologo
+
+      - name: Upload the unsigned build
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyEngine-unsigned
+          path: out/EasyEngine
+
+      - name: Sign with SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: EasyEngine
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: out/EasyEngine
+
+      - name: Zip with the updater's manifest
+        shell: pwsh
+        run: |
+          $out = (Resolve-Path out/EasyEngine).Path
+          $manifest = 'easyengine-files.txt'
+          $files = Get-ChildItem $out -Recurse -File | ForEach-Object { $_.FullName.Substring($out.Length + 1) }
+          ($files + $manifest) | Set-Content (Join-Path $out $manifest) -Encoding ASCII
+          Compress-Archive -Path "$out/*" -DestinationPath out/EasyEngine-win-x64.zip -CompressionLevel Optimal
+
+      - name: Replace the release's zip (only when signed)
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload ${{ inputs.tag }} out/EasyEngine-win-x64.zip --clobber
+
+      - name: Keep the zip as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyEngine-win-x64
+          path: out/EasyEngine-win-x64.zip

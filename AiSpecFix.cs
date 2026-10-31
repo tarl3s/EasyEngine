@@ -310,6 +310,7 @@ namespace EasyEngine
                 bool hold = System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(hold|holds|holding|held|keep pressing|segur|mantén|mantener|pressionad)");
                 bool repeat = System.Text.RegularExpressions.Regex.IsMatch(p, @"blink|pisca|parpad|pulse|pulsa|loop|repeat|again|forever|back and forth|vai e volta|sempre|siempre|keeps|non-stop");
                 bool stopSpin = !System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(press|key|click|aperta|tecla|clica|pulsa)") && System.Text.RegularExpressions.Regex.IsMatch(p, @"\b(stop|stops|no longer|para de|parar de|pare de|parando de|deja de|dejar de|n[aã]o .{0,20}mais)\b.*\b(spin|rotat|gir)");
+                var every = System.Text.RegularExpressions.Regex.Match(p, @"\b(?:every|each|a cada|cada)\s+(?:(\d+(?:[.,]\d+)?)\s+)?(?:seconds?|segundos?|sec|s)\b");
                 foreach (var r in rules.OfType<JsonObject>())
                 {
                     var when = Str(r["when"]); var act = Str(r["do"]);
@@ -332,6 +333,9 @@ namespace EasyEngine
                     // "when score reaches 10, say Well done": a "while" event would say it every frame — it means the moment
                     if (when == "ifvar" && act is "say" or "playsound" or "emit" or "spawn" or "shoot" or "additem" or "removeitem" or "addvar" or "addlocal"
                         or "log" or "toggle" or "listadd" or "addtext" or "tween") r["when"] = "becomes";
+                    // "spawn an enemy every 2 seconds" answered with "always": one every frame — it means a timer
+                    if (when == "always" && every is { Success: true } && act is "spawn" or "shoot" or "emit" or "addvar" or "addlocal" or "playsound" or "say")
+                    { r["when"] = "timer"; r["every"] = every.Groups[1].Length > 0 ? double.Parse(every.Groups[1].Value.Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture) : 1; }
                     if (!repeat && act == "tween") { r.Remove("loop"); r.Remove("yoyo"); }
                     if (stopSpin && act == "rotate" && when is "always" or "start" or "") r["speed"] = 0; // "stop the Box from spinning" answered with the spin again
                 }

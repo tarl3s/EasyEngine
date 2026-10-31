@@ -23,6 +23,8 @@ namespace EasyEngine
     //   --delay 15000                    milliseconds between cloud requests (Gemini free: a few a minute)
     //   --maxmem 2500                    stop the eval when it uses more than this many MB (default 2500)
     //   --skip id,id                     leave out these exact case ids (resume a run that stopped)
+    //   --promptfor "request"            only write the Build prompt for that request to %TEMP%easyengine_prompt.txt (no AI)
+    //   --in pt|es                       the panel cases asked in Portuguese / Spanish (App.AiEval.Lang.cs), ids "pt-…" / "es-…"
     // Report: %TEMP%\easyengine_aitest.log (pass/fail per case, why, the AI's reply when it failed).
     public partial class App
     {
@@ -42,8 +44,16 @@ namespace EasyEngine
                 temp = Path.Combine(Path.GetTempPath(), "EE_AiTest_" + Guid.NewGuid().ToString("N")[..6]);
                 Directory.CreateDirectory(temp);
                 var editor = new MainWindow(ProjectIO.CreateNew("AiTest", temp)); // constructed, not shown
+                if (Arg("--promptfor") is { Length: > 0 } ask) // dev: only write the Build prompt this request gets (no AI)
+                {
+                    File.WriteAllText(Path.Combine(Path.GetTempPath(), "easyengine_prompt.txt"), editor.TestBuildPrompt(ask));
+                    try { Directory.Delete(temp, true); } catch { }
+                    Shutdown();
+                    return;
+                }
                 editor.EvalUseAi(choice);
-                var cases = AiEvalCases().Where(k => only.Length == 0 || only.Any(o => k.Id.Contains(o, StringComparison.OrdinalIgnoreCase))).Where(k => !skip.Contains(k.Id)).ToList();
+                var cases = AiEvalCases().Where(k => only.Length == 0 || only.Any(o => k.Id.Contains(o, StringComparison.OrdinalIgnoreCase) || o.EndsWith("-" + k.Id, StringComparison.OrdinalIgnoreCase))).Where(k => !skip.Contains(k.Id)).ToList();
+                if (Arg("--in") is { Length: > 0 } inLang) cases = InLanguage(cases, inLang);
                 int gap = int.TryParse(Arg("--delay"), out var d) ? d : 6000;
                 long maxMb = long.TryParse(Arg("--maxmem"), out var mm) ? mm : 2500; // MB: the eval stops itself above this, so the computer stays usable
                 _showPrompt = args.Contains("--showprompt");
@@ -96,6 +106,7 @@ namespace EasyEngine
                     verdict = why == null ? "PASS" : "FAIL";
                     if (why == null) pass++; else fails.Add(c.Id);
                     detail = (why != null ? "  WHY: " + why + "\n" : "") + "  APPLIED: " + summary.Replace("\n", " | ") + "\n  STATE: " + ed.EvalDump() +
+                             (why != null && c.Seq == null && c.Blocks == null && !c.Learn && ed.LastAiRequest != c.Prompt ? "\n  ENGLISH: " + ed.LastAiRequest : "") +
                              (why != null ? "\n  REPLY: " + OneLine(reply, 2500) : "");
                 }
                 catch (CloudException ex) when (ex.RateLimited || ex.Message.Contains("quota")) { verdict = "SKIP"; skipped++; detail = "  (no AI answer: " + ex.Message + ")"; } // free tier used up — not the AI's fault

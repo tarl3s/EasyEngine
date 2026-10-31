@@ -86,7 +86,7 @@ old version and opens again. Your projects are never touched. The sample games a
 - **Debug console (F1)** — see what your game is doing: clicks, hits, rules that fired, sounds, warnings.
 - **Export** your game as a standalone `.exe`.
 - **Your language, your look** — the editor speaks English, Portuguese (Brazil and Portugal), Spanish, French, German,
-  Japanese and Chinese (Simplified and Traditional), and the AI answers you in it. Dark or light theme, bigger or smaller
+  Japanese and Chinese (Simplified and Traditional), and the AI understands requests and answers you in it. Dark or light theme, bigger or smaller
   interface, and a button that clears the engine's temporary files (⚙ Settings). Every list can be searched by just
   typing while it is open, and each project keeps a hidden backup of its pictures and sounds, so a file deleted by
   mistake comes back.
@@ -127,6 +127,17 @@ Other modes: `--e2e`, `--behtest`, `--exprtest`, `--blocktest`, `--aijsontest`, 
 demo builders `--topdown`, `--bossdemo`, `--infinite`, `--mining`, `--makegame`, `--scenarios`.
 Releases are made with `tools/Publish-Release.ps1`. Contributors (and AI coding assistants) should read
 [AGENTS.md](AGENTS.md) first.
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+- Committers and reviewers: [tarl3s](https://github.com/tarl3s)
+- Approvers: [tarl3s](https://github.com/tarl3s)
+
+Only builds made by GitHub Actions from this repository are signed. (Pending approval: until then, releases are unsigned.)
+
+**Privacy:** EasyEngine sends nothing anywhere on its own. It connects to the internet only to check for updates on GitHub, and to the AI service you pick (your own computer with Ollama, or a cloud provider you set up). What you type to the AI goes only to that service.
 
 ## License
 

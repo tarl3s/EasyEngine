@@ -15,7 +15,7 @@ that game needs come first (rotational physics/ragdolls/vehicles come last). Lon
 - Repo: `github.com/tarl3s/EasyEngine` — **public** (MIT, since v0.11.0), branch `main`. Everything you push is public:
   no secrets, no personal paths in docs meant for players. `README.md` (English) and `README.pt-BR.md` are the public
   face — keep both in sync when features change.
-- Version: `0.15.4` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
+- Version: `0.15.6` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
 - The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
   this file are in **English** (the editor UI is 100% English by request; only `README.pt-BR.md` is Portuguese).
 
@@ -47,9 +47,11 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--pairtest [--only Patrol,Chase] [--combos] [--trace]` | dev tool (headless, ~1 min): first the behavior-combination battery (`FullTest.BehaviorCombos.cs`; `--combos` = only that), then every visible behavior alone, every pair (both orders for movers), "Only while"-resting movers, behaviors on the player and a few triples, each played ~5 s; flags exceptions, NaN, absurd speeds, falling through the ground, frozen / jittering / drifting objects, health out of range, console warnings, the player losing its keys. "By design" flags are listed apart; ends with a summary line. `--trace` logs the first ticks of each case | `easyengine_pairtest.log` |
 | `--aitest [--model m \| --cloud [auto\|groq\|gemini\|openrouter\|"provider\|model"]] [--only id,id] [--delay ms]` | **graded** AI eval (`App.AiEval.cs`): ~125 real requests (moves, timers, enemies, bosses, HUD, whole levels, edits, Portuguese, conversations, the Boss/Cutscene cards' and the block editor's ✨ Ask the AI), each checked on the resulting project and by playing it headless. Needs a running AI; the cloud free tiers have daily quotas — rerun failures with `--only` | `easyengine_aitest.log` |
 
-Last known green: fulltest 837/837, e2e 90/90, pairtest 0 suspicious (2426 combinations), behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest local qwen2.5-coder 1.5b 102/123 and 3b ~77% before the last pipeline fixes (cloud: re-measure, quotas).
+Last known green: fulltest 864/864, e2e 110/110, pairtest 0 suspicious (2436 combinations), behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest local qwen2.5-coder 1.5b 121/123 and 3b 118/123 (v0.15.6) (cloud: re-measure, quotas).
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
+
+**Scripts that print only the summary** (prefer them — they save reading logs): `tools/Test-All.ps1` (build to scratch + every suite, one line each; `-Quick` = fulltest+e2e), `tools/AiEval.ps1` (graded AI eval on 1.5b/3b; `-Only`, `-Extra '--in pt'` for the cases in Portuguese or `--in es` Spanish), `tools/Strings.ps1` (`-Missing` lists untranslated texts, `-Add file.json` appends translations to every `Lang/*.json`). Claude Code skills `/test-all`, `/ai-eval`, `/translate`, `/release` wrap them.
 
 Demo/project builders (write into `Desktop\Jogos\<name>`, replacing the old copy): `--makegame` (Platformer Demo),
 `--mining`, `--topdown`, `--bossdemo`, `--infinite`, `--spritetest`, `--scenarios` (the *EasyEngine Tests* project,
@@ -133,6 +135,7 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 - `"level":{platforms,coins,enemies,spikes,stairs,door,checkpoint,enemyKind,style:"topdown"}` lets the model say WHAT a
   level has; `MainWindow.AiLevel.cs` lays it out (platforms within the ~100 px jump, coins on them, enemies on the
   ground, a door at the end, a score label). Small models can't place many objects; this way they can still build one.
+- **A request in another language is translated to English first** (`AiTranslate.cs`, one short JSON call through the same AI, for Build, the block editor's and the Boss/Cutscene's ✨ Ask the AI): hints, examples, fix-ups and small models all work in English. `LooksEnglish` decides (function words; non-Latin script = not English); `Clean` refuses a translation that lost a number, a quoted text or a name, and then the original is used. Measured (71 panel cases, 1.5b / 3b): Portuguese 55→62 / 61→65, Spanish 44→56 / 56→60; English (123 cases) 121 / 118. The remaining misses are the model's, mostly the same ones it makes in English. `--aitest --in pt|es` runs that panel; the translation is logged as ENGLISH under a failure.
 - **The Build prompt is made per request** (`BuildProjectPrompt(request)`, ~3–5k chars, the same for cloud and local):
   a short core (reply shape, rules, every behavior/event/action *name*), then only what the request needs — up to 6
   `Hints` (tagged how-tos in `MainWindow.AiPrompt.cs`, picked by word overlap; `Words()` maps PT/ES stems to English),

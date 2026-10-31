@@ -221,7 +221,7 @@ namespace EasyEngine
                 ["keynear"] = new[] { "key", "name", "radius" }, ["keyidle"] = new[] { "key", "seconds" },
                 ["becomes"] = new[] { "var", "op", "value" }, ["allgone"] = new[] { "name" },
             };
-            private static bool TriggerConsumes(string when, string key)
+            internal static bool TriggerConsumes(string when, string key)
                 => TriggerKeys.TryGetValue(when, out var ks) && System.Array.Exists(ks, x => string.Equals(x, key, System.StringComparison.OrdinalIgnoreCase));
         }
 
@@ -1949,6 +1949,10 @@ namespace EasyEngine
                             if (toTrigger) r.WN[name] = v; else r.N[name] = v;
                         }
                     }
+                    // the event's timing written after "do" ({"when":"timer","do":"spawn",…,"every":2}) is still the event's
+                    foreach (var k in TimingKeys)
+                        if (!r.WN.ContainsKey(k) && !r.WT.ContainsKey(k) && CustomRule.TriggerConsumes(r.When, k))
+                        { if (r.N.TryGetValue(k, out var n)) r.WN[k] = n; if (r.T.TryGetValue(k, out var s)) r.WT[k] = s; }
                     if (reverse) ReverseRule(r);
                     r.Summary = RuleSummary(r);
                     list.Add(r);
@@ -1958,6 +1962,7 @@ namespace EasyEngine
             return list;
         }
 
+        private static readonly string[] TimingKeys = { "every", "seconds", "cooldown" };
         private static readonly string[] SummaryTextKeys = { "var", "item", "object", "scene", "prop", "where", "sound", "text", "to", "kind", "ability", "on" };
         private static readonly string[] SummaryNumKeys = { "to", "amount", "value", "force", "count", "factor", "jump", "on" };
 
