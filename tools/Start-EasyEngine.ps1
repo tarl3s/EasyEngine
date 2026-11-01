@@ -29,7 +29,16 @@ trap {
     exit 1
 }
 
-if ((Test-Stale) -and -not (Test-Running)) {
+$stale = Test-Stale
+if ($stale -and (Test-Running)) {
+    # Windows locks the exe while one is open, so it can't be rebuilt: say so instead of quietly opening the old version
+    $answer = [System.Windows.Forms.MessageBox]::Show(
+        "There is a newer version of EasyEngine, but it can't update while EasyEngine is open.`n`n" +
+        "Save your work, close every EasyEngine window and open it again from this shortcut to update.`n`n" +
+        "Open another window of the version that is open now?", 'EasyEngine', 'YesNo', 'Information')
+    if ($answer -ne 'Yes') { exit 0 }
+}
+elseif ($stale) {
     # a small window while it builds, so a slow first build doesn't look like nothing happened
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'EasyEngine'; $form.Width = 360; $form.Height = 110; $form.StartPosition = 'CenterScreen'
