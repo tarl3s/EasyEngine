@@ -441,6 +441,12 @@ namespace EasyEngine
                 cb.SelectionChanged += (s, e) => rule[f.Key] = (cb.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
                 ctrl = cb;
             }
+            else if (f.Type == "sound") // the project's sounds and "＋ Import a sound…"
+            {
+                var cb = SoundPick.Make(_project, cur, v => rule[f.Key] = v, this);
+                cb.Height = 28; cb.MinWidth = 120;
+                ctrl = cb;
+            }
             else if (f.Type is "obj" or "who" or "aim" or "scene" or "layer" or "key" or "sound" or "anim")
             {
                 // names, keys and files are the person's own (shown as they are); a value that isn't in the list is kept,

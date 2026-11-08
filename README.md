@@ -69,7 +69,7 @@ old version and opens again. Your projects are never touched. The sample games a
   its jump, heal, when it lands, when it gets hurt…) appear only where they make sense. Tick **↔ Reverse** on an action to do its opposite (play a sound → stop it, show → hide, give → take, heal → hurt, on → off).
 - **👑 Boss AI** — bosses with **phases by health**, attacks built from steps (warn, dash, jump with a shockwave,
   ring/spread/aimed shots, summon minions, invulnerable…), a death sequence and a boss health bar.
-- **🎬 Cutscenes** — dialogue, camera moves, big titles, fades, cinema bars, moving characters, locking the controls;
+- **🎬 Cutscenes** — dialogue, camera moves, big titles, fades, cinema bars, moving characters, locking the controls, playing the player's keys for it (walk, jump, dash, press a key), playing animations, sounds you import right there;
   triggered on start, entering an area, a variable or a key.
 - **✨ Ask the AI** inside the Boss and Cutscene editors: describe it, the AI writes the steps.
 - **World** — AABB physics (hitboxes can fit the drawing, ignoring a sprite's empty margins, or be **drawn as a shape** — click the corners of a hill or a rock and the player walks up its slopes), one-way and moving

@@ -17,7 +17,7 @@ function Esc($s) { $j = $json.Serialize([string]$s); foreach ($c in "'", '<', '>
 
 if ($Missing) {
     $exe = Join-Path $env:TEMP 'ee-dev-build2\EasyEngine.exe'
-    Start-Process $exe -ArgumentList '--strings' -WorkingDirectory (Split-Path $exe) -Wait -WindowStyle Hidden
+    Start-Process $exe -ArgumentList '--strings', "`"$root`"" -WorkingDirectory (Split-Path $exe) -Wait -WindowStyle Hidden
     $en = Read-Lang (Join-Path $lang 'en.json')
     $all = [ordered]@{}
     Get-ChildItem $lang -Filter '*.json' | Where-Object Name -ne 'en.json' | ForEach-Object {

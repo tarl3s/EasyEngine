@@ -17,7 +17,7 @@ namespace EasyEngine
         public Window? Owner;
 
         // Scanned once per editor window (whole-project scans, a folder listing): the blocks are rebuilt on every change.
-        private List<string>? _objects, _variables, _textVariables, _colorVariables, _listVariables, _sounds;
+        private List<string>? _objects, _variables, _textVariables, _colorVariables, _listVariables, _animations;
         private List<(string value, string label)>? _objectsAndPrefabs;
         public List<string> Objects => _objects ??= ParamSources.Objects(Scene);
         public List<(string value, string label)> ObjectsAndPrefabs => _objectsAndPrefabs ??= ParamSources.ObjectOrPrefabOptions(Scene, Project);
@@ -25,7 +25,9 @@ namespace EasyEngine
         public List<string> TextVariables => _textVariables ??= ParamSources.TextVariables(Project);
         public List<string> ColorVariables => _colorVariables ??= ParamSources.ColorVariables(Project);
         public List<string> ListVariables => _listVariables ??= ParamSources.ListVariables(Project);
-        public List<string> Sounds => _sounds ??= ParamSources.Sounds(Project);
+        // every animation name of the scene's objects and the prefabs (a "Play an animation" step picks one)
+        public List<string> Animations => _animations ??= Scene.Layers.SelectMany(l => l.Objects).Concat(Project.Prefabs.Select(p => p.Template))
+            .SelectMany(o => o.Animations).Select(a => a.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(n => n).ToList();
     }
 
     /// <summary>An ordered list of steps as coloured blocks (colour = category): each block shows its fields inline
@@ -179,7 +181,11 @@ namespace EasyEngine
                     ((ComboBox)ctrl).Height = 28; ((ComboBox)ctrl).MinWidth = 110;
                     break;
                 case "sound":
-                    ctrl = Combo(new[] { ("", L.T("(none)")) }.Concat(_ctx.Sounds.Select(sn => (sn, System.IO.Path.GetFileName(sn)))).ToList(), cur, Set);
+                    ctrl = SoundPick.Make(_ctx.Project, cur, Set, _ctx.Owner); ((ComboBox)ctrl).Height = 28; ((ComboBox)ctrl).MinWidth = 110;
+                    break;
+                case "anim":
+                    ctrl = Combo(new[] { ("", L.T("(none)")) }.Concat(_ctx.Animations.Select(a => (a, a))).ToList(), cur, Set);
+                    L.SetSkip(ctrl, true); // the person's animation names
                     break;
                 case "scene":
                     ctrl = Combo(_ctx.Project.Scenes.Select(sc => (sc.Name, sc.Name)).ToList(), cur, Set);

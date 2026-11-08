@@ -1779,5 +1779,21 @@
   "🔗 A copy of the prefab \"{0}\"": "🔗 預製物件「{0}」的副本",
   "Changes here change every copy": "此處的變更會變更所有副本",
   "Make this one independent: it stops being a copy of the prefab": "使其獨立：不再是預製物件的副本",
-  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "勾選：對此物件的變更也會變更預製物件以及勾選了此項的其他副本。不勾選：變更只留在此物件上。"
+  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "勾選：對此物件的變更也會變更預製物件以及勾選了此項的其他副本。不勾選：變更只留在此物件上。",
+  "Action": "動作",
+  "Control the player": "控制玩家",
+  "Holds a key for a moment as if the player pressed it (talk with E, attack, use an item…). Works while the player is locked.": "像玩家按下一樣按住某個鍵一會兒（按 E 對話、攻擊、使用物品…）。玩家被鎖定時也有效。",
+  "Moves the player as if its keys were held (walk, jump, dash), with its own physics. Works while the player is locked.": "像按住按鍵一樣移動玩家（行走、跳躍、衝刺），使用其自身物理。玩家被鎖定時也有效。",
+  "Once": "一次",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump.": "播放物件的一個動畫（在 🎞 編輯動畫 中製作）。「恢復自動」會回到待機 / 行走 / 跳躍。",
+  "Press a key": "按下按鍵",
+  "Seconds held": "按住秒數",
+  "Wait until it ends": "等待結束",
+  "» Dash": "» 衝刺",
+  "← Walk left": "← 向左走",
+  "→ Walk right": "→ 向右走",
+  "⤒ Jump": "⤒ 跳躍",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump. \"Pause\" freezes the picture it shows (any animation) until \"Resume\".": "播放物件的一個動畫（在 🎞 編輯動畫 中製作）。「恢復自動」會回到待機 / 行走 / 跳躍。「暫停」會定住目前畫面（任何動畫），直到「繼續」。",
+  "⏸ Pause": "⏸ 暫停",
+  "▶ Resume": "▶ 繼續"
 }

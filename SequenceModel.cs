@@ -108,7 +108,20 @@ namespace EasyEngine
             new("invulnerable", "Invulnerable", "Attack", new[] { Num("time", "Seconds", 1.5) }, "Takes no damage for a while (it flickers)."),
         };
 
-        public static readonly StepDef[] Cutscene = Common;
+        /// <summary>Steps only a cutscene has: it plays the player's keys for it, and objects' animations.</summary>
+        public static readonly StepDef[] CutsceneOnly =
+        {
+            new("control", "Control the player", "Motion", new[] { F("action", "Action", "choice", "right", "right|→ Walk right", "left|← Walk left", "jump|⤒ Jump",
+                    "up|↑ Up", "down|↓ Down", "dash|» Dash"), Num("time", "Seconds", 1), Bool("wait", "Wait until it ends", true) },
+                "Moves the player as if its keys were held (walk, jump, dash), with its own physics. Works while the player is locked."),
+            new("presskey", "Press a key", "Control", new[] { F("key", "Key", "key", "E"), Num("time", "Seconds held", 0.1), Bool("wait", "Wait until it ends", true) },
+                "Holds a key for a moment as if the player pressed it (talk with E, attack, use an item…). Works while the player is locked."),
+            new("playanim", "Play an animation", "Looks", new[] { F("object", "Object", "object", "player"), F("anim", "Animation", "anim"),
+                    F("mode", "How", "choice", "once", "once|Once", "loop|Loop", "auto|Back to automatic", "pause|⏸ Pause", "resume|▶ Resume") },
+                "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump. \"Pause\" freezes the picture it shows (any animation) until \"Resume\"."),
+        };
+
+        public static readonly StepDef[] Cutscene = CutsceneOnly.Concat(Common).ToArray();
         public static readonly StepDef[] Boss = BossOnly.Concat(Common).ToArray();
 
         public static StepDef[] For(SeqMode mode) => mode == SeqMode.Boss ? Boss : Cutscene;
@@ -128,7 +141,7 @@ namespace EasyEngine
             ["sound"] = "playsound", ["sfx"] = "playsound", ["play"] = "playsound", ["particles"] = "emit", ["explode"] = "emit", ["explosion"] = "emit", ["burst"] = "emit",
             ["set"] = "setvar", ["variable"] = "setvar", ["setvariable"] = "setvar", ["add"] = "addvar", ["walkto"] = "moveto", ["goto"] = "moveto", ["fly"] = "moveto", ["flyto"] = "moveto",
             ["turn"] = "face", ["look"] = "face", ["appear"] = "show", ["disappear"] = "hide", ["create"] = "spawn", ["remove"] = "destroy", ["kill"] = "destroy",
-            ["lockplayer"] = "lock", ["unlockplayer"] = "unlock", ["freeze"] = "lock", ["unfreeze"] = "unlock", ["approach"] = "walk", ["chase"] = "walk", ["scene"] = "goscene", ["changescene"] = "goscene",
+            ["press"] = "presskey", ["key"] = "presskey", ["animation"] = "playanim", ["anim"] = "playanim", ["playanimation"] = "playanim", ["simulate"] = "control", ["controls"] = "control", ["lockplayer"] = "lock", ["unlockplayer"] = "unlock", ["freeze"] = "lock", ["unfreeze"] = "unlock", ["approach"] = "walk", ["chase"] = "walk", ["scene"] = "goscene", ["changescene"] = "goscene",
         };
 
         // Words used for a param name.

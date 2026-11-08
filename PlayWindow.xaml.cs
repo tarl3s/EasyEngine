@@ -3324,6 +3324,7 @@ namespace EasyEngine
             var anim = ChooseAnim(en);
             if (anim == null || anim.Frames.Count == 0) return;
 
+            if (en.AnimPaused && en.CurAnim != null) return; // "Play an animation: pause" holds the frame it shows
             if (!ReferenceEquals(anim, en.CurAnim)) { en.CurAnim = anim; en.FrameIndex = 0; en.FrameTimer = 0; }
             en.FrameTimer += dt;
             double spf = 1.0 / Math.Max(1, anim.Fps);

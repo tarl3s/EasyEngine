@@ -47,6 +47,10 @@ namespace EasyEngine
         private HashSet<Key>? _heldKeys;                 // the real keys while a locked tick runs with an empty set
         private (bool left, bool right)? _heldButtons;   // the real mouse buttons while a locked tick runs with them up
         private readonly HashSet<Key> _noKeys = new();
+        // keys a cutscene holds for the player ("Control the player", "Press a key"): added to this tick's keys, even when locked
+        private readonly record struct SimKey(Key Key, double Until, SeqRunner Owner);
+        private readonly List<SimKey> _simKeys = new();
+        private readonly HashSet<Key> _withSim = new();
         private bool _dialogWasOpen;                     // a dialogue was open at the last skip-key poll
         private bool _escHeldAfterSkip; private double _escGuardUntil = -1; // Esc that just skipped a cutscene doesn't close the game
         private CamPan? _camPan;
@@ -94,6 +98,12 @@ namespace EasyEngine
                 _heldButtons = (_mouseDown, _rmbDown); _mouseDown = _rmbDown = false;
                 _mouseClicked = _rmbClicked = false; _wheelDelta = 0;
             }
+            for (int i = _simKeys.Count - 1; i >= 0; i--) if (_simKeys[i].Until < _gameTime) _simKeys.RemoveAt(i);
+            if (_simKeys.Count > 0)
+            {
+                if (_heldKeys == null) { _heldKeys = _keys; _withSim.Clear(); _withSim.UnionWith(_keys); _keys = _withSim; } // never the real set
+                foreach (var k in _simKeys) _keys.Add(k.Key);
+            }
         }
 
         partial void SequencesAfterLogic(double dt)
@@ -114,7 +124,7 @@ namespace EasyEngine
         partial void SequencesSceneReset()
         {
             foreach (var r in _runners) r.Finished = true;
-            _runners.Clear(); _moves.Clear(); _inputLocks.Clear();
+            _runners.Clear(); _moves.Clear(); _inputLocks.Clear(); _simKeys.Clear();
             RestoreKeys();
             _camPan = null; _shakeUntil = 0; _titleText = ""; _barsOn = false; _barsT = 0;
             // a fade-out that led here clears on its own in the new scene (its cutscene may fade in itself)
@@ -281,6 +291,7 @@ namespace EasyEngine
         private void ReleaseRunner(SeqRunner r)
         {
             _inputLocks.Remove(r);
+            _simKeys.RemoveAll(k => k.Owner == r);
             if (r.BarsUsed) _barsOn = false;
             if (r.FadeUsed && !r.WentToScene && FadeOpacity() > 0 && _fadeTo > 0) StartFade(_fadeColor, 0, 0.5);
             if (_camPan != null && _camPan.Owner == r && !_camPan.Returning) StartPan(null, null, 0, 0, 0.6, returning: true);
@@ -319,6 +330,14 @@ namespace EasyEngine
             if (r.Mode == SeqMode.Cutscene) Info("Cutscene", r.Owner.Data.Name, line);
             else LogThrottled($"boss-step:{r.Owner.Data.Name}:{r.Label}:{r.Index}", 6, LogLevel.Info, "Boss", r.Owner.Data.Name, line); // attacks loop: rate-limited
         }
+
+        // the key a "Control the player" action holds: the arrows and Space, the dash key the player's Platformer uses
+        private Key ControlKey(SeqRunner r, string action) => action.Trim().ToLowerInvariant() switch
+        {
+            "left" => Key.Left, "up" => Key.Up, "down" => Key.Down, "jump" => Key.Space,
+            "dash" => ParseKey(SeqFind(r, "player")?.Beh(BehaviorKind.Platformer)?.Text("dashKey", "LeftShift") ?? "LeftShift"),
+            _ => Key.Right,
+        };
 
         private static string StepText(SeqStep s)
         {
@@ -390,6 +409,24 @@ namespace EasyEngine
                     if (e == null) { StepWarn(r, s, $"no object '{s.Str("object")}'"); break; }
                     e.Visual.Visibility = s.Do == "show" ? Visibility.Visible : Visibility.Collapsed;
                     if (s.Do == "show" && e.Visual.Opacity < 0.05) e.Visual.Opacity = 1;
+                    break;
+                }
+                case "control": // the player's keys, held for a while
+                case "presskey":
+                {
+                    double time = Math.Max(0, s.Num("time", s.Do == "control" ? 1 : 0.1));
+                    var key = s.Do == "presskey" ? ParseKey(s.Str("key", "E")) : ControlKey(r, s.Str("action", "right"));
+                    _simKeys.Add(new SimKey(key, _gameTime + time, r));
+                    if (s.On("wait", true)) r.WaitUntil = _gameTime + time;
+                    break;
+                }
+                case "playanim":
+                {
+                    var e = SeqFind(r, s.Str("object", "player"));
+                    if (e == null) { StepWarn(r, s, $"no object '{s.Str("object")}'"); break; }
+                    var tr = new CustomRule { Do = "playanim" };
+                    tr.T["anim"] = s.Str("anim"); tr.T["mode"] = s.Str("mode", "once");
+                    DoBehaviorBlock(e, tr);
                     break;
                 }
                 case "lock": _inputLocks.Add(r); break;

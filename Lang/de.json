@@ -1779,5 +1779,21 @@
   "🔗 A copy of the prefab \"{0}\"": "🔗 Kopie des Prefabs \"{0}\"",
   "Changes here change every copy": "Änderungen hier ändern alle Kopien",
   "Make this one independent: it stops being a copy of the prefab": "Dieses unabhängig machen: es ist keine Kopie des Prefabs mehr",
-  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "Angehakt: Was du an diesem Objekt änderst, ändert auch das Prefab und die anderen angehakten Kopien. Aus: Änderungen bleiben nur hier."
+  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "Angehakt: Was du an diesem Objekt änderst, ändert auch das Prefab und die anderen angehakten Kopien. Aus: Änderungen bleiben nur hier.",
+  "Action": "Aktion",
+  "Control the player": "Spieler steuern",
+  "Holds a key for a moment as if the player pressed it (talk with E, attack, use an item…). Works while the player is locked.": "Hält eine Taste kurz gedrückt, als hätte der Spieler sie gedrückt (mit E reden, angreifen, Gegenstand benutzen…). Funktioniert auch, wenn der Spieler gesperrt ist.",
+  "Moves the player as if its keys were held (walk, jump, dash), with its own physics. Works while the player is locked.": "Bewegt den Spieler, als würden seine Tasten gehalten (gehen, springen, Dash), mit seiner eigenen Physik. Funktioniert auch, wenn der Spieler gesperrt ist.",
+  "Once": "Einmal",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump.": "Spielt eine Animation des Objekts ab (erstellt in 🎞 Animationen bearbeiten). „Zurück zu automatisch“ kehrt zu Stehen / Gehen / Springen zurück.",
+  "Press a key": "Taste drücken",
+  "Seconds held": "Sekunden gehalten",
+  "Wait until it ends": "Warten, bis es endet",
+  "» Dash": "» Dash",
+  "← Walk left": "← Nach links gehen",
+  "→ Walk right": "→ Nach rechts gehen",
+  "⤒ Jump": "⤒ Springen",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump. \"Pause\" freezes the picture it shows (any animation) until \"Resume\".": "Spielt eine Animation des Objekts ab (erstellt in 🎞 Animationen bearbeiten). „Zurück zu automatisch“ kehrt zu Stehen / Gehen / Springen zurück. „Pause“ friert das gezeigte Bild ein (jede Animation) bis „Fortsetzen“.",
+  "⏸ Pause": "⏸ Pause",
+  "▶ Resume": "▶ Fortsetzen"
 }

@@ -39,4 +39,25 @@ namespace EasyEngine
             catch (Exception ex) { MessageBox.Show(L.T("Couldn't use that picture:") + " " + ex.Message); return null; }
         }
     }
+
+    /// <summary>A sound dropdown: the project's sounds and "＋ Import a sound…" (copies a .wav/.mp3 into Assetssounds).</summary>
+    public static class SoundPick
+    {
+        public static ComboBox Make(Project p, string current, Action<string> set, Window? owner)
+        {
+            var opts = new List<(string, string)> { ("", L.T("(none)")) };
+            opts.AddRange(ParamSources.Sounds(p).Select(s => (s, Path.GetFileName(s))));
+            var cb = Dropdown.Make(opts, current, set, owner: owner, create: () => Import(p, owner), createLabel: L.T("＋ Import a sound…"));
+            L.SetSkip(cb, true); // file names; "(none)" and the import entry are already translated
+            return cb;
+        }
+
+        private static (string value, string label)? Import(Project p, Window? owner)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Title = L.T("Choose sound"), Filter = L.T("Audio") + "|*.wav;*.mp3" };
+            if (dlg.ShowDialog(owner ?? Application.Current.MainWindow) != true) return null;
+            try { var rel = ProjectIO.ImportAsset(p, dlg.FileName, "sounds"); return (rel, Path.GetFileName(rel)); }
+            catch (Exception ex) { MessageBox.Show(L.F("Error: {0}", ex.Message)); return null; }
+        }
+    }
 }

@@ -348,9 +348,52 @@ public partial class App
             var boss = BossDemo.BossScriptJson();
             return EdRT(SeqMode.Boss, boss) == boss;
         });
-        t.Test("advanced scratch: one palette per mode — every step has a category colour; boss mode adds the boss steps", () =>
+        t.Test("advanced scratch: one palette per mode — every step has a category colour; boss mode adds the boss steps, a cutscene its own (control, press a key, animation)", () =>
             StepCatalog.Boss.All(d => StepCatalog.Categories.Any(c => c.name == d.Category))
-            && StepCatalog.Cutscene.All(d => StepCatalog.Boss.Contains(d)) && StepCatalog.Find(SeqMode.Cutscene, "dash") == null
+            && StepCatalog.Cutscene.All(d => StepCatalog.Categories.Any(c => c.name == d.Category)) && StepCatalog.Common.All(d => StepCatalog.Boss.Contains(d) && StepCatalog.Cutscene.Contains(d))
+            && StepCatalog.Find(SeqMode.Cutscene, "dash") == null && StepCatalog.Find(SeqMode.Boss, "control") == null && StepCatalog.Find(SeqMode.Cutscene, "playanim") != null
             && new StepListControl(new List<SeqStep>(), SeqMode.Boss, new StepContext { Project = edProject, Scene = edProject.GetStartScene() }).AddMenu().Items.OfType<System.Windows.Controls.MenuItem>().Count(m => !m.IsEnabled) == 7);
+
+        // ---------------- the player's controls and animations, played by a cutscene
+        t.Test("cutscene: 'Control the player' walks it right while locked, then left, and jumps; the real keys never change", () =>
+        {
+            var p = Cut("{'steps':[{'do':'lock'},{'do':'control','action':'right','time':0.5},{'do':'control','action':'left','time':0.2},{'do':'control','action':'jump','time':0.1},{'do':'wait','time':0.3}]}");
+            double x0 = p.TX("Player"); p.TSteps(31);
+            double right = p.TX("Player"); p.TSteps(13);
+            double left = p.TX("Player"); p.TSteps(3);
+            double y0 = p.TY("Player"); p.TSteps(6);
+            bool jumped = p.TY("Player") < y0 - 5;
+            p.TSteps(30);
+            return right > x0 + 50 && left < right - 10 && jumped && !p.TInputLocked;
+        });
+        t.Test("cutscene: 'Press a key' holds E, so a 'keypress E' rule fires once even while the player is locked", () =>
+        {
+            var p = Cut("{'steps':[{'do':'lock'},{'do':'presskey','key':'E','time':0.1},{'do':'wait','time':0.5}]}",
+                more: (pr, sc, l) => l.Objects.First(o => o.Name == "Player").Behaviors.Add(new BehaviorData { Kind = BehaviorKind.Custom, Texts = { ["script"] = J("[{'when':'keypress','key':'E','do':'addvar','var':'talks','amount':1}]") } }));
+            p.TSteps(40);
+            return p.TVar("talks") == 1;
+        });
+        t.Test("cutscene: 'Play an animation' plays the player's animation, 'Back to automatic' gives it back, 'Pause' holds the frame", () =>
+        {
+            var p = Cut("{'steps':[{'do':'playanim','object':'player','anim':'dance','mode':'loop'},{'do':'wait','time':0.2},{'do':'playanim','object':'player','mode':'pause'},{'do':'wait','time':0.3},{'do':'playanim','object':'player','mode':'auto'}]}",
+                more: (pr, sc, l) =>
+                {
+                    string Png(string n)
+                    {
+                        var dir = Path.Combine(pr.FolderPath!, "Assets", "sprites"); Directory.CreateDirectory(dir);
+                        var bmp = System.Windows.Media.Imaging.BitmapSource.Create(2, 2, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, new byte[16], 8);
+                        var enc = new System.Windows.Media.Imaging.PngBitmapEncoder(); enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+                        using (var fs = File.Create(Path.Combine(dir, n + ".png"))) enc.Save(fs);
+                        return Path.Combine("Assets", "sprites", n + ".png");
+                    }
+                    var pl = l.Objects.First(o => o.Name == "Player");
+                    pl.Animations.Add(new SpriteAnimation { Name = "idle", Frames = { Png("i0") }, Fps = 10 });
+                    pl.Animations.Add(new SpriteAnimation { Name = "dance", Frames = { Png("d0"), Png("d1") }, Fps = 10, Loop = true });
+                });
+            p.TSteps(3); p.TAnimate(0.01); string dancing = p.TAnimName("Player");
+            p.TSteps(15); p.TAnimate(0.01); int f0 = p.TAnimFrame("Player"); p.TAnimate(0.15); bool held = p.TAnimFrame("Player") == f0 && p.TAnimName("Player") == "dance";
+            p.TSteps(40); p.TAnimate(0.01); string back = p.TAnimName("Player");
+            return dancing == "dance" && held && back != "dance";
+        });
     }
 }

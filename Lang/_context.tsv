@@ -81,6 +81,7 @@ APPEARANCE	MainWindow.Tiles.cs, MainWindow.xaml.cs
 ATTACKS are lists of steps. PHASES choose which attacks the boss uses — the next phase starts when its health drops to a percentage. WHEN IT DIES plays at 0 health.	SequenceEditorWindow.cs
 Ability	BlockEditorWindow.Palette.cs
 Ability / Key Pickup	behavior AbilityPickup
+Action	step control
 Active — exists in the game	MainWindow.Layers.cs
 Add	behavior Area, behavior Interact, behavior UIButton, VariablesWindow.xaml.cs
 Add a font file	MainWindow.Fonts.cs
@@ -134,7 +135,7 @@ An on-screen checklist for testing. Each line is 'Text => condition' (one per li
 And also	MainWindow.OnlyWhile.cs
 Angle (°)	BlockEditorWindow.Palette.cs
 Animated tile	AnimationWindow.xaml.cs
-Animation	BlockEditorWindow.Palette.cs
+Animation	BlockEditorWindow.Palette.cs, step playanim
 Animation name (e.g. idle, walk):	AnimationWindow.EasyPixel.cs, AnimationWindow.xaml.cs
 Animation name (e.g. idle, walk, jump):	AnimationWindow.xaml.cs
 Animations	AnimationWindow.xaml, MainWindow.xaml.cs
@@ -156,14 +157,14 @@ At the start	SequenceEditorWindow.cs
 At this object	behavior Spawner
 Attack	SequenceEditorWindow.cs, step category
 Attack {0}	SequenceEditorWindow.cs
-Audio	MainWindow.Params.cs, MainWindow.xaml.cs
+Audio	MainWindow.Params.cs, MainWindow.xaml.cs, PicturePick.cs
 Auto	MainWindow.xaml.cs
 Axe	ToolArt.cs
 BEHAVIORS	MainWindow.Params.cs, MainWindow.xaml.cs
 Back and forth (retrace)	MainWindow.xaml.cs
 Back and forth (yoyo)	BlockEditorWindow.Palette.cs
 Back to a plain colour	MainWindow.Tiles.cs
-Back to automatic	BlockEditorWindow.Palette.cs
+Back to automatic	BlockEditorWindow.Palette.cs, step playanim
 Background	MainWindow.xaml.cs
 Background color	behavior Bar
 Background that scrolls slower than the camera.	behavior Parallax
@@ -174,6 +175,7 @@ Base URL (…/v1) and model name:	MainWindow.xaml.cs
 Base angle (deg)	behavior Particles
 Beam (flashlight cone)	behavior LightSource
 Behavior	BlockEditorWindow.Palette.cs
+Behaviors for this (Inspector → ＋ Add behavior):	MainWindow.LearnFooter.cs
 Belongs to "{0}". Each copy of it in the game gets its own.	VariablesWindow.xaml.cs
 Belongs to the selected object.	VariablesWindow.xaml.cs
 Belongs to this scene. Reset every time the scene loads.	VariablesWindow.xaml.cs
@@ -183,6 +185,7 @@ Bigger = higher jumps. The Platformer's usual strength is 640.	BlockEditorWindow
 Blink	behavior Label
 Blink (on and off, alarm)	behavior LightSource
 Blink forever	BlockEditorWindow.Recipes.cs
+Block editor (✨ Custom → Build with blocks): each block is one rule — WHEN something happens → DO something.	MainWindow.LearnFooter.cs
 Block size	behavior Terrain
 Block {0}	BlockEditorWindow.cs, MainWindow.TerrainBlocks.cs
 Blocks (light per block)	behavior DayNight
@@ -268,7 +271,7 @@ Choose an EasyPixel export folder	AnimationWindow.EasyPixel.cs
 Choose frames	AnimationWindow.xaml.cs
 Choose image	MainWindow.Tiles.cs, MainWindow.xaml.cs
 Choose image…	MainWindow.Tiles.cs
-Choose sound	MainWindow.xaml.cs
+Choose sound	MainWindow.xaml.cs, PicturePick.cs
 Choose what to import (newest first):	AnimationWindow.EasyPixel.cs
 Choose…	MainWindow.xaml.cs
 Cinema bars	step bars
@@ -312,6 +315,7 @@ Compares words (capital letters don't matter). "Its own" reads this object's own
 Condition	BlockEditorWindow.Palette.cs
 Cone width	behavior LightSource
 Control	step category
+Control the player	step control
 Controls	BlockEditorWindow.Palette.cs
 Cooldown (s)	behavior Shooter, BlockEditorWindow.Palette.cs
 Copied {0} objects — Ctrl+V pastes them	MainWindow.CopyPaste.cs
@@ -396,9 +400,9 @@ Describe the scene you want… (e.g. the camera shows the castle, the king says 
 Describe what it should do… (e.g. every 2 seconds it jumps; when it touches Coin, add 1 to score)	BlockEditorWindow.Ai.cs
 Describe what to build.	MainWindow.xaml, MainWindow.xaml.cs
 Design	NewItemDialog.cs
+Destroy	BlockEditorWindow.Palette.cs
 Destroy Off-screen	behavior DestroyOffscreen
 Destroy an object	step destroy
-Destroy itself	BlockEditorWindow.Palette.cs
 Dialogue box	behavior Area, behavior Interact, step say
 Diamond	SpriteEditorWindow.cs
 Direction	behavior LightSource, behavior Patrol, behavior Projectile
@@ -476,7 +480,7 @@ Error importing {0}: {1}	MainWindow.xaml.cs
 Error opening: {0}	MainWindow.xaml.cs
 Error saving:	SpriteEditorWindow.cs
 Error saving: {0}	MainWindow.xaml.cs
-Error: {0}	AudioEditorWindow.cs, MainWindow.Params.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs
+Error: {0}	AudioEditorWindow.cs, MainWindow.Params.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs, PicturePick.cs
 European. A good backup.	MainWindow.xaml.cs
 Every (s)	behavior Spawner, step shoot
 Every few seconds	BlockEditorWindow.Palette.cs
@@ -622,8 +626,9 @@ Hits to fell	behavior Harvestable
 Hoe	ToolArt.cs
 Hold the button to keep using (0/1)	behavior ToolUse
 Holding the {0}	MainWindow.Params.cs
+Holds a key for a moment as if the player pressed it (talk with E, attack, use an item…). Works while the player is locked.	step presskey
 Hotbar / Inventory	behavior Hotbar
-How	BlockEditorWindow.Palette.cs
+How	BlockEditorWindow.Palette.cs, step playanim
 How close (px)	behavior BossAI, behavior Shop
 How dark underground (0-1)	behavior DayNight
 How do I use {0} {1}? Explain step by step for a beginner.	MainWindow.Learn.cs
@@ -690,7 +695,7 @@ Keeping {0} s → {1} s ({2} s)	AudioEditorWindow.cs
 Keeps firing every moment while it is true — for something that should happen once, use "When a variable becomes…".	BlockEditorWindow.Palette.cs
 Keeps following the player	behavior Cutscene
 Keeps this object from leaving the scene (or the part the camera shows). At the edge it stops, bounces back, or comes out the other side (like Pac-Man). Pick which sides count — e.g. all but the bottom, so it can still fall into a pit.	behavior StayInside
-Key	behavior Cutscene, behavior Interact, behavior Switch, BlockEditorWindow.Palette.cs, MainWindow.OnlyWhile.cs
+Key	behavior Cutscene, behavior Interact, behavior Switch, BlockEditorWindow.Palette.cs, MainWindow.OnlyWhile.cs, step presskey
 Key to open the big map	behavior Minimap
 Knockback	behavior Damager, behavior ToolUse
 LIGHT	MainWindow.xaml.cs
@@ -702,7 +707,8 @@ Later	SequenceEditorWindow.cs
 Launch force	behavior Spring
 Launches	behavior Spring
 Launches anything dynamic that lands on it (trampoline, jump pad). 'force' is the launch power; dir = up/down/left/right.	behavior Spring
-Layer "{0}" is locked — unlock it to add objects	MainWindow.CopyPaste.cs, MainWindow.xaml.cs
+Layer	MainWindow.MoveLayer.cs
+Layer "{0}" is locked — unlock it to add objects	MainWindow.CopyPaste.cs, MainWindow.MoveLayer.cs, MainWindow.xaml.cs
 Layer "{0}" is off in the game: its objects won't exist when playing	MainWindow.Layers.cs
 Layer "{0}" is on in the game	MainWindow.Layers.cs
 Layer "{0}" locked	MainWindow.Layers.cs
@@ -750,7 +756,7 @@ Look of {0} copied	MainWindow.xaml.cs
 Look pasted on {0}	MainWindow.xaml.cs
 Looking it up…	MainWindow.xaml.cs
 Looks	step category
-Loop	AnimationWindow.xaml, BlockEditorWindow.Palette.cs
+Loop	AnimationWindow.xaml, BlockEditorWindow.Palette.cs, step playanim
 Loop (0/1)	behavior SoundEmitter
 Loop (straight back to start)	MainWindow.xaml.cs
 Loses one when it touches	behavior Lives
@@ -792,11 +798,14 @@ Move at a speed	BlockEditorWindow.Palette.cs
 Move down	BlockEditorWindow.cs, SequenceEditorWindow.cs
 Move in a circle	BlockEditorWindow.Recipes.cs
 Move the camera	step camera
+Move to layer	MainWindow.MoveLayer.cs
 Move up	BlockEditorWindow.cs, SequenceEditorWindow.cs
+Moved {0} object(s) to "{1}"	MainWindow.MoveLayer.cs
 Movement format	behavior AdvancedPatrol
 Moves	behavior BossAI
 Moves back and forth automatically. Good for enemies. Patrols horizontally or vertically, and can ease to a smooth stop at the ends.	behavior Patrol
 Moves in 8 directions, no gravity. 'controls' = respond to the default keys (WASD/arrows). Turn it off for enemies (set custom keys or move it with a script).	behavior TopDown
+Moves the player as if its keys were held (walk, jump, dash), with its own physics. Works while the player is locked.	step control
 Multiply its speed	BlockEditorWindow.Palette.cs
 Music	behavior SoundEmitter, BlockEditorWindow.Palette.cs
 My Game	LauncherWindow.xaml
@@ -871,7 +880,7 @@ OBJECT	MainWindow.xaml.cs
 OBJECTS	MainWindow.xaml
 OBJECTS — {0}	MainWindow.Layers.cs, MainWindow.xaml.cs
 OK	InputDialog.xaml, SequenceEditorWindow.cs
-Object	BlockEditorWindow.Palette.cs, step destroy, step face, step hide, step move, step show, step spawn, step summon, VariablesWindow.xaml.cs
+Object	BlockEditorWindow.Palette.cs, step destroy, step face, step hide, step move, step playanim, step show, step spawn, step summon, VariablesWindow.xaml.cs
 Object (or self)	BlockEditorWindow.Palette.cs
 Objects	MainWindow.xaml.cs
 Off	AudioEditorWindow.cs
@@ -887,6 +896,7 @@ On	step bars
 On click	behavior UIButton
 On the ground (gravity)	behavior BossAI
 On the surface (instead of grass)	MainWindow.TerrainBlocks.cs
+Once	step playanim
 Once (stop at the end)	MainWindow.xaml.cs
 Once, then back to normal	BlockEditorWindow.Palette.cs
 One burst when the scene starts	behavior Particles
@@ -964,13 +974,14 @@ Platformer (gravity + jumps)	MainWindow.xaml.cs
 Platformer (side view, sun + moon)	behavior DayNight
 Platformer Character	behavior Platformer
 Play a sound	BlockEditorWindow.Palette.cs, step playsound
-Play an animation	BlockEditorWindow.Palette.cs
+Play an animation	BlockEditorWindow.Palette.cs, step playanim
 Play on start (0/1)	behavior SoundEmitter
 Player	behavior Minimap
 Player colour	behavior Minimap
 Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master. Only heard nearby (range): heard only within 'radius' px of the listener (the player by default) — full volume close to it, fading smoothly to silence at the edge (a looping one keeps playing silently and comes back as you walk near). Left / right in the headphones (pan): it plays in the left or right ear by where it is compared to the listener (3D / stereo sound).	behavior SoundEmitter
 Plays a sound file from the project's Assets/sounds folder.	BlockEditorWindow.Palette.cs
 Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. "Back to automatic" lets idle / walk / jump choose again.	BlockEditorWindow.Palette.cs
+Plays one of the object's animations (made in 🎞 Edit Animations). "Back to automatic" returns to idle / walk / jump. "Pause" freezes the picture it shows (any animation) until "Resume".	step playanim
 Plays the sound backwards.	AudioEditorWindow.cs
 Plays when	behavior Cutscene
 Plays when the {0} hits an enemy	MainWindow.Params.cs
@@ -982,6 +993,7 @@ Prefab "{0}" is now "{1}" ({2} places that use it updated)	MainWindow.xaml.cs
 Prefab "{0}" removed	MainWindow.xaml.cs
 Prefab name:	MainWindow.xaml.cs
 Prefabs	MainWindow.xaml.cs
+Press a key	step presskey
 Procedural Generator	behavior Generator
 Procedurally spawns copies of prefab(s) inside this object's rectangle (or the whole scene if it has no size) when the scene loads. 'prefab' is one or more names separated by commas (picked at random). mode=once builds a stable map (same every time you come back); mode=regen recreates it fresh on every visit (roguelike). layout=scatter (random), grid, row or column. minGap keeps scattered items apart.	behavior Generator
 Project has no file path.	ProjectIO.cs
@@ -1006,6 +1018,7 @@ Ready	MainWindow.xaml, MainWindow.xaml.cs
 Ready-made blocks for common things — add one, then change it as you like	BlockEditorWindow.Recipes.cs
 Recalc interval (s)	behavior PathChase
 Recent projects	LauncherWindow.xaml
+Recipe:	MainWindow.LearnFooter.cs
 Rectangle	SpriteEditorWindow.cs
 Redo	MainWindow.xaml.cs
 Redo (Ctrl+Y)	SpriteEditorWindow.cs
@@ -1025,6 +1038,7 @@ Remove this item from the hotbar	MainWindow.Params.cs
 Remove this step	SequenceEditorWindow.cs
 Remove this tile	MainWindow.xaml.cs
 Removed {0} items ({1}).	SettingsWindow.cs
+Removes it from the game: this object (self), the one its touch touched (other), or an object by name.	BlockEditorWindow.Palette.cs
 Removes the first item equal to it (capital letters don't matter).	BlockEditorWindow.Palette.cs
 Removes the object when it leaves the visible area.	behavior DestroyOffscreen
 Removing the old version...	Updater.cs
@@ -1083,7 +1097,8 @@ Scene "{0}" unlocked	MainWindow.Layers.cs
 Scene name:	MainWindow.xaml.cs
 Scene {0}	MainWindow.xaml.cs
 Screen size	MainWindow.xaml.cs
-Seconds	BlockEditorWindow.Palette.cs, step camera, step cameraback, step dash, step fadein, step fadeout, step invulnerable, step move, step moveto, step shake, step telegraph, step title, step wait, step walk
+Seconds	BlockEditorWindow.Palette.cs, step camera, step cameraback, step control, step dash, step fadein, step fadeout, step invulnerable, step move, step moveto, step shake, step telegraph, step title, step wait, step walk
+Seconds held	step presskey
 See-through (decoration)	MainWindow.TerrainBlocks.cs
 Select	ColorPickerPopup.cs
 Select all	Styles.xaml
@@ -1387,6 +1402,7 @@ Volume (0-1)	behavior SoundEmitter, BlockEditorWindow.Palette.cs, step playsound
 WHEN	BlockEditorWindow.cs
 Wait	step wait
 Wait until it arrives	step move
+Wait until it ends	step control, step presskey
 Wait until it's gone	step title
 Waiting for EasyEngine to close...	Updater.cs
 Walk toward the player	BlockEditorWindow.Recipes.cs
@@ -1556,12 +1572,13 @@ then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.15.4	LauncherWindow.xaml
+v0.15.6	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs
 walls all around	MainWindow.AiLevel.cs
 warn	BlockEditorWindow.Palette.cs
+what it touched	BlockEditorWindow.cs
 x	step camera, step move, step moveto, step spawn
 y	step camera, step move, step moveto, step spawn
 {0}  (group)	MainWindow.Minimap.cs
@@ -1583,6 +1600,7 @@ y	step camera, step move, step moveto, step spawn
 {0} hits	MainWindow.TerrainBlocks.cs
 {0} items	VariablesWindow.xaml.cs
 {0} limit reached for now.	CloudClient.cs
+{0} objects selected	MainWindow.Marquee.cs
 {0} phases	SequenceModel.cs
 {0} platforms	MainWindow.AiLevel.cs
 {0} px	MainWindow.OnlyWhile.cs
@@ -1596,20 +1614,23 @@ y	step camera, step move, step moveto, step spawn
 {0} — {1} frames · {2} fps · {3}	AnimationWindow.EasyPixel.cs
 {0}: off in the game (it stays in the scene)	MainWindow.Layers.cs
 {0}: on in the game	MainWindow.Layers.cs
+» Dash	step control
 — updated ✓	LauncherWindow.xaml.cs
 …or an advanced condition (expression — overrides the boxes above)	BlockEditorWindow.cs
 …or when the player has	behavior Gate
 …this value	behavior Gate
 ← Left	behavior Projectile, behavior Spring, step face
 ← Left arrow	ParamSources.cs
-↑ Up	behavior Projectile, behavior Spring
+← Walk left	step control
+↑ Up	behavior Projectile, behavior Spring, step control
 ↑ Up arrow	ParamSources.cs
 → DO	BlockEditorWindow.cs
 → Right	behavior Projectile, behavior Spring, step face
 → Right arrow	ParamSources.cs
+→ Walk right	step control
 → sideways	BlockEditorWindow.Palette.cs
 → sideways / s	BlockEditorWindow.Palette.cs
-↓ Down	behavior Projectile, behavior Spring
+↓ Down	behavior Projectile, behavior Spring, step control
 ↓ Down arrow	ParamSources.cs
 ↓ up / down	BlockEditorWindow.Palette.cs
 ↓ up-down	BlockEditorWindow.Palette.cs
@@ -1625,6 +1646,7 @@ y	step camera, step move, step moveto, step spawn
 ↺ No effects	AudioEditorWindow.cs
 ↻  Restart now	SettingsWindow.cs
 ⌫ Eraser	SpriteEditorWindow.cs
+⏸ Pause	BlockEditorWindow.Palette.cs, step playanim
 ① Get free key (opens the site)	MainWindow.xaml.cs
 ② Paste your key here:	MainWindow.xaml.cs
 ■ Stop	AudioEditorWindow.cs
@@ -1632,6 +1654,7 @@ y	step camera, step move, step moveto, step spawn
 ▭ Start from the box	HitboxShapeWindow.cs
 ▶  Test	MainWindow.xaml
 ▶ Play	AudioEditorWindow.cs
+▶ Resume	BlockEditorWindow.Palette.cs, step playanim
 ▶ off	MainWindow.Layers.cs
 ▶ on	MainWindow.Layers.cs
 ▸ Advanced — paid keys, offline AI	MainWindow.xaml
@@ -1681,6 +1704,7 @@ y	step camera, step move, step moveto, step spawn
 ✨ Ask the AI	BlockEditorWindow.Ai.cs, MainWindow.Sequences.cs
 ✨ Local+ — smarter, still light (3b)	MainWindow.xaml
 ➕  Add a block	BlockEditorWindow.cs
+⤒ Jump	step control
 ⧉ Duplicate animation	AnimationWindow.xaml
 ⬆  Updates	SettingsWindow.cs
 ⬚ Select	SpriteEditorWindow.cs
@@ -1752,7 +1776,7 @@ y	step camera, step move, step moveto, step spawn
 ＋ Add step	SequenceEditorWindow.cs
 ＋ And do…	BlockEditorWindow.cs
 ＋ Empty Object	MainWindow.xaml
-＋ Import a sound…	MainWindow.Params.cs
+＋ Import a sound…	MainWindow.Params.cs, PicturePick.cs
 ＋ New attack	SequenceEditorWindow.cs
 ＋ New item (tool / weapon)…	MainWindow.xaml.cs
 ＋ New phase	SequenceEditorWindow.cs

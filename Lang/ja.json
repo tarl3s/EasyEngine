@@ -1779,5 +1779,21 @@
   "🔗 A copy of the prefab \"{0}\"": "🔗 プレハブ「{0}」のコピー",
   "Changes here change every copy": "ここでの変更をすべてのコピーに反映",
   "Make this one independent: it stops being a copy of the prefab": "これを独立させる：プレハブのコピーではなくなります",
-  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "オン：このオブジェクトへの変更がプレハブと、これがオンの他のコピーにも反映されます。オフ：変更はこれだけに残ります。"
+  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "オン：このオブジェクトへの変更がプレハブと、これがオンの他のコピーにも反映されます。オフ：変更はこれだけに残ります。",
+  "Action": "アクション",
+  "Control the player": "プレイヤーを操作",
+  "Holds a key for a moment as if the player pressed it (talk with E, attack, use an item…). Works while the player is locked.": "プレイヤーが押したようにキーを少しの間押し続けます（Eで話す、攻撃、アイテム使用…）。プレイヤーがロック中でも動作します。",
+  "Moves the player as if its keys were held (walk, jump, dash), with its own physics. Works while the player is locked.": "キーを押し続けているようにプレイヤーを動かします（歩く、ジャンプ、ダッシュ）。物理はそのまま。プレイヤーがロック中でも動作します。",
+  "Once": "1回",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump.": "オブジェクトのアニメーションを再生します（🎞 アニメーション編集で作成）。「自動に戻す」で待機 / 歩き / ジャンプに戻ります。",
+  "Press a key": "キーを押す",
+  "Seconds held": "押す秒数",
+  "Wait until it ends": "終わるまで待つ",
+  "» Dash": "» ダッシュ",
+  "← Walk left": "← 左へ歩く",
+  "→ Walk right": "→ 右へ歩く",
+  "⤒ Jump": "⤒ ジャンプ",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump. \"Pause\" freezes the picture it shows (any animation) until \"Resume\".": "オブジェクトのアニメーションを再生します（🎞 アニメーション編集で作成）。「自動に戻す」で待機 / 歩き / ジャンプに戻ります。「一時停止」は表示中の絵を「再開」まで止めます（どのアニメーションでも）。",
+  "⏸ Pause": "⏸ 一時停止",
+  "▶ Resume": "▶ 再開"
 }

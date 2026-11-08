@@ -1779,5 +1779,21 @@
   "🔗 A copy of the prefab \"{0}\"": "🔗 Copie du prefab \"{0}\"",
   "Changes here change every copy": "Les changements ici modifient toutes les copies",
   "Make this one independent: it stops being a copy of the prefab": "Rendre celui-ci indépendant : il n’est plus une copie du prefab",
-  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "Coché : ce que vous changez sur cet objet change aussi le prefab et les autres copies qui l’ont coché. Décoché : les changements restent sur celui-ci."
+  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "Coché : ce que vous changez sur cet objet change aussi le prefab et les autres copies qui l’ont coché. Décoché : les changements restent sur celui-ci.",
+  "Action": "Action",
+  "Control the player": "Contrôler le joueur",
+  "Holds a key for a moment as if the player pressed it (talk with E, attack, use an item…). Works while the player is locked.": "Maintient une touche un instant comme si le joueur l'appuyait (parler avec E, attaquer, utiliser un objet…). Fonctionne même si le joueur est bloqué.",
+  "Moves the player as if its keys were held (walk, jump, dash), with its own physics. Works while the player is locked.": "Déplace le joueur comme si ses touches étaient maintenues (marcher, sauter, dash), avec sa propre physique. Fonctionne même si le joueur est bloqué.",
+  "Once": "Une fois",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump.": "Joue une des animations de l'objet (faites dans 🎞 Modifier les animations). « Retour en automatique » revient à repos / marche / saut.",
+  "Press a key": "Appuyer sur une touche",
+  "Seconds held": "Secondes maintenue",
+  "Wait until it ends": "Attendre la fin",
+  "» Dash": "» Dash",
+  "← Walk left": "← Marcher à gauche",
+  "→ Walk right": "→ Marcher à droite",
+  "⤒ Jump": "⤒ Sauter",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump. \"Pause\" freezes the picture it shows (any animation) until \"Resume\".": "Joue une des animations de l'objet (faites dans 🎞 Modifier les animations). « Retour en automatique » revient à repos / marche / saut. « Pause » fige l'image affichée (n'importe quelle animation) jusqu'à « Reprendre ».",
+  "⏸ Pause": "⏸ Pause",
+  "▶ Resume": "▶ Reprendre"
 }

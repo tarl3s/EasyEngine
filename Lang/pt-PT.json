@@ -1779,5 +1779,21 @@
   "🔗 A copy of the prefab \"{0}\"": "🔗 Cópia do prefab \"{0}\"",
   "Changes here change every copy": "Alterações aqui alteram todas as cópias",
   "Make this one independent: it stops being a copy of the prefab": "Tornar este independente: deixa de ser cópia do prefab",
-  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "Marcado: o que altera neste objeto altera também o prefab e as outras cópias com isto marcado. Desmarcado: as alterações ficam só neste."
+  "Ticked: what you change on this object also changes the prefab and the other copies that have this ticked. Off: changes stay on this one only.": "Marcado: o que altera neste objeto altera também o prefab e as outras cópias com isto marcado. Desmarcado: as alterações ficam só neste.",
+  "Action": "Ação",
+  "Control the player": "Controlar o jogador",
+  "Holds a key for a moment as if the player pressed it (talk with E, attack, use an item…). Works while the player is locked.": "Mantém uma tecla premida por um instante como se o jogador a premisse (falar com E, atacar, usar um item…). Funciona com o jogador bloqueado.",
+  "Moves the player as if its keys were held (walk, jump, dash), with its own physics. Works while the player is locked.": "Move o jogador como se as suas teclas estivessem premidas (andar, saltar, dash), com a sua física. Funciona com o jogador bloqueado.",
+  "Once": "Uma vez",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump.": "Reproduz uma das animações do objeto (feitas em 🎞 Editar animações). \"Voltar ao automático\" volta a parado / andar / saltar.",
+  "Press a key": "Premir uma tecla",
+  "Seconds held": "Segundos premida",
+  "Wait until it ends": "Esperar que termine",
+  "» Dash": "» Dash",
+  "← Walk left": "← Andar para a esquerda",
+  "→ Walk right": "→ Andar para a direita",
+  "⤒ Jump": "⤒ Saltar",
+  "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump. \"Pause\" freezes the picture it shows (any animation) until \"Resume\".": "Reproduz uma das animações do objeto (feitas em 🎞 Editar animações). \"Voltar ao automático\" volta a parado / andar / saltar. \"Pausar\" congela a imagem que mostra (qualquer animação) até \"Continuar\".",
+  "⏸ Pause": "⏸ Pausar",
+  "▶ Resume": "▶ Continuar"
 }
