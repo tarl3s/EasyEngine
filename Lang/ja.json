@@ -1795,5 +1795,20 @@
   "⤒ Jump": "⤒ ジャンプ",
   "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump. \"Pause\" freezes the picture it shows (any animation) until \"Resume\".": "オブジェクトのアニメーションを再生します（🎞 アニメーション編集で作成）。「自動に戻す」で待機 / 歩き / ジャンプに戻ります。「一時停止」は表示中の絵を「再開」まで止めます（どのアニメーションでも）。",
   "⏸ Pause": "⏸ 一時停止",
-  "▶ Resume": "▶ 再開"
+  "▶ Resume": "▶ 再開",
+  "A BuilderEngine project: saved back into its folder": "BuilderEngine のプロジェクト：元のフォルダーに保存されます",
+  "BuilderEngine": "BuilderEngine",
+  "BuilderEngine wasn't found on this computer.": "このコンピューターに BuilderEngine が見つかりません。",
+  "Built on BuilderEngine": "BuilderEngine で作成",
+  "Couldn't load the outside change yet: {0}": "外部の変更をまだ読み込めません：{0}",
+  "EasyEngine or BuilderEngine project": "EasyEngine または BuilderEngine のプロジェクト",
+  "Its behaviour comes from BuilderEngine mechanisms. It plays here too; to change what it does, open it in BuilderEngine.": "動きは BuilderEngine のメカニズムによるものです。ここでも動きます。動きを変えるには BuilderEngine で開いてください。",
+  "Live link": "ライブリンク",
+  "Live link off: save with Save; changes made outside still show up when there's nothing unsaved": "ライブリンク オフ：「保存」で保存します。未保存の変更がなければ外部の変更も反映されます",
+  "Live link: every change is saved right away and changes made outside (in BuilderEngine or another window) show up here": "ライブリンク：変更はすぐに保存され、外部（BuilderEngine や別のウィンドウ）での変更がここに反映されます",
+  "Open in BuilderEngine": "BuilderEngine で開く",
+  "Skipped \"{0}\": it's built on BuilderEngine (change what it does there)": "「{0}」をスキップ：BuilderEngine で作られています（動きはそちらで変更してください）",
+  "This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.": "このプロジェクトは EasyEngine の外（BuilderEngine または別のウィンドウ）で変更されました。そのバージョンを読み込みますか？ここでの未保存の変更は失われます。",
+  "🔗 Live link on: every change is saved right away, and changes made outside show up here": "🔗 ライブリンク オン：変更はすぐに保存され、外部での変更がここに反映されます",
+  "🔗 Loaded the changes made outside EasyEngine": "🔗 EasyEngine の外での変更を読み込みました"
 }

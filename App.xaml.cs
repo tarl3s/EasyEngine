@@ -110,11 +110,33 @@ public partial class App : Application
             catch { }
         }
 
-        EasyPixelBridge.RegisterEasyEngine(); // lets EasyPixel find this exe (launcher/editor runs only; not tests or --play)
+        if (e.Args.Contains("--link-probe")) ProjectIO.SuppressRecent = true; // the live-link smoke test (MainWindow.LiveLink.cs) leaves Recent alone
+        else EasyPixelBridge.RegisterEasyEngine(); // lets EasyPixel find this exe (launcher/editor runs only; not tests or --play)
 
         // normal: show the launcher, in the person's language, theme and size
         ApplyUserPreferences();
+
+        // a project as the first argument (BuilderEngine's "Open in EasyEngine", a .eeproj opened from Explorer, a BuilderEngine
+        // folder or its project.json): straight into the editor, with the live link on (MainWindow.LiveLink.cs)
+        if (e.Args.Length > 0 && !e.Args[0].StartsWith("--") && BuilderLink.OpenablePath(e.Args[0]) is string toOpen && OpenEditorDirect(toOpen)) return;
+
         _ = OpenLauncherAsync();
+    }
+
+    private bool OpenEditorDirect(string path)
+    {
+        try
+        {
+            var editor = new MainWindow(ProjectIO.Load(path)) { LinkOnOpen = true };
+            MainWindow = editor;
+            editor.Show();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(L.T("Open failed:") + " " + ex.Message, "EasyEngine");
+            return false; // the launcher opens instead
+        }
     }
 
     // asks about a new version first (UpdatePrompt), then opens the launcher — unless an update is being installed

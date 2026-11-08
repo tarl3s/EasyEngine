@@ -225,6 +225,9 @@ namespace EasyEngine
         public int Z { get; set; } = 0;           // order inside its layer: higher draws in front; equal Z keeps the list order
         public bool KeepAspect { get; set; } = false; // editor: resizing keeps the picture's proportions
         public double Aspect { get; set; } = 0;       // width/height kept by KeepAspect when there is no picture (set when turned on)
+        // JSON this version doesn't know (e.g. BuilderEngine's "Builder" block: its mechanisms on this object) — kept as is when saved,
+        // and carried by every copy (duplicate, paste, prefab, undo): a copied BuilderEngine object keeps its mechanisms (BuilderLink.cs)
+        [JsonExtensionData] public Dictionary<string, System.Text.Json.JsonElement>? Extra { get; set; }
 
         /// <summary>The corner radius drawn: the one set, or automatic — square for an object with a picture (rounding
         /// would clip the drawing's corners), round for bullets and particles, a slight 4 px otherwise.</summary>
@@ -261,6 +264,7 @@ namespace EasyEngine
         public double Opacity { get; set; } = 1.0; // the whole layer, in the editor and the game (multiplies each object's own opacity)
         public bool Active { get; set; } = true;   // false = off: none of its objects exist when the game plays (Visible is only the editor's eye)
         public List<GameObjectData> Objects { get; set; } = new();
+        [JsonExtensionData] public Dictionary<string, System.Text.Json.JsonElement>? Extra { get; set; } // unknown JSON (another engine's data), kept as is
     }
 
     public class Scene
@@ -283,6 +287,7 @@ namespace EasyEngine
         private Dictionary<string, List<string>> _lists = new();
         public Dictionary<string, List<string>> Lists { get => _lists; set => _lists = VarScope.NewLists(value); } // list variables (ordered words)
         public List<Layer> Layers { get; set; } = new();
+        [JsonExtensionData] public Dictionary<string, System.Text.Json.JsonElement>? Extra { get; set; } // unknown JSON (BuilderEngine's tile maps…), kept as is
     }
 
     /// <summary>A reusable object template shown in the palette (Player, Enemy, …).</summary>
@@ -292,6 +297,7 @@ namespace EasyEngine
         public string Icon { get; set; } = "▢";
         public string Category { get; set; } = "General"; // palette grouping for larger projects
         public GameObjectData Template { get; set; } = new();
+        [JsonExtensionData] public Dictionary<string, System.Text.Json.JsonElement>? Extra { get; set; } // unknown JSON, kept as is
     }
 
     /// <summary>Default prefab library that ships with every new project.</summary>
@@ -363,9 +369,13 @@ namespace EasyEngine
         public GameTheme Theme { get; set; } = new();          // in-game look & feel
         public string? StartScene { get; set; } // scene the game starts on
         public bool ConsoleOnStart { get; set; } // open the F1 debug console when play starts (test scenarios)
+        // unknown JSON, kept as is — e.g. BuilderEngine's "Builder" block (the project's mechanisms) when both engines edit this project
+        [JsonExtensionData] public Dictionary<string, System.Text.Json.JsonElement>? Extra { get; set; }
 
         [JsonIgnore] public string? FilePath { get; set; } // .eeproj path on disk
         [JsonIgnore] public string? FolderPath { get; set; }
+        // a BuilderEngine project folder opened in EasyEngine (FilePath is its project.json; saved back through BuilderLink.cs)
+        [JsonIgnore] public bool IsBuilderEngine => BuilderLink.IsProjectJson(FilePath);
 
         private int _nextId = 1;
         [JsonIgnore]
@@ -391,5 +401,7 @@ namespace EasyEngine
         public string Name { get; set; } = "";
         public string Path { get; set; } = "";
         public string LastOpened { get; set; } = "";
+        // a BuilderEngine project folder (its project.json): Recent shows a "BuilderEngine" badge
+        [JsonIgnore] public bool IsBuilderEngine => BuilderLink.IsProjectJson(Path);
     }
 }

@@ -121,13 +121,14 @@ namespace EasyEngine
             SceneScroll.PreviewMouseMove += SceneScroll_MouseMove;
             SceneScroll.PreviewMouseUp += SceneScroll_MouseUp;
 
-            if (_project.Prefabs.Count == 0) _project.Prefabs = PrefabFactory.Defaults();
+            if (_project.Prefabs.Count == 0 && !_project.IsBuilderEngine) _project.Prefabs = PrefabFactory.Defaults(); // (a BuilderEngine project keeps its own library)
             FillMissingBehaviorKeys(_project);
             LinkOldPrefabCopies(_project);
             RefreshSceneCombo();
             SwitchScene(project.GetStartScene());
             RefreshPalette();
             InitDocking();
+            Loaded += (_, _) => StartLiveLink(); // watch the project file (BuilderEngine or another window may change it): MainWindow.LiveLink.cs
             SetTab(false); // default to the AI tab
             SetAiMode(AiMode.Build);
             UpdateAiTarget();
@@ -1464,6 +1465,7 @@ namespace EasyEngine
 
             InspectorRoot.Children.Clear();
             if (obj == null) { BuildSceneInspector(); return; }
+            if (BuilderInspector(obj)) return; // built on BuilderEngine: common fields + one read-only card (MainWindow.BuilderLink.cs)
 
             Section(L.T("OBJECT"));
             LockRow(obj); // 🔒/🔓 — the only thing left editable on a locked object (MainWindow.LockZ.cs)
@@ -1818,7 +1820,7 @@ namespace EasyEngine
 
         private void AddBehaviorControl(GameObjectData obj)
         {
-            var combo = new ComboBox { Margin = new Thickness(0, 2, 0, 0) };
+            var combo = new ComboBox { Margin = new Thickness(0, 2, 0, 0), Tag = "add-behavior" };
             combo.Items.Add(new ComboBoxItem { Content = L.T("＋ Add behavior…"), Tag = null, IsSelected = true });
             bool single = _selection.Count <= 1;
             foreach (var info in BehaviorCatalog.All)
@@ -1830,7 +1832,7 @@ namespace EasyEngine
                     PushUndo();
                     // apply to EVERY selected object, not just the primary; skip ones that already have it (unless it can be
                     // added more than once: BehaviorInfo.Repeatable — a second Interact, Sound, Shooter… gets its own card)
-                    var targets = _selection.Count > 1 ? _selection.Where(o => !IsLockedObj(o)).ToList() : new List<GameObjectData> { obj }; // locked ones are skipped
+                    var targets = _selection.Count > 1 ? _selection.Where(o => !IsLockedObj(o) && !BuilderLink.IsBuilt(o)).ToList() : new List<GameObjectData> { obj }; // locked ones and BuilderEngine's are skipped
                     int added = 0;
                     foreach (var t in targets)
                     {
@@ -2769,7 +2771,7 @@ namespace EasyEngine
 
         private void Open_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new OpenFileDialog { Filter = L.F("EasyEngine project (*{0})", ProjectIO.Extension) + $"|*{ProjectIO.Extension}" };
+            var dlg = new OpenFileDialog { Filter = L.T("EasyEngine or BuilderEngine project") + $" (*{ProjectIO.Extension}; project.json)|*{ProjectIO.Extension};project.json" };
             if (dlg.ShowDialog() == true)
             {
                 try { var p = ProjectIO.Load(dlg.FileName); var ed = new MainWindow(p); Application.Current.MainWindow = ed; ed.Show(); Close(); }
@@ -2779,7 +2781,7 @@ namespace EasyEngine
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            try { ProjectIO.Save(_project); _dirty = false; UpdateTitle(); Status(L.F("Saved to {0}", _project.FilePath)); }
+            try { SaveProjectFile(); _dirty = false; UpdateTitle(); Status(L.F("Saved to {0}", _project.FilePath)); }
             catch (Exception ex) { MessageBox.Show(L.F("Error saving: {0}", ex.Message)); }
         }
 
@@ -2793,9 +2795,11 @@ namespace EasyEngine
 
         private void Test_Click(object sender, RoutedEventArgs e)
         {
-            try { ProjectIO.Save(_project); } catch { }
+            try { SaveProjectFile(); } catch { }
             var play = new PlayWindow(_project, _scene.Name) { Owner = this };
-            play.ShowDialog();
+            _playing = true; // the live link waits: an outside change is loaded when the game closes (MainWindow.LiveLink.cs)
+            try { play.ShowDialog(); }
+            finally { _playing = false; AfterPlayLink(); }
         }
 
         private void Settings_Click(object sender, RoutedEventArgs e) => SettingsWindow.Open(this);
@@ -2803,7 +2807,7 @@ namespace EasyEngine
         private async void Export_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_project.FolderPath)) { MessageBox.Show(L.T("Save the project first.")); return; }
-            try { ProjectIO.Save(_project); } catch { }
+            try { SaveProjectFile(); } catch { }
 
             var dlg = new OpenFolderDialog { Title = L.T("Choose a folder to export the game into") };
             if (dlg.ShowDialog() != true) return;
@@ -2952,9 +2956,9 @@ namespace EasyEngine
         private bool _dirty;
         private bool IsDirty => _dirty;
 
-        private void Dirty() { if (!_restoring) { _dirty = true; UpdateTitle(); if (!_syncing) { _syncing = true; try { SyncPrefabCopies(); } finally { _syncing = false; } } } }
+        private void Dirty() { if (!_restoring) { _dirty = true; UpdateTitle(); LinkAfterEdit(); if (!_syncing) { _syncing = true; try { SyncPrefabCopies(); } finally { _syncing = false; } } } }
         private bool _syncing; // a prefab change being passed to its copies (MainWindow.Prefabs.cs)
-        private void UpdateTitle() => Title = $"EasyEngine — {_project.Name} · {_scene.Name}" + (_dirty ? " *" : "");
+        private void UpdateTitle() => Title = $"EasyEngine — {_project.Name} · {_scene.Name}" + (_dirty ? " *" : "") + (_linkOn ? "   🔗 " + L.T("Live link") : "");
         private void Status(string msg) => StatusText.Text = msg;
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
@@ -2969,7 +2973,7 @@ namespace EasyEngine
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    try { ProjectIO.Save(_project); }
+                    try { SaveProjectFile(); }
                     catch (Exception ex) { MessageBox.Show(L.F("Error saving: {0}", ex.Message)); e.Cancel = true; return; }
                 }
                 else if (result == MessageBoxResult.Cancel)

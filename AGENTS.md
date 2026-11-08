@@ -15,7 +15,7 @@ that game needs come first (rotational physics/ragdolls/vehicles come last). Lon
 - Repo: `github.com/tarl3s/EasyEngine` — **public** (MIT, since v0.11.0), branch `main`. Everything you push is public:
   no secrets, no personal paths in docs meant for players. `README.md` (English) and `README.pt-BR.md` are the public
   face — keep both in sync when features change.
-- Version: `0.15.6` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
+- Version: `0.16.0` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
 - The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
   this file are in **English** (the editor UI is 100% English by request; only `README.pt-BR.md` is Portuguese).
 
@@ -47,7 +47,7 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--pairtest [--only Patrol,Chase] [--combos] [--trace]` | dev tool (headless, ~1 min): first the behavior-combination battery (`FullTest.BehaviorCombos.cs`; `--combos` = only that), then every visible behavior alone, every pair (both orders for movers), "Only while"-resting movers, behaviors on the player and a few triples, each played ~5 s; flags exceptions, NaN, absurd speeds, falling through the ground, frozen / jittering / drifting objects, health out of range, console warnings, the player losing its keys. "By design" flags are listed apart; ends with a summary line. `--trace` logs the first ticks of each case | `easyengine_pairtest.log` |
 | `--aitest [--model m \| --cloud [auto\|groq\|gemini\|openrouter\|"provider\|model"]] [--only id,id] [--delay ms]` | **graded** AI eval (`App.AiEval.cs`): ~125 real requests (moves, timers, enemies, bosses, HUD, whole levels, edits, Portuguese, conversations, the Boss/Cutscene cards' and the block editor's ✨ Ask the AI), each checked on the resulting project and by playing it headless. Needs a running AI; the cloud free tiers have daily quotas — rerun failures with `--only` | `easyengine_aitest.log` |
 
-Last known green: fulltest 864/864, e2e 110/110, pairtest 0 suspicious (2436 combinations), behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest local qwen2.5-coder 1.5b 121/123 and 3b 118/123 (v0.15.6) (cloud: re-measure, quotas).
+Last known green (v0.16.0): fulltest 875/875, e2e 119/119, pairtest 0 suspicious (2436 combinations), behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest local qwen2.5-coder 1.5b 121/123 and 3b 118/123 (v0.15.6) (cloud: re-measure, quotas).
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 
@@ -66,6 +66,7 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 | Data model (Project → Scenes → Layers → GameObjectData → BehaviorData; layers have Locked/Opacity/Active and objects Active (off = not loaded when playing; `setactive` block turns them on/off at runtime); `BehaviorKind` enum, prefabs, theme, `SkySetup`) | `Model.cs` |
 | Tilemap palette (`TileKind`: colour, solid, picture or animated frames; the tolerant "palette" JSON shared by editor and runtime) | `TilePalette.cs` (editor: `MainWindow.Tiles.cs`, runtime: `PlayWindow.Tiles.cs`) |
 | Save/load `.eeproj` (JSON), recent list, legacy migration (`MigrateLegacy`, e.g. Melee → Use Item) | `ProjectIO.cs` |
+| **BuilderEngine link** (open/save BuilderEngine folders, "Built on BuilderEngine" objects, live link, the bridge that runs BuilderEngine mechanisms in play) | `BuilderLink.cs` (helpers over BuilderEngine's `EasyLink`), `MainWindow.BuilderLink.cs` (inspector card, AI skip), `MainWindow.LiveLink.cs`, `PlayWindow.BuilderBridge.cs`, `lib/BuilderEngine/*.dll` (binary reference, `tools/Update-BuilderEngineLib.ps1`) — see *BuilderEngine link* below |
 | **Behavior catalog** — name, icon, description, every param with its default, picker kind and `ShowIf` | `BehaviorCatalog.cs` |
 | How-to guides used by the AI Learn mode | `BehaviorGuides.cs` |
 | Editor window (scene canvas, docking panels, inspector, AI panel, undo/redo, export) | `MainWindow.xaml(.cs)`, `MainWindow.Layers.cs` (layer rows and their ⋯ menu: order, rename, duplicate, opacity, lock, on/off), `SceneTools.cs` (duplicate scene/layer with new ids), `MainWindow.Params.cs` (param pickers), `.Learn.cs`, `.Minimap.cs`, `.Sequences.cs`, `.LockZ.cs` (🔒 Lock — editor-only, the AI skips locked objects; Z layer; arrow-key nudge; Keep proportions / Original size), `.Layers.cs` (⧉ duplicate scene; the layer row and its ⋯ menu: order = draw order, 🔒 locked layer, opacity, ▶ on/off in the game; objects' Active) — model-side helpers in `SceneTools.cs` |
@@ -165,6 +166,41 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
   Boss/Cutscene cards have their own "✨ Ask the AI" (dedicated prompt, validated by the runtime's parser, one retry).
 - API keys live in `%APPDATA%\EasyEngine\settings.json` (with panel layout and recent list). Never commit keys,
   never print them. Cloud model ids change over time — on a 404, list the provider's models.
+
+## BuilderEngine link
+
+EasyEngine and BuilderEngine (`github.com/tarl3s/BuilderEngine`, sibling folder `JogosBuilderEngine`) open each other's
+projects and can edit the same one at once. **The contract is BuilderEngine's `docs/EASYENGINE-LINK.md`**; the one
+converter is BuilderEngine's `BuilderEngine.Script.EasyLink` — EasyEngine never maps fields itself.
+
+- **Binary reference**: `lib/BuilderEngine/BuilderEngine.Script.dll` + `BuilderEngine.Plugin.dll` are committed (the repo builds
+  alone). After BuilderEngine's link or runtime changes: `tools/Update-BuilderEngineLib.ps1` (runs BuilderEngine's
+  `tools/Build-LinkLib.ps1`), build, run the suites, commit the DLLs. Both libraries define `Project`, `Scene`, `World`,
+  `TileKind`…: always `using BE = BuilderEngine.Script;`, never `using BuilderEngine.Script;` (and in PlayWindow `World` is
+  also the canvas).
+- **Unknown JSON is kept**: `Project`, `Scene`, `Layer`, `GameObjectData`, `PrefabDef` have `[JsonExtensionData] Extra`, so
+  BuilderEngine's `"Builder"` blocks survive EasyEngine saves and every JSON copy (paste, duplicate, undo, prefab apply —
+  a copied BuilderEngine object keeps its mechanisms). Don't add a property named like a key BuilderEngine writes.
+- **Opening**: `ProjectIO.Load` takes a `.eeproj`, a BuilderEngine `project.json` or its folder (`EasyLink.ToEeprojFromFolder`);
+  `Project.IsBuilderEngine` (FilePath is a project.json) makes `ProjectIO.Save` go back through `EasyLink.SaveFromEeproj`;
+  such projects get no default prefabs. Saving a `.eeproj` is atomic (`EasyLink.WriteAtomic`). A project path as the
+  first command-line argument opens straight in the editor with the live link on (BuilderEngine's "Open in EasyEngine").
+  Recent shows a "BuilderEngine" badge.
+- **Built on BuilderEngine** (`BuilderLink.IsBuilt`: `Builder.mechanisms` non-empty): the inspector shows only the common
+  fields and one read-only card (+ "Open in BuilderEngine" when `BuilderLink.FindBuilderExe` finds it); the AI
+  (`ApplyBehaviorsToObject`, `AddRules`) and the ＋ behavior picker skip it.
+- **Live link** (`MainWindow.LiveLink.cs`, BuilderEngine's `LiveLink`): watches the project file; an outside change reloads
+  in place (`CopyProjectFrom`, keeping scene, selection, zoom/scroll, active layer; Ctrl+Z restores), never during play;
+  with the link on, edits autosave ~500 ms later. Every editor save goes through `SaveProjectFile()` so our own writes
+  are echoes. `EasyEngine.exe <proj> --link-probe` logs to `%TEMP%asyengine_link.log` and nudges an object (smoke tests).
+- **The bridge** (`PlayWindow.BuilderBridge.cs`): a scene with built objects gets a BuilderEngine `World` (`GameBoot.NewWorld`,
+  then `ForNextScene` for later scenes); other entities are read-only mirrors (name, box, tags: Type, Group, Builder tags,
+  "player" for the steered one, solid). Per frame after physics: positions → mirrors, keys, number globals ⇄ `_vars`,
+  `World.Frame`, then BuilderEngine objects → their entities (box, visibility, picture, colour, flip, solid), spawns and
+  destroys, `say`/`narrate`/`ask` → the dialogue box, `show text`/`show bar` → HUD, `notify` → a top message, `play` →
+  sounds, `goto_scene` → scene change, prints/errors → F1. Commands needing BuilderEngine's screen (camera, lights, screen
+  effects, minimap, hotbar, tiles, cursor, captions/labels/outline, screens, looping sounds) run but are logged once as
+  not available. Tests: `FullTest.BuilderLink.cs`, `E2ETests.BuilderLink.cs`, scene "BuilderEngine Link" (`TestScenarios.BuilderLink.cs`).
 
 ## Conventions and hard rules
 

@@ -34,13 +34,17 @@ namespace EasyEngine
             if (string.IsNullOrEmpty(p.FilePath))
                 throw new InvalidOperationException(L.T("Project has no file path."));
             var json = JsonSerializer.Serialize(p, JsonOpts);
-            File.WriteAllText(p.FilePath, json);
+            if (p.IsBuilderEngine) BuilderLink.SaveFolder(json, p.FilePath); // a BuilderEngine folder: project.json + its mechanisms (BuilderLink.cs)
+            else BuilderEngine.Script.EasyLink.WriteAtomic(p.FilePath, json); // atomically: BuilderEngine may be reading it (live link)
             AddRecent(p);
         }
 
-        public static Project Load(string path)
+        /// <summary>Opens a .eeproj, or a BuilderEngine project (its project.json or folder) through the link (BuilderLink.cs).
+        /// <paramref name="addRecent"/> false: a reload (the live link) that doesn't move it in Recent.</summary>
+        public static Project Load(string path, bool addRecent = true)
         {
-            var json = File.ReadAllText(path);
+            if (Directory.Exists(path) || BuilderLink.IsProjectJson(path)) path = BuilderLink.OpenablePath(path) ?? path;
+            var json = BuilderLink.IsProjectJson(path) ? BuilderLink.ReadFolder(path) : BuilderEngine.Script.LiveLink.ReadShared(path);
             var p = JsonSerializer.Deserialize<Project>(json) ?? throw new InvalidDataException(L.T("Invalid project file."));
             p.FilePath = path;
             p.FolderPath = Path.GetDirectoryName(path);
@@ -53,10 +57,11 @@ namespace EasyEngine
                 p.StartScene = scene.Name;
             }
             if (string.IsNullOrEmpty(p.StartScene)) p.StartScene = p.Scenes[0].Name;
-            if (p.Prefabs == null || p.Prefabs.Count == 0) p.Prefabs = PrefabFactory.Defaults();
+            if ((p.Prefabs == null || p.Prefabs.Count == 0) && !p.IsBuilderEngine) p.Prefabs = PrefabFactory.Defaults(); // not into a BuilderEngine project's library
+            p.Prefabs ??= new();
             MigrateLegacy(p);
 
-            AddRecent(p);
+            if (addRecent) AddRecent(p);
             return p;
         }
 
@@ -249,6 +254,17 @@ namespace EasyEngine
         {
             newName = (newName ?? "").Trim();
             if (newName.Length == 0) throw new ArgumentException(L.T("The name is empty."));
+            if (BuilderLink.IsProjectJson(filePath)) // a BuilderEngine folder: only the name inside project.json changes
+            {
+                BuilderLink.RenameFolderProject(filePath, newName);
+                var recent = GetRecent();
+                if (recent.FirstOrDefault(r => string.Equals(r.Path, filePath, StringComparison.OrdinalIgnoreCase)) is RecentProject re)
+                {
+                    re.Name = newName;
+                    try { File.WriteAllText(RecentFile, JsonSerializer.Serialize(recent, JsonOpts)); } catch { }
+                }
+                return filePath;
+            }
             var p = JsonSerializer.Deserialize<Project>(File.ReadAllText(filePath)) ?? throw new InvalidDataException(L.T("Invalid project file.")); // not Load: that moves it to the top of Recent
             string oldName = p.Name;
             p.Name = newName;

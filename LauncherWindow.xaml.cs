@@ -126,7 +126,9 @@ namespace EasyEngine
             var dlg = new OpenFileDialog
             {
                 Title = L.T("Open project"),
-                Filter = L.T("EasyEngine project") + $" (*{ProjectIO.Extension})|*{ProjectIO.Extension}"
+                // a BuilderEngine project opens by its project.json (the link: BuilderLink.cs)
+                Filter = L.T("EasyEngine or BuilderEngine project") + $" (*{ProjectIO.Extension}; project.json)|*{ProjectIO.Extension};project.json|" +
+                         L.T("EasyEngine project") + $" (*{ProjectIO.Extension})|*{ProjectIO.Extension}"
             };
             if (dlg.ShowDialog() == true) OpenPath(dlg.FileName);
         }
@@ -138,6 +140,7 @@ namespace EasyEngine
 
         private void OpenPath(string path)
         {
+            path = BuilderLink.OpenablePath(path) ?? path; // a BuilderEngine folder opens by its project.json
             if (!File.Exists(path)) { MessageBox.Show(L.T("That project file no longer exists.")); ProjectIO.RemoveRecent(path); LoadRecent(); return; }
             try { OpenEditor(ProjectIO.Load(path)); }
             catch (Exception ex) { MessageBox.Show(L.T("Open failed:") + " " + ex.Message); }

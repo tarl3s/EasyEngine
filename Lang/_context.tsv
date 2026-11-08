@@ -32,6 +32,7 @@
 8 — all around	behavior Shooter
 800 px — very far	behavior Chase, behavior PathChase
 900 px — far	behavior SoundEmitter
+A BuilderEngine project: saved back into its folder	LauncherWindow.xaml
 A bar that fills based on a variable, e.g. health. Fill = var / max. Put it on a UI layer for a HUD, or above an enemy for a health bar. 'max' can be a number or another variable name.	behavior Bar
 A boss fight. Attacks are lists of steps (warn, dash, jump with a shockwave, shoot rings/fans/aimed bullets, summon minions, become invulnerable…). Phases pick which attacks it uses — the next phase starts when its health drops to a percentage — and a death sequence plays when it is defeated. Give it Health (Disappear, with its own variable like bossHP) and a Damager for contact damage. Build it with 🧩 Advanced Scratch or ask the AI.	behavior BossAI
 A clickable button. On click it runs an effect: goscene (change scene), setvar, addvar, say, save or load. Put it on a UI layer; add a Label for its text. Great for menus and HUD.	behavior UIButton
@@ -77,7 +78,7 @@ AI: Ollama not installed (get it at ollama.com)	LauncherWindow.xaml.cs
 AI: Ollama started ✓	LauncherWindow.xaml.cs
 AI: checking…	LauncherWindow.xaml
 ANIMATIONS	AnimationWindow.xaml
-APPEARANCE	MainWindow.Tiles.cs, MainWindow.xaml.cs
+APPEARANCE	MainWindow.BuilderLink.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs
 ATTACKS are lists of steps. PHASES choose which attacks the boss uses — the next phase starts when its health drops to a percentage. WHEN IT DIES plays at 0 health.	SequenceEditorWindow.cs
 Ability	BlockEditorWindow.Palette.cs
 Ability / Key Pickup	behavior AbilityPickup
@@ -160,7 +161,7 @@ Attack {0}	SequenceEditorWindow.cs
 Audio	MainWindow.Params.cs, MainWindow.xaml.cs, PicturePick.cs
 Auto	MainWindow.xaml.cs
 Axe	ToolArt.cs
-BEHAVIORS	MainWindow.Params.cs, MainWindow.xaml.cs
+BEHAVIORS	MainWindow.BuilderLink.cs, MainWindow.Params.cs, MainWindow.xaml.cs
 Back and forth (retrace)	MainWindow.xaml.cs
 Back and forth (yoyo)	BlockEditorWindow.Palette.cs
 Back to a plain colour	MainWindow.Tiles.cs
@@ -226,8 +227,11 @@ Brush	SpriteEditorWindow.cs
 Build behavior with blocks	BlockEditorWindow.cs
 Build failed (exit {0}).	MainWindow.xaml.cs
 Build it	MainWindow.xaml, MainWindow.xaml.cs
+BuilderEngine	LauncherWindow.xaml
+BuilderEngine wasn't found on this computer.	MainWindow.BuilderLink.cs
 Builds a whole world by itself: grassy hills, dirt, stone, caves, ore and trees, made of blocks you can dig. Put it on ONE empty object — the world starts at that object's X and goes right (and left too when it's endless: walk forever, it is built as you go). The same 'seed' always makes the same world (0 = a new world every game). 'Ground level' is how far down the grass starts; 'Start this object on the ground' puts the player on the grass at its X. Mining: click a block with the item in hand (Use Item), the 'Break a tile' block, or bullets; dirt takes 1 hit, stone 2, ore 3, the bottom row (bedrock) never breaks; each block gives its drop item (dirt/stone/ore), and 'Only breaks when' (e.g. holding:pickaxe) limits it to the right tool. Trees are a tree object or prefab (e.g. a Harvestable tree) planted on the grass. 'More blocks' adds your own blocks, each growing in the sky, on the surface, underground, around caves or in an area (heights in blocks from the ground level, up = +, down = −; columns from the generator) — clouds to jump on, a deeper ore, a sand biome. The world is endless, or has a size to the left and right that ends in an invisible wall or an edge you can fall off. For the AI: make the scene tall enough (height ≥ ground level + depth × block size), spawn night enemies with a custom rule {"do":"spawn","object":"Slime","at":"near"} (near = on the ground a little to the left/right of the spawner).	behavior Terrain
 Built a level: {0}	MainWindow.AiLevel.cs
+Built on BuilderEngine	MainWindow.BuilderLink.cs
 Bullet	behavior Shooter, BlockEditorWindow.Palette.cs
 Bullet (optional)	step shoot
 Bullet life (s)	behavior Shooter
@@ -300,7 +304,7 @@ Collectible	behavior Collectible
 Collide with the visible pixels of the picture, not its transparent margins. The picture stays the same size.	MainWindow.Hitbox.cs
 Collide with walls (0/1)	behavior AdvancedPatrol, behavior Platformer, behavior TopDown
 Collision	MainWindow.TerrainBlocks.cs
-Color	behavior Label, behavior LightSource, behavior Particles, BlockEditorWindow.Palette.cs, MainWindow.xaml.cs, SpriteEditorWindow.cs
+Color	behavior Label, behavior LightSource, behavior Particles, BlockEditorWindow.Palette.cs, MainWindow.BuilderLink.cs, MainWindow.xaml.cs, SpriteEditorWindow.cs
 Colour	BlockEditorWindow.Palette.cs, step emit, step fadeout, step setcolor, step telegraph, VariablesWindow.xaml.cs
 Colour (of the metal part)	NewItemDialog.cs
 Colour of its dot on the map	MainWindow.Minimap.cs
@@ -330,6 +334,7 @@ Could not apply AI response	MainWindow.xaml.cs
 Could not import the pictures:	AnimationWindow.EasyPixel.cs
 Could not start the game:	App.xaml.cs
 Could not start {0}	MainWindow.xaml.cs
+Couldn't load the outside change yet: {0}	MainWindow.LiveLink.cs
 Couldn't open the sound: {0}	AudioEditorWindow.cs
 Couldn't play the sound: {0}	AudioEditorWindow.cs
 Couldn't reach {0}. Check your internet connection.	CloudClient.cs
@@ -458,8 +463,8 @@ Each tile's colour, picture or animation is set in the Tilemap card below.	MainW
 Earlier	SequenceEditorWindow.cs
 Ease	BlockEditorWindow.Palette.cs
 EasyEngine	InputDialog.xaml, LauncherWindow.xaml, MainWindow.xaml
+EasyEngine or BuilderEngine project	LauncherWindow.xaml.cs, MainWindow.xaml.cs
 EasyEngine project	LauncherWindow.xaml.cs
-EasyEngine project (*{0})	MainWindow.xaml.cs
 EasyEngine's logs, test projects and finished downloads in the Windows temp folder: {0}.	SettingsWindow.cs
 EasyPixel is not installed, and nothing was exported from it yet.	AnimationWindow.EasyPixel.cs
 Edit in the sprite editor	AnimationWindow.xaml.cs
@@ -479,7 +484,7 @@ Error importing {0}:	AnimationWindow.xaml.cs
 Error importing {0}: {1}	MainWindow.xaml.cs
 Error opening: {0}	MainWindow.xaml.cs
 Error saving:	SpriteEditorWindow.cs
-Error saving: {0}	MainWindow.xaml.cs
+Error saving: {0}	MainWindow.BuilderLink.cs, MainWindow.LiveLink.cs, MainWindow.xaml.cs
 Error: {0}	AudioEditorWindow.cs, MainWindow.Params.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs, PicturePick.cs
 European. A good backup.	MainWindow.xaml.cs
 Every (s)	behavior Spawner, step shoot
@@ -606,7 +611,7 @@ Heard up to	behavior SoundEmitter
 Heart	SpriteEditorWindow.cs
 Heart: heals the Player 1 and disappears	BlockEditorWindow.Recipes.cs
 Heavy (no knockback) (0/1)	behavior BossAI
-Height	MainWindow.xaml.cs, step jump
+Height	MainWindow.BuilderLink.cs, MainWindow.xaml.cs, step jump
 Heights in blocks from the ground level: up (sky) is +, down is −.	MainWindow.TerrainBlocks.cs
 Hexagon	SpriteEditorWindow.cs
 Hide	BlockEditorWindow.Palette.cs
@@ -677,6 +682,7 @@ Item in hand (no Hotbar in this scene)	behavior ToolUse
 Item or number	BlockEditorWindow.Palette.cs
 Items	behavior Hotbar, MainWindow.Params.cs
 Items that swing	behavior ToolUse
+Its behaviour comes from BuilderEngine mechanisms. It plays here too; to change what it does, open it in BuilderEngine.	MainWindow.BuilderLink.cs
 Its layer "{0}" is locked — unlock the layer to edit	MainWindow.LockZ.cs
 Its layer "{0}" is off in the game, so it won't be there either.	MainWindow.Layers.cs
 Its own	BlockEditorWindow.Palette.cs
@@ -738,6 +744,9 @@ Lights shine in the dark of a Day/Night cycle. Add Day/Night to an object, with 
 Lights up the darkness around it (things in its light show in their real colours, with a warm tint of the light colour, fading out at the edge). In full daylight it shows nothing — it matters when the scene is dark (low ambient light or night from a Day/Night cycle). Shape: circle (all around), beam (a cone like a flashlight or a car's headlights — it points where the object faces, or right/left/up/down, or at the mouse; Cone width = how wide), half circle (a wall lamp lighting one side), area (the object's whole rectangle is lit — a window, a lit room, a light shaft; Radius = how far the light spreads past its edges) or bar (a long glow along the object's length — a neon tube, a lamp strip). Radius = how far it reaches. Effect: flicker (a candle or torch), pulse (slowly grows and shrinks) or blink (on and off, like an alarm). The last three options work with Day / Night → Lighting style: Blocks (light per block): solid blocks stop this light, it colours what it touches, it adds up with other lights (off = where lights overlap, only the brightest counts).	behavior LightSource
 Lines (Text => condition)	behavior Checklist
 List	BlockEditorWindow.Palette.cs, step listadd, VariablesWindow.xaml.cs
+Live link	MainWindow.LiveLink.cs, MainWindow.xaml.cs
+Live link off: save with Save; changes made outside still show up when there's nothing unsaved	MainWindow.LiveLink.cs
+Live link: every change is saved right away and changes made outside (in BuilderEngine or another window) show up here	MainWindow.xaml
 Lives	behavior Lives
 Lives at the start	behavior Lives
 Load the game	behavior UIButton, BlockEditorWindow.Palette.cs
@@ -812,7 +821,7 @@ My Game	LauncherWindow.xaml
 My own colours	behavior Area, behavior Interact, step say
 My own picture	behavior Area, behavior Interact, step say
 My picture…	LookPicker.cs
-Name	InputDialog.xaml, MainWindow.xaml.cs
+Name	InputDialog.xaml, MainWindow.BuilderLink.cs, MainWindow.xaml.cs
 Name (also what Harvestable 'tool' asks for)	NewItemDialog.cs
 Name of this block	MainWindow.TerrainBlocks.cs
 Name on the health bar	behavior BossAI
@@ -876,7 +885,7 @@ Nothing to undo	MainWindow.xaml.cs
 Nudge (shift position)	BlockEditorWindow.Palette.cs
 Number	VariablesWindow.xaml.cs
 Number boxes also take a formula, e.g. rand(100, 300) or score * 2.	BlockEditorWindow.cs
-OBJECT	MainWindow.xaml.cs
+OBJECT	MainWindow.BuilderLink.cs, MainWindow.xaml.cs
 OBJECTS	MainWindow.xaml
 OBJECTS — {0}	MainWindow.Layers.cs, MainWindow.xaml.cs
 OK	InputDialog.xaml, SequenceEditorWindow.cs
@@ -916,8 +925,9 @@ Opacity (0-1)	behavior Minimap
 Opacity of "{0}"	MainWindow.Layers.cs
 Opacity…	MainWindow.Layers.cs
 Open	MainWindow.xaml
-Open failed:	LauncherWindow.xaml.cs
+Open failed:	App.xaml.cs, LauncherWindow.xaml.cs
 Open folder…	AnimationWindow.EasyPixel.cs
+Open in BuilderEngine	MainWindow.BuilderLink.cs
 Open project	LauncherWindow.xaml.cs
 Opening EasyEngine...	Updater.cs
 Opens when variable	behavior Gate
@@ -1153,6 +1163,7 @@ Sides	behavior StayInside
 Size	BlockEditorWindow.Palette.cs
 Size set to the picture's {0} × {1} px	MainWindow.LockZ.cs
 Skip key	behavior Cutscene
+Skipped "{0}": it's built on BuilderEngine (change what it does there)	MainWindow.BuilderLink.cs
 Skipped "{0}": it's locked (unlock it to let the AI change it)	MainWindow.LockZ.cs
 Skipped a rule that couldn't be read.	AiSpecFix.cs
 Skipped a rule: "{0}" isn't an action the game knows.	AiSpecFix.cs
@@ -1243,7 +1254,7 @@ Switch a Yes/No	BlockEditorWindow.Palette.cs
 Switches to another scene when the trigger touches it or it's clicked. Great for doors and menu buttons.	behavior GoToScene
 Sword	ToolArt.cs
 TILES (click to select)	MainWindow.xaml.cs
-TRANSFORM	MainWindow.xaml.cs
+TRANSFORM	MainWindow.BuilderLink.cs, MainWindow.xaml.cs
 Tab	ParamSources.cs
 Takes no damage for a while (it flickers).	step invulnerable
 Target scene	behavior GoToScene
@@ -1314,6 +1325,7 @@ This is not a WAV file.	AudioEdit.cs
 This kind of WAV can't be edited ({0}-bit, format {1}).	AudioEdit.cs
 This object (self)	SequenceEditorWindow.cs
 This object has no image to trim to.	MainWindow.Hitbox.cs
+This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.	MainWindow.LiveLink.cs
 This scene is locked — unlock it (🔒 next to the scene) to change it	MainWindow.Layers.cs, MainWindow.LockZ.cs, MainWindow.xaml.cs
 This scene is locked: nothing in it can be picked, moved, added or deleted, and the AI leaves it alone. Click to unlock.	MainWindow.Layers.cs
 This sound is empty.	AudioEditorWindow.cs
@@ -1470,7 +1482,7 @@ Who is talking	behavior Interact
 Who uses it	behavior GoToScene
 Whose light (usually the player)	behavior DayNight
 Wide (60°)	behavior LightSource
-Width	MainWindow.xaml.cs
+Width	MainWindow.BuilderLink.cs, MainWindow.xaml.cs
 Width × height in pixels (4 to 256 each), for example 32x128:	SpriteEditorWindow.cs
 Within (px)	BlockEditorWindow.Palette.cs
 Without a bullet object it fires small round bullets that hurt the target and vanish when they hit.	step shoot
@@ -1480,8 +1492,8 @@ World seed (0 = a new world every game)	behavior Terrain
 Write the size as width x height, for example 32x128 (each from 4 to 256).	SpriteEditorWindow.cs
 Write to the console	BlockEditorWindow.Palette.cs
 Write what you want first.	BlockEditorWindow.Ai.cs, MainWindow.Sequences.cs
-X	MainWindow.xaml.cs
-Y	MainWindow.xaml.cs
+X	MainWindow.BuilderLink.cs, MainWindow.xaml.cs
+Y	MainWindow.BuilderLink.cs, MainWindow.xaml.cs
 Yes	behavior Lives, MainWindow.xaml.cs, VariablesWindow.xaml.cs
 Yes = delete the files from disk	LauncherWindow.xaml.cs
 Yes becomes No and No becomes Yes.	BlockEditorWindow.Palette.cs
@@ -1572,7 +1584,7 @@ then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.15.6	LauncherWindow.xaml
+v0.16.0	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs
@@ -1750,6 +1762,8 @@ y	step camera, step move, step moveto, step spawn
 🔓 Unlocked	MainWindow.LockZ.cs
 🔗 A copy of the prefab "{0}"	MainWindow.Prefabs.cs
 🔗 Keep proportions	MainWindow.LockZ.cs
+🔗 Live link on: every change is saved right away, and changes made outside show up here	MainWindow.LiveLink.cs
+🔗 Loaded the changes made outside EasyEngine	MainWindow.LiveLink.cs
 🔥 Local — needs GPU/RAM (14b)	MainWindow.xaml
 🔨 Build	MainWindow.xaml
 🖌  Import from EasyPixel	AnimationWindow.xaml

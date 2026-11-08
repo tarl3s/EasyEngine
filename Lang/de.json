@@ -1795,5 +1795,20 @@
   "⤒ Jump": "⤒ Springen",
   "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump. \"Pause\" freezes the picture it shows (any animation) until \"Resume\".": "Spielt eine Animation des Objekts ab (erstellt in 🎞 Animationen bearbeiten). „Zurück zu automatisch“ kehrt zu Stehen / Gehen / Springen zurück. „Pause“ friert das gezeigte Bild ein (jede Animation) bis „Fortsetzen“.",
   "⏸ Pause": "⏸ Pause",
-  "▶ Resume": "▶ Fortsetzen"
+  "▶ Resume": "▶ Fortsetzen",
+  "A BuilderEngine project: saved back into its folder": "Ein BuilderEngine-Projekt: wird in seinen Ordner zurückgespeichert",
+  "BuilderEngine": "BuilderEngine",
+  "BuilderEngine wasn't found on this computer.": "BuilderEngine wurde auf diesem Computer nicht gefunden.",
+  "Built on BuilderEngine": "In BuilderEngine gebaut",
+  "Couldn't load the outside change yet: {0}": "Die Änderung von außen konnte noch nicht geladen werden: {0}",
+  "EasyEngine or BuilderEngine project": "EasyEngine- oder BuilderEngine-Projekt",
+  "Its behaviour comes from BuilderEngine mechanisms. It plays here too; to change what it does, open it in BuilderEngine.": "Sein Verhalten kommt aus BuilderEngine-Mechanismen. Es läuft auch hier; um zu ändern, was es tut, öffne es in BuilderEngine.",
+  "Live link": "Live-Verbindung",
+  "Live link off: save with Save; changes made outside still show up when there's nothing unsaved": "Live-Verbindung aus: mit Speichern speichern; Änderungen von außen erscheinen, wenn nichts ungespeichert ist",
+  "Live link: every change is saved right away and changes made outside (in BuilderEngine or another window) show up here": "Live-Verbindung: jede Änderung wird sofort gespeichert, und Änderungen von außen (in BuilderEngine oder einem anderen Fenster) erscheinen hier",
+  "Open in BuilderEngine": "In BuilderEngine öffnen",
+  "Skipped \"{0}\": it's built on BuilderEngine (change what it does there)": "\"{0}\" übersprungen: es ist in BuilderEngine gebaut (ändere dort, was es tut)",
+  "This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.": "Dieses Projekt wurde außerhalb von EasyEngine geändert (in BuilderEngine oder einem anderen Fenster). Diese Version laden? Deine ungespeicherten Änderungen hier gehen verloren.",
+  "🔗 Live link on: every change is saved right away, and changes made outside show up here": "🔗 Live-Verbindung an: jede Änderung wird sofort gespeichert, und Änderungen von außen erscheinen hier",
+  "🔗 Loaded the changes made outside EasyEngine": "🔗 Änderungen von außerhalb von EasyEngine geladen"
 }

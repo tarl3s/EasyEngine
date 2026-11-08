@@ -43,6 +43,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,12,0">
                     <TextBlock x:Name="OllamaDot" Text="●" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12"/>
+                    <Button x:Name="LinkButton" Content="🔗" ToolTip="Live link: every change is saved right away and changes made outside (in BuilderEngine or another window) show up here" Style="{StaticResource GhostButton}" Height="32" FontSize="13" Click="LiveLink_Click"/>
                     <Button Content="⚙" ToolTip="Settings (language, theme, size, temporary files)" Style="{StaticResource GhostButton}" Height="32" FontSize="15" Click="Settings_Click"/>
                     <Button Content="Export" Style="{StaticResource GhostButton}" Height="32" Click="Export_Click"/>
                     <Button x:Name="PlayButton" Content="▶  Test" Style="{StaticResource AccentButton}" Width="104" Margin="8,0,0,0" Click="Test_Click"/>

@@ -85,6 +85,11 @@ old version and opens again. Your projects are never touched. The sample games a
 - **EasyPixel** — draw and animate in [EasyPixel](https://github.com/tarl3s/EasyPixel) (free pixel-art editor), export, then click **🖌 Import from EasyPixel** in the animation window: the frames and their speed arrive ready to use.
 - **Debug console (F1)** — see what your game is doing: clicks, hits, rules that fired, sounds, warnings.
 - **Export** your game as a standalone `.exe`.
+- **BuilderEngine link** — open a [BuilderEngine](https://github.com/tarl3s/BuilderEngine) project (its folder or `project.json`)
+  right from the launcher, or the same project in both engines at once: with **🔗 Live link** every change is saved
+  right away and the other engine shows it. Objects built with BuilderEngine mechanisms show a "Built on BuilderEngine"
+  card (edit them there) and really work when you test the game here — a BuilderEngine coin counts when your
+  EasyEngine player touches it, its dialogue and HUD texts show in EasyEngine's.
 - **Your language, your look** — the editor speaks English, Portuguese (Brazil and Portugal), Spanish, French, German,
   Japanese and Chinese (Simplified and Traditional), and the AI understands requests and answers you in it. Dark or light theme, bigger or smaller
   interface, and a button that clears the engine's temporary files (⚙ Settings). Every list can be searched by just

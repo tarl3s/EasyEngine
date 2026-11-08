@@ -25,6 +25,7 @@ namespace EasyEngine
         private bool ApplyBehaviorsToObject(GameObjectData target, JsonElement spec, string userPrompt)
         {
             if (IsLockedObj(target)) { if (!_aiSkippedLocked.Contains(target.Name)) _aiSkippedLocked.Add(target.Name); return false; } // locked: never edited by the AI
+            if (BuilderLink.IsBuilt(target)) { if (!_aiSkippedBuilder.Contains(target.Name)) _aiSkippedBuilder.Add(target.Name); return false; } // built on BuilderEngine: its behaviour is BuilderEngine's (MainWindow.BuilderLink.cs)
             var result = target.Behaviors.Select(JsonClone).ToList();
             bool changed = false;
             var impliedRules = new List<string>(); // rules the behaviors stand for (a Custom written as a behavior, a door "on death")
@@ -568,7 +569,7 @@ namespace EasyEngine
         private bool ApplyProjectSpec(string reply, string userPrompt, out string summary)
         {
             summary = "";
-            _aiSpecObjects.Clear(); _aiSkippedLocked.Clear();
+            _aiSpecObjects.Clear(); _aiSkippedLocked.Clear(); _aiSkippedBuilder.Clear();
             _aiNotes.Clear();
             var json = LooseJson.Extract(reply, allowArray: true); // a bare list of rules is fine too (AiSpecFix.Shape)
             if (json == null) return false;

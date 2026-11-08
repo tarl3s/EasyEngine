@@ -17,7 +17,7 @@
                     <TextBlock Text="⬡" Foreground="{StaticResource Accent}" FontSize="46"/>
                     <TextBlock Text="EasyEngine" Foreground="{StaticResource Text}" FontSize="26" FontWeight="Bold" Margin="0,2,0,0"/>
                     <TextBlock Text="The easiest 2D game engine — you bring the art, the AI writes the code." Foreground="{StaticResource TextDim}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
-                    <TextBlock x:Name="VersionText" Text="v0.15.6" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="VersionText" Text="v0.16.0" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,6,0,0"/>
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom" VerticalAlignment="Bottom">
                     <Button Content="＋  New Project" Style="{StaticResource AccentButton}" Height="44" FontSize="14" Click="NewProject_Click"/>
@@ -73,7 +73,21 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="🎮" FontSize="22" Foreground="{StaticResource Text}" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource Text}" FontSize="14" FontWeight="SemiBold"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource Text}" FontSize="14" FontWeight="SemiBold"/>
+                                        <!-- a BuilderEngine project folder (the EasyEngine ⇄ BuilderEngine link) -->
+                                        <Border Margin="8,0,0,0" Padding="6,1" CornerRadius="4" Background="{StaticResource Accent}" VerticalAlignment="Center" ToolTip="A BuilderEngine project: saved back into its folder">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsBuilderEngine}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="BuilderEngine" Foreground="{StaticResource AccentText}" FontSize="10" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </StackPanel>
                                     <TextBlock Text="{Binding Path}" Foreground="{StaticResource TextDim}" FontSize="11" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Text="{Binding LastOpened}" Foreground="{StaticResource TextDim}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>

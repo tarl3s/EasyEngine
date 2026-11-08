@@ -1795,5 +1795,20 @@
   "⤒ Jump": "⤒ 跳跃",
   "Plays one of the object's animations (made in 🎞 Edit Animations). \"Back to automatic\" returns to idle / walk / jump. \"Pause\" freezes the picture it shows (any animation) until \"Resume\".": "播放对象的一个动画（在 🎞 编辑动画 中制作）。“恢复自动”会回到待机 / 行走 / 跳跃。“暂停”会定住当前画面（任何动画），直到“继续”。",
   "⏸ Pause": "⏸ 暂停",
-  "▶ Resume": "▶ 继续"
+  "▶ Resume": "▶ 继续",
+  "A BuilderEngine project: saved back into its folder": "BuilderEngine 项目：保存回它自己的文件夹",
+  "BuilderEngine": "BuilderEngine",
+  "BuilderEngine wasn't found on this computer.": "这台电脑上没有找到 BuilderEngine。",
+  "Built on BuilderEngine": "在 BuilderEngine 中制作",
+  "Couldn't load the outside change yet: {0}": "暂时无法载入外部的更改：{0}",
+  "EasyEngine or BuilderEngine project": "EasyEngine 或 BuilderEngine 项目",
+  "Its behaviour comes from BuilderEngine mechanisms. It plays here too; to change what it does, open it in BuilderEngine.": "它的行为来自 BuilderEngine 的机制。在这里也能运行；要改变它的行为，请在 BuilderEngine 中打开。",
+  "Live link": "实时链接",
+  "Live link off: save with Save; changes made outside still show up when there's nothing unsaved": "实时链接已关闭：用“保存”保存；没有未保存的内容时，外部的更改仍会显示",
+  "Live link: every change is saved right away and changes made outside (in BuilderEngine or another window) show up here": "实时链接：每次更改都会立即保存，外部（BuilderEngine 或其他窗口）的更改会显示在这里",
+  "Open in BuilderEngine": "在 BuilderEngine 中打开",
+  "Skipped \"{0}\": it's built on BuilderEngine (change what it does there)": "已跳过“{0}”：它是在 BuilderEngine 中制作的（请在那里更改它的行为）",
+  "This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.": "这个项目在 EasyEngine 之外（BuilderEngine 或其他窗口）被更改了。要载入那个版本吗？这里未保存的更改将会丢失。",
+  "🔗 Live link on: every change is saved right away, and changes made outside show up here": "🔗 实时链接已开启：每次更改都会立即保存，外部的更改会显示在这里",
+  "🔗 Loaded the changes made outside EasyEngine": "🔗 已载入在 EasyEngine 之外所做的更改"
 }

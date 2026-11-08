@@ -109,6 +109,7 @@ namespace EasyEngine
         {
             foreach (var name in _aiSkippedLocked)
                 changes.Add(L.F("Skipped \"{0}\": it's locked (unlock it to let the AI change it)", name));
+            AddBuilderNotes(changes); // and the ones built on BuilderEngine (MainWindow.BuilderLink.cs)
         }
 
         // ============================================================

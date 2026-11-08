@@ -88,6 +88,11 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
 - **EasyPixel** — desenhe e anime no [EasyPixel](https://github.com/tarl3s/EasyPixel) (editor de pixel art gratuito), exporte e clique em **🖌 Import from EasyPixel** na janela de animação: os quadros e a velocidade chegam prontos.
 - **Console de debug (F1)** — veja o que o jogo está fazendo: cliques, golpes, regras que dispararam, sons, avisos.
 - **Exporte** o seu jogo como um `.exe` que roda sozinho.
+- **Ligação com a BuilderEngine** — abra um projeto da [BuilderEngine](https://github.com/tarl3s/BuilderEngine) (a pasta ou o
+  `project.json`) direto do menu inicial, ou o mesmo projeto nas duas engines ao mesmo tempo: com o **🔗 Live link** cada
+  mudança é salva na hora e a outra engine mostra. Objetos feitos com mecanismos da BuilderEngine mostram um cartão
+  "Built on BuilderEngine" (edite lá) e funcionam de verdade quando você testa o jogo aqui — uma moeda da BuilderEngine
+  conta quando o seu jogador da EasyEngine encosta nela, e os diálogos e textos de HUD dela aparecem nos da EasyEngine.
 - **Seu idioma, seu visual** — o editor fala português (do Brasil e de Portugal), inglês, espanhol, francês, alemão,
   japonês e chinês (simplificado e tradicional), e a IA entende seus pedidos e te responde nele. Tema escuro ou claro, interface maior ou menor,
   e um botão que limpa os arquivos temporários da engine (⚙ Settings / Configurações). Qualquer lista se pesquisa só

@@ -687,6 +687,7 @@ namespace EasyEngine
             TerrainSceneReset();
             TilesSceneReset();
             ZSceneReset();
+            BuilderSceneReset();
 
             var original = _project.FindScene(name) ?? _project.Scenes[0];
             _sceneName = original.Name;
@@ -725,6 +726,7 @@ namespace EasyEngine
             _cameraTarget = _entities.FirstOrDefault(en => en.Has(BehaviorKind.FollowCamera));
             _uiRects.Clear();
             TerrainSceneLoaded();
+            BuilderSceneLoaded();     // objects built on BuilderEngine: their World (PlayWindow.BuilderBridge.cs)
 
             Info("Scene", "", $"Loaded '{_scene.Name}' — {_entities.Count} objects",
                  $"{_entities.Count(e => e.Custom != null && e.Custom.Count > 0)} with scripts · {_solids.Count} colliders · camera follows {(_cameraTarget?.Data.Name ?? "nothing")}");
@@ -1059,6 +1061,7 @@ namespace EasyEngine
             UpdateBreakables(dt);
             UpdatePhysics(dt);
             StayInsideLogic();         // objects with Stay Inside are kept in the scene / screen (PlayWindow.StayInside.cs)
+            BuilderLogic(dt);          // BuilderEngine mechanisms run beside EasyEngine's behaviors (PlayWindow.BuilderBridge.cs)
             UpdateTweens(dt);
             UpdateParticles(dt);
             UpdateFacing();
@@ -1093,6 +1096,9 @@ namespace EasyEngine
         partial void CameraTargetOverride(ref double tx, ref double ty, ref double smooth); // cutscene camera
         partial void CameraClampOverride(ref bool clampX, ref double worldX0, ref double worldW, ref double worldH); // a terrain's world bounds
         partial void CameraShakeOffset(ref double ox, ref double oy);                       // screen shake
+        partial void BuilderSceneReset();            // PlayWindow.BuilderBridge.cs: LoadScene, before the scene's objects are created
+        partial void BuilderSceneLoaded();           // after every object exists: the BuilderEngine World of a scene with objects built on BuilderEngine
+        partial void BuilderLogic(double dt);        // StepLogic, after physics: mirrors → World.Frame → BuilderEngine objects back to their entities
 
         // Platformer and top-down characters face the key held (A/D, even against a wall), else the way they move —
         // decided after physics, so it is the same live and headless. The held item's arm follows Facing.
@@ -3320,7 +3326,7 @@ namespace EasyEngine
         // picks idle/walk automatically, else default animation
         private void Animate(Entity en, double dt)
         {
-            if (en.Brush == null || en.Data.Animations.Count == 0) return;
+            if (en.Brush == null || en.Data.Animations.Count == 0 || en.BOwn != null) return; // (a BuilderEngine object animates itself: PlayWindow.BuilderBridge.cs)
             var anim = ChooseAnim(en);
             if (anim == null || anim.Frames.Count == 0) return;
 

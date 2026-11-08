@@ -7,13 +7,26 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <!-- Versioning: X.Y.Z — X = big change, Y = a genuinely new behavior/editor/system, Z = fixes and improvements to what exists -->
-    <Version>0.15.6</Version>
+    <Version>0.16.0</Version>
     <ApplicationIcon>EasyEngine.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- editor translations (L.T): Lang\<code>.json, read as resource "Lang.<code>.json" -->
     <EmbeddedResource Include="Lang\*.json" LogicalName="Lang.%(Filename).json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The EasyEngine ⇄ BuilderEngine link (BuilderLink.cs, PlayWindow.BuilderBridge.cs): BuilderEngine's UI-free library
+         as a binary reference, so this repo builds on its own. Rebuilt and copied by tools/Update-BuilderEngineLib.ps1. -->
+    <Reference Include="BuilderEngine.Script">
+      <HintPath>lib\BuilderEngine\BuilderEngine.Script.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="BuilderEngine.Plugin">
+      <HintPath>lib\BuilderEngine\BuilderEngine.Plugin.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
   </ItemGroup>
 
 </Project>

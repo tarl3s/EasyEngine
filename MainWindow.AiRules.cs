@@ -11,6 +11,7 @@ namespace EasyEngine
         // rules merged into an object's Custom behavior (made when it has none)
         internal static void AddRules(GameObjectData o, JsonElement rules)
         {
+            if (BuilderLink.IsBuilt(o)) return; // built on BuilderEngine: never given EasyEngine rules
             var custom = o.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Custom);
             if (custom == null) o.Behaviors.Add(custom = new BehaviorData { Kind = BehaviorKind.Custom });
             custom.Texts["script"] = MergeRules(custom.Text("script", "[]"), rules);
