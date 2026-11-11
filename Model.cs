@@ -145,7 +145,8 @@ namespace EasyEngine
         Cutscene,         // a scripted scene: camera, dialogue, moves, fades — steps run one after another
         Terrain,          // procedural terrain (seeded noise), streamed in chunks — can be endless
         StayInside,       // keeps the object inside the scene or the screen: it stops, bounces back or comes out the other side
-        Lives             // a number of tries: losing one goes back to the checkpoint/start, none left goes to a scene (Game Over); shows hearts
+        Lives,            // a number of tries: losing one goes back to the checkpoint/start, none left goes to a scene (Game Over); shows hearts
+        Package           // a behavior package (.behavior, BehaviorPackages.cs): Texts["package"] = its name, its settings in Nums/Texts; runs in BuilderEngine's world
     }
 
     // ======================= DADOS =======================

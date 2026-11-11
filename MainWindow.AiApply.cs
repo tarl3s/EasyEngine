@@ -39,8 +39,14 @@ namespace EasyEngine
                 foreach (var raw in arr.EnumerateArray())
                 {
                     if (raw.ValueKind != JsonValueKind.Object || !raw.TryGetProperty("kind", out var kindEl)) continue;
+                    // a behavior package, named like a built-in ({"kind":"Wobble"}) or as {"kind":"Package","texts":{"package":"Wobble"}}
+                    if (PackageOfSpec(kindEl, raw) is BuilderEngine.Script.BehaviorPackage pkg)
+                    {
+                        if (ApplyPackageSpec(result, pkg, raw, impliedRules, usedByReply, sameTwice)) changed = true;
+                        continue;
+                    }
                     var kindOpt = ResolveKind(kindEl.ValueKind == JsonValueKind.String ? kindEl.GetString() : null);
-                    if (kindOpt is not BehaviorKind kind || kind == BehaviorKind.Tilemap) continue;
+                    if (kindOpt is not BehaviorKind kind || kind is BehaviorKind.Tilemap or BehaviorKind.Package) continue; // a Package naming no installed package: nothing to add
                     if (kind == BehaviorKind.Custom) { AiSpecFix.CustomAsBehavior(raw, impliedRules); continue; }
                     if (LooseJson.Node(raw) is not System.Text.Json.Nodes.JsonObject node) continue; // unreadable: skipped, never a crash
                     AiSpecFix.Behavior(BehaviorCatalog.Info(kind), node, impliedRules);
@@ -83,7 +89,11 @@ namespace EasyEngine
 
             if (spec.TryGetProperty("remove", out var rem) && rem.ValueKind == JsonValueKind.Array)
                 foreach (var r in rem.EnumerateArray())
-                    if (r.ValueKind == JsonValueKind.String && ResolveKind(r.GetString()) is BehaviorKind rk)
+                    if (r.ValueKind == JsonValueKind.String && PackageNamed(r.GetString()) is BuilderEngine.Script.BehaviorPackage rp)
+                    {
+                        if (result.RemoveAll(x => string.Equals(BehaviorPackages.NameOf(x), rp.Name, StringComparison.OrdinalIgnoreCase)) > 0) changed = true;
+                    }
+                    else if (r.ValueKind == JsonValueKind.String && ResolveKind(r.GetString()) is BehaviorKind rk)
                         if (result.RemoveAll(x => x.Kind == rk) > 0) changed = true;
 
             // the rules: "custom" (also "rules"/"script", a single rule object, or a JSON string of them) plus the implied ones, cleaned up

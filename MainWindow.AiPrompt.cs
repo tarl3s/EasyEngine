@@ -283,6 +283,8 @@ namespace EasyEngine
             if (examples.Count > 0) foreach (var (ask, json) in examples) sb.AppendLine($"Example — \"{ask}\" → {json}");
             else sb.AppendLine("Shapes: change a behavior{\"edit\":[{\"name\":\"Player\",\"behaviors\":[{\"kind\":\"Platformer\",\"nums\":{\"speed\":400}}]}]} · a new thing {\"create\":[{\"name\":\"Coin\",\"x\":500,\"y\":420,\"width\":24,\"height\":24,\"color\":\"#FFD700\",\"behaviors\":[{\"kind\":\"Collectible\"}]}]} · a rule {\"edit\":[{\"name\":\"Box\",\"custom\":[{\"when\":\"timer\",\"every\":2,\"do\":\"jump\",\"force\":600}]}]}");
             sb.AppendLine("Behaviors: " + string.Join(", ", kinds.Select(i => i.Kind)));
+            var (pkgNames, pkgDetails) = PackagesForPrompt(request); // behavior packages (MainWindow.AiPackages.cs)
+            if (pkgNames.Length > 0) sb.AppendLine("Behavior packages (behaviors too, added the same way: {\"kind\":\"Name\",\"nums\":{},\"texts\":{}}): " + pkgNames);
             // the block palette's ids: what the blocks can show is exactly what the AI may write
             sb.AppendLine("EVENTS: " + string.Join(", ", BlockEditorWindow.RuleDocs().Where(d => d.isEvent).Select(d => d.id)));
             sb.AppendLine("ACTIONS: " + string.Join(", ", BlockEditorWindow.RuleDocs().Where(d => !d.isEvent).Select(d => d.id)));
@@ -292,6 +294,7 @@ namespace EasyEngine
             if (hints.Count > 0) { sb.AppendLine("HOW TO (for this request):"); foreach (var h in hints) sb.AppendLine("- " + h.Text); }
             var detail = hints.SelectMany(h => h.Kinds).Concat(NamedKinds(request)).Distinct().Take(5).ToList();
             foreach (var k in detail) sb.AppendLine(BehaviorLine(BehaviorCatalog.Info(k)));
+            foreach (var line in pkgDetails) sb.AppendLine(line);
             // the params of the events/actions those hints use, from the block palette (the blocks and the AI share one language)
             var used = hints.SelectMany(h => System.Text.RegularExpressions.Regex.Matches(h.Text, "\"(?:when|do)\":\"(\\w+)\"").Select(m => m.Groups[1].Value)).ToHashSet();
             var docs = BlockEditorWindow.RuleDocs().Where(d => used.Contains(d.id)).Take(10).ToList();
@@ -308,7 +311,7 @@ namespace EasyEngine
                 var rules = script.Length <= 2 ? "" : shown.Length <= ruleBudget ? " custom=" + shown : " custom=(has rules)"; // so a change can keep or retune them
                 if (script.Length > 2 && shown.Length <= ruleBudget) ruleBudget -= shown.Length;
                 var ov = VarScope.Of(o).Count > 0 ? " vars{" + VarScope.Of(o).Describe() + "}" : "";
-                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Where(b => b.Kind != BehaviorKind.Custom).Select(b => b.Kind))}] at {o.X:0},{o.Y:0}{ov}{(IsLockedObj(o) ? " LOCKED" : "")}{(IsOffInGame(o) ? " OFF" : "")}{(o.Z != 0 ? $" z{o.Z}" : "")}{rules}");
+                sb.AppendLine($"  \"{o.Name}\" [{string.Join(",", o.Behaviors.Where(b => b.Kind != BehaviorKind.Custom).Select(BehaviorPackages.KindName))}] at {o.X:0},{o.Y:0}{ov}{(IsLockedObj(o) ? " LOCKED" : "")}{(IsOffInGame(o) ? " OFF" : "")}{(o.Z != 0 ? $" z{o.Z}" : "")}{rules}");
             }
             if (_scene.Layers.SelectMany(l => l.Objects).Any(o => IsLockedObj(o) || IsOffInGame(o)))
                 sb.AppendLine("LOCKED = never change or delete it. OFF = not in the game until a rule turns it on (setactive).");

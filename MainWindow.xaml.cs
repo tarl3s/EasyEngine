@@ -110,6 +110,7 @@ namespace EasyEngine
             ProjectNameText.Text = project.Name;
             var restored = AssetBackup.Sync(_project); // files deleted by mistake come back (⚙ Settings → Backup)
             if (restored.Count > 0) Loaded += (_, _) => Status(L.F("🛟 Brought back {0} missing file(s) from the backup: {1}", restored.Count, string.Join(", ", restored.Select(Path.GetFileName))));
+            Loaded += (_, _) => ReportPackageProblems(); // behavior package files that can't be read: said once (MainWindow.Packages.cs)
 
             SceneCanvas.MouseMove += Canvas_MouseMove;
             SceneCanvas.MouseLeave += (s, e) => CursorPos.Text = ""; // the corner shows the position only over the scene
@@ -1684,7 +1685,9 @@ namespace EasyEngine
         // ---- behavior card ----
         private void BehaviorCard(GameObjectData obj, BehaviorData bh)
         {
-            var info = BehaviorCatalog.Info(bh.Kind);
+            // a behavior package shows as its own behavior: its name, icon and settings (MainWindow.Packages.cs)
+            var pkg = BehaviorPackages.Of(_project, bh);
+            var info = pkg != null ? BehaviorPackages.InfoFor(pkg) : BehaviorCatalog.Info(bh.Kind);
             var panel = new StackPanel();
 
             var header = new Grid { Margin = new Thickness(0, 0, 0, 6) };
@@ -1692,6 +1695,11 @@ namespace EasyEngine
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var title = new TextBlock { Text = $"{info.Icon}  {L.T(info.Name)}{CardNumber(obj, bh)}", FontWeight = FontWeights.SemiBold, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+            if (bh.Kind == BehaviorKind.Package)
+            {
+                title.Text = $"{(pkg != null ? pkg.Icon : "📦")}  {(pkg?.Name ?? BehaviorPackages.NameOf(bh))}{CardNumber(obj, bh)}"; // the package's own name: never translated
+                L.SetSkip(title, true);
+            }
             var help = new Button { Content = "?", Width = 24, Height = 24, FontSize = 11, Padding = new Thickness(0), Margin = new Thickness(0, 0, 6, 0), Style = (Style)FindResource("CardButton"), HorizontalContentAlignment = HorizontalAlignment.Center,
                                     ToolTip = L.T("How does this work? (asks the AI in Learn mode)") };
             help.Click += (s, e) => AskHowTo(info);
@@ -1704,7 +1712,11 @@ namespace EasyEngine
             if (BehaviorCombos.Warning(obj, bh) is string clash)
                 panel.Children.Add(new TextBlock { Text = "⚠ " + clash, TextWrapping = TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 0, 0, 8), Tag = "combo-warning" });
 
-            if (bh.Kind == BehaviorKind.Tilemap)
+            if (bh.Kind == BehaviorKind.Package)
+            {
+                PackageRows(obj, bh, pkg, panel);
+            }
+            else if (bh.Kind == BehaviorKind.Tilemap)
             {
                 TilemapRow(obj, bh, panel);
             }
@@ -1825,6 +1837,7 @@ namespace EasyEngine
             bool single = _selection.Count <= 1;
             foreach (var info in BehaviorCatalog.All)
                 if (!info.Hidden && (!single || BehaviorCatalog.CanAdd(obj, info.Kind))) { var it = new ComboBoxItem { Content = $"{info.Icon}  {L.T(info.Name)}", Tag = info.Kind }; TextSearch.SetText(it, info.Name); combo.Items.Add(it); } // found by its English name too
+            AddPackageItems(combo, obj, single); // 📦 behavior packages, after the built-ins (MainWindow.Packages.cs)
             combo.SelectionChanged += (s, e) =>
             {
                 if (combo.SelectedItem is ComboBoxItem ci && ci.Tag is BehaviorKind kind)
@@ -2835,7 +2848,7 @@ namespace EasyEngine
                     else
                         CopyDir(AppContext.BaseDirectory, outRoot, new[] { ".pdb" });
 
-                    CopyDir(gameSrc, Path.Combine(outRoot, "game"));
+                    CopyGameFiles(_project, gameSrc, Path.Combine(outRoot, "game")); // + the behavior packages it uses (MainWindow.Packages.cs)
 
                     // rename the launcher exe to the game's name (apphost still runs EasyEngine.dll)
                     var src = Path.Combine(outRoot, "EasyEngine.exe");

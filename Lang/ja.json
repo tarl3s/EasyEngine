@@ -1810,5 +1810,20 @@
   "Skipped \"{0}\": it's built on BuilderEngine (change what it does there)": "「{0}」をスキップ：BuilderEngine で作られています（動きはそちらで変更してください）",
   "This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.": "このプロジェクトは EasyEngine の外（BuilderEngine または別のウィンドウ）で変更されました。そのバージョンを読み込みますか？ここでの未保存の変更は失われます。",
   "🔗 Live link on: every change is saved right away, and changes made outside show up here": "🔗 ライブリンク オン：変更はすぐに保存され、外部での変更がここに反映されます",
-  "🔗 Loaded the changes made outside EasyEngine": "🔗 EasyEngine の外での変更を読み込みました"
+  "🔗 Loaded the changes made outside EasyEngine": "🔗 EasyEngine の外での変更を読み込みました",
+  "Click, then press the key": "クリックしてからキーを押してください",
+  "Couldn't copy the package into the project: {0}": "パッケージをプロジェクトにコピーできませんでした: {0}",
+  "Empty — add one below.": "空です — 下で追加してください。",
+  "From {0} to {1}": "{0} から {1} まで",
+  "Less": "減らす",
+  "More": "増やす",
+  "No points yet — add one below.": "まだポイントがありません — 下で追加してください。",
+  "This behavior package isn't on this computer. Put {0}.behavior in the project's behaviors folder — its settings are kept.": "このビヘイビアパッケージはこのコンピューターにありません。{0}.behavior をプロジェクトの behaviors フォルダーに入れてください — 設定は保持されます。",
+  "by {0}": "作者: {0}",
+  "seconds": "秒",
+  "⚠ {0} behavior package(s) couldn't be read: {1}": "⚠ {0} 個のビヘイビアパッケージを読み込めませんでした: {1}",
+  "📦 Behavior package · {0}": "📦 ビヘイビアパッケージ · {0}",
+  "📦 Behavior packages": "📦 ビヘイビアパッケージ",
+  "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 {0} を追加しました — プロジェクトの behaviors フォルダーにコピーされたので、どのコンピューターでもゲームが動きます",
+  "＋ Add a point": "＋ ポイントを追加"
 }

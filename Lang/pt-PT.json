@@ -1810,5 +1810,20 @@
   "Skipped \"{0}\": it's built on BuilderEngine (change what it does there)": "Ignorado \"{0}\": é feito no BuilderEngine (mude o que faz lá)",
   "This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.": "Este projeto foi alterado fora do EasyEngine (no BuilderEngine ou noutra janela). Carregar essa versão? As alterações não guardadas aqui perdem-se.",
   "🔗 Live link on: every change is saved right away, and changes made outside show up here": "🔗 Ligação ao vivo ligada: cada alteração é guardada de imediato e as alterações externas aparecem aqui",
-  "🔗 Loaded the changes made outside EasyEngine": "🔗 Alterações feitas fora do EasyEngine carregadas"
+  "🔗 Loaded the changes made outside EasyEngine": "🔗 Alterações feitas fora do EasyEngine carregadas",
+  "Click, then press the key": "Clique e depois prima a tecla",
+  "Couldn't copy the package into the project: {0}": "Não foi possível copiar o pacote para o projeto: {0}",
+  "Empty — add one below.": "Vazio — adicione um abaixo.",
+  "From {0} to {1}": "De {0} a {1}",
+  "Less": "Menos",
+  "More": "Mais",
+  "No points yet — add one below.": "Ainda sem pontos — adicione um abaixo.",
+  "This behavior package isn't on this computer. Put {0}.behavior in the project's behaviors folder — its settings are kept.": "Este pacote de comportamento não está neste computador. Coloque {0}.behavior na pasta behaviors do projeto — as definições dele são mantidas.",
+  "by {0}": "por {0}",
+  "seconds": "segundos",
+  "⚠ {0} behavior package(s) couldn't be read: {1}": "⚠ Não foi possível ler {0} pacote(s) de comportamento: {1}",
+  "📦 Behavior package · {0}": "📦 Pacote de comportamento · {0}",
+  "📦 Behavior packages": "📦 Pacotes de comportamento",
+  "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 {0} adicionado — uma cópia está agora na pasta behaviors do projeto, por isso o jogo funciona em qualquer computador",
+  "＋ Add a point": "＋ Adicionar um ponto"
 }

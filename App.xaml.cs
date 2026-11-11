@@ -19,6 +19,7 @@ public partial class App : Application
     partial void SelfTestSequences(SelfTestContext c);
     partial void SelfTestTerrain(SelfTestContext c);
     partial void SelfTestTiles(SelfTestContext c);
+    partial void SelfTestPackages(SelfTestContext c);
     partial void SelfTestReadability(SelfTestContext c);
 
     protected override void OnStartup(StartupEventArgs e)
@@ -53,7 +54,12 @@ public partial class App : Application
 
         // test modes create many throwaway projects — keep them out of the user's Recent list
         string[] testModes = { "--selftest", "--aitest", "--blocktest", "--exprtest", "--behtest", "--aijsontest", "--fulltest", "--e2e", "--pairtest" };
-        if (e.Args.Any(a => testModes.Contains(a))) ProjectIO.SuppressRecent = true;
+        if (e.Args.Any(a => testModes.Contains(a)))
+        {
+            ProjectIO.SuppressRecent = true;
+            // and away from the person's installed behavior packages: a test sees only the packages it writes (BehaviorPackages.cs)
+            BehaviorPackages.InstalledFolderOverride = Path.Combine(Path.GetTempPath(), "EE_NoInstalledBehaviors");
+        }
 
         if (e.Args.Contains("--restore-recent")) { RunRestoreRecent(); return; }
 
@@ -666,6 +672,7 @@ public partial class App : Application
             SelfTestSequences(ctx);
             SelfTestTerrain(ctx);
             SelfTestTiles(ctx);
+            SelfTestPackages(ctx);
             SelfTestReadability(ctx); // last: it measures the text of every window the others opened
 
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };

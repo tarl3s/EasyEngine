@@ -1810,5 +1810,20 @@
   "Skipped \"{0}\": it's built on BuilderEngine (change what it does there)": "已略過「{0}」：它是在 BuilderEngine 中製作的（請在那裡變更它的行為）",
   "This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.": "這個專案在 EasyEngine 之外（BuilderEngine 或其他視窗）被變更了。要載入那個版本嗎？這裡未儲存的變更將會遺失。",
   "🔗 Live link on: every change is saved right away, and changes made outside show up here": "🔗 即時連結已開啟：每次變更都會立即儲存，外部的變更會顯示在這裡",
-  "🔗 Loaded the changes made outside EasyEngine": "🔗 已載入在 EasyEngine 之外所做的變更"
+  "🔗 Loaded the changes made outside EasyEngine": "🔗 已載入在 EasyEngine 之外所做的變更",
+  "Click, then press the key": "點擊，然後按下按鍵",
+  "Couldn't copy the package into the project: {0}": "無法將套件複製到專案中：{0}",
+  "Empty — add one below.": "空 — 在下方新增一個。",
+  "From {0} to {1}": "從 {0} 到 {1}",
+  "Less": "減少",
+  "More": "增加",
+  "No points yet — add one below.": "還沒有點 — 在下方新增一個。",
+  "This behavior package isn't on this computer. Put {0}.behavior in the project's behaviors folder — its settings are kept.": "此行為套件不在這台電腦上。請把 {0}.behavior 放到專案的 behaviors 資料夾中 — 它的設定會保留。",
+  "by {0}": "作者：{0}",
+  "seconds": "秒",
+  "⚠ {0} behavior package(s) couldn't be read: {1}": "⚠ 有 {0} 個行為套件無法讀取：{1}",
+  "📦 Behavior package · {0}": "📦 行為套件 · {0}",
+  "📦 Behavior packages": "📦 行為套件",
+  "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 已新增 {0} — 專案的 behaviors 資料夾中現在有一份副本，遊戲在任何電腦上都能執行",
+  "＋ Add a point": "＋ 新增一個點"
 }

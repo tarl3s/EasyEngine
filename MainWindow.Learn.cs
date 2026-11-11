@@ -139,11 +139,12 @@ namespace EasyEngine
                 sb.AppendLine();
             }
             foreach (var info in detailed) sb.AppendLine(DescribeBehavior(info));
+            sb.Append(PackagesForTeach(question, compact)); // behavior packages (MainWindow.AiPackages.cs)
 
             sb.AppendLine($"THE USER'S PROJECT: \"{_project.Name}\", scene \"{_scene.Name}\".");
             if (_selected != null)
                 sb.AppendLine($"Selected object: \"{_selected.Name}\" with behaviors: " +
-                              (_selected.Behaviors.Count > 0 ? string.Join(", ", _selected.Behaviors.Select(b => { var i = BehaviorCatalog.Info(b.Kind); return $"{i.Icon} {i.Name}"; })) : "(none)") + ".");
+                              (_selected.Behaviors.Count > 0 ? string.Join(", ", _selected.Behaviors.Select(b => { var i = BehaviorPackages.Of(_project, b) is { } pk ? BehaviorPackages.InfoFor(pk) : BehaviorCatalog.Info(b.Kind); return $"{i.Icon} {i.Name}"; })) : "(none)") + ".");
             if (matched.Count > 0) sb.AppendLine("This question is about: " + string.Join(", ", matched.Select(i => $"{i.Icon} {i.Name}")) + " (described above) — build the answer on them.");
             sb.AppendLine();
             sb.AppendLine("HOW TO REPLY");

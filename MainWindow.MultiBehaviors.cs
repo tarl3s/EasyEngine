@@ -16,7 +16,7 @@ namespace EasyEngine
         {
             int n = 0, mine = 0;
             foreach (var b in obj.Behaviors)
-                if (b.Kind == bh.Kind) { n++; if (ReferenceEquals(b, bh)) mine = n; }
+                if (BehaviorPackages.Same(b, bh)) { n++; if (ReferenceEquals(b, bh)) mine = n; } // packages: the same package
             return n > 1 && mine > 0 ? " " + mine : "";
         }
 

@@ -98,7 +98,7 @@ Add to a text	BlockEditorWindow.Palette.cs
 Add to a variable	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.Palette.cs, step addvar
 Add to its own variable	BlockEditorWindow.Palette.cs
 Added {0} image(s) and {1} sound(s) for the AI	MainWindow.xaml.cs
-Added {0} to {1} of {2} selected object(s)	MainWindow.xaml.cs
+Added {0} to {1} of {2} selected object(s)	MainWindow.Packages.cs, MainWindow.xaml.cs
 Adds an item to the end of a list. {name} inside is replaced by that variable's value.	BlockEditorWindow.Palette.cs, step listadd
 Adds the points to	behavior Collectible
 Adds to its speed gradually (not instant). + up/down makes it fall faster.	BlockEditorWindow.Palette.cs
@@ -287,15 +287,16 @@ Click a pixel to take its colour.	SpriteEditorWindow.cs
 Click an area to fill it with the colour.	SpriteEditorWindow.cs
 Click each corner, then click the first point again to close it (or double-click / Enter). Esc cancels.	SpriteEditorWindow.cs
 Click it	behavior Switch
-Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)	MainWindow.xaml.cs
+Click it, then roll the mouse wheel to change it and see it live (Shift: faster · Ctrl: finer)	MainWindow.Packages.cs, MainWindow.xaml.cs
 Click it: +1 score	BlockEditorWindow.Recipes.cs
 Click or drag to draw.	SpriteEditorWindow.cs
 Click or drag to erase.	SpriteEditorWindow.cs
 Click to add a corner (on a side, it goes into that side) · drag a corner to move it · right-click a corner to remove it.	HitboxShapeWindow.cs
 Click to add to the selected layer	MainWindow.xaml
-Click to pick a color	MainWindow.xaml.cs
+Click to pick a color	MainWindow.Packages.cs, MainWindow.xaml.cs
 Click to pick a colour	BlockEditorWindow.cs, SequenceEditorWindow.cs, VariablesWindow.xaml.cs
 Click “ADD ANIMATION” to create one (idle, walk, jump…).	AnimationWindow.xaml
+Click, then press the key	MainWindow.Packages.cs
 Close	SettingsWindow.cs, VariablesWindow.xaml
 Closer than	MainWindow.OnlyWhile.cs
 Cloud	MainWindow.TerrainBlocks.cs
@@ -334,6 +335,7 @@ Could not apply AI response	MainWindow.xaml.cs
 Could not import the pictures:	AnimationWindow.EasyPixel.cs
 Could not start the game:	App.xaml.cs
 Could not start {0}	MainWindow.xaml.cs
+Couldn't copy the package into the project: {0}	MainWindow.Packages.cs
 Couldn't load the outside change yet: {0}	MainWindow.LiveLink.cs
 Couldn't open the sound: {0}	AudioEditorWindow.cs
 Couldn't play the sound: {0}	AudioEditorWindow.cs
@@ -475,6 +477,7 @@ Effect speed	behavior Label, behavior LightSource
 Ellipse	SpriteEditorWindow.cs
 Emits particles (sparks, smoke, explosions, trails). on=start bursts once when the scene loads; on=always emits continuously at 'rate'; or trigger a burst from a script with the 'emit' action. spread is the cone angle (360 = all directions).	behavior Particles
 Empty a list	BlockEditorWindow.Palette.cs
+Empty — add one below.	MainWindow.Packages.cs
 Endless to the left and right (0/1)	behavior Terrain
 Ends by getting quieter until silent.	AudioEditorWindow.cs
 Enemies/hazards break blocks (0/1)	behavior Terrain
@@ -563,6 +566,7 @@ From	BlockEditorWindow.Palette.cs
 From (empty) = at this object · top = falling from the top of the screen · near = on the ground, a little to the left or right.	BlockEditorWindow.Palette.cs
 From column	MainWindow.TerrainBlocks.cs
 From height	MainWindow.TerrainBlocks.cs
+From {0} to {1}	MainWindow.Packages.cs
 Full value	behavior Bar
 Full value from a variable	behavior Bar
 GAME SCREEN	MainWindow.xaml.cs
@@ -731,6 +735,7 @@ Left / right in the headphones by its position (0/1)	behavior SoundEmitter
 Left and right only	behavior StayInside
 Left out (not a block): {0}	BlockEditorWindow.Ai.cs
 Left-drag paints · Right-drag erases	MainWindow.xaml.cs
+Less	MainWindow.Packages.cs
 Level	BlockEditorWindow.Palette.cs
 Level (0-1)	BlockEditorWindow.Palette.cs
 Life (s)	BlockEditorWindow.Palette.cs, step shoot
@@ -796,6 +801,7 @@ Mirror the selection up ↕ down	SpriteEditorWindow.cs
 Mode	MainWindow.xaml.cs
 Model "{0}" isn't available on {1}.	CloudClient.cs
 Moon	behavior DayNight
+More	MainWindow.Packages.cs
 More blocks	behavior Terrain, MainWindow.TerrainBlocks.cs
 More: order, rename, duplicate, opacity, delete	MainWindow.Layers.cs
 More…	NewItemDialog.cs
@@ -863,6 +869,7 @@ No free cloud key set. Add one in the AI settings (⚙).	MainWindow.xaml.cs
 No items yet — add one below.	MainWindow.Params.cs
 No match	ListSearch.cs
 No phases yet — without one, the boss uses every attack at random.	SequenceEditorWindow.cs
+No points yet — add one below.	MainWindow.Packages.cs
 No prefabs match.	MainWindow.xaml.cs
 No projects yet. Click “New Project” to start.	LauncherWindow.xaml
 No route yet. Click 'Draw path' (the grid turns on automatically), then click points on the scene to trace where it should go.	MainWindow.xaml.cs
@@ -1033,7 +1040,7 @@ Rectangle	SpriteEditorWindow.cs
 Redo	MainWindow.xaml.cs
 Redo (Ctrl+Y)	SpriteEditorWindow.cs
 Refused sound	behavior ToolUse
-Remove	MainWindow.MultiBehaviors.cs, MainWindow.xaml.cs
+Remove	MainWindow.MultiBehaviors.cs, MainWindow.Packages.cs, MainWindow.xaml.cs
 Remove an item	BlockEditorWindow.Palette.cs
 Remove every corner: the whole box collides again	HitboxShapeWindow.cs
 Remove from a list	BlockEditorWindow.Palette.cs
@@ -1319,6 +1326,7 @@ The whole scene	behavior StayInside
 The world just ends (you can fall off)	behavior Terrain
 Theme updated	MainWindow.AiApply.cs
 These steps play when its health reaches 0 (it can't be hurt and doesn't hurt anymore). Then its Custom 'death' rules run and it disappears. Leave it empty to make it disappear at once.	SequenceEditorWindow.cs
+This behavior package isn't on this computer. Put {0}.behavior in the project's behaviors folder — its settings are kept.	MainWindow.Packages.cs
 This export can't be read. Export it again from EasyPixel.	EasyPixelBridge.cs
 This export has no pictures. Export it again from EasyPixel.	EasyPixelBridge.cs
 This is not a WAV file.	AudioEdit.cs
@@ -1520,6 +1528,7 @@ at least	behavior Gate
 at most	behavior Gate
 at the mouse	BlockEditorWindow.Palette.cs
 below	BlockEditorWindow.Palette.cs
+by {0}	MainWindow.Packages.cs
 contains	BlockEditorWindow.Palette.cs
 created the moon "{0}"	Model.cs
 created the sun "{0}"	Model.cs
@@ -1574,6 +1583,7 @@ or when	BlockEditorWindow.cs
 rename	AnimationWindow.xaml
 right	BlockEditorWindow.Palette.cs
 scroll	MainWindow.Layers.cs
+seconds	MainWindow.Packages.cs
 self	BlockEditorWindow.cs
 shown	MainWindow.Layers.cs
 stereo	AudioEditorWindow.cs
@@ -1584,7 +1594,7 @@ then	BlockEditorWindow.cs
 thinking…	MainWindow.xaml.cs
 top	BlockEditorWindow.Palette.cs
 touching	BlockEditorWindow.Palette.cs
-v0.16.0	LauncherWindow.xaml
+v0.17.0	LauncherWindow.xaml
 value	BlockEditorWindow.cs
 variable	BlockEditorWindow.cs
 wall jump	BlockEditorWindow.Palette.cs
@@ -1697,6 +1707,7 @@ y	step camera, step move, step moveto, step spawn
 ⚠ The scene changed while the AI was working — not applied.	MainWindow.Sequences.cs
 ⚠ These rules couldn't be read (the JSON has a mistake), so they show no blocks. Done keeps them as they are — fix them in the raw rules box, or add blocks here to start over.	BlockEditorWindow.cs
 ⚠ Unknown block: {0}	BlockEditorWindow.cs
+⚠ {0} behavior package(s) couldn't be read: {1}	MainWindow.Packages.cs
 ⚡ Local — fastest (1.5b)	MainWindow.xaml
 ✂ CUT — drag the two handles to keep only a part	AudioEditorWindow.cs
 ✂ Edit…	MainWindow.xaml.cs
@@ -1754,6 +1765,9 @@ y	step camera, step move, step moveto, step spawn
 📎 Add files (images / audio)	MainWindow.xaml
 📚  Recipes	BlockEditorWindow.Recipes.cs
 📥 Paste look	MainWindow.xaml.cs
+📦 Behavior package · {0}	MainWindow.Packages.cs
+📦 Behavior packages	MainWindow.Packages.cs
+📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer	MainWindow.Packages.cs
 🔊 RESULT	AudioEditorWindow.cs
 🔍  Interface size	SettingsWindow.cs
 🔒 Lock layer	MainWindow.Layers.cs
@@ -1779,10 +1793,11 @@ y	step camera, step move, step moveto, step spawn
 🪣 Fill	SpriteEditorWindow.cs
 ＋  ADD ANIMATION	AnimationWindow.xaml
 ＋  New Project	LauncherWindow.xaml
-＋ Add	MainWindow.Minimap.cs
+＋ Add	MainWindow.Minimap.cs, MainWindow.Packages.cs
 ＋ Add a block	MainWindow.TerrainBlocks.cs
 ＋ Add a font file…	MainWindow.Fonts.cs
 ＋ Add a picture…	PicturePick.cs
+＋ Add a point	MainWindow.Packages.cs
 ＋ Add behavior…	MainWindow.xaml.cs
 ＋ Add condition	BlockEditorWindow.cs
 ＋ Add frames	AnimationWindow.xaml

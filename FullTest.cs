@@ -1085,6 +1085,7 @@ public partial class App
             FeatureTestsTiles(kit);
             FeatureTestsLockZ(kit);
             FeatureTestsBuilderLink(kit); // FullTest.BuilderLink.cs
+            FeatureTestsBehaviorPackages(kit); // FullTest.BehaviorPackages.cs
             FeatureTestsAiFix(kit);
             FeatureTestsBlockAi(kit);
             FeatureTestsParity(kit);
@@ -1145,6 +1146,7 @@ public partial class App
     partial void FeatureTestsTiles(FullTestKit t);
     partial void FeatureTestsLockZ(FullTestKit t);
     partial void FeatureTestsBuilderLink(FullTestKit t);
+    partial void FeatureTestsBehaviorPackages(FullTestKit t);
     partial void FeatureTestsAiFix(FullTestKit t);
     partial void FeatureTestsBlockAi(FullTestKit t);
     partial void FeatureTestsParity(FullTestKit t);

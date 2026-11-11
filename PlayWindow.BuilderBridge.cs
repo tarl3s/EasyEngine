@@ -35,6 +35,8 @@ namespace EasyEngine
             public bool BLinked;             // handled by the bridge (a mirror, an owned object, or nothing to do)
             public string? BImg, BColor;     // the picture / colour last copied from its BuilderEngine object
             public bool BShown = true, BFlip, BSolid;
+            public bool BPkg;                // its mirror also runs its behavior packages (BehaviorPackages.cs)
+            public double BSx, BSy, BSvx, BSvy, BSang; // what was sent to that twin this frame: its changes are what differs after
         }
 
         private BE.World? _bWorld, _bLastWorld;          // this scene's world; the last one (a next scene's world carries its globals)
@@ -53,6 +55,8 @@ namespace EasyEngine
         private BE.Dialogue? _bShown; private int _bShownSel = -1; // the BuilderEngine line on EasyEngine's dialogue box
         private string[] _bSceneNames = Array.Empty<string>();      // BuilderEngine's scene names, in EasyEngine's scene order
         private int _bStamp;
+        private PackageSet _pkgs = PackageSet.Empty;              // the behavior packages this project can use
+        private readonly Dictionary<string, bool> _bPkgLoaded = new(StringComparer.OrdinalIgnoreCase); // package → loaded into this world (false: its script is broken)
         private static readonly ScaleTransform FlipX = MakeFlip();
         private static ScaleTransform MakeFlip() { var t = new ScaleTransform(-1, 1); t.Freeze(); return t; }
 
@@ -77,11 +81,16 @@ namespace EasyEngine
             foreach (var en in _bPairs) { en.BMirror = null; en.BOwn = null; }
             _bPairs.Clear(); _bKnown.Clear(); _bKeys.Clear(); _bHud.Clear(); // the HUD canvas was just cleared by LoadScene
             _bToast = null; _bToastText = null; _bShown = null; _bShownSel = -1;
+            _bPkgLoaded.Clear(); // a new world each scene: its packages are loaded into it again
         }
 
         partial void BuilderSceneLoaded()
         {
-            if (!BuilderLink.HasBuilt(_scene)) return; // nothing of BuilderEngine's here: no world
+            _pkgs = BehaviorPackages.For(_project);
+            foreach (var problem in _pkgs.Problems)
+                if (_bWarned.Add("pkgfile:" + problem)) Warn("Packages", "", "A behavior package couldn't be read: " + problem);
+            bool hasBuilt = BuilderLink.HasBuilt(_scene);
+            if (!hasBuilt && !UsesPackages()) return; // nothing of BuilderEngine's here: no world
             BE.Project beProject;
             try { beProject = BE.EasyLink.FromEeproj(JsonSerializer.Serialize(_project), _project.FolderPath ?? ""); }
             catch (Exception ex) { Warn("BuilderEngine", "", "Couldn't read the BuilderEngine part of this project: " + ex.Message); return; }
@@ -92,13 +101,23 @@ namespace EasyEngine
             var w = _bLastWorld != null ? _bLastWorld.ForNextScene() : NewBuilderWorld(beProject);
             _bWorld = w;
 
-            // mirrors first, so Object params naming an EasyEngine object ("target: Player") find it
+            // mirrors first, so Object params naming an EasyEngine object ("target: Player") find it; the objects with
+            // behavior packages after the plain ones (their settings may name them)
             var built = new Dictionary<int, Entity>();
+            var withPackages = new List<Entity>();
             foreach (var en in _entities)
             {
                 if (en.Dead) continue;
                 if (BuilderLink.IsBuilt(en.Data)) { built.TryAdd(en.Data.Id, en); en.BLinked = true; }
+                else if (HasPackages(en)) withPackages.Add(en);
                 else Mirror(en);
+            }
+            foreach (var en in withPackages) Mirror(en);
+            if (!hasBuilt)
+            {
+                Info("Packages", "", $"Behavior packages: {_bPairs.Count(e => e.BPkg)} object(s) run theirs in BuilderEngine",
+                     string.Join(", ", _bPkgLoaded.Where(kv => kv.Value).Select(kv => kv.Key)));
+                return;
             }
             var beScene = beProject.Scenes[sceneIndex];
             beScene.Objects.RemoveAll(o => !built.ContainsKey(o.Id) || o.Mechanisms.Count == 0); // the ones playing here (layer on, object on)
@@ -158,11 +177,93 @@ namespace EasyEngine
             if (IsPlayerSteered(en)) tags.Add("player");
             tags.AddRange(BuilderLink.Tags(en.Data));
             if (en.ScreenSpace) tags.Add("ui");
-            var m = _bWorld.Spawn(en.Data.Name, en.X, en.Y, null, null, tags.ToArray());
+            var m = SpawnWithPackages(en, tags) ?? _bWorld.Spawn(en.Data.Name, en.X, en.Y, null, null, tags.ToArray());
             m.Width = en.W; m.Height = en.H; m.Ui = en.ScreenSpace;
             en.BMirror = m;
+            if (en.BPkg) { m.Angle = en.Rot; en.BImg = m.Image; en.BColor = m.Color; en.BShown = true; en.BFlip = false; en.BSolid = false; }
             _bKnown.Add(m);
             _bPairs.Add(en);
+        }
+
+        // ---- behavior packages (BehaviorPackages.cs): an EasyEngine object whose BuilderEngine twin runs them ----
+        // The object stays an EasyEngine object (its other behaviors keep running). Its twin is its mirror plus the
+        // packages' mechanisms, with the behavior's settings. Each frame the twin gets the entity's x, y, vx, vy and angle;
+        // after BuilderEngine's frame, what the package CHANGED is applied to the entity — so a package moves the object
+        // after EasyEngine's own movers (a position change adds to theirs; a speed it sets replaces theirs from the next
+        // frame), and its size, look, visibility, angle and destroy show as well.
+        private bool UsesPackages()
+        {
+            foreach (var en in _entities) if (!en.Dead && HasPackages(en)) return true;
+            foreach (var pf in _project.Prefabs) if (pf.Template.Behaviors.Any(b => b.Kind == BehaviorKind.Package)) return true; // a Spawner may bring one
+            return false;
+        }
+
+        private static bool HasPackages(Entity en)
+        {
+            var list = en.Data.Behaviors;
+            for (int i = 0; i < list.Count; i++) if (list[i].Kind == BehaviorKind.Package) return true;
+            return false;
+        }
+
+        /// <summary>Loads a package's script into this scene's world once; false when it can't run (said once in the console).</summary>
+        private bool PackageReady(BE.BehaviorPackage pkg)
+        {
+            if (_bWorld == null) return false;
+            if (_bPkgLoaded.TryGetValue(pkg.Name, out var ok)) return ok;
+            try { _bWorld.Load(pkg.Script); ok = true; }
+            catch (BE.ScriptError ex) { Warn("Packages", "", $"The behavior package \"{pkg.Name}\" has a script error: {ex.Message}"); ok = false; }
+            return _bPkgLoaded[pkg.Name] = ok;
+        }
+
+        /// <summary>The entity's twin with its packages' mechanisms, or null when it has none that can run.</summary>
+        private BE.GameObject? SpawnWithPackages(Entity en, List<string> tags)
+        {
+            if (_bWorld == null || !HasPackages(en)) return null;
+            var names = new List<string>();
+            var uses = new List<(BE.BehaviorPackage pkg, BehaviorData bh)>();
+            var overrides = new Dictionary<string, Dictionary<string, object?>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var b in en.Data.Behaviors)
+            {
+                if (b.Kind != BehaviorKind.Package) continue;
+                string name = BehaviorPackages.NameOf(b);
+                var pkg = _pkgs.Find(name);
+                if (pkg == null)
+                {
+                    if (_bWarned.Add("pkg:" + name))
+                        Warn("Packages", en.Data.Name, $"The behavior package \"{name}\" isn't installed: put {name}.behavior in the project's behaviors folder (or in {BehaviorPackages.InstalledFolder})");
+                    continue;
+                }
+                if (!PackageReady(pkg)) continue;
+                names.Add(pkg.Name);
+                uses.Add((pkg, b));
+                overrides.TryAdd(pkg.Name, BehaviorPackages.RuntimeSettings(pkg, b));
+            }
+            if (names.Count == 0) return null;
+            BE.GameObject go;
+            try { go = _bWorld.Spawn(en.Data.Name, en.X, en.Y, names, overrides, tags.ToArray()); }
+            catch (BE.ScriptError ex) { Warn("Packages", en.Data.Name, ex.Message); return null; }
+            // a repeatable package twice on one object: each mechanism gets its own behavior's settings
+            for (int i = 0; i < uses.Count && i < go.Mechanisms.Count; i++)
+                foreach (var (key, value) in BehaviorPackages.RuntimeSettings(uses[i].pkg, uses[i].bh))
+                    go.Mechanisms[i].Vars[key] = value is string s && uses[i].pkg.AllParams().FirstOrDefault(p => p.Name == key)?.Kind == BE.ParamKind.Object
+                        ? _bWorld.FindObject(s) ?? (object)s : value;
+            en.BPkg = true;
+            return go;
+        }
+
+        /// <summary>After BuilderEngine's frame: what a package changed on the twin goes to the entity (no allocation).</summary>
+        private void PackageBack(Entity en, BE.GameObject go, double dt)
+        {
+            // BuilderEngine moved the twin by its speed (no body: nothing stops it); EasyEngine's physics moves the entity by
+            // its own speed — so the package's own move is the position minus that step, and a new speed is handed over
+            double vx = go.Vx, vy = go.Vy;
+            double sx = go.HasBody ? go.X : go.X - vx * dt, sy = go.HasBody ? go.Y : go.Y - vy * dt;
+            if (Math.Abs(sx - en.BSx) > 1e-6) en.X += sx - en.BSx;
+            if (Math.Abs(sy - en.BSy) > 1e-6) en.Y += sy - en.BSy;
+            if (vx != en.BSvx) en.VX = vx;
+            if (vy != en.BSvy) en.VY = vy;
+            if (go.Angle != en.BSang) en.Rot = go.Angle;
+            BuilderLook(en, go);
         }
 
         private bool IsPlayerSteered(Entity en)
@@ -268,6 +369,11 @@ namespace EasyEngine
                 {
                     go.Width = en.W; go.Height = en.H;
                     go.Solid = en.IsSolid && !en.SolidDisabled; go.OneWay = en.OneWay;
+                    if (en.BPkg)
+                    {
+                        go.Vx = en.VX; go.Vy = en.VY; go.Angle = en.Rot;
+                        en.BSx = en.X; en.BSy = en.Y; en.BSvx = en.VX; en.BSvy = en.VY; en.BSang = en.Rot;
+                    }
                 }
             }
             BuilderKeys(w);
@@ -287,6 +393,14 @@ namespace EasyEngine
                 if (go.Destroyed) { en.Dead = true; _bKnown.Remove(go); en.BOwn = null; _bPairs.RemoveAt(i); continue; }
                 en.X = go.X; en.Y = go.Y;
                 BuilderLook(en, go);
+            }
+            // EasyEngine objects with behavior packages: what their packages changed
+            for (int i = _bPairs.Count - 1; i >= 0; i--)
+            {
+                var en = _bPairs[i];
+                if (!en.BPkg || en.BMirror is not BE.GameObject go) continue;
+                if (go.Destroyed) { en.Dead = true; _bKnown.Remove(go); en.BMirror = null; _bPairs.RemoveAt(i); continue; } // the package destroyed it
+                PackageBack(en, go, w.LastDt);
             }
             var objs = w.Objects;
             for (int i = 0; i < objs.Count; i++)
@@ -369,6 +483,8 @@ namespace EasyEngine
 
         // keys held in EasyEngine → BuilderEngine (only when they change: no allocation per frame)
         private static readonly Dictionary<Key, string> KeyNames = new();
+        /// <summary>A key as BuilderEngine's scripts name it ("space", "a", "shift") — also how a package's Key setting is sent.</summary>
+        internal static string BuilderKeyName(Key k) => KeyName(k);
         private static string KeyName(Key k)
         {
             if (KeyNames.TryGetValue(k, out var n)) return n;
@@ -510,5 +626,12 @@ namespace EasyEngine
         public List<string> TBuilderHudTexts() => _bHud.Values.Where(h => h.Text != null).Select(h => h.Text!.Text).ToList();
         public bool TBuilderDialogOpen => _bWorld?.Dialogue is { Closed: false };
         public bool TBuilderWarned(string what) => _bWarned.Any(x => x.Contains(what, StringComparison.OrdinalIgnoreCase));
+        public int TPackageObjects => _bPairs.Count(e => e.BPkg && e.BMirror != null && !e.Dead);
+        /// <summary>A variable of the first package mechanism on an object's twin (its settings are variables there), or null.</summary>
+        public object? TPackageVar(string obj, string var, int index = 0)
+        {
+            var en = _entities.FirstOrDefault(e => e.Data.Name == obj && e.BPkg);
+            return en?.BMirror is BE.GameObject go && index < go.Mechanisms.Count && go.Mechanisms[index].Vars.TryGetValue(var, out var v) ? v : null;
+        }
     }
 }

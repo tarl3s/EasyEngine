@@ -39,6 +39,7 @@ namespace EasyEngine
             project.Scenes.Add(RadioToggleTest(project)); // TestScenarios.Multi.cs
             project.Scenes.Add(SpatialSoundTest(project)); // TestScenarios.SpatialSound.cs
             project.Scenes.Add(BuilderLinkTest(project)); // TestScenarios.BuilderLink.cs
+            project.Scenes.Add(PackagesTest(project));    // TestScenarios.Packages.cs
             project.StartScene = "Axe Test";
             ProjectIO.Save(project);
             return project.FilePath!;

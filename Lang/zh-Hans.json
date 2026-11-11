@@ -1810,5 +1810,20 @@
   "Skipped \"{0}\": it's built on BuilderEngine (change what it does there)": "已跳过“{0}”：它是在 BuilderEngine 中制作的（请在那里更改它的行为）",
   "This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.": "这个项目在 EasyEngine 之外（BuilderEngine 或其他窗口）被更改了。要载入那个版本吗？这里未保存的更改将会丢失。",
   "🔗 Live link on: every change is saved right away, and changes made outside show up here": "🔗 实时链接已开启：每次更改都会立即保存，外部的更改会显示在这里",
-  "🔗 Loaded the changes made outside EasyEngine": "🔗 已载入在 EasyEngine 之外所做的更改"
+  "🔗 Loaded the changes made outside EasyEngine": "🔗 已载入在 EasyEngine 之外所做的更改",
+  "Click, then press the key": "点击，然后按下按键",
+  "Couldn't copy the package into the project: {0}": "无法将包复制到项目中：{0}",
+  "Empty — add one below.": "空 — 在下方添加一个。",
+  "From {0} to {1}": "从 {0} 到 {1}",
+  "Less": "减少",
+  "More": "增加",
+  "No points yet — add one below.": "还没有点 — 在下方添加一个。",
+  "This behavior package isn't on this computer. Put {0}.behavior in the project's behaviors folder — its settings are kept.": "此行为包不在这台电脑上。请把 {0}.behavior 放到项目的 behaviors 文件夹中 — 它的设置会保留。",
+  "by {0}": "作者：{0}",
+  "seconds": "秒",
+  "⚠ {0} behavior package(s) couldn't be read: {1}": "⚠ 有 {0} 个行为包无法读取：{1}",
+  "📦 Behavior package · {0}": "📦 行为包 · {0}",
+  "📦 Behavior packages": "📦 行为包",
+  "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 已添加 {0} — 项目的 behaviors 文件夹中现在有一份副本，游戏在任何电脑上都能运行",
+  "＋ Add a point": "＋ 添加一个点"
 }

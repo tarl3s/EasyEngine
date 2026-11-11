@@ -33,6 +33,7 @@ public partial class App
             AddE2EScenariosMulti(scenarios);    // E2ETests.Multi.cs
             AddE2EScenariosSpatialSound(scenarios); // E2ETests.SpatialSound.cs
             AddE2EScenariosBuilderLink(scenarios); // E2ETests.BuilderLink.cs
+            AddE2EScenariosPackages(scenarios);    // E2ETests.Packages.cs
             foreach (var (title, run) in scenarios)
             {
                 sb.AppendLine($"===== {title} =====");
@@ -65,6 +66,7 @@ public partial class App
     partial void AddE2EScenariosMulti(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosSpatialSound(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
     partial void AddE2EScenariosBuilderLink(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
+    partial void AddE2EScenariosPackages(List<(string, Func<List<(string, bool, List<string>)>>)> scenarios);
 
     /// <summary>Plays the "Lighting Test" scene headless: sky colour, daylight, N → night, M → morning, the cycle on its own.</summary>
     internal static List<(string step, bool ok, List<string> lines)> RunLightingE2E()

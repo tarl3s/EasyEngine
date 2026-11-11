@@ -501,6 +501,12 @@ namespace EasyEngine
                           T("target","Fights","Player", PickKind.Object),
                           TIf(T("title","Name on the health bar","BOSS"), IfOn("hpbar")),
                           T("script","Boss", DefaultBoss, PickKind.Special) } },
+
+            // A behavior package (.behavior files, BehaviorPackages.cs): each package is offered by its own name in ＋ Add
+            // behavior and to the AI; this generic entry only gives the kind a catalog entry. A package's card, settings and
+            // defaults come from the package (BehaviorPackages.InfoFor). Different packages can sit on one object.
+            new BehaviorInfo { Kind = BehaviorKind.Package, Name = "Behavior package", Icon = "📦", Hidden = true, Repeatable = true,
+                Desc = "A behavior from a .behavior package (made in BuilderEngine or shared by someone): its settings and logic come from the package." },
         };
 
         public static BehaviorInfo Info(BehaviorKind kind) => All.Find(b => b.Kind == kind)!;

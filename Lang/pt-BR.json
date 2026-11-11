@@ -1810,5 +1810,20 @@
   "Skipped \"{0}\": it's built on BuilderEngine (change what it does there)": "Pulei \"{0}\": é feito na BuilderEngine (mude o que ele faz lá)",
   "This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.": "Este projeto foi mudado fora da EasyEngine (na BuilderEngine ou em outra janela). Carregar essa versão? Suas mudanças não salvas aqui seriam perdidas.",
   "🔗 Live link on: every change is saved right away, and changes made outside show up here": "🔗 Link ao vivo ligado: cada mudança é salva na hora, e mudanças feitas fora aparecem aqui",
-  "🔗 Loaded the changes made outside EasyEngine": "🔗 Mudanças feitas fora da EasyEngine carregadas"
+  "🔗 Loaded the changes made outside EasyEngine": "🔗 Mudanças feitas fora da EasyEngine carregadas",
+  "Click, then press the key": "Clique e depois aperte a tecla",
+  "Couldn't copy the package into the project: {0}": "Não deu para copiar o pacote para o projeto: {0}",
+  "Empty — add one below.": "Vazio — adicione um abaixo.",
+  "From {0} to {1}": "De {0} a {1}",
+  "Less": "Menos",
+  "More": "Mais",
+  "No points yet — add one below.": "Nenhum ponto ainda — adicione um abaixo.",
+  "This behavior package isn't on this computer. Put {0}.behavior in the project's behaviors folder — its settings are kept.": "Este pacote de comportamento não está neste computador. Coloque {0}.behavior na pasta behaviors do projeto — os ajustes dele ficam guardados.",
+  "by {0}": "por {0}",
+  "seconds": "segundos",
+  "⚠ {0} behavior package(s) couldn't be read: {1}": "⚠ {0} pacote(s) de comportamento não puderam ser lidos: {1}",
+  "📦 Behavior package · {0}": "📦 Pacote de comportamento · {0}",
+  "📦 Behavior packages": "📦 Pacotes de comportamento",
+  "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 {0} adicionado — uma cópia agora está na pasta behaviors do projeto, então o jogo funciona em qualquer computador",
+  "＋ Add a point": "＋ Adicionar um ponto"
 }

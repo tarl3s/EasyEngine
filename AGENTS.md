@@ -15,7 +15,7 @@ that game needs come first (rotational physics/ragdolls/vehicles come last). Lon
 - Repo: `github.com/tarl3s/EasyEngine` — **public** (MIT, since v0.11.0), branch `main`. Everything you push is public:
   no secrets, no personal paths in docs meant for players. `README.md` (English) and `README.pt-BR.md` are the public
   face — keep both in sync when features change.
-- Version: `0.16.0` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
+- Version: `0.17.0` (see *Versioning*). Commit history is detailed — `git log` is a good changelog.
 - The owner speaks **Brazilian Portuguese**: reply to them in PT-BR. Code, comments, UI text, commit messages and
   this file are in **English** (the editor UI is 100% English by request; only `README.pt-BR.md` is Portuguese).
 
@@ -67,6 +67,7 @@ Flat folder, one namespace `EasyEngine`, big classes split into `partial` files 
 | Tilemap palette (`TileKind`: colour, solid, picture or animated frames; the tolerant "palette" JSON shared by editor and runtime) | `TilePalette.cs` (editor: `MainWindow.Tiles.cs`, runtime: `PlayWindow.Tiles.cs`) |
 | Save/load `.eeproj` (JSON), recent list, legacy migration (`MigrateLegacy`, e.g. Melee → Use Item) | `ProjectIO.cs` |
 | **BuilderEngine link** (open/save BuilderEngine folders, "Built on BuilderEngine" objects, live link, the bridge that runs BuilderEngine mechanisms in play) | `BuilderLink.cs` (helpers over BuilderEngine's `EasyLink`), `MainWindow.BuilderLink.cs` (inspector card, AI skip), `MainWindow.LiveLink.cs`, `PlayWindow.BuilderBridge.cs`, `lib/BuilderEngine/*.dll` (binary reference, `tools/Update-BuilderEngineLib.ps1`) — see *BuilderEngine link* below |
+| **Behavior packages** (`.behavior` files: offered like built-ins, run in BuilderEngine's world) | `BehaviorPackages.cs` (finding, settings, keys, "show if", catalog view, copies), `MainWindow.Packages.cs` (＋ picker, card, pickers per type, export copy), `MainWindow.AiPackages.cs` (Build prompt, AI apply, Learn), the bridge in `PlayWindow.BuilderBridge.cs` (`SpawnWithPackages`, `PackageBack`) — see *Behavior packages* below |
 | **Behavior catalog** — name, icon, description, every param with its default, picker kind and `ShowIf` | `BehaviorCatalog.cs` |
 | How-to guides used by the AI Learn mode | `BehaviorGuides.cs` |
 | Editor window (scene canvas, docking panels, inspector, AI panel, undo/redo, export) | `MainWindow.xaml(.cs)`, `MainWindow.Layers.cs` (layer rows and their ⋯ menu: order, rename, duplicate, opacity, lock, on/off), `SceneTools.cs` (duplicate scene/layer with new ids), `MainWindow.Params.cs` (param pickers), `.Learn.cs`, `.Minimap.cs`, `.Sequences.cs`, `.LockZ.cs` (🔒 Lock — editor-only, the AI skips locked objects; Z layer; arrow-key nudge; Keep proportions / Original size), `.Layers.cs` (⧉ duplicate scene; the layer row and its ⋯ menu: order = draw order, 🔒 locked layer, opacity, ▶ on/off in the game; objects' Active) — model-side helpers in `SceneTools.cs` |
@@ -201,6 +202,50 @@ converter is BuilderEngine's `BuilderEngine.Script.EasyLink` — EasyEngine neve
   sounds, `goto_scene` → scene change, prints/errors → F1. Commands needing BuilderEngine's screen (camera, lights, screen
   effects, minimap, hotbar, tiles, cursor, captions/labels/outline, screens, looping sounds) run but are logged once as
   not available. Tests: `FullTest.BuilderLink.cs`, `E2ETests.BuilderLink.cs`, scene "BuilderEngine Link" (`TestScenarios.BuilderLink.cs`).
+
+## Behavior packages
+
+A behavior package (`.behavior`, **the format is BuilderEngine's `docs/BEHAVIOR-FORMAT.md`**) is one JSON file both engines
+understand: a manifest (name, icon, category, description, settings with Builder Script param types, `ai.keywords`/`ai.guide`)
+plus the logic as one Builder Script mechanism. **EasyEngine never parses it**: `BE.BehaviorPackage` (in the link DLL) reads,
+validates and finds them (`Parse`, `Validate`, `AllParams`, `Discover`). After BuilderEngine changes the format or the
+runtime, run `tools/Update-BuilderEngineLib.ps1` and commit the DLLs.
+
+- **Where** (`BehaviorPackages.cs`): `<project>/behaviors/` first, then `BE.BehaviorPackage.InstalledFolder`
+  (`%APPDATA%\BuilderEngine\Behaviors`, shared with BuilderEngine); a project copy wins. `BehaviorPackages.For(project)` is
+  cached and read again when a file's size/time changes. Broken files are `PackageSet.Problems`: said once in the status
+  bar (`ReportPackageProblems`) and once in the F1 console when playing — never a crash. Test modes point
+  `InstalledFolderOverride` at an empty temp folder (the person's own packages never change a test).
+- **Stored** as `BehaviorKind.Package` (appended to the enum): `Texts["package"]` = its name, numbers and on/off settings in
+  `Nums` (on = 1), everything else in `Texts` (lists and paths as JSON text, keys as the key picker spells them: `Space`,
+  `E`, `LeftShift`). The generic catalog entry is `Hidden` (packages are offered by their own names);
+  `BehaviorPackages.InfoFor(pkg)` makes a catalog entry from a package for the AI, AiSpecFix and Learn. A package that isn't
+  installed keeps its data; its card and the console say so. Adding one (picker or AI) copies the file into the project's
+  `behaviors/` (`EnsureInProject`); exporting also copies any installed one the project uses (`CopyGameFiles`).
+- **Editor** (`MainWindow.Packages.cs`): "＋ Add behavior…" lists them after the built-ins under "📦 Behavior packages"
+  (icon, name, description + category in the tooltip, found by name/category/keywords); repeatable ones can be added again.
+  The card uses the existing pickers per type: number/seconds → spinner (− ＋, min/max/step, the wheel steps by `step`:
+  `NumberWheel.SetRange`), bool → check, Choice → dropdown, Object/Scene/animation → dropdowns, Key → key list + ⌨ press,
+  Color → colour picker, Sound → `SoundRow`, Image → `PicturePick`, text → text box, `List of T` → one row per item with the
+  item type's picker, Path → X/Y rows. The author's labels/descriptions are never translated (`L.SetSkip`), `help` is the
+  label's tooltip, `showIf` is evaluated by `BehaviorPackages.Shows` (BuilderEngine's parser + a tiny safe evaluator over
+  the settings; anything it can't evaluate shows the field).
+- **Playing** (the bridge, `PlayWindow.BuilderBridge.cs`): a scene whose objects (or prefabs) have packages gets a BuilderEngine
+  world even without built objects. The object stays a normal EasyEngine object; its mirror also runs the packages'
+  mechanisms (script loaded once per world with `World.Load`, settings converted with `ParamTypes.Convert`, a repeatable
+  package twice gets each behavior's own settings). **Who moves it**: EasyEngine's behaviors and physics run first; then the
+  twin gets x, y, vx, vy and angle, BuilderEngine runs its frame, and what the package CHANGED is applied — a position change
+  adds to EasyEngine's move (a Drift on a Platformer: walking + drift), a speed it sets replaces EasyEngine's from the next
+  frame (a mover that sets the speed every frame, like Platformer, takes it back), angle → rotation, size/picture/colour/
+  visibility/flip like a built object's, `destroy` removes it. "Only while" and the behavior on/off block don't apply to
+  packages yet. No per-frame allocation in the bridge part.
+- **AI** (`MainWindow.AiPackages.cs`): the Build prompt adds "Behavior packages (…): names" after the built-ins and a detail
+  line (description, settings with defaults/choices, guide) for the packages a request names (name or `ai.keywords`); the
+  scene list shows a package by its name. A reply adds one with `{"kind":"<name>"}` or `{"kind":"Package","texts":{"package":…}}`,
+  cleaned by `AiSpecFix.Behavior` with the package's catalog entry (values kept within min/max, choices matched); `remove`
+  takes it off; a built-in with the same name wins. 🎓 Learn lists them and explains the ones asked about (`DescribePackage`).
+- **Tests**: `FullTest.BehaviorPackages.cs`, `E2ETests.Packages.cs`, scene "Behavior Packages" (`TestScenarios.Packages.cs`,
+  packages written by `TestPackages`), selftest card snapshot (`App.SelfTest.Packages.cs`).
 
 ## Conventions and hard rules
 

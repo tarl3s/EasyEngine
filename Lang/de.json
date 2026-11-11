@@ -1810,5 +1810,20 @@
   "Skipped \"{0}\": it's built on BuilderEngine (change what it does there)": "\"{0}\" übersprungen: es ist in BuilderEngine gebaut (ändere dort, was es tut)",
   "This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.": "Dieses Projekt wurde außerhalb von EasyEngine geändert (in BuilderEngine oder einem anderen Fenster). Diese Version laden? Deine ungespeicherten Änderungen hier gehen verloren.",
   "🔗 Live link on: every change is saved right away, and changes made outside show up here": "🔗 Live-Verbindung an: jede Änderung wird sofort gespeichert, und Änderungen von außen erscheinen hier",
-  "🔗 Loaded the changes made outside EasyEngine": "🔗 Änderungen von außerhalb von EasyEngine geladen"
+  "🔗 Loaded the changes made outside EasyEngine": "🔗 Änderungen von außerhalb von EasyEngine geladen",
+  "Click, then press the key": "Klicken, dann die Taste drücken",
+  "Couldn't copy the package into the project: {0}": "Das Paket konnte nicht ins Projekt kopiert werden: {0}",
+  "Empty — add one below.": "Leer — unten eins hinzufügen.",
+  "From {0} to {1}": "Von {0} bis {1}",
+  "Less": "Weniger",
+  "More": "Mehr",
+  "No points yet — add one below.": "Noch keine Punkte — unten einen hinzufügen.",
+  "This behavior package isn't on this computer. Put {0}.behavior in the project's behaviors folder — its settings are kept.": "Dieses Verhaltenspaket ist nicht auf diesem Computer. Lege {0}.behavior in den Ordner behaviors des Projekts — seine Einstellungen bleiben erhalten.",
+  "by {0}": "von {0}",
+  "seconds": "Sekunden",
+  "⚠ {0} behavior package(s) couldn't be read: {1}": "⚠ {0} Verhaltenspaket(e) konnten nicht gelesen werden: {1}",
+  "📦 Behavior package · {0}": "📦 Verhaltenspaket · {0}",
+  "📦 Behavior packages": "📦 Verhaltenspakete",
+  "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 {0} hinzugefügt — eine Kopie liegt jetzt im Ordner behaviors des Projekts, so läuft das Spiel auf jedem Computer",
+  "＋ Add a point": "＋ Punkt hinzufügen"
 }
