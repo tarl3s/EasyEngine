@@ -155,6 +155,10 @@ namespace EasyEngine
                 L.T("Jumps the Day/Night cycle to that moment (needs a Day/Night cycle object in the scene).")),
             new("playsound", L.T("Play a sound"), new[] { new Field("sound", L.T("Sound"), "sound"), new Field("volume", L.T("Volume (0-1)"), "num", "0.8"), new Field("channel", L.T("Channel"), "choice", "sfx", new[] { "sfx", "music" }) },
                 L.T("Plays a sound file from the project's Assets/sounds folder.")),
+            new("fmodevent", L.T("Play an FMOD event"), new[] { new Field("event", L.T("Event"), "fmodevent"), new Field("action", L.T("Do"), "choice", "play", new[] { "play", "stop" }), new Field("name", L.T("Call it (optional)"), "text"), new Field("volume", L.T("Volume (0-1)"), "num", "1") },
+                L.T("Plays (or stops) an event made in FMOD Studio (the project's fmod folder). A name lets the same event play twice, each stopped on its own. Stop with no event stops every event.")),
+            new("fmodparam", L.T("Set an FMOD parameter"), new[] { new Field("event", L.T("Of the event (none = global)"), "fmodevent"), new Field("param", L.T("Parameter"), "fmodparam"), new Field("value", L.T("To"), "val", "1") },
+                L.T("Changes a parameter of an FMOD event while it plays (e.g. intensity of the music, engine speed) — or a global parameter when no event is picked.")),
             new("log",       L.T("Write to the console"), new[] { new Field("text", L.T("Message"), "text"), new Field("level", L.T("Level"), "choice", "info", new[] { "info", "warn", "error" }) },
                 L.T("Shows a line in the debug console (F1 while playing). Use {variable} to print a value, e.g. Coins: {coins}.")),
             new("save",      L.T("Save the game"), Array.Empty<Field>()),
@@ -194,6 +198,7 @@ namespace EasyEngine
             "master" => L.T("All sound"), "music" => L.T("Music"), "sfx" => L.T("Sound effects"),
             "linear" => L.T("linear"), "easein" => L.T("ease in"), "easeout" => L.T("ease out"), "easeinout" => L.T("ease in and out"),
             "once" => L.T("Once, then back to normal"), "loop" => L.T("Over and over"), "auto" => L.T("Back to automatic"), "pause" => L.T("⏸ Pause"), "resume" => L.T("▶ Resume"),
+            "play" => L.T("play"), "stop" => L.T("stop"),
             "on" => L.T("on"), "off" => L.T("off"), "doubleJump" => L.T("double jump"), "wallJump" => L.T("wall jump"), "dash" => L.T("dash"),
             _ => o,
         };

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows.Media;
+using BE = BuilderEngine.Script;
 
 namespace EasyEngine
 {
@@ -22,7 +23,13 @@ namespace EasyEngine
         /// <paramref name="own"/>, gets its own player, returned so it can be stopped (null when nothing plays live).
         /// <paramref name="balance"/>: which ear, −1 left … 0 both … +1 right (a Sound placed by its position).</summary>
         private MediaPlayer? PlaySoundFile(string rel, double volume = 0.8, string channel = "sfx", bool loop = false, string source = "", bool own = false, double balance = 0)
+            => PlaySoundFile(rel, out _, volume, channel, loop, source, own, balance);
+
+        /// <summary>The same, also giving the FMOD channel it plays on when the game's sounds play through FMOD (GameAudio.cs,
+        /// PlayWindow.Fmod.cs) — then no classic player is made (null), unless FMOD couldn't play that file.</summary>
+        private MediaPlayer? PlaySoundFile(string rel, out BE.FmodChannel fmodChannel, double volume = 0.8, string channel = "sfx", bool loop = false, string source = "", bool own = false, double balance = 0)
         {
+            fmodChannel = default;
             if (string.IsNullOrWhiteSpace(rel)) return null;
             string name = Path.GetFileName(rel);
             var abs = ProjectIO.AbsoluteAsset(_project, rel);
@@ -35,6 +42,18 @@ namespace EasyEngine
 
             if (_headless) { Info("Sound", source, $"♪ {name} (muted in test)", detail); return null; }
             Info("Sound", source, $"♪ {name}", detail);
+
+            if (_fmod != null) // FMOD: one channel per play (it mixes, loops and pans them itself)
+            {
+                var ch = _fmod.Play(abs, vol, balance, loop);
+                if (!ch.IsNone)
+                {
+                    _fmodChannels.Add((abs, ch));
+                    fmodChannel = ch;
+                    return null;
+                }
+                // FMOD couldn't play this file (logged once in the console): the classic player tries
+            }
 
             try
             {
@@ -107,12 +126,20 @@ namespace EasyEngine
             {
                 var abs = ProjectIO.AbsoluteAsset(_project, rel);
                 if (abs == null || _soundPool.ContainsKey(abs)) continue;
+                if (_fmod != null) { _fmod.Preload(abs); continue; } // FMOD opens it now (long music streams when it plays)
                 try { _soundPool[abs] = new List<MediaPlayer> { NewPlayer(abs, pooled: true) }; } catch { }
             }
         }
 
         private void StopAllSounds()
         {
+            // FMOD: this game's channels, its Sounds' events and the events its rules started (PlayWindow.Fmod.cs)
+            StopFmodChannels();
+            foreach (var en in _entities)
+                if (en.States != null)
+                    foreach (var st in en.States)
+                        if (st != null && !st.Ev.IsNone) { _fmodHost?.Studio?.Stop(st.Ev, fade: true); st.Ev = default; }
+            _fmodHost?.StopAll(fade: true);
             foreach (var mp in _players) { try { mp.Stop(); mp.Close(); } catch { } }
             _players.Clear();
             foreach (var pool in _soundPool.Values) foreach (var mp in pool) { try { mp.Stop(); mp.Close(); } catch { } }

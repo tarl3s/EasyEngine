@@ -192,6 +192,8 @@ namespace EasyEngine
                     "layer" => "layer name, or leave out",
                     "key" => "key",
                     "sound" => "sound file like Assets\\sounds\\hit.wav",
+                    "fmodevent" => "FMOD Studio event path like event:/Music/Forest",
+                    "fmodparam" => "a parameter name of that FMOD event",
                     "behkind" => "one of its behaviors, e.g. Patrol, Chase, Shooter, Platformer",
                     "numvar" => "number variable",
                     "localvar" => "this object's own variable",

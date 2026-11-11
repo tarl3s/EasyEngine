@@ -11,7 +11,7 @@ namespace EasyEngine
     // truth for them: the step palette (used by the runtime, the Advanced Scratch editor and the AI prompt), the
     // parser (tolerant: synonyms, numbers as strings, missing fields → defaults) and the stable serializer.
 
-    /// <summary>One field of a step. A colour field with Options shows Options[0] while it is empty (empty = saved as nothing). Types: num, val (number or expression), text, longtext, bool, choice,
+    /// <summary>One field of a step. A colour field with Options shows Options[0] while it is empty (empty = saved as nothing). Types: num, val (number or expression), text, longtext, bool, choice, fmodevent (an FMOD Studio event of the project),
     /// object (scene object / self / player), spawn (scene object or prefab), sound, color, font, picture, var, textvar / colorvar / listvar (a text / colour / list variable), key, scene.</summary>
     public record StepField(string Key, string Label, string Type, string Default = "", string[]? Options = null, string? OnlyIfEmpty = null, string? OnlyIf = null)
     {
@@ -83,6 +83,8 @@ namespace EasyEngine
             new("shake", "Shake the screen", "Camera", new[] { Num("strength", "Strength", 8), Num("time", "Seconds", 0.5) }),
             new("bars", "Cinema bars", "Camera", new[] { Bool("on", "On", true) }),
             new("playsound", "Play a sound", "Sound", new[] { F("sound", "Sound", "sound"), Num("volume", "Volume (0-1)", 0.8) }),
+            new("fmodevent", "Play an FMOD event", "Sound", new[] { F("event", "Event", "fmodevent"), F("action", "Do", "choice", "play", "play|▶ Play", "stop|■ Stop") },
+                "Plays (or stops) an event made in FMOD Studio — the project's fmod folder holds its banks. Needs FMOD on this computer."),
             new("wait", "Wait", "Control", new[] { Num("time", "Seconds", 1) }),
             new("lock", "Lock the player", "Control", Array.Empty<StepField>(), "The player's keys and clicks stop working (Enter still advances dialogue)."),
             new("unlock", "Unlock the player", "Control", Array.Empty<StepField>()),
@@ -138,7 +140,7 @@ namespace EasyEngine
             ["charge"] = "dash", ["rush"] = "dash", ["leap"] = "jump", ["slam"] = "jump", ["jumpslam"] = "jump", ["groundpound"] = "jump",
             ["spawnminions"] = "summon", ["minions"] = "summon", ["callminions"] = "summon", ["invincible"] = "invulnerable", ["shield"] = "invulnerable", ["invulnerability"] = "invulnerable",
             ["flash"] = "telegraph", ["warn"] = "telegraph", ["warning"] = "telegraph", ["windup"] = "telegraph", ["glow"] = "telegraph",
-            ["sound"] = "playsound", ["sfx"] = "playsound", ["play"] = "playsound", ["particles"] = "emit", ["explode"] = "emit", ["explosion"] = "emit", ["burst"] = "emit",
+            ["fmod"] = "fmodevent", ["playevent"] = "fmodevent", ["fmodsound"] = "fmodevent", ["sound"] = "playsound", ["sfx"] = "playsound", ["play"] = "playsound", ["particles"] = "emit", ["explode"] = "emit", ["explosion"] = "emit", ["burst"] = "emit",
             ["set"] = "setvar", ["variable"] = "setvar", ["setvariable"] = "setvar", ["add"] = "addvar", ["walkto"] = "moveto", ["goto"] = "moveto", ["fly"] = "moveto", ["flyto"] = "moveto",
             ["turn"] = "face", ["look"] = "face", ["appear"] = "show", ["disappear"] = "hide", ["create"] = "spawn", ["remove"] = "destroy", ["kill"] = "destroy",
             ["press"] = "presskey", ["key"] = "presskey", ["animation"] = "playanim", ["anim"] = "playanim", ["playanimation"] = "playanim", ["simulate"] = "control", ["controls"] = "control", ["lockplayer"] = "lock", ["unlockplayer"] = "unlock", ["freeze"] = "lock", ["unfreeze"] = "unlock", ["approach"] = "walk", ["chase"] = "walk", ["scene"] = "goscene", ["changescene"] = "goscene",

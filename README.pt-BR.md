@@ -111,6 +111,22 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   <img src="docs/images/advanced-scratch.png" width="49%" alt="Montando um chefe com os blocos do Advanced Scratch">
 </p>
 
+## Áudio com FMOD (opcional)
+
+A EasyEngine toca som sem precisar de nada. Se você quiser mais, ela pode usar o [FMOD](https://www.fmod.com) — ele
+**não vem junto** e tem a própria licença (grátis para jogos pequenos, veja fmod.com/licensing):
+
+- **Para ligar**: instale o *FMOD Engine* do fmod.com (conta grátis), ou coloque o `fmod.dll` ao lado do `EasyEngine.exe`.
+  **⚙ Settings → Sound** escolhe *Automático* (FMOD quando estiver instalado), *FMOD* ou *Clássico* e mostra o que está
+  em uso ("FMOD 2.03.15 ✓"). Vale a partir do próximo jogo que começar. Sem o FMOD tudo soa como antes.
+- **Eventos do FMOD Studio**: faça seus sons no FMOD Studio, aponte a pasta dos bancos gerados (*File → Preferences →
+  Build*) para a pasta `fmod` do seu projeto e clique em *Build*. Aí um comportamento **Som** pode tocar *Um evento do
+  FMOD Studio* (escolhido numa lista, um controle deslizante por parâmetro; eventos 3D ficam onde o objeto está), os
+  blocos **Play an FMOD event** / **Set an FMOD parameter** mudam os eventos durante o jogo e as cutscenes têm o passo
+  **Play an FMOD event**. ⚙ Settings → FMOD Studio abre o FMOD Studio e recarrega os bancos depois de um novo Build.
+- **Exportar**: a exportação pergunta se deve incluir o FMOD (desligado por padrão — inclua só se você seguir a
+  licença do FMOD). A pasta `fmod` do projeto (os bancos) sempre vai junto com o jogo.
+
 ## A IA
 
 Abra o painel da IA e escolha **Which AI to use**:

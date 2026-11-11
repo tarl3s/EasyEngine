@@ -451,6 +451,7 @@ namespace EasyEngine
                     break;
                 }
                 case "playsound": DoCustom(self, SeqRule(s, "playsound", "sound", "volume"), 0); break;
+                case "fmodevent": DoCustom(self, SeqRule(s, "fmodevent", "event", "action"), 0); break; // PlayWindow.Fmod.cs
                 case "settime": DoCustom(self, SeqRule(s, "settime", "time"), 0); break;
                 case "goscene": r.WentToScene = true; DoCustom(self, SeqRule(s, "goscene", "scene"), 0); break;
                 case "emit":

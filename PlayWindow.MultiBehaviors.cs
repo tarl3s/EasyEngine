@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Windows.Input;
 using System.Windows.Media;
+using BE = BuilderEngine.Script;
 
 namespace EasyEngine
 {
@@ -25,6 +26,11 @@ namespace EasyEngine
             public double Vol, Pan;     // Sound: its volume and its left/right balance now (heard only nearby / by its position)
             public Entity? Listener;    // Sound: who hears it (its "Heard by" object), looked up again when it is gone
             public string? ChannelKey;  // Sound: the variable of its channel volume ("vol.music"), made once
+            public BE.FmodChannel Chan; // Sound: its FMOD channel, when the game's sound files play through FMOD (PlayWindow.Fmod.cs)
+            public BE.FmodEvent Ev;     // Sound set to an FMOD Studio event: the event playing
+            public string? EvPath;      //   its path ("event:/Music/Forest")
+            public bool Ev3D;           //   a 3D event: FMOD places it (left/right, quieter far away) from where the object is
+            public double EvVol;        //   the volume FMOD was last given
         }
 
         private partial class Entity
@@ -68,9 +74,16 @@ namespace EasyEngine
                 if (HasCond(snd)) { st.Rested = true; continue; }
                 if (snd.Num("onStart", 1) < 0.5) continue;
                 PlaceSound(en, snd, st, snap: true);
-                st.Player = PlaySound(snd, st.Vol, st.Pan, en.Data.Name);
+                StartSound(en, snd, st, own: false);
                 st.Was = true;
             }
+        }
+
+        // a sound file (classic player or FMOD channel) or an FMOD Studio event (PlayWindow.Fmod.cs)
+        private void StartSound(Entity en, BehaviorData snd, BehState st, bool own)
+        {
+            if (IsEventSound(snd)) { StartSoundEvent(en, snd, st); return; }
+            st.Player = PlaySoundFile(snd.Text("asset", ""), out st.Chan, st.Vol, snd.Text("channel", "sfx"), snd.Num("loop", 0) >= 0.5, en.Data.Name, own, st.Pan);
         }
 
         // it is on this frame: one that was off starts playing; one that plays follows where it is (if it is placed)
@@ -79,12 +92,12 @@ namespace EasyEngine
             var st = St(en, i);
             if (!st.Rested)
             {
-                if (st.Was && IsSpatial(snd)) FollowSound(en, snd, st);
+                if (st.Was && (IsSpatial(snd) || st.Ev3D)) FollowSound(en, snd, st);
                 return;
             }
             st.Rested = false;
             PlaceSound(en, snd, st, snap: true);
-            st.Player = PlaySound(snd, st.Vol, st.Pan, en.Data.Name, own: true);
+            StartSound(en, snd, st, own: true);
             st.Was = true;
         }
 
@@ -111,10 +124,17 @@ namespace EasyEngine
         private void FollowSound(Entity en, BehaviorData snd, BehState st)
         {
             PlaceSound(en, snd, st, snap: false);
-            var mp = st.Player;
-            if (mp == null) return;
+            if (st.EvPath != null) { FollowSoundEvent(en, snd, st); return; } // an FMOD Studio event (PlayWindow.Fmod.cs)
             double vol = Math.Clamp(st.Vol * Mixing(st.ChannelKey ??= ChannelKey(snd.Text("channel", "sfx"))), 0, 1);
             double bal = Math.Clamp(st.Pan, -1, 1);
+            if (!st.Chan.IsNone && _fmod != null) // an FMOD channel: set every frame (no allocation; an ended one just says no)
+            {
+                _fmod.SetVolume(st.Chan, vol);
+                _fmod.SetPan(st.Chan, bal);
+                return;
+            }
+            var mp = st.Player;
+            if (mp == null) return;
             try
             {
                 if (Math.Abs(mp.Volume - vol) > 0.002) mp.Volume = vol;
@@ -159,6 +179,8 @@ namespace EasyEngine
             st.Rested = true;
             if (!st.Was) return;
             st.Was = false;
+            if (st.EvPath != null) { StopSoundEvent(en, st); return; } // an FMOD Studio event (PlayWindow.Fmod.cs)
+            if (!st.Chan.IsNone) { _fmod?.Stop(st.Chan); st.Chan = default; }
             if (st.Player != null)
             {
                 try { st.Player.Stop(); st.Player.Close(); } catch { }

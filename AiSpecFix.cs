@@ -30,7 +30,7 @@ namespace EasyEngine
             "velocity", "move", "accelerate", "accel", "jump", "rotate", "shoot", "spawn", "destroy", "hide", "show", "setactive", "goscene", "setvar", "addvar",
             "setlocal", "addlocal", "settext", "addtext", "toggle", "setcolor", "tint", "listadd", "listremove", "listclear", "set", "additem",
             "removeitem", "boost", "setspeed", "say", "save", "load", "emit", "tween", "setvolume", "breaktile", "settime", "playsound", "log",
-            "controls", "ability", "setjump", "heal", "behavior", "playanim",
+            "controls", "ability", "setjump", "heal", "behavior", "playanim", "fmodevent", "fmodparam",
         };
 
         internal static readonly Dictionary<string, string> WhenSynonyms = new(StringComparer.OrdinalIgnoreCase)

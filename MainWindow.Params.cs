@@ -188,6 +188,12 @@ namespace EasyEngine
                 case PickKind.TerrainBlocks:
                     TerrainBlocksEditor(obj, bh, panel);
                     break;
+                case PickKind.FmodEvent:
+                    FmodEventRow(obj, bh, info, tp, label, cur, panel); // MainWindow.Fmod.cs
+                    break;
+                case PickKind.FmodParams:
+                    FmodParamsEditor(obj, bh, tp, panel);
+                    break;
                 case PickKind.Special:
                     if (bh.Kind == BehaviorKind.Custom && tp.Key == "script") ScriptRow(obj, bh, panel);
                     else if (bh.Kind == BehaviorKind.AdvancedPatrol && tp.Key == "path") AdvancedPatrolRow(obj, bh, panel);
@@ -209,6 +215,8 @@ namespace EasyEngine
         partial void MapMarkersEditor(GameObjectData obj, BehaviorData bh, Panel panel);
         partial void TerrainBlocksEditor(GameObjectData obj, BehaviorData bh, Panel panel); // MainWindow.TerrainBlocks.cs
         partial void SequenceCard(GameObjectData obj, BehaviorData bh, Panel panel);
+        partial void FmodEventRow(GameObjectData obj, BehaviorData bh, BehaviorInfo info, TextParam tp, string label, string cur, Panel panel); // MainWindow.Fmod.cs
+        partial void FmodParamsEditor(GameObjectData obj, BehaviorData bh, TextParam tp, Panel panel);
 
         /// <summary>A catalog's "value|Label" options, with the labels in the current language (the values stay as they are).</summary>
         private static List<(string value, string label)> CatalogOptions(IEnumerable<string>? options) =>

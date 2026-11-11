@@ -20,6 +20,8 @@ namespace EasyEngine
         Picture,               // a picture of the project (Assets\sprites), "" = none; "＋ Add a picture…" imports one
         MapMarkers,            // minimap: which things show, each with its colour
         TerrainBlocks,         // Terrain Generator: extra blocks, each with where it grows (visual editor)
+        FmodEvent,             // an FMOD Studio event of the project's banks (GameAudio.cs)
+        FmodParams,            // the chosen FMOD event's parameters: one slider each (MainWindow.Fmod.cs)
         Special                // drawn by its own editor (script, tilemap, path, boss/cutscene steps)
     }
 
@@ -79,6 +81,8 @@ namespace EasyEngine
         private static Func<ParamCtx, bool> SaysWithLook(params string[] looks) =>
             c => c.Bh.Text("action", "") == "say" && looks.Contains(c.Bh.Text("look", "theme"));
         private static Func<ParamCtx, bool> IfOn(string key) => c => c.Bh.Num(key, 0) >= 0.5;
+        private static readonly Func<ParamCtx, bool> IsFmod = c => string.Equals(c.Bh.Text("source", "file"), "fmod", StringComparison.OrdinalIgnoreCase); // a Sound playing an FMOD Studio event
+        private static readonly Func<ParamCtx, bool> IsFile = c => !IsFmod(c);
         private static Func<ParamCtx, bool> IfOff(string key) => c => c.Bh.Num(key, 0) < 0.5;
         private static readonly Func<ParamCtx, bool> NoHotbar =
             c => !c.Scene.Layers.SelectMany(l => l.Objects).Any(o => o.Behaviors.Any(b => b.Kind == BehaviorKind.Hotbar));
@@ -187,12 +191,14 @@ namespace EasyEngine
                           T("at","Where","self", PickKind.Choice, "self|At this object", "top|Falling from the top of the screen") } },
 
             new BehaviorInfo { Kind = BehaviorKind.SoundEmitter, Repeatable = true, Name = "Sound", Icon = "🔊",
-                Desc = "Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master. Only heard nearby (range): heard only within 'radius' px of the listener (the player by default) — full volume close to it, fading smoothly to silence at the edge (a looping one keeps playing silently and comes back as you walk near). Left / right in the headphones (pan): it plays in the left or right ear by where it is compared to the listener (3D / stereo sound).",
-                Nums = { new("volume","Volume (0-1)",0.8), new("onStart","Play on start (0/1)",1), new("loop","Loop (0/1)",0),
+                Desc = "Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master. Only heard nearby (range): heard only within 'radius' px of the listener (the player by default) — full volume close to it, fading smoothly to silence at the edge (a looping one keeps playing silently and comes back as you walk near). Left / right in the headphones (pan): it plays in the left or right ear by where it is compared to the listener (3D / stereo sound). Plays (source): a sound file, or an FMOD Studio event (FMOD, optional: event = its path like event:/Music/Forest from the project's fmod banks, fmodParams = its parameters as name=value;name=value; a 3D event is placed by FMOD from where the object is).",
+                Nums = { new("volume","Volume (0-1)",0.8), new("onStart","Play on start (0/1)",1), NIf(new("loop","Loop (0/1)",0), IsFile),
                          new("range","Only heard nearby (0/1)",0),
                          NIf(new("radius","Heard up to",600, "200|200 px — very close", "400|400 px — near", "600|600 px — about a screen", "900|900 px — far", "1400|1400 px — very far"), IfOn("range")),
                          new("pan","Left / right in the headphones by its position (0/1)",0) },
-                Texts = { T("asset","Sound file","", PickKind.Sound), T("channel","Channel","sfx", PickKind.Choice, "sfx|Sound effects", "music|Music"),
+                Texts = { T("source","Plays","file", PickKind.Choice, "file|A sound file", "fmod|An FMOD Studio event"),
+                          TIf(T("asset","Sound file","", PickKind.Sound), IsFile), TIf(T("event","FMOD event","", PickKind.FmodEvent), IsFmod),
+                          TIf(T("fmodParams","Event parameters","", PickKind.FmodParams), IsFmod), T("channel","Channel","sfx", PickKind.Choice, "sfx|Sound effects", "music|Music"),
                           TIf(T("listener","Heard by","Player", PickKind.Object), c => IfOn("range")(c) || IfOn("pan")(c)) } },
 
             new BehaviorInfo { Kind = BehaviorKind.LightSource, Name = "Light", Icon = "💡",

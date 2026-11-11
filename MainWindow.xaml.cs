@@ -2815,7 +2815,7 @@ namespace EasyEngine
             finally { _playing = false; AfterPlayLink(); }
         }
 
-        private void Settings_Click(object sender, RoutedEventArgs e) => SettingsWindow.Open(this);
+        private void Settings_Click(object sender, RoutedEventArgs e) => SettingsWindow.Open(this, _project); // the project: its FMOD Studio banks
 
         private async void Export_Click(object sender, RoutedEventArgs e)
         {
@@ -2832,6 +2832,7 @@ namespace EasyEngine
             var csproj = FindEngineCsproj();
             bool selfContained = dotnet != null && csproj != null;
             var gameSrc = _project.FolderPath!;
+            bool withFmod = AskExportFmod(); // opt-in, off by default: FMOD has its own licence (MainWindow.Fmod.cs)
 
             var btn = (Button)sender;
             btn.IsEnabled = false;
@@ -2849,6 +2850,7 @@ namespace EasyEngine
                         CopyDir(AppContext.BaseDirectory, outRoot, new[] { ".pdb" });
 
                     CopyGameFiles(_project, gameSrc, Path.Combine(outRoot, "game")); // + the behavior packages it uses (MainWindow.Packages.cs)
+                    GameAudio.ExportFmod(outRoot, withFmod);         // fmod.dll next to the game only when chosen (GameAudio.cs)
 
                     // rename the launcher exe to the game's name (apphost still runs EasyEngine.dll)
                     var src = Path.Combine(outRoot, "EasyEngine.exe");
