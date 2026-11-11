@@ -51,39 +51,57 @@ namespace EasyEngine
     public static class BehaviorPackages
     {
         public const string NameKey = "package";
-        /// <summary>Tests point the installed folder somewhere else (the person's own packages must not change a test).</summary>
-        public static string? InstalledFolderOverride;
-        public static string InstalledFolder => InstalledFolderOverride ?? BE.BehaviorPackage.InstalledFolder;
+        /// <summary>The installed packages folder (BuilderEngine's, shared by both engines). Test modes point it at an empty
+        /// temp folder, so the person's own packages never change a test.</summary>
+        public static string InstalledFolder
+        {
+            get => BE.BehaviorPackage.InstalledFolder;
+            set => BE.BehaviorPackage.InstalledFolder = value;
+        }
 
         public static string? ProjectFolder(Project p) =>
-            string.IsNullOrEmpty(p.FolderPath) ? null : Path.Combine(p.FolderPath, BE.BehaviorPackage.ProjectFolderName);
+            string.IsNullOrEmpty(p.FolderPath) ? null : BE.BehaviorPackage.ProjectFolder(p.FolderPath);
 
         // ------------------------------------------------------------------ finding
         private static readonly object Gate = new();
         private static readonly Dictionary<string, (string sig, PackageSet set)> Cache = new(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>The packages this project can use (read again only when a file in either folder changed).</summary>
-        public static PackageSet For(Project p) => Discover(ProjectFolder(p), InstalledFolder);
-
-        public static PackageSet Discover(string? projectBehaviors, string? installed)
+        /// <summary>The packages this project can use — its own (behaviors/), the installed ones, the ones shipped with
+        /// BuilderEngine, first wins (BE.BehaviorPackage.DiscoverAll; each has its Origin). Read again only when a file in the
+        /// project's or the installed folder changed.</summary>
+        public static PackageSet For(Project p)
         {
-            var folders = new List<string>(2);
-            if (!string.IsNullOrEmpty(projectBehaviors)) folders.Add(projectBehaviors);
-            if (!string.IsNullOrEmpty(installed) && !folders.Contains(installed, StringComparer.OrdinalIgnoreCase)) folders.Add(installed);
-            if (folders.Count == 0) return PackageSet.Empty;
+            string? projectDir = string.IsNullOrEmpty(p.FolderPath) ? null : p.FolderPath;
+            var folders = new List<string>(2) { InstalledFolder };
+            if (projectDir != null) folders.Insert(0, BE.BehaviorPackage.ProjectFolder(projectDir));
             string key = string.Join("|", folders), sig = Signature(folders);
             lock (Gate)
             {
                 if (Cache.TryGetValue(key, out var c) && c.sig == sig) return c.set;
                 var problems = new List<string>();
                 List<BE.BehaviorPackage> found;
-                try { found = BE.BehaviorPackage.Discover(folders, problems); }
+                try { found = BE.BehaviorPackage.DiscoverAll(projectDir, problems); }
                 catch (Exception ex) { found = new(); problems.Add(ex.Message); } // a folder that can't be listed: no packages, never a crash
-                var set = new PackageSet(found, problems, projectBehaviors);
+                var set = new PackageSet(found, problems, projectDir == null ? null : folders[0]);
                 Cache[key] = (sig, set);
                 return set;
             }
         }
+
+        /// <summary>A package that stands for one of EasyEngine's own behaviors (the shipped Spin, Spawner…): EasyEngine keeps
+        /// its built-in, so the AI isn't offered the package as a second one.</summary>
+        public static bool ReplacesBuiltIn(BE.BehaviorPackage p) =>
+            p.Replaces != null && Enum.TryParse<BehaviorKind>(p.Replaces, true, out var k) && !BehaviorCatalog.Info(k).Hidden
+            || Enum.TryParse<BehaviorKind>(p.Name, true, out _);
+
+        /// <summary>Where a package comes from, in words.</summary>
+        public static string OriginText(BE.BehaviorPackage p) => p.Origin switch
+        {
+            BE.PackageOrigin.Project => L.T("in this project"),
+            BE.PackageOrigin.Installed => L.T("installed"),
+            BE.PackageOrigin.Shipped => L.T("comes with BuilderEngine"),
+            _ => "",
+        };
 
         // the folders' .behavior files with their size and time: a change in any of them reads them again
         private static string Signature(List<string> folders)
@@ -233,81 +251,10 @@ namespace EasyEngine
         }
 
         // ------------------------------------------------------------------ "show if"
-        private static readonly Dictionary<string, BE.Expr?> ShowIfCache = new(StringComparer.Ordinal);
-
-        /// <summary>Whether a setting shows: its "show if" (a Builder Script condition over the other settings) is true.
-        /// A tiny evaluator over BuilderEngine's parsed expression — names are the settings' values; anything it can't
-        /// work out shows the field (never hides one by mistake, never throws).</summary>
-        public static bool Shows(BE.BehaviorPackage pkg, BE.BehaviorPackage.PackageParam p, BehaviorData b)
-        {
-            if (string.IsNullOrWhiteSpace(p.ShowIf)) return true;
-            BE.Expr? e;
-            lock (ShowIfCache)
-                if (!ShowIfCache.TryGetValue(p.ShowIf, out e))
-                {
-                    try { e = BE.Parser.ParseExpression(p.ShowIf); } catch (Exception) { e = null; }
-                    ShowIfCache[p.ShowIf] = e;
-                }
-            if (e == null) return true;
-            var all = pkg.AllParams();
-            object? Value(string name)
-            {
-                var q = all.FirstOrDefault(x => x.Name.Equals(name, StringComparison.Ordinal));
-                if (q == null) return null;
-                return q.Kind switch
-                {
-                    BE.ParamKind.Number => Number(b, q),
-                    BE.ParamKind.Bool => Number(b, q) >= 0.5,
-                    _ => Text(b, q),
-                };
-            }
-            try { return Truthy(Eval(e, Value)); }
-            catch (NotSupportedException) { return true; }
-        }
-
-        private static object? Eval(BE.Expr e, Func<string, object?> value) => e switch
-        {
-            BE.NumberExpr n => n.Value,
-            BE.StringExpr s => s.Value,
-            BE.BoolExpr b => b.Value,
-            BE.NameExpr n when n.Path.Length == 1 => n.Path[0] switch { "true" => true, "false" => false, var name => value(name) },
-            BE.UnaryExpr { Op: "not" } u => !Truthy(Eval(u.Operand, value)),
-            BE.UnaryExpr { Op: "-" } u => -Num(Eval(u.Operand, value)),
-            BE.BinaryExpr { Op: "and" } x => Truthy(Eval(x.Left, value)) && Truthy(Eval(x.Right, value)),
-            BE.BinaryExpr { Op: "or" } x => Truthy(Eval(x.Left, value)) || Truthy(Eval(x.Right, value)),
-            BE.BinaryExpr x => Binary(x.Op, Eval(x.Left, value), Eval(x.Right, value)),
-            _ => throw new NotSupportedException(),
-        };
-
-        private static object? Binary(string op, object? a, object? b) => op switch
-        {
-            "==" => SameValue(a, b),
-            "!=" => !SameValue(a, b),
-            "<" => Num(a) < Num(b),
-            ">" => Num(a) > Num(b),
-            "<=" => Num(a) <= Num(b),
-            ">=" => Num(a) >= Num(b),
-            "+" when a is string || b is string => Str(a) + Str(b),
-            "+" => Num(a) + Num(b),
-            "-" => Num(a) - Num(b),
-            "*" => Num(a) * Num(b),
-            "/" => Num(b) == 0 ? 0.0 : Num(a) / Num(b),
-            "%" => Num(b) == 0 ? 0.0 : Num(a) % Num(b),
-            _ => throw new NotSupportedException(),
-        };
-
-        private static bool SameValue(object? a, object? b)
-        {
-            if (a is string || b is string) return string.Equals(Str(a), Str(b), StringComparison.OrdinalIgnoreCase);
-            return Math.Abs(Num(a) - Num(b)) < 1e-9;
-        }
-
-        private static bool Truthy(object? v) => v switch { bool b => b, double d => d != 0, string s => s.Length > 0, null => false, _ => true };
-        private static double Num(object? v) => v switch { double d => d, bool b => b ? 1 : 0, string s when LooseJson.TryParse(s, out var n) => n, _ => 0 };
-        private static string Str(object? v) => v switch
-        {
-            null => "", bool b => b ? "true" : "false", double d => d.ToString(CultureInfo.InvariantCulture), _ => v.ToString() ?? "",
-        };
+        /// <summary>Whether a setting shows: its "show if" (a Builder Script condition over the other settings) is true for
+        /// this behavior's settings — worked out by BuilderEngine (BehaviorPackage.Shows; one it can't work out shows).</summary>
+        public static bool Shows(BE.BehaviorPackage pkg, BE.BehaviorPackage.PackageParam p, BehaviorData b) =>
+            string.IsNullOrWhiteSpace(p.ShowIf) || pkg.Shows(p, RuntimeSettings(pkg, b));
 
         // ------------------------------------------------------------------ the catalog view of a package (AI, Learn, AiSpecFix)
         /// <summary>A package as a catalog entry: name, icon, description and its settings as Nums (numbers, on/off as
@@ -356,53 +303,40 @@ namespace EasyEngine
         private static string JsonQuote(string s) => s.StartsWith('[') ? s : System.Text.Json.JsonSerializer.Serialize(s);
 
         /// <summary>The packages a request is about: their name or one of their AI keywords is in it.</summary>
-        public static List<BE.BehaviorPackage> Matching(PackageSet set, string request, int max = 4)
+        public static List<BE.BehaviorPackage> Matching(IEnumerable<BE.BehaviorPackage> packages, string request, int max = 4)
         {
             var q = " " + System.Text.RegularExpressions.Regex.Replace(request.ToLowerInvariant(), "[^\\p{L}\\p{N}]+", " ") + " ";
             bool Has(string w) => w.Trim().Length >= 3 && q.Contains(" " + w.Trim().ToLowerInvariant(), StringComparison.Ordinal);
-            return set.All.Where(p => Has(p.Name) || Has(System.Text.RegularExpressions.Regex.Replace(p.Name, "(?<=[a-z])(?=[A-Z])|_", " ")) || p.AiKeywords.Any(Has))
+            return packages.Where(p => Has(p.Name) || Has(System.Text.RegularExpressions.Regex.Replace(p.Name, "(?<=[a-z])(?=[A-Z])|_", " ")) || p.AiKeywords.Any(Has))
                           .Take(max).ToList();
         }
 
         // ------------------------------------------------------------------ files: the project keeps a copy of what it uses
-        /// <summary>Copies the package into the project's behaviors/ folder (so the game works anywhere); false when it was
-        /// already there or the project has no folder yet.</summary>
+        /// <summary>Copies the package into the project's behaviors/ folder (so the game works anywhere) — an installed or a
+        /// shipped one (BE CopyToProject); false when it is already the project's or the project has no folder yet.</summary>
         public static bool EnsureInProject(Project p, BE.BehaviorPackage pkg)
         {
-            var folder = ProjectFolder(p);
-            if (folder == null) return false;
-            if (pkg.SourcePath != null && SameFolder(Path.GetDirectoryName(pkg.SourcePath), folder)) return false;
-            var dest = Path.Combine(folder, SafeFileName(pkg.Name) + BE.BehaviorPackage.Extension);
-            if (File.Exists(dest)) return false;
-            Directory.CreateDirectory(folder);
-            if (pkg.SourcePath != null && File.Exists(pkg.SourcePath)) File.Copy(pkg.SourcePath, dest);
-            else File.WriteAllText(dest, pkg.ToJson());
+            if (string.IsNullOrEmpty(p.FolderPath) || pkg.Origin == BE.PackageOrigin.Project) return false;
+            if (File.Exists(BE.BehaviorPackage.FileIn(BE.BehaviorPackage.ProjectFolder(p.FolderPath), pkg.Name))) return false;
+            pkg.CopyToProject(p.FolderPath);
             return true;
         }
 
-        /// <summary>Exporting: every package the project uses that isn't in its behaviors/ yet (an installed one) is copied
-        /// into the exported game's <paramref name="gameFolder"/>/behaviors. Returns how many were copied.</summary>
+        /// <summary>Exporting: every package the project uses that isn't in its behaviors/ yet (an installed or a shipped one)
+        /// is written into the exported game's <paramref name="gameFolder"/>/behaviors. Returns how many.</summary>
         public static int CopyUsedInto(Project p, string gameFolder)
         {
             var set = For(p);
             int n = 0;
-            var dir = Path.Combine(gameFolder, BE.BehaviorPackage.ProjectFolderName);
+            var dir = BE.BehaviorPackage.ProjectFolder(gameFolder);
             foreach (var name in UsedNames(p))
             {
-                var pkg = set.Find(name);
-                if (pkg?.SourcePath == null || !File.Exists(pkg.SourcePath)) continue;
-                var dest = Path.Combine(dir, Path.GetFileName(pkg.SourcePath));
-                if (File.Exists(dest)) continue;
-                Directory.CreateDirectory(dir);
-                File.Copy(pkg.SourcePath, dest);
+                if (set.Find(name) is not { } pkg || pkg.Origin == BE.PackageOrigin.Project) continue;
+                if (File.Exists(BE.BehaviorPackage.FileIn(dir, pkg.Name))) continue;
+                pkg.CopyToProject(gameFolder);
                 n++;
             }
             return n;
         }
-
-        private static bool SameFolder(string? a, string b) =>
-            a != null && string.Equals(Path.GetFullPath(a).TrimEnd('\\', '/'), Path.GetFullPath(b).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
-
-        private static string SafeFileName(string name) => string.Concat(name.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
     }
 }

@@ -47,7 +47,7 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--pairtest [--only Patrol,Chase] [--combos] [--trace]` | dev tool (headless, ~1 min): first the behavior-combination battery (`FullTest.BehaviorCombos.cs`; `--combos` = only that), then every visible behavior alone, every pair (both orders for movers), "Only while"-resting movers, behaviors on the player and a few triples, each played ~5 s; flags exceptions, NaN, absurd speeds, falling through the ground, frozen / jittering / drifting objects, health out of range, console warnings, the player losing its keys. "By design" flags are listed apart; ends with a summary line. `--trace` logs the first ticks of each case | `easyengine_pairtest.log` |
 | `--aitest [--model m \| --cloud [auto\|groq\|gemini\|openrouter\|"provider\|model"]] [--only id,id] [--delay ms]` | **graded** AI eval (`App.AiEval.cs`): ~125 real requests (moves, timers, enemies, bosses, HUD, whole levels, edits, Portuguese, conversations, the Boss/Cutscene cards' and the block editor's ✨ Ask the AI), each checked on the resulting project and by playing it headless. Needs a running AI; the cloud free tiers have daily quotas — rerun failures with `--only` | `easyengine_aitest.log` |
 
-Last known green (v0.16.0): fulltest 875/875, e2e 119/119, pairtest 0 suspicious (2436 combinations), behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest local qwen2.5-coder 1.5b 121/123 and 3b 118/123 (v0.15.6) (cloud: re-measure, quotas).
+Last known green (v0.17.0): fulltest 890/890, e2e 127/127, pairtest 0 suspicious (2436 combinations), behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest local qwen2.5-coder 1.5b 121/123 and 3b 118/123 (v0.15.6) (cloud: re-measure, quotas).
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 
@@ -211,28 +211,36 @@ plus the logic as one Builder Script mechanism. **EasyEngine never parses it**: 
 validates and finds them (`Parse`, `Validate`, `AllParams`, `Discover`). After BuilderEngine changes the format or the
 runtime, run `tools/Update-BuilderEngineLib.ps1` and commit the DLLs.
 
-- **Where** (`BehaviorPackages.cs`): `<project>/behaviors/` first, then `BE.BehaviorPackage.InstalledFolder`
-  (`%APPDATA%\BuilderEngine\Behaviors`, shared with BuilderEngine); a project copy wins. `BehaviorPackages.For(project)` is
-  cached and read again when a file's size/time changes. Broken files are `PackageSet.Problems`: said once in the status
-  bar (`ReportPackageProblems`) and once in the F1 console when playing — never a crash. Test modes point
-  `InstalledFolderOverride` at an empty temp folder (the person's own packages never change a test).
+- **Where** (`BehaviorPackages.cs`): `BE.BehaviorPackage.DiscoverAll(projectDir)` — `<project>/behaviors/` first, then the
+  installed folder (`%APPDATA%\BuilderEngine\Behaviors`, shared with BuilderEngine), then the ones shipped inside the DLL
+  (Spin, Projectile, Spawner, TriggerArea… — BuilderEngine's versions of EasyEngine's simple built-ins); first wins, each
+  with its `Origin`. `BehaviorPackages.For(project)` is cached and read again when a file's size/time changes. Broken files
+  are `PackageSet.Problems`: said once in the status bar (`ReportPackageProblems`) and once in the F1 console when playing —
+  never a crash. Test modes set `BehaviorPackages.InstalledFolder` (= BuilderEngine's settable one) to an empty temp folder
+  (the person's own packages never change a test).
+- **Shipped packages that `replaces` a built-in** (and any package named like a `BehaviorKind`): EasyEngine keeps playing its
+  own built-in. They are offered in the picker (tooltip "comes with BuilderEngine"), but the AI and Learn don't list them
+  and a reply naming them gets the built-in (`ReplacesBuiltIn`).
 - **Stored** as `BehaviorKind.Package` (appended to the enum): `Texts["package"]` = its name, numbers and on/off settings in
   `Nums` (on = 1), everything else in `Texts` (lists and paths as JSON text, keys as the key picker spells them: `Space`,
-  `E`, `LeftShift`). The generic catalog entry is `Hidden` (packages are offered by their own names);
+  `E`, `LeftShift`), each under the param's **name** — what BuilderEngine's EasyCompat reads for a `Package` behavior
+  (`PackageParam.EasyEngineKey` is only for a package standing in for a built-in's own keys). The generic catalog entry is `Hidden` (packages are offered by their own names);
   `BehaviorPackages.InfoFor(pkg)` makes a catalog entry from a package for the AI, AiSpecFix and Learn. A package that isn't
   installed keeps its data; its card and the console say so. Adding one (picker or AI) copies the file into the project's
-  `behaviors/` (`EnsureInProject`); exporting also copies any installed one the project uses (`CopyGameFiles`).
+  `behaviors/` (`EnsureInProject` → `CopyToProject`); exporting also writes any installed or shipped one the project uses
+  (`CopyGameFiles`).
 - **Editor** (`MainWindow.Packages.cs`): "＋ Add behavior…" lists them after the built-ins under "📦 Behavior packages"
   (icon, name, description + category in the tooltip, found by name/category/keywords); repeatable ones can be added again.
   The card uses the existing pickers per type: number/seconds → spinner (− ＋, min/max/step, the wheel steps by `step`:
   `NumberWheel.SetRange`), bool → check, Choice → dropdown, Object/Scene/animation → dropdowns, Key → key list + ⌨ press,
   Color → colour picker, Sound → `SoundRow`, Image → `PicturePick`, text → text box, `List of T` → one row per item with the
   item type's picker, Path → X/Y rows. The author's labels/descriptions are never translated (`L.SetSkip`), `help` is the
-  label's tooltip, `showIf` is evaluated by `BehaviorPackages.Shows` (BuilderEngine's parser + a tiny safe evaluator over
-  the settings; anything it can't evaluate shows the field).
+  label's tooltip, `showIf` is BuilderEngine's `BehaviorPackage.Shows` over the behavior's settings (one it can't work out
+  shows the field).
 - **Playing** (the bridge, `PlayWindow.BuilderBridge.cs`): a scene whose objects (or prefabs) have packages gets a BuilderEngine
   world even without built objects. The object stays a normal EasyEngine object; its mirror also runs the packages'
-  mechanisms (script loaded once per world with `World.Load`, settings converted with `ParamTypes.Convert`, a repeatable
+  mechanisms (`GameBoot` already loaded the project's/installed/shipped packages into the world — `World.Package(name)`;
+  otherwise the script is loaded once with `World.Load`; settings converted with `ParamTypes.Convert`, a repeatable
   package twice gets each behavior's own settings). **Who moves it**: EasyEngine's behaviors and physics run first; then the
   twin gets x, y, vx, vy and angle, BuilderEngine runs its frame, and what the package CHANGED is applied — a position change
   adds to EasyEngine's move (a Drift on a Platformer: walking + drift), a speed it sets replaces EasyEngine's from the next

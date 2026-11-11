@@ -1825,5 +1825,8 @@
   "📦 Behavior package · {0}": "📦 ビヘイビアパッケージ · {0}",
   "📦 Behavior packages": "📦 ビヘイビアパッケージ",
   "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 {0} を追加しました — プロジェクトの behaviors フォルダーにコピーされたので、どのコンピューターでもゲームが動きます",
-  "＋ Add a point": "＋ ポイントを追加"
+  "＋ Add a point": "＋ ポイントを追加",
+  "comes with BuilderEngine": "BuilderEngine に付属",
+  "in this project": "このプロジェクト内",
+  "installed": "インストール済み"
 }

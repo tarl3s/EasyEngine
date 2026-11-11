@@ -1529,6 +1529,7 @@ at most	behavior Gate
 at the mouse	BlockEditorWindow.Palette.cs
 below	BlockEditorWindow.Palette.cs
 by {0}	MainWindow.Packages.cs
+comes with BuilderEngine	BehaviorPackages.cs
 contains	BlockEditorWindow.Palette.cs
 created the moon "{0}"	Model.cs
 created the sun "{0}"	Model.cs
@@ -1550,7 +1551,9 @@ ground	MainWindow.AiLevel.cs
 has at least (items)	BlockEditorWindow.Palette.cs
 has exactly (items)	BlockEditorWindow.Palette.cs
 hidden	MainWindow.Layers.cs
+in this project	BehaviorPackages.cs
 info	BlockEditorWindow.Palette.cs
+installed	BehaviorPackages.cs
 is	behavior Gate, BlockEditorWindow.cs, BlockEditorWindow.Palette.cs
 is at least	BlockEditorWindow.cs
 is at most	BlockEditorWindow.cs

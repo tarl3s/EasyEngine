@@ -94,7 +94,7 @@ old version and opens again. Your projects are never touched. The sample games a
   file works in both engines). Put it in `%APPDATA%\BuilderEngine\Behaviors` (or your project's `behaviors` folder) and it
   shows up in **＋ Add behavior** marked 📦, with a picker for every setting, like a built-in one; the AI can add it and
   🎓 Learn explains it. Adding it copies it into the project, so the game (and its exported `.exe`) works anywhere.
-  Packages can't touch your files or the internet — they are safe to use.
+  BuilderEngine's own packages are offered too. Packages can't touch your files or the internet — they are safe to use.
 - **Your language, your look** — the editor speaks English, Portuguese (Brazil and Portugal), Spanish, French, German,
   Japanese and Chinese (Simplified and Traditional), and the AI understands requests and answers you in it. Dark or light theme, bigger or smaller
   interface, and a button that clears the engine's temporary files (⚙ Settings). Every list can be searched by just

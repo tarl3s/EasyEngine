@@ -97,7 +97,8 @@ cada versão (se você editou um, a sua cópia fica guardada como *"(your copy �
   `.behavior` (feito na BuilderEngine; o mesmo arquivo funciona nas duas engines). Coloque em
   `%APPDATA%\BuilderEngine\Behaviors` (ou na pasta `behaviors` do projeto) e ele aparece em **＋ Add behavior** com 📦, com um
   seletor para cada ajuste, igual a um comportamento pronto; a IA sabe adicionar e o 🎓 Learn explica. Ao adicionar, ele é
-  copiado para o projeto, então o jogo (e o `.exe` exportado) funciona em qualquer computador. Pacotes não mexem nos seus
+  copiado para o projeto, então o jogo (e o `.exe` exportado) funciona em qualquer computador. Os pacotes que vêm com a
+  BuilderEngine também aparecem. Pacotes não mexem nos seus
   arquivos nem na internet — são seguros de usar.
 - **Seu idioma, seu visual** — o editor fala português (do Brasil e de Portugal), inglês, espanhol, francês, alemão,
   japonês e chinês (simplificado e tradicional), e a IA entende seus pedidos e te responde nele. Tema escuro ou claro, interface maior ou menor,

@@ -1825,5 +1825,8 @@
   "📦 Behavior package · {0}": "📦 行為套件 · {0}",
   "📦 Behavior packages": "📦 行為套件",
   "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 已新增 {0} — 專案的 behaviors 資料夾中現在有一份副本，遊戲在任何電腦上都能執行",
-  "＋ Add a point": "＋ 新增一個點"
+  "＋ Add a point": "＋ 新增一個點",
+  "comes with BuilderEngine": "隨 BuilderEngine 提供",
+  "in this project": "在此專案中",
+  "installed": "已安裝"
 }

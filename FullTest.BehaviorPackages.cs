@@ -28,13 +28,13 @@ public partial class App
             TestPackages.Write(Path.Combine(p.FolderPath!, "behaviors"), own);
             var installed = Temp(tag + "_inst");
             TestPackages.Write(installed, inst ?? Array.Empty<(string, string)>());
-            BehaviorPackages.InstalledFolderOverride = installed;
+            BehaviorPackages.InstalledFolder = installed;
             return (p, installed);
         }
-        var keepInstalled = BehaviorPackages.InstalledFolderOverride;
+        var keepInstalled = BehaviorPackages.InstalledFolder;
         GameObjectData Obj(Project p, string name) => p.GetStartScene().Layers.SelectMany(l => l.Objects).First(o => o.Name == name);
         GameObjectData Add(Project p, GameObjectData o) { o.Id = 900 + p.GetStartScene().Layers.Sum(l => l.Objects.Count); p.GetStartScene().Layers.First(l => l.Kind == LayerKind.Base).Objects.Add(o); return o; }
-        void Test(string name, Func<bool> f) => t.Test(name, () => { try { return f(); } finally { BehaviorPackages.InstalledFolderOverride = keepInstalled; } });
+        void Test(string name, Func<bool> f) => t.Test(name, () => { try { return f(); } finally { BehaviorPackages.InstalledFolder = keepInstalled; } });
 
         // ---------------- finding packages
         Test("packages: the project's copy wins over the installed one; broken files are reported (status, F1), never loaded", () =>
@@ -44,7 +44,9 @@ public partial class App
                         ("Garbage.behavior", "{ this is not json") },
                 new[] { ("Drift.behavior", TestPackages.Drift(10, "the installed one")), ("Twirl.behavior", TestPackages.Twirl()) });
             var set = BehaviorPackages.For(p);
-            bool found = set.Find("drift")?.Description == "the project's" && set.Find("Twirl") != null && set.Find("Broken") == null && set.All.Count == 2;
+            bool found = set.Find("drift")?.Description == "the project's" && set.Find("Twirl") != null && set.Find("Broken") == null
+                         && set.All.Count(x => x.Origin != BE.PackageOrigin.Shipped) == 2 && set.Find("Drift")!.Origin == BE.PackageOrigin.Project && set.Find("Twirl")!.Origin == BE.PackageOrigin.Installed
+                         && set.Find("Spin")?.Origin == BE.PackageOrigin.Shipped && set.All.Count(x => x.Origin == BE.PackageOrigin.Shipped) >= 13;
             bool problems = set.Problems.Count == 2 && set.Problems.Any(x => x.StartsWith("Broken.behavior")) && set.Problems.Any(x => x.StartsWith("Garbage.behavior"));
             var ed = new MainWindow(p);
             ed.TestSelect(ed.TestFindObject("Player"));
@@ -239,6 +241,33 @@ public partial class App
             finally { try { pw.Close(); } catch { } }
         });
 
+        Test("packages: the ones shipped with BuilderEngine are offered too (📦, 'comes with BuilderEngine'); one plays here and is copied into the project; the AI keeps EasyEngine's built-in", () =>
+        {
+            var (p, _) = Make("SHIP", Array.Empty<(string, string)>());
+            var ed = new MainWindow(p);
+            ed.TestSelect(ed.TestFindObject("Player"));
+            var offered = ed.TestAddablePackages();
+            bool listed = offered.Contains("Spin") && offered.Contains("TriggerArea") && offered.Contains("Spawner");
+            var gem = Add(p, new GameObjectData { Name = "Gem", X = 300, Y = 200, Width = 40, Height = 40 });
+            ed.TestSelect(gem);
+            bool added = ed.TestAddPackage("Spin");
+            var spin = gem.Behaviors.FirstOrDefault(b => b.Kind == BehaviorKind.Package);
+            bool copied = File.Exists(Path.Combine(p.FolderPath!, "behaviors", "Spin.behavior")) && BehaviorPackages.For(p).Find("Spin")!.Origin == BE.PackageOrigin.Project;
+            if (spin != null) spin.Nums["speed"] = 360;
+            string prompt = ed.TestBuildPrompt("make the coin spin");
+            bool aiKeepsBuiltIn = !prompt.Contains("(a behavior package)") && !prompt.Contains("Behavior packages") && prompt.Contains("Spin — ");
+            var pw = new PlayWindow(p, p.StartScene!);
+            try
+            {
+                pw.TLoad(); pw.TSteps(60);
+                double rot = pw.TRot("Gem");
+                bool ok = listed && added && spin?.Text("package") == "Spin" && copied && aiKeepsBuiltIn && Math.Abs(rot - 360 * 0.96) < 20 && pw.TBuilderErrors.Length == 0;
+                if (!ok) throw new Exception($"listed={listed} added={added} copied={copied} ai={aiKeepsBuiltIn} rot={rot:0.#} errors=[{pw.TBuilderErrors}] offered=[{string.Join(",", offered)}]");
+                return ok;
+            }
+            finally { try { pw.Close(); } catch { } }
+        });
+
         // ---------------- export
         Test("packages: exporting copies the project's behaviors/ and an installed package it uses", () =>
         {
@@ -250,7 +279,7 @@ public partial class App
             EasyEngine.MainWindow.CopyGameFiles(p, p.FolderPath!, game);
             var dir = Path.Combine(game, "behaviors");
             return File.Exists(Path.Combine(dir, "Twirl.behavior")) && File.Exists(Path.Combine(dir, "Drift.behavior")) && !File.Exists(Path.Combine(dir, "Bell.behavior"))
-                   && BehaviorPackages.Discover(dir, null).All.Count == 2;
+                   && BE.BehaviorPackage.Discover(new[] { dir }).Count == 2;
         });
 
         // ---------------- the AI

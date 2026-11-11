@@ -1825,5 +1825,8 @@
   "📦 Behavior package · {0}": "📦 Paquet de comportement · {0}",
   "📦 Behavior packages": "📦 Paquets de comportement",
   "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 {0} ajouté — une copie est maintenant dans le dossier behaviors du projet, le jeu marche donc sur n'importe quel ordinateur",
-  "＋ Add a point": "＋ Ajouter un point"
+  "＋ Add a point": "＋ Ajouter un point",
+  "comes with BuilderEngine": "fourni avec BuilderEngine",
+  "in this project": "dans ce projet",
+  "installed": "installé"
 }

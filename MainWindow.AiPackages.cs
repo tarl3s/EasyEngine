@@ -32,7 +32,7 @@ namespace EasyEngine
         private BE.BehaviorPackage? PackageNamed(string? name)
         {
             if (string.IsNullOrWhiteSpace(name) || Enum.TryParse<BehaviorKind>(name.Trim(), true, out _)) return null;
-            return BehaviorPackages.For(_project).Find(name);
+            return BehaviorPackages.For(_project).Find(name) is { } p && !BehaviorPackages.ReplacesBuiltIn(p) ? p : null; // the shipped TriggerArea is the built-in Area here
         }
 
         /// <summary>Adds (or retunes) a package behavior from the reply, its settings cleaned up like a built-in's.</summary>
@@ -85,9 +85,9 @@ namespace EasyEngine
         private (string names, List<string> details) PackagesForPrompt(string request)
         {
             var set = BehaviorPackages.For(_project);
-            var usable = set.All.Where(p => !Enum.TryParse<BehaviorKind>(p.Name, true, out _)).ToList();
+            var usable = set.All.Where(p => !BehaviorPackages.ReplacesBuiltIn(p)).ToList(); // EasyEngine keeps its built-in Spin, Spawner…
             if (usable.Count == 0) return ("", new List<string>());
-            var details = BehaviorPackages.Matching(set, request).Where(usable.Contains).Select(BehaviorPackages.AiLine).ToList();
+            var details = BehaviorPackages.Matching(usable, request).Select(BehaviorPackages.AiLine).ToList();
             return (string.Join(", ", usable.Select(p => p.Name)), details);
         }
 
@@ -109,12 +109,13 @@ namespace EasyEngine
         private string PackagesForTeach(string question, bool compact)
         {
             var set = BehaviorPackages.For(_project);
-            if (set.All.Count == 0) return "";
+            var all = set.All.Where(p => !BehaviorPackages.ReplacesBuiltIn(p)).ToList(); // the shipped Spin, Spawner… are EasyEngine's built-ins here
+            if (all.Count == 0) return "";
             var sb = new StringBuilder();
             sb.AppendLine("BEHAVIOR PACKAGES (behaviors made in BuilderEngine or shared by others; in ＋ Add behavior… marked 📦): "
-                          + string.Join(", ", set.All.Select(p => $"{p.Icon} {p.Name}")));
-            var matched = BehaviorPackages.Matching(set, question, 6);
-            IEnumerable<BE.BehaviorPackage> detailed = matched.Count > 0 ? matched : compact ? Enumerable.Empty<BE.BehaviorPackage>() : set.All.Take(8);
+                          + string.Join(", ", all.Select(p => $"{p.Icon} {p.Name}")));
+            var matched = BehaviorPackages.Matching(all, question, 6);
+            IEnumerable<BE.BehaviorPackage> detailed = matched.Count > 0 ? matched : compact ? Enumerable.Empty<BE.BehaviorPackage>() : all.Take(8);
             foreach (var p in detailed) sb.AppendLine(DescribePackage(p));
             if (matched.Count > 0) sb.AppendLine("This question is about: " + string.Join(", ", matched.Select(p => $"{p.Icon} {p.Name}")) + " (described above) — build the answer on them.");
             return sb.ToString();

@@ -210,6 +210,7 @@ namespace EasyEngine
         {
             if (_bWorld == null) return false;
             if (_bPkgLoaded.TryGetValue(pkg.Name, out var ok)) return ok;
+            if (_bWorld.Package(pkg.Name) != null) return _bPkgLoaded[pkg.Name] = true; // GameBoot already loaded it (project → installed → shipped)
             try { _bWorld.Load(pkg.Script); ok = true; }
             catch (BE.ScriptError ex) { Warn("Packages", "", $"The behavior package \"{pkg.Name}\" has a script error: {ex.Message}"); ok = false; }
             return _bPkgLoaded[pkg.Name] = ok;

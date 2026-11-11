@@ -41,7 +41,7 @@ namespace EasyEngine
                 {
                     Content = $"{pkg.Icon}  {pkg.Name}   📦",
                     Tag = pkg,
-                    ToolTip = (pkg.Description.Length > 0 ? pkg.Description + "\n" : "") + L.F("📦 Behavior package · {0}", pkg.Category),
+                    ToolTip = (pkg.Description.Length > 0 ? pkg.Description + "\n" : "") + L.F("📦 Behavior package · {0}", pkg.Category) + " · " + BehaviorPackages.OriginText(pkg),
                 });
                 TextSearch.SetText(it, $"{pkg.Name} {pkg.Category} package {string.Join(' ', pkg.AiKeywords)}");
                 combo.Items.Add(it);
@@ -86,7 +86,7 @@ namespace EasyEngine
             var about = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
             if (pkg.Description.Length > 0)
                 about.Children.Add(L.Keep(new TextBlock { Text = pkg.Description, TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = (SolidColorBrush)FindResource("TextDim") }));
-            string meta = L.F("📦 Behavior package · {0}", pkg.Category) + (pkg.Author.Length > 0 ? " · " + L.F("by {0}", pkg.Author) : "") + " · v" + pkg.PackageVersion;
+            string meta = L.F("📦 Behavior package · {0}", pkg.Category) + " · " + BehaviorPackages.OriginText(pkg) + (pkg.Author.Length > 0 ? " · " + L.F("by {0}", pkg.Author) : "") + " · v" + pkg.PackageVersion;
             about.Children.Add(new TextBlock { Text = meta, TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = (SolidColorBrush)FindResource("TextDim"), Margin = new Thickness(0, 2, 0, 0) });
             panel.Children.Add(about);
 

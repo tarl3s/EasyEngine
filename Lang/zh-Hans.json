@@ -1825,5 +1825,8 @@
   "📦 Behavior package · {0}": "📦 行为包 · {0}",
   "📦 Behavior packages": "📦 行为包",
   "📦 {0} added — a copy is now in the project's behaviors folder, so the game works on any computer": "📦 已添加 {0} — 项目的 behaviors 文件夹中现在有一份副本，游戏在任何电脑上都能运行",
-  "＋ Add a point": "＋ 添加一个点"
+  "＋ Add a point": "＋ 添加一个点",
+  "comes with BuilderEngine": "随 BuilderEngine 提供",
+  "in this project": "在此项目中",
+  "installed": "已安装"
 }

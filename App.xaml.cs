@@ -58,7 +58,7 @@ public partial class App : Application
         {
             ProjectIO.SuppressRecent = true;
             // and away from the person's installed behavior packages: a test sees only the packages it writes (BehaviorPackages.cs)
-            BehaviorPackages.InstalledFolderOverride = Path.Combine(Path.GetTempPath(), "EE_NoInstalledBehaviors");
+            BehaviorPackages.InstalledFolder = Path.Combine(Path.GetTempPath(), "EE_NoInstalledBehaviors");
         }
 
         if (e.Args.Contains("--restore-recent")) { RunRestoreRecent(); return; }
