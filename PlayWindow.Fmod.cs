@@ -30,6 +30,7 @@ namespace EasyEngine
         private void AudioStart()
         {
             if (_headless) return; // tests never play audio
+            BE.FmodLibrary.ResetLog(); // a new game console shows FMOD messages again
             _fmodSink = (m, warn) => { if (warn) Warn("FMOD", "", m); else Info("FMOD", "", m); };
             GameAudio.Attach(_fmodSink);
             _fmod = GameAudio.Core;
