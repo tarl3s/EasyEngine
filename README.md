@@ -101,6 +101,22 @@ old version and opens again. Your projects are never touched. The sample games a
   <img src="docs/images/advanced-scratch.png" width="49%" alt="Building a boss with Advanced Scratch blocks">
 </p>
 
+## Optional FMOD audio
+
+EasyEngine plays sound out of the box. If you want more, it can use [FMOD](https://www.fmod.com) — it is **not included**
+and has its own licence (free for small games, see fmod.com/licensing):
+
+- **Turn it on**: install the *FMOD Engine* from fmod.com (free account), or put `fmod.dll` next to `EasyEngine.exe`.
+  **⚙ Settings → Sound** chooses *Automatic* (FMOD when it is installed), *FMOD* or *Classic*, and shows what is in use
+  ("FMOD 2.03.15 ✓"). It takes effect the next time a game starts. Without FMOD everything sounds as before.
+- **FMOD Studio events**: make your sounds in FMOD Studio, set its built banks folder (*File → Preferences → Build*) to
+  your project's `fmod` folder and press *Build*. Then a **Sound** behavior can play *An FMOD Studio event* (picked from
+  a list, one slider per parameter; 3D events are placed where the object is), the blocks **Play an FMOD event** /
+  **Set an FMOD parameter** change them while the game runs, and cutscenes have a **Play an FMOD event** step.
+  ⚙ Settings → FMOD Studio opens FMOD Studio and reloads the banks after a new build.
+- **Export**: the export asks whether to include FMOD (off by default — include it only if you follow FMOD's licence).
+  The project's `fmod` folder (the banks) always goes with the game.
+
 ## The AI
 
 Open the AI panel and pick **Which AI to use**:

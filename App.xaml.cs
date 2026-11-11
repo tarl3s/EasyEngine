@@ -200,6 +200,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         OllamaManager.Stop();
+        GameAudio.Shutdown(); // FMOD lets go of the sound device (GameAudio.cs)
         base.OnExit(e);
     }
 

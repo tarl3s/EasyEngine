@@ -301,6 +301,7 @@ namespace EasyEngine
             ConsoleBtn.Visibility = DevTools ? Visibility.Visible : Visibility.Collapsed;
             if (DevTools) Hint.Text += " · F1 console · F2 hide / show this bar";
             SeedGlobalVars(); // global vars (numbers, Yes/No, texts)
+            AudioStart();     // FMOD or the classic players for this game's sounds (PlayWindow.Fmod.cs)
             // continue from a saved game if one exists (metroidvania/RPG progression)
             bool hadSave = LoadGame();
             string first = (hadSave && _pendingScene != null) ? _pendingScene : _sceneName;
@@ -1030,6 +1031,7 @@ namespace EasyEngine
                 StepLogic(dt);
                 UpdateCamera(dt);
                 Render(dt);
+                AudioFrame();  // FMOD's once-per-frame update, 3D listener (PlayWindow.Fmod.cs)
                 Cleanup();
                 if (_pendingScene != null) { var n = _pendingScene; _pendingScene = null; LoadScene(n); }
             }
@@ -2235,6 +2237,7 @@ namespace EasyEngine
                 }
                 case "settime": SetTimeOfDay(r.Str("time", "night"), en.Data.Name); break;
                 case "playsound": if (r.Reverse) StopSoundFile(r.Str("sound"), en.Data.Name); else PlaySoundFile(r.Str("sound"), r.Num("volume", 0.8), r.Str("channel", "sfx"), false, en.Data.Name); break;
+                case "fmodevent": case "fmodparam": DoFmodRule(en, r); break; // FMOD Studio events (PlayWindow.Fmod.cs)
                 case "log": // "Write to the console" — like Unity's Debug.Log, with {variable} substitution
                 {
                     var lvl = r.Str("level", "info").ToLowerInvariant() switch { "warn" or "warning" => LogLevel.Warn, "error" => LogLevel.Error, _ => LogLevel.Info };
@@ -3413,6 +3416,7 @@ namespace EasyEngine
         {
             CompositionTarget.Rendering -= OnFrame;
             StopAllSounds();
+            AudioStop(); // FMOD Studio events of this game (PlayWindow.Fmod.cs)
         }
 
         private SolidColorBrush Brush(string hex) => new(ParseColor(hex, Color.FromRgb(0x9A, 0x9A, 0xA0)));

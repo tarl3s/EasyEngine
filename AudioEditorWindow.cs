@@ -208,7 +208,10 @@ namespace EasyEngine
         private AudioData Current() { if (_stale) { _recalc.Stop(); Recalc(); } return _result; }
 
         // ---------------------------------------------------------------- preview
-        private void TogglePlay() { if (_player != null) StopPlay(); else Play(); }
+        private void TogglePlay() { if (_player != null || !_fmodPreview.IsNone) StopPlay(); else Play(); }
+
+        // with FMOD (Settings → Sound, GameAudio.cs) the preview plays through it, like the game will
+        private BuilderEngine.Script.FmodChannel _fmodPreview;
 
         private void Play()
         {
@@ -217,8 +220,13 @@ namespace EasyEngine
             if (r.Length == 0) return;
             try
             {
-                _player = new System.Media.SoundPlayer(new MemoryStream(AudioEdit.ToWav16(r)));
-                _player.Play(); // loads the (in-memory) WAV, then plays in the background
+                var wav = AudioEdit.ToWav16(r);
+                if (GameAudio.Core is { } fmod) _fmodPreview = fmod.PlayMemory(wav);
+                if (_fmodPreview.IsNone)
+                {
+                    _player = new System.Media.SoundPlayer(new MemoryStream(wav));
+                    _player.Play(); // loads the (in-memory) WAV, then plays in the background
+                }
                 _playSeconds = r.Seconds;
                 _clock.Restart(); _tick.Start();
                 _play.Content = L.T("■ Stop");
@@ -228,6 +236,7 @@ namespace EasyEngine
 
         private void StopPlay()
         {
+            if (!_fmodPreview.IsNone) { GameAudio.Core?.Stop(_fmodPreview); GameAudio.Core?.Update(); _fmodPreview = default; }
             try { _player?.Stop(); } catch { }
             _player?.Dispose(); _player = null;
             _tick.Stop(); _clock.Reset();
@@ -237,6 +246,7 @@ namespace EasyEngine
 
         private void UpdatePlayhead()
         {
+            if (!_fmodPreview.IsNone) GameAudio.Core?.Update(); // FMOD's update while it previews
             double t = _clock.Elapsed.TotalSeconds;
             if (t >= _playSeconds) { StopPlay(); return; }
             _resultView.Playhead = _playSeconds > 0 ? t / _playSeconds : -1;

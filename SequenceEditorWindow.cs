@@ -183,6 +183,14 @@ namespace EasyEngine
                 case "sound":
                     ctrl = SoundPick.Make(_ctx.Project, cur, Set, _ctx.Owner); ((ComboBox)ctrl).Height = 28; ((ComboBox)ctrl).MinWidth = 110;
                     break;
+                case "fmodevent": // the project's FMOD Studio events (GameAudio.cs)
+                {
+                    var events = GameAudio.EventOptions(_ctx.Project.FolderPath, out var why);
+                    ctrl = Combo(new[] { ("", L.T("(none)")) }.Concat(events).ToList(), cur, Set);
+                    L.SetSkip(ctrl, true); // event names from the person's FMOD Studio project
+                    if (events.Count == 0) ctrl.ToolTip = why;
+                    break;
+                }
                 case "anim":
                     ctrl = Combo(new[] { ("", L.T("(none)")) }.Concat(_ctx.Animations.Select(a => (a, a))).ToList(), cur, Set);
                     L.SetSkip(ctrl, true); // the person's animation names

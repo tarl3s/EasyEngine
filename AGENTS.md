@@ -47,7 +47,7 @@ Every mode is dispatched in `App.OnStartup` (`App.xaml.cs`). Test suites run hea
 | `--pairtest [--only Patrol,Chase] [--combos] [--trace]` | dev tool (headless, ~1 min): first the behavior-combination battery (`FullTest.BehaviorCombos.cs`; `--combos` = only that), then every visible behavior alone, every pair (both orders for movers), "Only while"-resting movers, behaviors on the player and a few triples, each played ~5 s; flags exceptions, NaN, absurd speeds, falling through the ground, frozen / jittering / drifting objects, health out of range, console warnings, the player losing its keys. "By design" flags are listed apart; ends with a summary line. `--trace` logs the first ticks of each case | `easyengine_pairtest.log` |
 | `--aitest [--model m \| --cloud [auto\|groq\|gemini\|openrouter\|"provider\|model"]] [--only id,id] [--delay ms]` | **graded** AI eval (`App.AiEval.cs`): ~125 real requests (moves, timers, enemies, bosses, HUD, whole levels, edits, Portuguese, conversations, the Boss/Cutscene cards' and the block editor's ✨ Ask the AI), each checked on the resulting project and by playing it headless. Needs a running AI; the cloud free tiers have daily quotas — rerun failures with `--only` | `easyengine_aitest.log` |
 
-Last known green (v0.16.0): fulltest 875/875, e2e 119/119, pairtest 0 suspicious (2436 combinations), behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); --aitest local qwen2.5-coder 1.5b 121/123 and 3b 118/123 (v0.15.6) (cloud: re-measure, quotas).
+Last known green (v0.16.0): fulltest 875/875, e2e 119/119, pairtest 0 suspicious (2436 combinations), behtest 49, blocktest 18, exprtest 26, aijsontest 20, selftest PASS (dark and light); with FMOD (feat/fmod, FMOD 2.03.15 installed): fulltest 896/896, the rest unchanged; --aitest local qwen2.5-coder 1.5b 121/123 and 3b 118/123 (v0.15.6) (cloud: re-measure, quotas).
 **Run the relevant suites after every runtime change** — at minimum `--fulltest` (it includes E2E). The app exits by
 itself; read the log, don't trust the exit code alone.
 
@@ -201,6 +201,27 @@ converter is BuilderEngine's `BuilderEngine.Script.EasyLink` — EasyEngine neve
   sounds, `goto_scene` → scene change, prints/errors → F1. Commands needing BuilderEngine's screen (camera, lights, screen
   effects, minimap, hotbar, tiles, cursor, captions/labels/outline, screens, looping sounds) run but are logged once as
   not available. Tests: `FullTest.BuilderLink.cs`, `E2ETests.BuilderLink.cs`, scene "BuilderEngine Link" (`TestScenarios.BuilderLink.cs`).
+
+## Optional FMOD audio
+
+FMOD is **optional and never in git** (own licence; `.gitignore` has `fmod*.dll`, `fmod*.lib`, `*.bank`). The wrapper is
+BuilderEngine's (`BE.FmodLibrary` / `FmodCore` / `FmodStudio` / `FmodEventHost` in `lib/BuilderEngine/BuilderEngine.Script.dll`,
+source in BuilderEngine's `src/BuilderEngine.Script/Fmod*.cs`) — report wrapper bugs there, don't work around them here.
+
+- **`GameAudio.cs`**: the `audioBackend` setting (`AiSettings.AudioBackend`: auto / fmod / classic), ONE shared `BE.FmodCore`
+  made the first time a game (or the sound editor's preview) wants it — null = classic, exactly the old MediaPlayer code —
+  status lines, the pickers' event / parameter lists (`FmodStudio.ListEvents`, cached), the Sound's `fmodParams`
+  (`name=value;…`, shown as one slider per parameter in `MainWindow.Fmod.cs`), export helpers.
+- **`PlayWindow.Fmod.cs`**: `AudioStart` (Start) / `AudioFrame` (OnFrame: `Update`, listener) / `AudioStop`; sound files become
+  FMOD channels in `PlaySoundFile` (`BehState.Chan`, volume/pan set per frame without allocating); one `BE.FmodEventHost`
+  per game, made on the first event request. A Sound with `source` = `fmod` plays `event` (`BehState.Ev`, released by FMOD
+  when it ends; 3D events placed at the object). Rule actions `fmodevent` (event, action play|stop, name, volume) and
+  `fmodparam` (event or none = global, param, value — sent only when it changes); the cutscene/boss step `fmodevent`;
+  BuilderEngine objects through `World.FmodControl`. Headless, nothing plays: every request is in `TFmod` and the log.
+- Settings → Sound (backend + status) and → FMOD Studio (open FMOD Studio, reload banks, the open project's banks):
+  `SettingsWindow.Sound.cs`. Export asks to include `fmod.dll` (+ `fmodstudio.dll`), default No; the project's `fmod`
+  folder always goes with the game. Tests: `FullTest.Fmod.cs` (headless + a silent NOSOUND smoke test with the FMOD
+  Engine's example banks when FMOD is installed, a skip line otherwise; `FMOD_DLL=none` forces the no-FMOD path).
 
 ## Conventions and hard rules
 

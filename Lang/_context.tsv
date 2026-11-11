@@ -64,6 +64,7 @@ A scripted scene: its steps run one after another — dialogue that waits for En
 A shape needs at least 3 corners (or none, for the whole box).	HitboxShapeWindow.cs
 A solid barrier that blocks the way until it opens. It opens when its variable meets the condition (e.g. var 'hasRedKey' >= 1), or needs an item. When open it stops colliding and fades out. Perfect for metroidvania ability-gates and locked doors.	behavior Gate
 A solid block the player (or 'pusher') can push around. Great for sokoban-style puzzles and block-and-switch puzzles. Give it physics Dynamic if it should also fall.	behavior Pushable
+A sound file	behavior SoundEmitter
 A tilemap collides with its own tiles.	MainWindow.Hitbox.cs
 A variable turns on	behavior BossAI, behavior Cutscene
 A variable with that name already exists.	VariablesWindow.xaml.cs
@@ -129,6 +130,7 @@ Always (any distance)	behavior Chase, behavior PathChase
 Ambient light (0-1)	MainWindow.xaml.cs
 Amount	BlockEditorWindow.Palette.cs, step addvar
 Amount given	behavior Shop
+An FMOD Studio event	behavior SoundEmitter
 An area (replaces the ground)	MainWindow.TerrainBlocks.cs
 An invisible wall (the camera stops)	behavior Terrain
 An invisible zone. When the target enters it, fires an effect: goscene, setvar, addvar or say. once=1 fires a single time. Use for level exits, cutscene triggers, hidden-room reveals, kill-zones.	behavior Area
@@ -160,6 +162,7 @@ Attack	SequenceEditorWindow.cs, step category
 Attack {0}	SequenceEditorWindow.cs
 Audio	MainWindow.Params.cs, MainWindow.xaml.cs, PicturePick.cs
 Auto	MainWindow.xaml.cs
+Automatic (FMOD when it is installed)	SettingsWindow.Sound.cs
 Axe	ToolArt.cs
 BEHAVIORS	MainWindow.BuilderLink.cs, MainWindow.Params.cs, MainWindow.xaml.cs
 Back and forth (retrace)	MainWindow.xaml.cs
@@ -227,6 +230,7 @@ Brush	SpriteEditorWindow.cs
 Build behavior with blocks	BlockEditorWindow.cs
 Build failed (exit {0}).	MainWindow.xaml.cs
 Build it	MainWindow.xaml, MainWindow.xaml.cs
+Build your FMOD Studio project's banks into this project's "{0}" folder (Settings → FMOD Studio).	MainWindow.Fmod.cs
 BuilderEngine	LauncherWindow.xaml
 BuilderEngine wasn't found on this computer.	MainWindow.BuilderLink.cs
 Builds a whole world by itself: grassy hills, dirt, stone, caves, ore and trees, made of blocks you can dig. Put it on ONE empty object — the world starts at that object's X and goes right (and left too when it's endless: walk forever, it is built as you go). The same 'seed' always makes the same world (0 = a new world every game). 'Ground level' is how far down the grass starts; 'Start this object on the ground' puts the player on the grass at its X. Mining: click a block with the item in hand (Use Item), the 'Break a tile' block, or bullets; dirt takes 1 hit, stone 2, ore 3, the bottom row (bedrock) never breaks; each block gives its drop item (dirt/stone/ore), and 'Only breaks when' (e.g. holding:pickaxe) limits it to the right tool. Trees are a tree object or prefab (e.g. a Harvestable tree) planted on the grass. 'More blocks' adds your own blocks, each growing in the sky, on the surface, underground, around caves or in an area (heights in blocks from the ground level, up = +, down = −; columns from the generator) — clouds to jump on, a deeper ore, a sand biome. The world is endless, or has a size to the left and right that ends in an invisible wall or an edge you can fall off. For the AI: make the scene tall enough (height ≥ ground level + depth × block size), spawn night enemies with a custom rule {"do":"spawn","object":"Slime","at":"near"} (near = on the ground a little to the left/right of the spawner).	behavior Terrain
@@ -244,6 +248,7 @@ Burst of particles	BlockEditorWindow.Palette.cs, step emit
 Buy key	behavior Shop
 Buy only once (0/1)	behavior Shop
 Buyer	behavior Shop
+Call it (optional)	BlockEditorWindow.Palette.cs
 Camera	step category
 Camera back to the player	step cameraback
 Can be maximized (0/1)	behavior Minimap
@@ -257,6 +262,7 @@ Caves (0/1)	behavior Terrain
 Center	behavior Label
 Change its jump height	BlockEditorWindow.Palette.cs
 Change the colour	BlockEditorWindow.Palette.cs
+Changes a parameter of an FMOD event while it plays (e.g. intensity of the music, engine speed) — or a global parameter when no event is picked.	BlockEditorWindow.Palette.cs
 Changes here change every copy	MainWindow.Prefabs.cs
 Channel	behavior SoundEmitter, BlockEditorWindow.Palette.cs
 Chase	behavior Chase
@@ -281,6 +287,10 @@ Choose…	MainWindow.xaml.cs
 Cinema bars	step bars
 Cinema bars (0/1)	behavior Cutscene
 Circle (all around)	behavior LightSource
+Classic (Windows)	SettingsWindow.Sound.cs
+Classic sound (FMOD not found)	GameAudio.cs
+Classic sound (chosen above)	GameAudio.cs
+Classic sound (chosen above) · FMOD {0} is installed	GameAudio.cs
 Clear	MainWindow.xaml.cs, SpriteEditorWindow.cs
 Clear the canvas?	SpriteEditorWindow.cs
 Click a pixel to take its colour.	SpriteEditorWindow.cs
@@ -421,6 +431,7 @@ Disappears after hitting (0/1)	behavior Damager
 Disappears when the Player touches it. It can add points to a variable (a coin worth 10 adds 10 to score).	behavior Collectible
 Distance	behavior Patrol
 Distance (px)	step summon
+Do	BlockEditorWindow.Palette.cs, step fmodevent
 Do one more thing in this block	BlockEditorWindow.cs
 Do the opposite: show hides, give takes away, add subtracts, heal hurts, on turns off, play a sound stops it	BlockEditorWindow.cs
 Do you have an export folder to choose by hand?	AnimationWindow.EasyPixel.cs
@@ -485,8 +496,10 @@ Error importing {0}: {1}	MainWindow.xaml.cs
 Error opening: {0}	MainWindow.xaml.cs
 Error saving:	SpriteEditorWindow.cs
 Error saving: {0}	MainWindow.BuilderLink.cs, MainWindow.LiveLink.cs, MainWindow.xaml.cs
-Error: {0}	AudioEditorWindow.cs, MainWindow.Params.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs, PicturePick.cs
+Error: {0}	AudioEditorWindow.cs, MainWindow.Params.cs, MainWindow.Tiles.cs, MainWindow.xaml.cs, PicturePick.cs, SettingsWindow.Sound.cs
 European. A good backup.	MainWindow.xaml.cs
+Event	BlockEditorWindow.Palette.cs, step fmodevent
+Event parameters	behavior SoundEmitter
 Every (s)	behavior Spawner, step shoot
 Every few seconds	BlockEditorWindow.Palette.cs
 Every frame (always)	BlockEditorWindow.Palette.cs
@@ -505,6 +518,13 @@ Extra jump key	behavior Platformer
 Extra left key	behavior Platformer, behavior TopDown
 Extra right key	behavior Platformer, behavior TopDown
 Extra up key	behavior TopDown
+FMOD	SettingsWindow.Sound.cs
+FMOD Studio	SettingsWindow.Sound.cs
+FMOD Studio isn't installed on this computer.	GameAudio.cs
+FMOD Studio isn't installed. It's free: download it from fmod.com (you need a free account), install it, then come back here.	SettingsWindow.Sound.cs
+FMOD event	behavior SoundEmitter
+FMOD isn't part of EasyEngine and has its own licence (free for small games — fmod.com/licensing). Include it only if you follow that licence.	MainWindow.Fmod.cs
+FMOD {0} ✓	GameAudio.cs
 FPS	AnimationWindow.xaml
 FRAMES	AnimationWindow.xaml
 Fade back in	step fadein
@@ -663,6 +683,8 @@ In order	SequenceEditorWindow.cs
 In the game: on. Click to leave it out of the game.	MainWindow.Layers.cs
 In the game: on. Click to leave this layer's objects out of the game.	MainWindow.Layers.cs
 In the sky	MainWindow.TerrainBlocks.cs
+Include FMOD (you must follow FMOD's licence)	MainWindow.Fmod.cs
+Include FMOD in the exported game?	MainWindow.Fmod.cs
 Inspector	MainWindow.xaml
 Install it now? EasyEngine will download it, close, replace the old version with the new one and open again. Your projects are not touched.	UpdatePrompt.cs
 Installing the new version... {0} / {1}	Updater.cs
@@ -777,6 +799,7 @@ Make it	MainWindow.Sequences.cs
 Make this one independent: it stops being a copy of the prefab	MainWindow.Prefabs.cs
 Make this the start scene (the game begins here)	MainWindow.xaml
 Make your own tool or weapon. It goes into this hotbar, and clicking uses it like the axe or the sword.	NewItemDialog.cs
+Make your sounds in FMOD Studio, set its built banks folder (File → Preferences → Build) to this project's "fmod" folder, and press Build. Then pick the events in a Sound behavior, in the blocks and in cutscenes.	SettingsWindow.Sound.cs
 Makes a hidden object visible again.	BlockEditorWindow.Palette.cs
 Makes it invisible — it is still there and still touches things. "Show" brings it back.	BlockEditorWindow.Palette.cs
 Makes text and buttons bigger or smaller in every window.	SettingsWindow.cs
@@ -855,6 +878,7 @@ No	behavior Lives, MainWindow.xaml.cs
 No = only remove it from this list	LauncherWindow.xaml.cs
 No AI changes yet.	MainWindow.xaml.cs
 No API key for {0}. Paste your key in the AI settings (get one at {1}).	CloudClient.cs
+No FMOD banks in this project yet.	GameAudio.cs
 No animation selected.	AnimationWindow.xaml
 No animations yet	MainWindow.xaml.cs
 No attacks yet.	SequenceEditorWindow.cs
@@ -892,6 +916,7 @@ OK	InputDialog.xaml, SequenceEditorWindow.cs
 Object	BlockEditorWindow.Palette.cs, step destroy, step face, step hide, step move, step playanim, step show, step spawn, step summon, VariablesWindow.xaml.cs
 Object (or self)	BlockEditorWindow.Palette.cs
 Objects	MainWindow.xaml.cs
+Of the event (none = global)	BlockEditorWindow.Palette.cs
 Off	AudioEditorWindow.cs
 Off in the game. Click to turn it on.	MainWindow.Layers.cs
 Off in the game: its objects won't exist when playing. Click to turn it on.	MainWindow.Layers.cs
@@ -925,6 +950,8 @@ Opacity (0-1)	behavior Minimap
 Opacity of "{0}"	MainWindow.Layers.cs
 Opacity…	MainWindow.Layers.cs
 Open	MainWindow.xaml
+Open FMOD Studio	SettingsWindow.Sound.cs
+Open a project to see its FMOD banks.	GameAudio.cs
 Open failed:	App.xaml.cs, LauncherWindow.xaml.cs
 Open folder…	AnimationWindow.EasyPixel.cs
 Open in BuilderEngine	MainWindow.BuilderLink.cs
@@ -952,6 +979,7 @@ Panel width (px)	behavior Checklist
 Panels ▾	MainWindow.xaml
 Pans the camera to an object (or a point) and waits until it gets there.	step camera
 Parallax	behavior Parallax
+Parameter	BlockEditorWindow.Palette.cs
 Parchment (RPG)	behavior Area, behavior Interact, step say
 Particle Emitter	behavior Particles
 Particle life (s)	behavior Particles
@@ -974,6 +1002,7 @@ Per second	behavior Particles
 Phase {0}	SequenceEditorWindow.cs
 Pick ONE below. Tap "Get free key", sign in, copy the key it shows, and paste it here. No credit card. You only do this once.	MainWindow.xaml
 Pick a color	SpriteEditorWindow.cs
+Pick an event that has parameters first (FMOD Studio).	BlockEditorWindow.cs
 Pickaxe	ToolArt.cs
 Picked up by	behavior AbilityPickup, behavior Collectible
 Picture of the dialogue box	PicturePick.cs
@@ -984,11 +1013,15 @@ Platformer (gravity + jumps)	MainWindow.xaml.cs
 Platformer (side view, sun + moon)	behavior DayNight
 Platformer Character	behavior Platformer
 Play a sound	BlockEditorWindow.Palette.cs, step playsound
+Play an FMOD event	BlockEditorWindow.Palette.cs, step fmodevent
 Play an animation	BlockEditorWindow.Palette.cs, step playanim
 Play on start (0/1)	behavior SoundEmitter
 Player	behavior Minimap
 Player colour	behavior Minimap
-Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master. Only heard nearby (range): heard only within 'radius' px of the listener (the player by default) — full volume close to it, fading smoothly to silence at the edge (a looping one keeps playing silently and comes back as you walk near). Left / right in the headphones (pan): it plays in the left or right ear by where it is compared to the listener (3D / stereo sound).	behavior SoundEmitter
+Plays	behavior SoundEmitter
+Plays (or stops) an event made in FMOD Studio (the project's fmod folder). A name lets the same event play twice, each stopped on its own. Stop with no event stops every event.	BlockEditorWindow.Palette.cs
+Plays (or stops) an event made in FMOD Studio — the project's fmod folder holds its banks. Needs FMOD on this computer.	step fmodevent
+Plays a sound (on start and/or looping). channel (music/sfx) lets you control group volume with the setvolume action; final volume = volume × channel × master. Only heard nearby (range): heard only within 'radius' px of the listener (the player by default) — full volume close to it, fading smoothly to silence at the edge (a looping one keeps playing silently and comes back as you walk near). Left / right in the headphones (pan): it plays in the left or right ear by where it is compared to the listener (3D / stereo sound). Plays (source): a sound file, or an FMOD Studio event (FMOD, optional: event = its path like event:/Music/Forest from the project's fmod banks, fmodParams = its parameters as name=value;name=value; a 3D event is placed by FMOD from where the object is).	behavior SoundEmitter
 Plays a sound file from the project's Assets/sounds folder.	BlockEditorWindow.Palette.cs
 Plays one of its animations (made in 🎞 Edit Animations): once and then back to normal, or over and over until another is chosen. "Back to automatic" lets idle / walk / jump choose again.	BlockEditorWindow.Palette.cs
 Plays one of the object's animations (made in 🎞 Edit Animations). "Back to automatic" returns to idle / walk / jump. "Pause" freezes the picture it shows (any animation) until "Resume".	step playanim
@@ -1093,7 +1126,7 @@ Save selection as prefab	MainWindow.xaml
 Save sprite	SpriteEditorWindow.cs
 Save the game	behavior UIButton, BlockEditorWindow.Palette.cs
 Save the project first so sprites have a folder.	SpriteEditorWindow.cs
-Save the project first.	MainWindow.xaml.cs
+Save the project first.	GameAudio.cs, MainWindow.xaml.cs
 Saved "{0}" as a prefab under "{1}"	MainWindow.xaml.cs
 Saved to {0}	MainWindow.xaml.cs
 Saves the spot for	behavior Checkpoint
@@ -1124,6 +1157,7 @@ Set a colour	BlockEditorWindow.Palette.cs, step setcolor
 Set a property	BlockEditorWindow.Palette.cs
 Set a text	BlockEditorWindow.Palette.cs, step settext
 Set a variable	behavior Area, behavior Interact, behavior UIButton, BlockEditorWindow.Palette.cs, step setvar
+Set an FMOD parameter	BlockEditorWindow.Palette.cs
 Set its own variable	BlockEditorWindow.Palette.cs
 Set its speed level	BlockEditorWindow.Palette.cs
 Set the Custom endpoint URL and model name in the AI settings.	CloudClient.cs
@@ -1284,6 +1318,7 @@ The download doesn't contain EasyEngine.exe.	Updater.cs
 The drawing already fills the box.	MainWindow.Hitbox.cs
 The easiest 2D game engine — you bring the art, the AI writes the code.	LauncherWindow.xaml
 The editor's language. The AI also answers you in it. Your games keep their own texts.	SettingsWindow.cs
+The event starts with these values; a rule can change them while it plays (Set an FMOD parameter).	MainWindow.Fmod.cs
 The free AI is busy — trying again in {0} s…	MainWindow.xaml.cs
 The game shows {0} × {1} of the scene at a time, scaled to fit the window (the same in tests and exported games).	MainWindow.xaml.cs
 The game's font	GameFonts.cs
@@ -1319,13 +1354,16 @@ The whole scene	behavior StayInside
 The world just ends (you can fall off)	behavior Terrain
 Theme updated	MainWindow.AiApply.cs
 These steps play when its health reaches 0 (it can't be hurt and doesn't hurt anymore). Then its Custom 'death' rules run and it disappears. Leave it empty to make it disappear at once.	SequenceEditorWindow.cs
+This event has no parameters to set.	MainWindow.Fmod.cs
 This export can't be read. Export it again from EasyPixel.	EasyPixelBridge.cs
 This export has no pictures. Export it again from EasyPixel.	EasyPixelBridge.cs
+This game uses FMOD Studio events: without FMOD they stay silent.	MainWindow.Fmod.cs
 This is not a WAV file.	AudioEdit.cs
 This kind of WAV can't be edited ({0}-bit, format {1}).	AudioEdit.cs
 This object (self)	SequenceEditorWindow.cs
 This object has no image to trim to.	MainWindow.Hitbox.cs
 This project was changed outside EasyEngine (in BuilderEngine or another window). Load that version? Your unsaved changes here would be lost.	MainWindow.LiveLink.cs
+This project:	SettingsWindow.Sound.cs
 This scene is locked — unlock it (🔒 next to the scene) to change it	MainWindow.Layers.cs, MainWindow.LockZ.cs, MainWindow.xaml.cs
 This scene is locked: nothing in it can be picked, moved, added or deleted, and the AI leaves it alone. Click to unlock.	MainWindow.Layers.cs
 This sound is empty.	AudioEditorWindow.cs
@@ -1400,6 +1438,7 @@ Updating EasyEngine...	Updater.cs
 Use Item (swing / attack)	behavior ToolUse
 Use a picture file for this tile	MainWindow.Tiles.cs
 Use the picture's real size: {0} × {1} px	MainWindow.LockZ.cs
+Used from the next time a game starts. FMOD is optional and free for small games: install the FMOD Engine from fmod.com, or put fmod.dll next to EasyEngine.exe. FMOD Studio events need FMOD whatever you choose here.	SettingsWindow.Sound.cs
 Uses attacks	SequenceEditorWindow.cs
 Value	BlockEditorWindow.Palette.cs
 Variable	behavior Area, behavior BossAI, behavior Cutscene, behavior Interact, behavior UIButton, BlockEditorWindow.Palette.cs, MainWindow.OnlyWhile.cs, step addvar, step setvar
@@ -1484,6 +1523,7 @@ Whose light (usually the player)	behavior DayNight
 Wide (60°)	behavior LightSource
 Width	MainWindow.BuilderLink.cs, MainWindow.xaml.cs
 Width × height in pixels (4 to 256 each), for example 32x128:	SpriteEditorWindow.cs
+With FMOD the game's sounds play through FMOD; without it they play with the classic Windows players.	MainWindow.Fmod.cs
 Within (px)	BlockEditorWindow.Palette.cs
 Without a bullet object it fires small round bullets that hurt the target and vanish when they hit.	step shoot
 Words to add	BlockEditorWindow.Palette.cs
@@ -1571,12 +1611,14 @@ off	BlockEditorWindow.Palette.cs
 on	BlockEditorWindow.Palette.cs
 or	BlockEditorWindow.cs
 or when	BlockEditorWindow.cs
+play	BlockEditorWindow.Palette.cs
 rename	AnimationWindow.xaml
 right	BlockEditorWindow.Palette.cs
 scroll	MainWindow.Layers.cs
 self	BlockEditorWindow.cs
 shown	MainWindow.Layers.cs
 stereo	AudioEditorWindow.cs
+stop	BlockEditorWindow.Palette.cs
 the mouse button is held	MainWindow.OnlyWhile.cs
 the player (or someone) is near	MainWindow.OnlyWhile.cs
 the player has an item	MainWindow.OnlyWhile.cs
@@ -1595,6 +1637,7 @@ x	step camera, step move, step moveto, step spawn
 y	step camera, step move, step moveto, step spawn
 {0}  (group)	MainWindow.Minimap.cs
 {0}  (item)	MainWindow.Params.cs
+{0} (global)	GameAudio.cs, MainWindow.Fmod.cs
 {0} (missing font file)	GameFonts.cs
 {0} (this object's)	MainWindow.OnlyWhile.cs
 {0} API key is invalid ({1}).	CloudClient.cs
@@ -1602,6 +1645,7 @@ y	step camera, step move, step moveto, step spawn
 {0} added to "{1}"	MainWindow.xaml.cs
 {0} animation(s) · default: {1}	MainWindow.xaml.cs
 {0} attacks	SequenceModel.cs
+{0} bank(s), {1} event(s)	GameAudio.cs
 {0} coins	MainWindow.AiLevel.cs
 {0} corner(s) — a shape needs at least 3.	HitboxShapeWindow.cs
 {0} corners.	HitboxShapeWindow.cs
@@ -1656,16 +1700,17 @@ y	step camera, step move, step moveto, step spawn
 ↙ Down-left	behavior Projectile
 ↺ Keep it all	AudioEditorWindow.cs
 ↺ No effects	AudioEditorWindow.cs
+↻  Reload banks	SettingsWindow.Sound.cs
 ↻  Restart now	SettingsWindow.cs
 ⌫ Eraser	SpriteEditorWindow.cs
 ⏸ Pause	BlockEditorWindow.Palette.cs, step playanim
 ① Get free key (opens the site)	MainWindow.xaml.cs
 ② Paste your key here:	MainWindow.xaml.cs
-■ Stop	AudioEditorWindow.cs
+■ Stop	AudioEditorWindow.cs, step fmodevent
 ▫ An empty block (underground)	MainWindow.TerrainBlocks.cs
 ▭ Start from the box	HitboxShapeWindow.cs
 ▶  Test	MainWindow.xaml
-▶ Play	AudioEditorWindow.cs
+▶ Play	AudioEditorWindow.cs, step fmodevent
 ▶ Resume	BlockEditorWindow.Palette.cs, step playanim
 ▶ off	MainWindow.Layers.cs
 ▶ on	MainWindow.Layers.cs
@@ -1729,6 +1774,7 @@ y	step camera, step move, step moveto, step spawn
 🌼 Flowers on the surface	MainWindow.TerrainBlocks.cs
 🍄 Moss around caves	MainWindow.TerrainBlocks.cs
 🎓 Learn	MainWindow.xaml
+🎚  FMOD Studio	SettingsWindow.Sound.cs
 🎛 EFFECTS	AudioEditorWindow.cs
 🎞 Animate	MainWindow.Tiles.cs
 🎞 Edit Animations…	MainWindow.xaml.cs
@@ -1749,11 +1795,13 @@ y	step camera, step move, step moveto, step spawn
 💳 OpenAI / ChatGPT (your API key)	MainWindow.xaml
 💾 Save as new sound	AudioEditorWindow.cs
 📂  Open Project…	LauncherWindow.xaml
+📂  Open the banks folder	SettingsWindow.Sound.cs
 📈 Phases	SequenceEditorWindow.cs
 📋 Copy look	MainWindow.xaml.cs
 📎 Add files (images / audio)	MainWindow.xaml
 📚  Recipes	BlockEditorWindow.Recipes.cs
 📥 Paste look	MainWindow.xaml.cs
+🔊  Sound	SettingsWindow.Sound.cs
 🔊 RESULT	AudioEditorWindow.cs
 🔍  Interface size	SettingsWindow.cs
 🔒 Lock layer	MainWindow.Layers.cs

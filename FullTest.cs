@@ -1105,6 +1105,7 @@ public partial class App
             FeatureTestsSpatialSound(kit);
             FeatureTestsRuleReverse(kit);
             FeatureTestsPolyHitbox(kit);
+            FeatureTestsFmod(kit); // FullTest.Fmod.cs
 
             // ========================= F) FULL BEHAVIOR SWEEP =========================
             var (bp, bs) = BuildBehaviorScene();
@@ -1165,6 +1166,7 @@ public partial class App
     partial void FeatureTestsSpatialSound(FullTestKit t); // FullTest.SpatialSound.cs
     partial void FeatureTestsRuleReverse(FullTestKit t); // FullTest.RuleReverse.cs
     partial void FeatureTestsPolyHitbox(FullTestKit t); // FullTest.PolyHitbox.cs
+    partial void FeatureTestsFmod(FullTestKit t); // FullTest.Fmod.cs (optional FMOD audio)
 
     /// <summary>Deletes the throwaway project folders a test run left in %TEMP% (by name pattern).</summary>
     internal static void DeleteTempFolders(params string[] patterns)

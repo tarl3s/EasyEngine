@@ -66,6 +66,7 @@ namespace EasyEngine
             if (string.IsNullOrWhiteSpace(rel)) return;
             Info("Sound", source, $"■ {Path.GetFileName(rel)} stopped");
             var abs = ProjectIO.AbsoluteAsset(_project, rel);
+            if (abs != null) StopFmodFile(abs); // its FMOD channels (PlayWindow.Fmod.cs)
             if (abs == null || !_soundPool.TryGetValue(abs, out var pool)) return;
             foreach (var mp in pool) { try { mp.Stop(); } catch { } _busy.Remove(mp); }
         }

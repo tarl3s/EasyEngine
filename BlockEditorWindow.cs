@@ -447,6 +447,15 @@ namespace EasyEngine
                 cb.Height = 28; cb.MinWidth = 120;
                 ctrl = cb;
             }
+            else if (f.Type is "fmodevent" or "fmodparam") // the project's FMOD Studio events / their parameters (GameAudio.cs)
+            {
+                var opts = f.Type == "fmodevent" ? GameAudio.EventOptions(_project.FolderPath, out _) : GameAudio.ParamOptions(_project.FolderPath);
+                var cb = Dropdown.Make(new[] { ("", L.T("(none)")) }.Concat(opts), cur, v => rule[f.Key] = v);
+                L.SetSkip(cb, true); // event and parameter names come from the person's FMOD Studio project
+                cb.Height = 28; cb.MinWidth = 140;
+                if (opts.Count == 0) cb.ToolTip = f.Type == "fmodevent" ? GameAudio.ProjectBanks(_project.FolderPath).text : L.T("Pick an event that has parameters first (FMOD Studio).");
+                ctrl = cb;
+            }
             else if (f.Type is "obj" or "who" or "aim" or "scene" or "layer" or "key" or "sound" or "anim")
             {
                 // names, keys and files are the person's own (shown as they are); a value that isn't in the list is kept,

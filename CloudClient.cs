@@ -317,6 +317,7 @@ namespace EasyEngine
         public static bool HideTestBar { get; set; }                         // the bar on top of a test run (Stop, Console…) starts hidden (F2)
         public static bool AssetBackup { get; set; } = true;                // keep a hidden backup copy of every picture/sound in a project (AssetBackup.cs)
         public static bool StartMenuShortcut { get; set; }                   // the Start menu shortcut was made once (StartMenu.cs); a deleted one isn't brought back
+        public static string AudioBackend { get; set; } = "auto";            // games: "auto" (FMOD when installed), "fmod" or "classic" (GameAudio.cs)
 
         public static string Key(string providerId) => CloudKeys.TryGetValue(providerId, out var v) ? v : "";
         public static void SetKey(string providerId, string value) { CloudKeys[providerId] = value?.Trim() ?? ""; }
@@ -348,6 +349,7 @@ namespace EasyEngine
                     HideTestBar = data.HideTestBar ?? false;
                     AssetBackup = data.AssetBackup ?? true;
                     StartMenuShortcut = data.StartMenuShortcut ?? false;
+                    AudioBackend = data.AudioBackend ?? "auto";
                 }
             }
             catch { }
@@ -355,7 +357,7 @@ namespace EasyEngine
 
         public static void Save()
         {
-            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel, SamplesInstalled = SamplesInstalled, SamplesVersion = SamplesVersion, Language = Language, Theme = ThemeName, UiScale = UiScale, CheckUpdates = CheckUpdates, HideTestBar = HideTestBar, AssetBackup = AssetBackup, StartMenuShortcut = StartMenuShortcut })); }
+            try { System.IO.File.WriteAllText(File, JsonSerializer.Serialize(new Data { CloudKeys = CloudKeys, DockLayout = DockLayout, CustomUrl = CustomUrl, CustomModel = CustomModel, AiChoice = AiChoice, LocalModel = LocalModel, SamplesInstalled = SamplesInstalled, SamplesVersion = SamplesVersion, Language = Language, Theme = ThemeName, UiScale = UiScale, CheckUpdates = CheckUpdates, HideTestBar = HideTestBar, AssetBackup = AssetBackup, StartMenuShortcut = StartMenuShortcut, AudioBackend = AudioBackend })); }
             catch { }
         }
 
@@ -377,6 +379,7 @@ namespace EasyEngine
             [JsonPropertyName("hideTestBar")] public bool? HideTestBar { get; set; }
             [JsonPropertyName("assetBackup")] public bool? AssetBackup { get; set; }
             [JsonPropertyName("startMenuShortcut")] public bool? StartMenuShortcut { get; set; }
+            [JsonPropertyName("audioBackend")] public string? AudioBackend { get; set; }
         }
     }
 }

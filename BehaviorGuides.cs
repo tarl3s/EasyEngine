@@ -140,7 +140,8 @@ namespace EasyEngine
                 "2. Play on start and/or Loop (music, a radio, a waterfall). Channel sfx or music: the setvolume block changes each group's volume.\n" +
                 "3. Only heard nearby: tick it and pick \"Heard up to\" (200 px very close … 1400 px very far). It is at full volume close to the listener and fades smoothly to silence at that distance; a looping one keeps playing silently, so walking back brings it in.\n" +
                 "4. Left / right in the headphones by its position: tick it and a sound to the left of the listener plays in the left ear (stereo / 3D sound). With Only heard nearby, it is fully on one side at the edge of the radius; without it, at the edge of the screen.\n" +
-                "5. \"Heard by\" = who listens (the Player by default; if that object isn't there, the middle of the screen). Press ▶ Test and walk around it with headphones on.",
+                "5. \"Heard by\" = who listens (the Player by default; if that object isn't there, the middle of the screen). Press ▶ Test and walk around it with headphones on.\n" +
+                "6. Optional FMOD (free from fmod.com): with it installed, sounds play through FMOD (⚙ Settings → Sound). FMOD Studio events: build your FMOD Studio banks into the project's \"fmod\" folder, set Plays to \"An FMOD Studio event\", pick the event and set its parameters with the sliders; the blocks \"Play an FMOD event\" / \"Set an FMOD parameter\" and the cutscene step change them while the game runs.",
 
             [BehaviorKind.Custom] =
                 "1. Select the object → Inspector → ＋ Add behavior → ✨ Custom (AI script).\n" +

@@ -91,6 +91,7 @@ namespace EasyEngine
 
             var w = _bLastWorld != null ? _bLastWorld.ForNextScene() : NewBuilderWorld(beProject);
             _bWorld = w;
+            w.FmodControl -= BuilderFmod; w.FmodControl += BuilderFmod; // FMOD Studio events (PlayWindow.Fmod.cs) — once, also on a next scene's world
 
             // mirrors first, so Object params naming an EasyEngine object ("target: Player") find it
             var built = new Dictionary<int, Entity>();

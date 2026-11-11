@@ -8,16 +8,19 @@ namespace EasyEngine
 {
     /// <summary>App-wide settings (⚙ in the launcher and the editor): language, theme, interface size, update check and
     /// clearing EasyEngine's temporary files. Every change applies at once and is saved in settings.json.</summary>
-    public class SettingsWindow : Window
+    public partial class SettingsWindow : Window
     {
         private TextBlock _tempInfo = null!;
         private Button _clear = null!;
         private (int count, long bytes)? _cleared; // what the last "Clear" did (shown again when the window is rebuilt in another language)
         private string? _pendingTheme;
+        private readonly Project? _project; // opened from the editor: its FMOD Studio banks (SettingsWindow.Sound.cs)
 
-        public SettingsWindow()
+        public SettingsWindow(Project? project = null)
         {
+            _project = project;
             Width = 480; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
+            MaxHeight = Math.Max(400, SystemParameters.WorkArea.Height - 20); // taller than the screen: it scrolls
             WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowStyle = WindowStyle.ToolWindow;
             Background = Theme.Brush("Bg0", "#141418"); FontFamily = new FontFamily("Segoe UI");
             Build();
@@ -65,6 +68,8 @@ namespace EasyEngine
             });
             root.Children.Add(Row(L.T("🔍  Interface size"), size, L.T("Makes text and buttons bigger or smaller in every window.")));
 
+            AddSoundRows(root); // the sound engine (FMOD or classic) and FMOD Studio (SettingsWindow.Sound.cs)
+
             var updates = new CheckBox { Content = L.T("Look for a new version when EasyEngine starts"), IsChecked = AiSettings.CheckUpdates, Margin = new Thickness(0, 4, 0, 0) };
             updates.Checked += (s, e) => { AiSettings.CheckUpdates = true; AiSettings.Save(); };
             updates.Unchecked += (s, e) => { AiSettings.CheckUpdates = false; AiSettings.Save(); };
@@ -95,7 +100,7 @@ namespace EasyEngine
             close.Click += (s, e) => Close();
             root.Children.Add(close);
 
-            Content = root;
+            Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }; // scrolls only when taller than the screen
         }
 
         private static Visibility RestartVisibility(string? chosen) => chosen != null && chosen != Theme.Current ? Visibility.Visible : Visibility.Collapsed;
@@ -127,6 +132,6 @@ namespace EasyEngine
         }
 
         /// <summary>Opens the settings over <paramref name="owner"/>.</summary>
-        public static void Open(Window owner) => new SettingsWindow { Owner = owner }.ShowDialog();
+        public static void Open(Window owner, Project? project = null) => new SettingsWindow(project) { Owner = owner }.ShowDialog();
     }
 }
