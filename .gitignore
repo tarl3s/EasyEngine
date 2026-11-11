@@ -21,3 +21,8 @@ desktop.ini
 
 # agent worktrees (Claude Code)
 .claude/worktrees/
+
+# FMOD (optional audio, own licence): never committed — people install it themselves
+fmod*.dll
+fmod*.lib
+*.bank
